@@ -32,7 +32,7 @@ jobs:
       - uses: shivammathur/setup-php@b604ade2a87db23f8871b7182e69ec5e75effb45 # v2
         with:
           php-version: ${{ matrix.php }}
-          extensions: curl, mbstring, openssl, pdo_sqlite, tokenizer, xml
+          extensions: ctype, curl, fileinfo, iconv, mbstring, openssl, pdo_sqlite, tokenizer, xml, xmlwriter
           coverage: none
           tools: composer:v2
       - name: Install PHP dependencies
