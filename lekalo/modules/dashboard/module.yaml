@@ -1,0 +1,1 @@
+{"schema_version":"0.2.16","definitions":[{"id":"dashboard","kind":"module","version":1,"description":"One local administrator, site CRUD and explicit health/version/GitHub checks. State is stored on sites; no history in v0.1."}]}

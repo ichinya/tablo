@@ -1,0 +1,8 @@
+vendor
+storage/*
+artifacts
+.lekalo
+.repowise
+.git
+.env
+tests

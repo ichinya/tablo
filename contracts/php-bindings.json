@@ -1,0 +1,565 @@
+{
+    "schemaVersion": "lekalo/contracted-declaration/v0.4.0",
+    "adapter": {
+        "id": "tablo-phalcon-bindings",
+        "version": "0.1.0"
+    },
+    "project": "tablo",
+    "revision": "sha256:3c661e8e4b5d25cdf5c6a41b7cbb6bd810aed206bddca6c363657df77c7ebb20",
+    "symbols": [
+        {
+            "id": "dashboard.setup",
+            "kind": "command",
+            "source": {
+                "path": "app/auth-service.php",
+                "line": 18
+            },
+            "fingerprint": "sha256:2957e7608edce24e5724e3c488fa84547efe3f208698abf0d4b8d0e93e460a6a",
+            "signature": {
+                "inputs": [
+                    {
+                        "name": "password",
+                        "type": "dashboard.text",
+                        "required": true
+                    },
+                    {
+                        "name": "confirmation",
+                        "type": "dashboard.text",
+                        "required": true
+                    }
+                ],
+                "output": null,
+                "reads": []
+            },
+            "effects": [
+                {
+                    "kind": "create",
+                    "subject": "dashboard.user"
+                }
+            ]
+        },
+        {
+            "id": "dashboard.login",
+            "kind": "command",
+            "source": {
+                "path": "app/auth-service.php",
+                "line": 37
+            },
+            "fingerprint": "sha256:2957e7608edce24e5724e3c488fa84547efe3f208698abf0d4b8d0e93e460a6a",
+            "signature": {
+                "inputs": [
+                    {
+                        "name": "password",
+                        "type": "dashboard.text",
+                        "required": true
+                    }
+                ],
+                "output": null,
+                "reads": []
+            },
+            "effects": []
+        },
+        {
+            "id": "dashboard.logout",
+            "kind": "command",
+            "source": {
+                "path": "app/web-application.php",
+                "line": 114
+            },
+            "fingerprint": "sha256:edb1e590dc50419ab2c61a4c5e8216355b9353ad504e82a7a0120295628a4154",
+            "signature": {
+                "inputs": [],
+                "output": null,
+                "reads": []
+            },
+            "effects": []
+        },
+        {
+            "id": "dashboard.create_site",
+            "kind": "command",
+            "source": {
+                "path": "app/web-application.php",
+                "line": 202
+            },
+            "fingerprint": "sha256:edb1e590dc50419ab2c61a4c5e8216355b9353ad504e82a7a0120295628a4154",
+            "signature": {
+                "inputs": [
+                    {
+                        "name": "site",
+                        "type": "dashboard.site_input",
+                        "required": true
+                    }
+                ],
+                "output": null,
+                "reads": []
+            },
+            "effects": [
+                {
+                    "kind": "create",
+                    "subject": "dashboard.site"
+                }
+            ]
+        },
+        {
+            "id": "dashboard.update_site",
+            "kind": "command",
+            "source": {
+                "path": "app/web-application.php",
+                "line": 202
+            },
+            "fingerprint": "sha256:edb1e590dc50419ab2c61a4c5e8216355b9353ad504e82a7a0120295628a4154",
+            "signature": {
+                "inputs": [
+                    {
+                        "name": "id",
+                        "type": "dashboard.number",
+                        "required": true
+                    },
+                    {
+                        "name": "site",
+                        "type": "dashboard.site_input",
+                        "required": true
+                    }
+                ],
+                "output": null,
+                "reads": []
+            },
+            "effects": [
+                {
+                    "kind": "update",
+                    "subject": "dashboard.site"
+                }
+            ]
+        },
+        {
+            "id": "dashboard.delete_site",
+            "kind": "command",
+            "source": {
+                "path": "app/site-repository.php",
+                "line": 178
+            },
+            "fingerprint": "sha256:e9bdabe0b3db689165e45e3538eb3c3f02d4b7593dcb9340a65a9adf88f81caa",
+            "signature": {
+                "inputs": [
+                    {
+                        "name": "id",
+                        "type": "dashboard.number",
+                        "required": true
+                    }
+                ],
+                "output": null,
+                "reads": []
+            },
+            "effects": [
+                {
+                    "kind": "delete",
+                    "subject": "dashboard.site"
+                }
+            ]
+        },
+        {
+            "id": "dashboard.check_site",
+            "kind": "command",
+            "source": {
+                "path": "app/web-application.php",
+                "line": 164
+            },
+            "fingerprint": "sha256:edb1e590dc50419ab2c61a4c5e8216355b9353ad504e82a7a0120295628a4154",
+            "signature": {
+                "inputs": [
+                    {
+                        "name": "id",
+                        "type": "dashboard.number",
+                        "required": true
+                    }
+                ],
+                "output": null,
+                "reads": []
+            },
+            "effects": [
+                {
+                    "kind": "update",
+                    "subject": "dashboard.site"
+                }
+            ]
+        },
+        {
+            "id": "dashboard.list_sites",
+            "kind": "query",
+            "source": {
+                "path": "app/site-repository.php",
+                "line": 25
+            },
+            "fingerprint": "sha256:e9bdabe0b3db689165e45e3538eb3c3f02d4b7593dcb9340a65a9adf88f81caa",
+            "signature": {
+                "inputs": [],
+                "output": "list(dashboard.site)",
+                "reads": [
+                    "dashboard.site"
+                ]
+            },
+            "effects": []
+        },
+        {
+            "id": "dashboard.list_branches",
+            "kind": "command",
+            "source": {
+                "path": "app/github-connection.php",
+                "line": 21
+            },
+            "fingerprint": "sha256:c32b17d3912d321813ccf69f7604bde5bd6a717337097369fc8e183c1e5d0321",
+            "signature": {
+                "inputs": [
+                    {
+                        "name": "repository",
+                        "type": "dashboard.text",
+                        "required": true
+                    },
+                    {
+                        "name": "github_token",
+                        "type": "optional(dashboard.text)",
+                        "required": false
+                    },
+                    {
+                        "name": "site_id",
+                        "type": "optional(dashboard.number)",
+                        "required": false
+                    },
+                    {
+                        "name": "remove_github_token",
+                        "type": "optional(dashboard.flag)",
+                        "required": false
+                    },
+                    {
+                        "name": "git_token_id",
+                        "type": "optional(dashboard.number)",
+                        "required": false
+                    }
+                ],
+                "output": null,
+                "reads": []
+            },
+            "effects": []
+        },
+        {
+            "id": "dashboard.user",
+            "kind": "entity",
+            "source": {
+                "path": "database/schema.sql",
+                "line": 1
+            },
+            "fingerprint": "sha256:0b28504672ed663a217b233b61f66ee43febb3f7ad4db6e4443ff381691aca95",
+            "signature": null,
+            "effects": [],
+            "shape": {
+                "fields": [
+                    {
+                        "name": "id",
+                        "type": "dashboard.number",
+                        "required": true
+                    },
+                    {
+                        "name": "password_hash",
+                        "type": "dashboard.text",
+                        "required": true
+                    },
+                    {
+                        "name": "created_at",
+                        "type": "dashboard.timestamp",
+                        "required": true
+                    }
+                ]
+            }
+        },
+        {
+            "id": "dashboard.site",
+            "kind": "entity",
+            "source": {
+                "path": "database/schema.sql",
+                "line": 17
+            },
+            "fingerprint": "sha256:0b28504672ed663a217b233b61f66ee43febb3f7ad4db6e4443ff381691aca95",
+            "signature": null,
+            "effects": [],
+            "shape": {
+                "fields": [
+                    {
+                        "name": "id",
+                        "type": "dashboard.number",
+                        "required": true
+                    },
+                    {
+                        "name": "name",
+                        "type": "dashboard.text",
+                        "required": true
+                    },
+                    {
+                        "name": "url",
+                        "type": "dashboard.text",
+                        "required": true
+                    },
+                    {
+                        "name": "repository",
+                        "type": "dashboard.text",
+                        "required": true
+                    },
+                    {
+                        "name": "github_token",
+                        "type": "optional(dashboard.text)",
+                        "required": false
+                    },
+                    {
+                        "name": "branch",
+                        "type": "dashboard.text",
+                        "required": true
+                    },
+                    {
+                        "name": "health_path",
+                        "type": "dashboard.text",
+                        "required": true
+                    },
+                    {
+                        "name": "version_path",
+                        "type": "dashboard.text",
+                        "required": true
+                    },
+                    {
+                        "name": "comparison_mode",
+                        "type": "dashboard.mode",
+                        "required": true
+                    },
+                    {
+                        "name": "enabled",
+                        "type": "dashboard.flag",
+                        "required": true
+                    },
+                    {
+                        "name": "sort_order",
+                        "type": "dashboard.number",
+                        "required": true
+                    },
+                    {
+                        "name": "online",
+                        "type": "optional(dashboard.flag)",
+                        "required": false
+                    },
+                    {
+                        "name": "deployed_version",
+                        "type": "optional(dashboard.text)",
+                        "required": false
+                    },
+                    {
+                        "name": "deployed_commit",
+                        "type": "optional(dashboard.text)",
+                        "required": false
+                    },
+                    {
+                        "name": "latest_release",
+                        "type": "optional(dashboard.text)",
+                        "required": false
+                    },
+                    {
+                        "name": "latest_commit",
+                        "type": "optional(dashboard.text)",
+                        "required": false
+                    },
+                    {
+                        "name": "open_issues",
+                        "type": "optional(dashboard.number)",
+                        "required": false
+                    },
+                    {
+                        "name": "open_prs",
+                        "type": "optional(dashboard.number)",
+                        "required": false
+                    },
+                    {
+                        "name": "response_time_ms",
+                        "type": "optional(dashboard.number)",
+                        "required": false
+                    },
+                    {
+                        "name": "last_error",
+                        "type": "optional(dashboard.text)",
+                        "required": false
+                    },
+                    {
+                        "name": "checked_at",
+                        "type": "optional(dashboard.timestamp)",
+                        "required": false
+                    },
+                    {
+                        "name": "created_at",
+                        "type": "dashboard.timestamp",
+                        "required": true
+                    },
+                    {
+                        "name": "updated_at",
+                        "type": "dashboard.timestamp",
+                        "required": true
+                    },
+                    {
+                        "name": "provider",
+                        "type": "dashboard.provider",
+                        "required": true
+                    },
+                    {
+                        "name": "git_token_id",
+                        "type": "optional(dashboard.number)",
+                        "required": false
+                    }
+                ]
+            }
+        },
+        {
+            "id": "dashboard.git_token",
+            "kind": "entity",
+            "source": {
+                "path": "database/schema.sql",
+                "line": 7
+            },
+            "fingerprint": "sha256:0b28504672ed663a217b233b61f66ee43febb3f7ad4db6e4443ff381691aca95",
+            "signature": null,
+            "effects": [],
+            "shape": {
+                "fields": [
+                    {
+                        "name": "id",
+                        "type": "dashboard.number",
+                        "required": true
+                    },
+                    {
+                        "name": "name",
+                        "type": "dashboard.text",
+                        "required": true
+                    },
+                    {
+                        "name": "provider",
+                        "type": "dashboard.text",
+                        "required": true
+                    },
+                    {
+                        "name": "created_at",
+                        "type": "dashboard.timestamp",
+                        "required": true
+                    },
+                    {
+                        "name": "updated_at",
+                        "type": "dashboard.timestamp",
+                        "required": true
+                    },
+                    {
+                        "name": "encrypted_token",
+                        "type": "dashboard.text",
+                        "required": true
+                    }
+                ]
+            }
+        },
+        {
+            "id": "dashboard.list_git_tokens",
+            "kind": "query",
+            "source": {
+                "path": "app/git-token-repository.php",
+                "line": 17
+            },
+            "fingerprint": "sha256:bd37c3a699c5fb57797420770481f31274e4b3ad3bd18bd394918bf15bec9d9d",
+            "signature": {
+                "inputs": [],
+                "output": "list(dashboard.git_token_metadata)",
+                "reads": [
+                    "dashboard.git_token",
+                    "dashboard.site"
+                ]
+            },
+            "effects": []
+        },
+        {
+            "id": "dashboard.create_git_token",
+            "kind": "command",
+            "source": {
+                "path": "app/git-token-repository.php",
+                "line": 43
+            },
+            "fingerprint": "sha256:bd37c3a699c5fb57797420770481f31274e4b3ad3bd18bd394918bf15bec9d9d",
+            "signature": {
+                "inputs": [
+                    {
+                        "name": "token",
+                        "type": "dashboard.git_token_input",
+                        "required": true
+                    }
+                ],
+                "output": null,
+                "reads": []
+            },
+            "effects": [
+                {
+                    "kind": "create",
+                    "subject": "dashboard.git_token"
+                }
+            ]
+        },
+        {
+            "id": "dashboard.update_git_token",
+            "kind": "command",
+            "source": {
+                "path": "app/git-token-repository.php",
+                "line": 43
+            },
+            "fingerprint": "sha256:bd37c3a699c5fb57797420770481f31274e4b3ad3bd18bd394918bf15bec9d9d",
+            "signature": {
+                "inputs": [
+                    {
+                        "name": "id",
+                        "type": "dashboard.number",
+                        "required": true
+                    },
+                    {
+                        "name": "token",
+                        "type": "dashboard.git_token_input",
+                        "required": true
+                    }
+                ],
+                "output": null,
+                "reads": []
+            },
+            "effects": [
+                {
+                    "kind": "update",
+                    "subject": "dashboard.git_token"
+                },
+                {
+                    "kind": "update",
+                    "subject": "dashboard.site"
+                }
+            ]
+        },
+        {
+            "id": "dashboard.delete_git_token",
+            "kind": "command",
+            "source": {
+                "path": "app/git-token-repository.php",
+                "line": 88
+            },
+            "fingerprint": "sha256:bd37c3a699c5fb57797420770481f31274e4b3ad3bd18bd394918bf15bec9d9d",
+            "signature": {
+                "inputs": [
+                    {
+                        "name": "id",
+                        "type": "dashboard.number",
+                        "required": true
+                    }
+                ],
+                "output": null,
+                "reads": []
+            },
+            "effects": [
+                {
+                    "kind": "delete",
+                    "subject": "dashboard.git_token"
+                }
+            ]
+        }
+    ]
+}

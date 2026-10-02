@@ -1,0 +1,288 @@
+{
+    "schema_version": "0.2.16",
+    "definitions": [
+        {
+            "id": "dashboard.user_created",
+            "kind": "effect",
+            "version": 1,
+            "operation": "create",
+            "entity": "dashboard.user"
+        },
+        {
+            "id": "dashboard.site_created",
+            "kind": "effect",
+            "version": 1,
+            "operation": "create",
+            "entity": "dashboard.site"
+        },
+        {
+            "id": "dashboard.site_updated",
+            "kind": "effect",
+            "version": 1,
+            "operation": "update",
+            "entity": "dashboard.site"
+        },
+        {
+            "id": "dashboard.site_deleted",
+            "kind": "effect",
+            "version": 1,
+            "operation": "delete",
+            "entity": "dashboard.site"
+        },
+        {
+            "id": "dashboard.setup",
+            "kind": "command",
+            "version": 1,
+            "description": "Create the sole administrator once; enforce password length and confirmation, hash password, then rotate session and CSRF token.",
+            "input": [
+                {
+                    "name": "password",
+                    "type": {
+                        "ref": "dashboard.text"
+                    },
+                    "required": true
+                },
+                {
+                    "name": "confirmation",
+                    "type": {
+                        "ref": "dashboard.text"
+                    },
+                    "required": true
+                }
+            ],
+            "effects": [
+                "dashboard.user_created"
+            ]
+        },
+        {
+            "id": "dashboard.login",
+            "kind": "command",
+            "version": 1,
+            "description": "Verify administrator password, rate limit failed attempts, regenerate session id and CSRF token.",
+            "input": [
+                {
+                    "name": "password",
+                    "type": {
+                        "ref": "dashboard.text"
+                    },
+                    "required": true
+                }
+            ]
+        },
+        {
+            "id": "dashboard.logout",
+            "kind": "command",
+            "version": 1,
+            "description": "CSRF-protected destruction of the authenticated session."
+        },
+        {
+            "id": "dashboard.create_site",
+            "kind": "command",
+            "version": 1,
+            "description": "Authenticated CSRF-protected create; normalize GitHub URLs; reject invalid URL, branch, path, mode and sort order. Validate the actual GitHub branch using a supplied, saved or installation token; encrypt token replacement, preserve blank token or explicitly remove it.",
+            "input": [
+                {
+                    "name": "site",
+                    "type": {
+                        "ref": "dashboard.site_input"
+                    },
+                    "required": true
+                }
+            ],
+            "effects": [
+                "dashboard.site_created"
+            ]
+        },
+        {
+            "id": "dashboard.update_site",
+            "kind": "command",
+            "version": 1,
+            "description": "Authenticated CSRF-protected update; clear obsolete check state on configuration change. Validate the actual GitHub branch using a supplied, saved or installation token; encrypt token replacement, preserve blank token or explicitly remove it.",
+            "input": [
+                {
+                    "name": "id",
+                    "type": {
+                        "ref": "dashboard.number"
+                    },
+                    "required": true
+                },
+                {
+                    "name": "site",
+                    "type": {
+                        "ref": "dashboard.site_input"
+                    },
+                    "required": true
+                }
+            ],
+            "effects": [
+                "dashboard.site_updated"
+            ]
+        },
+        {
+            "id": "dashboard.delete_site",
+            "kind": "command",
+            "version": 1,
+            "description": "Require confirmation page and authenticated CSRF-protected POST. GET does not delete.",
+            "input": [
+                {
+                    "name": "id",
+                    "type": {
+                        "ref": "dashboard.number"
+                    },
+                    "required": true
+                }
+            ],
+            "effects": [
+                "dashboard.site_deleted"
+            ]
+        },
+        {
+            "id": "dashboard.check_site",
+            "kind": "command",
+            "version": 1,
+            "description": "Skip disabled sites. Bounded HTTP health/version requests and GitHub provider metadata; store only against the unchanged configuration. Preserve partial/unknown outcomes instead of inventing successful data. Empty version_path skips version request without error. Reusable token changes invalidate in-flight results.",
+            "input": [
+                {
+                    "name": "id",
+                    "type": {
+                        "ref": "dashboard.number"
+                    },
+                    "required": true
+                }
+            ],
+            "effects": [
+                "dashboard.site_updated"
+            ]
+        },
+        {
+            "id": "dashboard.list_branches",
+            "kind": "command",
+            "version": 1,
+            "description": "Authenticated CSRF-protected POST previews branches from the fixed GitHub API using new, saved or installation credentials. Paginate without silent truncation, bound requests, handle private access errors; never save or return credentials. HTTP success JSON contains repository, default_branch and branches; failure contains error. Selected shared token must exist and match the Git provider.",
+            "input": [
+                {
+                    "name": "repository",
+                    "type": {
+                        "ref": "dashboard.text"
+                    },
+                    "required": true
+                },
+                {
+                    "name": "github_token",
+                    "type": {
+                        "optional": {
+                            "ref": "dashboard.text"
+                        }
+                    }
+                },
+                {
+                    "name": "site_id",
+                    "type": {
+                        "optional": {
+                            "ref": "dashboard.number"
+                        }
+                    }
+                },
+                {
+                    "name": "remove_github_token",
+                    "type": {
+                        "optional": {
+                            "ref": "dashboard.flag"
+                        }
+                    }
+                },
+                {
+                    "name": "git_token_id",
+                    "type": {
+                        "optional": {
+                            "ref": "dashboard.number"
+                        }
+                    }
+                }
+            ]
+        },
+        {
+            "id": "dashboard.git_token_created",
+            "kind": "effect",
+            "version": 1,
+            "operation": "create",
+            "entity": "dashboard.git_token"
+        },
+        {
+            "id": "dashboard.git_token_updated",
+            "kind": "effect",
+            "version": 1,
+            "operation": "update",
+            "entity": "dashboard.git_token"
+        },
+        {
+            "id": "dashboard.git_token_deleted",
+            "kind": "effect",
+            "version": 1,
+            "operation": "delete",
+            "entity": "dashboard.git_token"
+        },
+        {
+            "id": "dashboard.create_git_token",
+            "kind": "command",
+            "version": 1,
+            "description": "Authenticated CSRF-protected create of a named credential with supported provider and nonempty token; encrypt secret and enforce unique name per provider.",
+            "input": [
+                {
+                    "name": "token",
+                    "type": {
+                        "ref": "dashboard.git_token_input"
+                    },
+                    "required": true
+                }
+            ],
+            "effects": [
+                "dashboard.git_token_created"
+            ]
+        },
+        {
+            "id": "dashboard.update_git_token",
+            "kind": "command",
+            "version": 1,
+            "description": "Authenticated CSRF-protected metadata edit or token replacement. Blank token keeps old ciphertext. Rotation clears associated project checks atomically. Never reflect plaintext.",
+            "input": [
+                {
+                    "name": "id",
+                    "type": {
+                        "ref": "dashboard.number"
+                    },
+                    "required": true
+                },
+                {
+                    "name": "token",
+                    "type": {
+                        "ref": "dashboard.git_token_input"
+                    },
+                    "required": true
+                }
+            ],
+            "effects": [
+                "dashboard.git_token_updated",
+                "dashboard.site_updated"
+            ]
+        },
+        {
+            "id": "dashboard.delete_git_token",
+            "kind": "command",
+            "version": 1,
+            "description": "Authenticated CSRF-protected confirmed deletion; refuse credentials referenced by projects. GET only confirms.",
+            "input": [
+                {
+                    "name": "id",
+                    "type": {
+                        "ref": "dashboard.number"
+                    },
+                    "required": true
+                }
+            ],
+            "effects": [
+                "dashboard.git_token_deleted"
+            ]
+        }
+    ]
+}

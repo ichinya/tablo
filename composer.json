@@ -1,0 +1,23 @@
+{
+  "name": "ichinya/tablo",
+  "description": "A small self-hosted dashboard for website health and deployment status",
+  "type": "project",
+  "license": "MIT",
+  "require": {
+    "php": "^8.2",
+    "ext-curl": "*",
+    "ext-openssl": "*",
+    "ext-pdo": "*",
+    "ext-pdo_sqlite": "*",
+    "phalcon/phalcon": "^6.0@RC",
+    "phalcon/volt": "^1.0@dev"
+  },
+  "autoload": { "classmap": ["app/"] },
+  "scripts": {
+    "serve": "php -S 127.0.0.1:8087 -t public public/router.php",
+    "check": "php bin/check.php",
+    "test": ["php tests/run.php", "php tests/network.php", "php tests/http.php"],
+    "verify": "php tools/verify.php"
+  },
+  "config": { "sort-packages": true }
+}

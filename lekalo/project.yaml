@@ -1,0 +1,1 @@
+{"schema_version":"0.2.16","definitions":[{"id":"tablo","kind":"project","version":1,"description":"Single-owner self-hosted website health and deployment dashboard. Phalcon 6, Volt and SQLite; model-owned contracts with maintained PHP implementation."}]}

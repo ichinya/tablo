@@ -1,0 +1,48 @@
+<?php
+declare(strict_types=1);
+
+$root = dirname(__DIR__);
+chdir($root);
+$lekalo = getenv('LEKALO_BIN') ?: 'lekalo';
+
+function runGate(array $command): void
+{
+    echo '> ' . implode(' ', $command) . PHP_EOL;
+    $process = proc_open($command, [0 => STDIN, 1 => STDOUT, 2 => STDERR], $pipes);
+    if (!is_resource($process) || proc_close($process) !== 0) {
+        throw new RuntimeException('Gate failed: ' . implode(' ', $command));
+    }
+}
+
+try {
+    runGate([$lekalo, 'validate', '--no-cache']);
+    runGate([$lekalo, 'lock', '--check', '--offline']);
+    $declaration = json_decode(file_get_contents('contracts/php-bindings.json'), true, 64, JSON_THROW_ON_ERROR);
+    foreach ($declaration['symbols'] as $symbol) {
+        $path = $symbol['source']['path'];
+        if (!is_file($path) || !hash_equals($symbol['fingerprint'], 'sha256:' . hash_file('sha256', $path))) {
+            throw new RuntimeException('Unreviewed source drift: ' . $path . '. Review code/model changes and explicitly capture new bindings.');
+        }
+    }
+    runGate([$lekalo, 'contract', 'update', '--declaration', 'contracts/php-bindings.json']);
+    foreach ($declaration['symbols'] as $symbol) {
+        if (in_array($symbol['kind'], ['command', 'query'], true)) {
+            $tests = $symbol['id'] === 'dashboard.check_site' ? 'tests/run.php,tests/network.php' : 'tests/run.php,tests/http.php';
+            runGate([$lekalo, 'contract', 'attach', $symbol['id'], '--native-test', $tests, '--gate', 'native-php-tests']);
+        }
+    }
+    runGate([$lekalo, 'contract', 'check', '--module', 'dashboard', '--no-cache']);
+    runGate([PHP_BINARY, 'tests/run.php']);
+    runGate([PHP_BINARY, 'tests/network.php']);
+    runGate([PHP_BINARY, 'tests/http.php']);
+    if (!is_dir('artifacts')) { mkdir('artifacts'); }
+    file_put_contents('artifacts/verification.json', json_encode([
+        'status' => 'passed', 'checked_at' => gmdate('c'), 'lekalo_lock' => hash_file('sha256', 'lekalo.lock'),
+        'composer_lock' => hash_file('sha256', 'composer.lock'), 'bindings' => hash_file('sha256', 'contracts/php-bindings.json'),
+        'gates' => ['model-validation', 'lock-freshness', 'source-fingerprints', 'contract-conformance', 'native-logic-tests', 'real-http-client-tests', 'isolated-http-flow'],
+    ], JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES) . "\n");
+    echo "All gates passed.\n";
+} catch (Throwable $e) {
+    fwrite(STDERR, $e->getMessage() . PHP_EOL);
+    exit(1);
+}

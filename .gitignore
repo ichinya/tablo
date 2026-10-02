@@ -1,0 +1,18 @@
+/.lekalo/
+/vendor/
+/storage/*
+!/storage/.gitkeep
+/artifacts/
+/.env
+/.env.*
+!/.env.example
+/.repowise/
+
+# Local databases, secret keys and temporary output.
+*.sqlite
+*.sqlite-*
+*.db
+*.key
+*.log
+*.tmp
+*.bak

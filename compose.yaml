@@ -1,0 +1,13 @@
+services:
+  tablo:
+    build: .
+    ports:
+      - "127.0.0.1:8087:80"
+    volumes:
+      - tablo-data:/var/www/tablo/storage
+    environment:
+      TABLO_ALLOW_PRIVATE_NETWORK: "${TABLO_ALLOW_PRIVATE_NETWORK:-0}"
+      TABLO_COOKIE_SECURE: "${TABLO_COOKIE_SECURE:-0}"
+    restart: unless-stopped
+volumes:
+  tablo-data:

@@ -1,0 +1,95 @@
+{
+    "schema_version": "0.2.16",
+    "definitions": [
+        {
+            "id": "dashboard.single_owner",
+            "kind": "scenario",
+            "version": 1,
+            "summary": "First setup creates id=1 only, duplicate setup is refused; password hash verifies and persistent failed-login rate limit denies the sixth attempt.",
+            "covers": [
+                "dashboard.setup",
+                "dashboard.login",
+                "dashboard.user"
+            ]
+        },
+        {
+            "id": "dashboard.site_lifecycle",
+            "kind": "scenario",
+            "version": 1,
+            "summary": "Normalize GitHub URL, create, order, edit and delete; malformed input never persists; edit clears stale checks and an old in-flight result is refused.",
+            "covers": [
+                "dashboard.create_site",
+                "dashboard.update_site",
+                "dashboard.delete_site",
+                "dashboard.list_sites"
+            ]
+        },
+        {
+            "id": "dashboard.check_outcomes",
+            "kind": "scenario",
+            "version": 1,
+            "summary": "Health 2xx online, non-2xx offline, blocked/timeouts unknown; version or GitHub failure produces partial state; issues exclude PRs; comparison recognizes normalized release or SHA prefix.",
+            "covers": [
+                "dashboard.check_site",
+                "dashboard.site"
+            ]
+        },
+        {
+            "id": "dashboard.web_access",
+            "kind": "scenario",
+            "version": 1,
+            "summary": "HTTP smoke: setup, login, session rotation, protected routes, CRUD, CSRF rejection, XSS escaping, deletion confirmation, logout and persistent data. Browser smoke on desktop and mobile.",
+            "covers": [
+                "dashboard.setup",
+                "dashboard.login",
+                "dashboard.logout",
+                "dashboard.create_site",
+                "dashboard.update_site",
+                "dashboard.delete_site",
+                "dashboard.list_sites"
+            ]
+        },
+        {
+            "id": "dashboard.github_credentials",
+            "kind": "scenario",
+            "version": 1,
+            "summary": "Repository URL normalization, authenticated branch pagination and slash names; 401/403/404, empty or malformed results and truncation fail. Save validates branch rather than tags. Per-site credentials are encrypted, blank keeps, replacement/removal work, no secrets reflected. Additive migration preserves owner and sites, and in-flight checks cannot overwrite token changes.",
+            "covers": [
+                "dashboard.list_branches",
+                "dashboard.create_site",
+                "dashboard.update_site",
+                "dashboard.check_site",
+                "dashboard.site"
+            ]
+        },
+        {
+            "id": "dashboard.reusable_tokens",
+            "kind": "scenario",
+            "version": 1,
+            "summary": "Settings credentials support create, rename, blank preservation, replacement and unused deletion. Only metadata is rendered, unsupported providers and mismatched selections fail, CSRF/login guard all routes. Projects reference credentials; rotation invalidates stored and in-flight checks. Legacy database migration preserves admin, projects and tokens with the existing vault key.",
+            "covers": [
+                "dashboard.create_git_token",
+                "dashboard.update_git_token",
+                "dashboard.delete_git_token",
+                "dashboard.list_git_tokens",
+                "dashboard.git_token",
+                "dashboard.create_site",
+                "dashboard.update_site",
+                "dashboard.list_branches",
+                "dashboard.check_site"
+            ]
+        },
+        {
+            "id": "dashboard.optional_version",
+            "kind": "scenario",
+            "version": 1,
+            "summary": "Missing or empty version path skips network requests; health and Git data remain available, no fabricated installed version or false attention. Nonempty invalid paths still fail validation; project placeholders are neutral.",
+            "covers": [
+                "dashboard.create_site",
+                "dashboard.update_site",
+                "dashboard.check_site",
+                "dashboard.list_sites"
+            ]
+        }
+    ]
+}

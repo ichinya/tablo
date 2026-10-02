@@ -1,0 +1,34 @@
+{
+    "schema_version": "0.2.16",
+    "definitions": [
+        {
+            "id": "dashboard.list_sites",
+            "kind": "query",
+            "version": 1,
+            "description": "Administrator dashboard, sorted by sort_order then id, with explicit unverified, paused, stale and partial-error states.",
+            "reads": [
+                "dashboard.site"
+            ],
+            "returns": {
+                "list": {
+                    "ref": "dashboard.site"
+                }
+            }
+        },
+        {
+            "id": "dashboard.list_git_tokens",
+            "kind": "query",
+            "version": 1,
+            "description": "Authenticated settings lists metadata and project usage counts, never plaintext or ciphertext.",
+            "reads": [
+                "dashboard.git_token",
+                "dashboard.site"
+            ],
+            "returns": {
+                "list": {
+                    "ref": "dashboard.git_token_metadata"
+                }
+            }
+        }
+    ]
+}

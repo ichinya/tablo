@@ -1,0 +1,107 @@
+{
+    "schema_version": "0.2.16",
+    "definitions": [
+        {
+            "id": "dashboard.setup_endpoint",
+            "kind": "endpoint",
+            "version": 1,
+            "method": "POST",
+            "path": "/setup",
+            "invokes": "dashboard.setup"
+        },
+        {
+            "id": "dashboard.login_endpoint",
+            "kind": "endpoint",
+            "version": 1,
+            "method": "POST",
+            "path": "/login",
+            "invokes": "dashboard.login"
+        },
+        {
+            "id": "dashboard.logout_endpoint",
+            "kind": "endpoint",
+            "version": 1,
+            "method": "POST",
+            "path": "/logout",
+            "invokes": "dashboard.logout"
+        },
+        {
+            "id": "dashboard.create_endpoint",
+            "kind": "endpoint",
+            "version": 1,
+            "method": "POST",
+            "path": "/sites/new",
+            "invokes": "dashboard.create_site"
+        },
+        {
+            "id": "dashboard.edit_endpoint",
+            "kind": "endpoint",
+            "version": 1,
+            "method": "POST",
+            "path": "/sites/{id}/edit",
+            "invokes": "dashboard.update_site"
+        },
+        {
+            "id": "dashboard.delete_endpoint",
+            "kind": "endpoint",
+            "version": 1,
+            "method": "POST",
+            "path": "/sites/{id}/delete",
+            "invokes": "dashboard.delete_site"
+        },
+        {
+            "id": "dashboard.check_endpoint",
+            "kind": "endpoint",
+            "version": 1,
+            "method": "POST",
+            "path": "/sites/{id}/check",
+            "invokes": "dashboard.check_site"
+        },
+        {
+            "id": "dashboard.php_target",
+            "kind": "target-binding",
+            "version": 1,
+            "target": "php"
+        },
+        {
+            "id": "dashboard.branches_endpoint",
+            "kind": "endpoint",
+            "version": 1,
+            "method": "POST",
+            "path": "/sites/branches",
+            "invokes": "dashboard.list_branches"
+        },
+        {
+            "id": "dashboard.settings_endpoint",
+            "kind": "endpoint",
+            "version": 1,
+            "method": "GET",
+            "path": "/settings",
+            "invokes": "dashboard.list_git_tokens"
+        },
+        {
+            "id": "dashboard.create_token_endpoint",
+            "kind": "endpoint",
+            "version": 1,
+            "method": "POST",
+            "path": "/settings/tokens/new",
+            "invokes": "dashboard.create_git_token"
+        },
+        {
+            "id": "dashboard.edit_token_endpoint",
+            "kind": "endpoint",
+            "version": 1,
+            "method": "POST",
+            "path": "/settings/tokens/{id}/edit",
+            "invokes": "dashboard.update_git_token"
+        },
+        {
+            "id": "dashboard.delete_token_endpoint",
+            "kind": "endpoint",
+            "version": 1,
+            "method": "POST",
+            "path": "/settings/tokens/{id}/delete",
+            "invokes": "dashboard.delete_git_token"
+        }
+    ]
+}

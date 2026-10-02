@@ -1,0 +1,403 @@
+{
+    "_readme": [
+        "This file locks the dependencies of your project to a known state",
+        "Read more about it at https://getcomposer.org/doc/01-basic-usage.md#installing-dependencies",
+        "This file is @generated automatically"
+    ],
+    "content-hash": "c5ed9ce58513894e0b94941d8c443252",
+    "packages": [
+        {
+            "name": "matthiasmullie/minify",
+            "version": "1.3.75",
+            "source": {
+                "type": "git",
+                "url": "https://github.com/matthiasmullie/minify.git",
+                "reference": "76ba4a5f555fd7bf4aa408af608e991569076671"
+            },
+            "dist": {
+                "type": "zip",
+                "url": "https://api.github.com/repos/matthiasmullie/minify/zipball/76ba4a5f555fd7bf4aa408af608e991569076671",
+                "reference": "76ba4a5f555fd7bf4aa408af608e991569076671",
+                "shasum": ""
+            },
+            "require": {
+                "ext-pcre": "*",
+                "matthiasmullie/path-converter": "~1.1",
+                "php": ">=5.3.0"
+            },
+            "require-dev": {
+                "friendsofphp/php-cs-fixer": ">=2.0",
+                "matthiasmullie/scrapbook": ">=1.3",
+                "phpunit/phpunit": ">=4.8"
+            },
+            "suggest": {
+                "psr/cache-implementation": "Cache implementation to use with Minify::cache"
+            },
+            "bin": [
+                "bin/minifycss",
+                "bin/minifyjs"
+            ],
+            "type": "library",
+            "autoload": {
+                "psr-4": {
+                    "MatthiasMullie\\Minify\\": "src/"
+                }
+            },
+            "notification-url": "https://packagist.org/downloads/",
+            "license": [
+                "MIT"
+            ],
+            "authors": [
+                {
+                    "name": "Matthias Mullie",
+                    "email": "minify@mullie.eu",
+                    "homepage": "https://www.mullie.eu",
+                    "role": "Developer"
+                }
+            ],
+            "description": "CSS & JavaScript minifier, in PHP. Removes whitespace, strips comments, combines files (incl. @import statements and small assets in CSS files), and optimizes/shortens a few common programming patterns.",
+            "homepage": "https://github.com/matthiasmullie/minify",
+            "keywords": [
+                "JS",
+                "css",
+                "javascript",
+                "minifier",
+                "minify"
+            ],
+            "support": {
+                "issues": "https://github.com/matthiasmullie/minify/issues",
+                "source": "https://github.com/matthiasmullie/minify/tree/1.3.75"
+            },
+            "funding": [
+                {
+                    "url": "https://github.com/matthiasmullie",
+                    "type": "github"
+                }
+            ],
+            "time": "2025-06-25T09:56:19+00:00"
+        },
+        {
+            "name": "matthiasmullie/path-converter",
+            "version": "1.1.3",
+            "source": {
+                "type": "git",
+                "url": "https://github.com/matthiasmullie/path-converter.git",
+                "reference": "e7d13b2c7e2f2268e1424aaed02085518afa02d9"
+            },
+            "dist": {
+                "type": "zip",
+                "url": "https://api.github.com/repos/matthiasmullie/path-converter/zipball/e7d13b2c7e2f2268e1424aaed02085518afa02d9",
+                "reference": "e7d13b2c7e2f2268e1424aaed02085518afa02d9",
+                "shasum": ""
+            },
+            "require": {
+                "ext-pcre": "*",
+                "php": ">=5.3.0"
+            },
+            "require-dev": {
+                "phpunit/phpunit": "~4.8"
+            },
+            "type": "library",
+            "autoload": {
+                "psr-4": {
+                    "MatthiasMullie\\PathConverter\\": "src/"
+                }
+            },
+            "notification-url": "https://packagist.org/downloads/",
+            "license": [
+                "MIT"
+            ],
+            "authors": [
+                {
+                    "name": "Matthias Mullie",
+                    "email": "pathconverter@mullie.eu",
+                    "homepage": "http://www.mullie.eu",
+                    "role": "Developer"
+                }
+            ],
+            "description": "Relative path converter",
+            "homepage": "http://github.com/matthiasmullie/path-converter",
+            "keywords": [
+                "converter",
+                "path",
+                "paths",
+                "relative"
+            ],
+            "support": {
+                "issues": "https://github.com/matthiasmullie/path-converter/issues",
+                "source": "https://github.com/matthiasmullie/path-converter/tree/1.1.3"
+            },
+            "time": "2019-02-05T23:41:09+00:00"
+        },
+        {
+            "name": "phalcon/phalcon",
+            "version": "v6.0.0RC2",
+            "source": {
+                "type": "git",
+                "url": "https://github.com/phalcon/phalcon.git",
+                "reference": "e353b8a926cd022f06ac0f115bd5ddc1489ce311"
+            },
+            "dist": {
+                "type": "zip",
+                "url": "https://api.github.com/repos/phalcon/phalcon/zipball/e353b8a926cd022f06ac0f115bd5ddc1489ce311",
+                "reference": "e353b8a926cd022f06ac0f115bd5ddc1489ce311",
+                "shasum": ""
+            },
+            "require": {
+                "ext-fileinfo": "*",
+                "ext-json": "*",
+                "ext-mbstring": "*",
+                "ext-pdo": "*",
+                "ext-xml": "*",
+                "matthiasmullie/minify": "^1.3",
+                "phalcon/traits": "^4.1",
+                "php": ">=8.1 <9.0"
+            },
+            "require-dev": {
+                "ext-gettext": "*",
+                "ext-yaml": "*",
+                "friendsofphp/php-cs-fixer": "^3.95",
+                "pds/composer-script-names": "^1.0",
+                "pds/skeleton": "^1.0",
+                "phalcon/annotations": "1.0.x-dev",
+                "phalcon/code-quality": "^1.0",
+                "phalcon/phql": "1.0.x-dev",
+                "phalcon/quill": "^0.5.0",
+                "phalcon/talon": "^1.0.0",
+                "phalcon/volt": "1.0.x-dev",
+                "phpbench/phpbench": "^1.4",
+                "phpstan/phpstan": "^2.2",
+                "phpunit/phpunit": "^10.5",
+                "predis/predis": "^3.4",
+                "squizlabs/php_codesniffer": "^4.0",
+                "vlucas/phpdotenv": "^5.6"
+            },
+            "suggest": {
+                "ext-apcu": "to use Cache\\Adapter\\Apcu, Storage\\Adapter\\Apcu",
+                "ext-gd": "to use Image\\Adapter\\Gd",
+                "ext-igbinary": "to use Storage\\Serializer\\Igbinary",
+                "ext-imagick": "to use Image\\Adapter\\Imagick",
+                "ext-memcached": "to use Cache\\Adapter\\Libmemcached, Session\\Adapter\\Libmemcached, Storage\\Adapter\\Libmemcached",
+                "ext-openssl": "to use Encryption\\Crypt",
+                "ext-pcntl": "to use signal-based graceful shutdown in Queue\\Consumer\\Worker",
+                "ext-redis": "to use Cache\\Adapter\\Redis, Session\\Adapter\\Redis, Storage\\Adapter\\Redis",
+                "ext-yaml": "to use Config\\Adapter\\Yaml"
+            },
+            "type": "library",
+            "autoload": {
+                "psr-4": {
+                    "Phalcon\\": "src/"
+                }
+            },
+            "notification-url": "https://packagist.org/downloads/",
+            "license": [
+                "MIT"
+            ],
+            "description": "Phalcon Framework",
+            "keywords": [
+                "framework",
+                "php"
+            ],
+            "support": {
+                "issues": "https://github.com/phalcon/phalcon/issues",
+                "source": "https://github.com/phalcon/phalcon/tree/v6.0.0RC2"
+            },
+            "funding": [
+                {
+                    "url": "https://github.com/phalcon",
+                    "type": "github"
+                },
+                {
+                    "url": "https://opencollective.com/phalcon",
+                    "type": "open_collective"
+                }
+            ],
+            "time": "2026-09-22T20:11:19+00:00"
+        },
+        {
+            "name": "phalcon/traits",
+            "version": "4.1.0",
+            "source": {
+                "type": "git",
+                "url": "https://github.com/phalcon/traits.git",
+                "reference": "a686028ef39ccbb6bd90fd56dc7c7389e768693e"
+            },
+            "dist": {
+                "type": "zip",
+                "url": "https://api.github.com/repos/phalcon/traits/zipball/a686028ef39ccbb6bd90fd56dc7c7389e768693e",
+                "reference": "a686028ef39ccbb6bd90fd56dc7c7389e768693e",
+                "shasum": ""
+            },
+            "require": {
+                "ext-json": "*",
+                "ext-mbstring": "*",
+                "php": ">=8.1 <9.0"
+            },
+            "require-dev": {
+                "friendsofphp/php-cs-fixer": "^3.75",
+                "pds/composer-script-names": "^1.0",
+                "pds/skeleton": "^1.0",
+                "phalcon/talon": "^1.0.0",
+                "phpstan/phpstan": "^2.2",
+                "phpunit/phpunit": "^10.5",
+                "squizlabs/php_codesniffer": "^4.0"
+            },
+            "suggest": {
+                "ext-apcu": "For Php\\ApcuTrait",
+                "ext-gettext": "For the gettext-based translation helpers",
+                "ext-igbinary": "For Php\\IgbinaryTrait",
+                "ext-msgpack": "For Php\\MsgpackTrait",
+                "ext-yaml": "For Php\\YamlTrait"
+            },
+            "type": "library",
+            "autoload": {
+                "psr-4": {
+                    "Phalcon\\Traits\\": "src/"
+                }
+            },
+            "notification-url": "https://packagist.org/downloads/",
+            "license": [
+                "BSD-3-Clause"
+            ],
+            "authors": [
+                {
+                    "name": "Phalcon Team",
+                    "email": "team@phalcon.io",
+                    "homepage": "https://phalcon.io/en/team"
+                },
+                {
+                    "name": "Contributors",
+                    "homepage": "https://github.com/phalcon/traits/graphs/contributors"
+                }
+            ],
+            "description": "Phalcon Framework reusable traits",
+            "homepage": "https://phalcon.io",
+            "keywords": [
+                "framework",
+                "phalcon",
+                "php",
+                "traits"
+            ],
+            "support": {
+                "discord": "https://phalcon.io/discord/",
+                "issues": "https://github.com/phalcon/traits/issues",
+                "source": "https://github.com/phalcon/traits"
+            },
+            "funding": [
+                {
+                    "url": "https://github.com/phalcon",
+                    "type": "github"
+                },
+                {
+                    "url": "https://opencollective.com/phalcon",
+                    "type": "open_collective"
+                }
+            ],
+            "time": "2026-09-04T16:43:18+00:00"
+        },
+        {
+            "name": "phalcon/volt",
+            "version": "1.0.x-dev",
+            "source": {
+                "type": "git",
+                "url": "https://github.com/phalcon/volt.git",
+                "reference": "4296eaab6af7b81d30b1c0f1a11204fd2bc46032"
+            },
+            "dist": {
+                "type": "zip",
+                "url": "https://api.github.com/repos/phalcon/volt/zipball/4296eaab6af7b81d30b1c0f1a11204fd2bc46032",
+                "reference": "4296eaab6af7b81d30b1c0f1a11204fd2bc46032",
+                "shasum": ""
+            },
+            "require": {
+                "ext-ctype": "*",
+                "ext-mbstring": "*",
+                "php": ">=8.1 <9.0"
+            },
+            "require-dev": {
+                "friendsofphp/php-cs-fixer": "^3.95",
+                "pds/skeleton": "^1.0",
+                "phalcon/code-quality": "^1.0",
+                "phalcon/ide-stubs": "^5.8",
+                "phalcon/talon": "^1.0.0",
+                "phpstan/phpstan": "^2.0",
+                "phpunit/phpunit": "^10.5",
+                "squizlabs/php_codesniffer": "^4.0"
+            },
+            "suggest": {
+                "phalcon/phalcon": "The Phalcon framework this module integrates with"
+            },
+            "default-branch": true,
+            "type": "library",
+            "autoload": {
+                "files": [
+                    "resources/files/parser.php"
+                ],
+                "psr-4": {
+                    "Phalcon\\Volt\\": "src/"
+                }
+            },
+            "notification-url": "https://packagist.org/downloads/",
+            "license": [
+                "MIT"
+            ],
+            "authors": [
+                {
+                    "name": "Phalcon Team",
+                    "email": "team@phalcon.io",
+                    "homepage": "https://phalcon.io/en/team"
+                },
+                {
+                    "name": "Contributors",
+                    "homepage": "https://github.com/phalcon/volt/graphs/contributors"
+                }
+            ],
+            "description": "Phalcon Volt is an HTML template engine for server-side rendering.",
+            "homepage": "https://phalcon.io",
+            "keywords": [
+                "engine",
+                "html",
+                "phalcon",
+                "template",
+                "volt"
+            ],
+            "support": {
+                "discussions": "https://phalcon.io/discussions/",
+                "docs": "https://phalcon.io/docs/",
+                "email": "support@phalcon.io",
+                "issues": "https://github.com/phalcon/volt/issues",
+                "rss": "https://blog.phalcon.io/rss",
+                "source": "https://github.com/phalcon/volt"
+            },
+            "funding": [
+                {
+                    "url": "https://github.com/phalcon",
+                    "type": "github"
+                },
+                {
+                    "url": "https://opencollective.com/phalcon",
+                    "type": "open_collective"
+                }
+            ],
+            "time": "2026-09-23T22:32:17+00:00"
+        }
+    ],
+    "packages-dev": [],
+    "aliases": [],
+    "minimum-stability": "stable",
+    "stability-flags": {
+        "phalcon/phalcon": 5,
+        "phalcon/volt": 20
+    },
+    "prefer-stable": false,
+    "prefer-lowest": false,
+    "platform": {
+        "php": "^8.2",
+        "ext-curl": "*",
+        "ext-openssl": "*",
+        "ext-pdo": "*",
+        "ext-pdo_sqlite": "*"
+    },
+    "platform-dev": {},
+    "plugin-api-version": "2.9.0"
+}

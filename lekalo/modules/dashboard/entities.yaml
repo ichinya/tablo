@@ -1,0 +1,539 @@
+{
+    "schema_version": "0.2.16",
+    "definitions": [
+        {
+            "id": "dashboard.text",
+            "kind": "scalar",
+            "version": 1,
+            "base": "string"
+        },
+        {
+            "id": "dashboard.number",
+            "kind": "scalar",
+            "version": 1,
+            "base": "number"
+        },
+        {
+            "id": "dashboard.flag",
+            "kind": "scalar",
+            "version": 1,
+            "base": "boolean"
+        },
+        {
+            "id": "dashboard.timestamp",
+            "kind": "scalar",
+            "version": 1,
+            "base": "datetime"
+        },
+        {
+            "id": "dashboard.mode",
+            "kind": "enum",
+            "version": 1,
+            "values": [
+                {
+                    "value": "release"
+                },
+                {
+                    "value": "branch"
+                }
+            ]
+        },
+        {
+            "id": "dashboard.user",
+            "kind": "entity",
+            "version": 1,
+            "description": "Exactly one administrator, id=1 enforced by SQLite. No public registration after setup.",
+            "identity": [
+                "id"
+            ],
+            "fields": [
+                {
+                    "name": "id",
+                    "type": {
+                        "ref": "dashboard.number"
+                    },
+                    "required": true
+                },
+                {
+                    "name": "password_hash",
+                    "type": {
+                        "ref": "dashboard.text"
+                    },
+                    "required": true
+                },
+                {
+                    "name": "created_at",
+                    "type": {
+                        "ref": "dashboard.timestamp"
+                    },
+                    "required": true
+                }
+            ]
+        },
+        {
+            "id": "dashboard.site_input",
+            "kind": "value-object",
+            "version": 1,
+            "fields": [
+                {
+                    "name": "name",
+                    "type": {
+                        "ref": "dashboard.text"
+                    },
+                    "required": true
+                },
+                {
+                    "name": "url",
+                    "type": {
+                        "ref": "dashboard.text"
+                    },
+                    "required": true
+                },
+                {
+                    "name": "repository",
+                    "type": {
+                        "ref": "dashboard.text"
+                    },
+                    "required": true
+                },
+                {
+                    "name": "github_token",
+                    "type": {
+                        "optional": {
+                            "ref": "dashboard.text"
+                        }
+                    }
+                },
+                {
+                    "name": "remove_github_token",
+                    "type": {
+                        "optional": {
+                            "ref": "dashboard.flag"
+                        }
+                    }
+                },
+                {
+                    "name": "branch",
+                    "type": {
+                        "ref": "dashboard.text"
+                    },
+                    "required": true
+                },
+                {
+                    "name": "health_path",
+                    "type": {
+                        "ref": "dashboard.text"
+                    },
+                    "required": true
+                },
+                {
+                    "name": "version_path",
+                    "type": {
+                        "optional": {
+                            "ref": "dashboard.text"
+                        }
+                    }
+                },
+                {
+                    "name": "comparison_mode",
+                    "type": {
+                        "ref": "dashboard.mode"
+                    },
+                    "required": true
+                },
+                {
+                    "name": "enabled",
+                    "type": {
+                        "ref": "dashboard.flag"
+                    },
+                    "required": true
+                },
+                {
+                    "name": "sort_order",
+                    "type": {
+                        "ref": "dashboard.number"
+                    },
+                    "required": true
+                },
+                {
+                    "name": "git_token_id",
+                    "type": {
+                        "optional": {
+                            "ref": "dashboard.number"
+                        }
+                    }
+                }
+            ]
+        },
+        {
+            "id": "dashboard.site",
+            "kind": "entity",
+            "version": 1,
+            "description": "A configured site and its most recent check. Null state means unknown, and stale checks are visibly marked. GitHub credentials are encrypted at rest and never returned to the UI; preserve key alongside database backups. Shared credentials are referenced by git_token_id; empty version_path disables installed-version requests and comparison.",
+            "identity": [
+                "id"
+            ],
+            "fields": [
+                {
+                    "name": "id",
+                    "type": {
+                        "ref": "dashboard.number"
+                    },
+                    "required": true
+                },
+                {
+                    "name": "name",
+                    "type": {
+                        "ref": "dashboard.text"
+                    },
+                    "required": true
+                },
+                {
+                    "name": "url",
+                    "type": {
+                        "ref": "dashboard.text"
+                    },
+                    "required": true
+                },
+                {
+                    "name": "repository",
+                    "type": {
+                        "ref": "dashboard.text"
+                    },
+                    "required": true
+                },
+                {
+                    "name": "github_token",
+                    "type": {
+                        "optional": {
+                            "ref": "dashboard.text"
+                        }
+                    }
+                },
+                {
+                    "name": "branch",
+                    "type": {
+                        "ref": "dashboard.text"
+                    },
+                    "required": true
+                },
+                {
+                    "name": "health_path",
+                    "type": {
+                        "ref": "dashboard.text"
+                    },
+                    "required": true
+                },
+                {
+                    "name": "version_path",
+                    "type": {
+                        "ref": "dashboard.text"
+                    },
+                    "required": true
+                },
+                {
+                    "name": "comparison_mode",
+                    "type": {
+                        "ref": "dashboard.mode"
+                    },
+                    "required": true
+                },
+                {
+                    "name": "enabled",
+                    "type": {
+                        "ref": "dashboard.flag"
+                    },
+                    "required": true
+                },
+                {
+                    "name": "sort_order",
+                    "type": {
+                        "ref": "dashboard.number"
+                    },
+                    "required": true
+                },
+                {
+                    "name": "online",
+                    "type": {
+                        "optional": {
+                            "ref": "dashboard.flag"
+                        }
+                    }
+                },
+                {
+                    "name": "deployed_version",
+                    "type": {
+                        "optional": {
+                            "ref": "dashboard.text"
+                        }
+                    }
+                },
+                {
+                    "name": "deployed_commit",
+                    "type": {
+                        "optional": {
+                            "ref": "dashboard.text"
+                        }
+                    }
+                },
+                {
+                    "name": "latest_release",
+                    "type": {
+                        "optional": {
+                            "ref": "dashboard.text"
+                        }
+                    }
+                },
+                {
+                    "name": "latest_commit",
+                    "type": {
+                        "optional": {
+                            "ref": "dashboard.text"
+                        }
+                    }
+                },
+                {
+                    "name": "open_issues",
+                    "type": {
+                        "optional": {
+                            "ref": "dashboard.number"
+                        }
+                    }
+                },
+                {
+                    "name": "open_prs",
+                    "type": {
+                        "optional": {
+                            "ref": "dashboard.number"
+                        }
+                    }
+                },
+                {
+                    "name": "response_time_ms",
+                    "type": {
+                        "optional": {
+                            "ref": "dashboard.number"
+                        }
+                    }
+                },
+                {
+                    "name": "last_error",
+                    "type": {
+                        "optional": {
+                            "ref": "dashboard.text"
+                        }
+                    }
+                },
+                {
+                    "name": "checked_at",
+                    "type": {
+                        "optional": {
+                            "ref": "dashboard.timestamp"
+                        }
+                    }
+                },
+                {
+                    "name": "created_at",
+                    "type": {
+                        "ref": "dashboard.timestamp"
+                    },
+                    "required": true
+                },
+                {
+                    "name": "updated_at",
+                    "type": {
+                        "ref": "dashboard.timestamp"
+                    },
+                    "required": true
+                },
+                {
+                    "name": "provider",
+                    "type": {
+                        "ref": "dashboard.provider"
+                    },
+                    "required": true
+                },
+                {
+                    "name": "git_token_id",
+                    "type": {
+                        "optional": {
+                            "ref": "dashboard.number"
+                        }
+                    }
+                }
+            ]
+        },
+        {
+            "id": "dashboard.provider",
+            "kind": "enum",
+            "version": 1,
+            "values": [
+                {
+                    "value": "github"
+                }
+            ]
+        },
+        {
+            "id": "dashboard.branch_result",
+            "kind": "value-object",
+            "version": 1,
+            "fields": [
+                {
+                    "name": "repository",
+                    "type": {
+                        "ref": "dashboard.text"
+                    },
+                    "required": true
+                },
+                {
+                    "name": "default_branch",
+                    "type": {
+                        "ref": "dashboard.text"
+                    },
+                    "required": true
+                },
+                {
+                    "name": "branches",
+                    "type": {
+                        "list": {
+                            "ref": "dashboard.text"
+                        }
+                    },
+                    "required": true
+                }
+            ]
+        },
+        {
+            "id": "dashboard.git_token",
+            "kind": "entity",
+            "version": 1,
+            "identity": [
+                "id"
+            ],
+            "description": "Reusable named Git credential. Provider is extensible; only GitHub adapter is currently supported. encrypted_token is AES-GCM ciphertext, never UI output. Used credentials cannot be deleted.",
+            "fields": [
+                {
+                    "name": "id",
+                    "type": {
+                        "ref": "dashboard.number"
+                    },
+                    "required": true
+                },
+                {
+                    "name": "name",
+                    "type": {
+                        "ref": "dashboard.text"
+                    },
+                    "required": true
+                },
+                {
+                    "name": "provider",
+                    "type": {
+                        "ref": "dashboard.text"
+                    },
+                    "required": true
+                },
+                {
+                    "name": "created_at",
+                    "type": {
+                        "ref": "dashboard.timestamp"
+                    },
+                    "required": true
+                },
+                {
+                    "name": "updated_at",
+                    "type": {
+                        "ref": "dashboard.timestamp"
+                    },
+                    "required": true
+                },
+                {
+                    "name": "encrypted_token",
+                    "type": {
+                        "ref": "dashboard.text"
+                    },
+                    "required": true
+                }
+            ]
+        },
+        {
+            "id": "dashboard.git_token_metadata",
+            "kind": "value-object",
+            "version": 1,
+            "description": "Secret-free settings and project selector metadata.",
+            "fields": [
+                {
+                    "name": "id",
+                    "type": {
+                        "ref": "dashboard.number"
+                    },
+                    "required": true
+                },
+                {
+                    "name": "name",
+                    "type": {
+                        "ref": "dashboard.text"
+                    },
+                    "required": true
+                },
+                {
+                    "name": "provider",
+                    "type": {
+                        "ref": "dashboard.text"
+                    },
+                    "required": true
+                },
+                {
+                    "name": "created_at",
+                    "type": {
+                        "ref": "dashboard.timestamp"
+                    },
+                    "required": true
+                },
+                {
+                    "name": "updated_at",
+                    "type": {
+                        "ref": "dashboard.timestamp"
+                    },
+                    "required": true
+                },
+                {
+                    "name": "site_count",
+                    "type": {
+                        "ref": "dashboard.number"
+                    },
+                    "required": true
+                }
+            ]
+        },
+        {
+            "id": "dashboard.git_token_input",
+            "kind": "value-object",
+            "version": 1,
+            "fields": [
+                {
+                    "name": "name",
+                    "type": {
+                        "ref": "dashboard.text"
+                    },
+                    "required": true
+                },
+                {
+                    "name": "provider",
+                    "type": {
+                        "ref": "dashboard.text"
+                    },
+                    "required": true
+                },
+                {
+                    "name": "token",
+                    "type": {
+                        "optional": {
+                            "ref": "dashboard.text"
+                        }
+                    }
+                }
+            ]
+        }
+    ]
+}
