@@ -1,0 +1,71 @@
+name: Verify
+
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: verify-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  verify:
+    name: ${{ matrix.os }} / PHP ${{ matrix.php }}
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+        php: ['8.2', '8.4']
+    defaults:
+      run:
+        shell: pwsh
+    env:
+      LEKALO_REF: 9510dd0767a56c0ab34b8d3c8ceb2a14db8de825
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - uses: shivammathur/setup-php@b604ade2a87db23f8871b7182e69ec5e75effb45 # v2
+        with:
+          php-version: ${{ matrix.php }}
+          extensions: curl, mbstring, openssl, pdo_sqlite, tokenizer, xml
+          coverage: none
+          tools: composer:v2
+      - name: Install PHP dependencies
+        run: |
+          composer validate --strict
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          composer install --no-interaction --prefer-dist
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          composer check-platform-reqs
+          exit $LASTEXITCODE
+      - name: Cache pinned Lekalo CLI
+        id: lekalo-cache
+        uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
+        with:
+          path: .ci/lekalo-bin
+          key: lekalo-${{ runner.os }}-${{ runner.arch }}-${{ env.LEKALO_REF }}
+      - name: Build Lekalo v0.6.4 (CLI 0.6.3)
+        if: steps.lekalo-cache.outputs.cache-hit != 'true'
+        run: |
+          git clone --no-checkout https://github.com/ichinya/lekalo.git .ci/lekalo-source
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          git -C .ci/lekalo-source checkout --detach $env:LEKALO_REF
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          cargo build --release --locked -p lekalo-cli --manifest-path .ci/lekalo-source/Cargo.toml
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          New-Item -ItemType Directory -Force .ci/lekalo-bin | Out-Null
+          $binaryName = if ($IsWindows) { 'lekalo.exe' } else { 'lekalo' }
+          Copy-Item -LiteralPath ".ci/lekalo-source/target/release/$binaryName" -Destination ".ci/lekalo-bin/$binaryName"
+      - name: Verify contracts and Testo suites
+        run: |
+          $binaryName = if ($IsWindows) { 'lekalo.exe' } else { 'lekalo' }
+          $env:LEKALO_BIN = Join-Path $PWD ".ci/lekalo-bin/$binaryName"
+          $version = & $env:LEKALO_BIN --version
+          if ($LASTEXITCODE -ne 0 -or $version.Trim() -ne 'lekalo 0.6.3') { throw 'Unexpected Lekalo CLI version' }
+          composer verify
+          exit $LASTEXITCODE

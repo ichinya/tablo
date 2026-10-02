@@ -4,7 +4,7 @@
         "Read more about it at https://getcomposer.org/doc/01-basic-usage.md#installing-dependencies",
         "This file is @generated automatically"
     ],
-    "content-hash": "c5ed9ce58513894e0b94941d8c443252",
+    "content-hash": "995d02df9b981c1cd3ce2eaa769a0d19",
     "packages": [
         {
             "name": "matthiasmullie/minify",
@@ -382,7 +382,2118 @@
             "time": "2026-09-23T22:32:17+00:00"
         }
     ],
-    "packages-dev": [],
+    "packages-dev": [
+        {
+            "name": "internal/container",
+            "version": "1.1.0",
+            "source": {
+                "type": "git",
+                "url": "https://github.com/php-internal/container.git",
+                "reference": "a1a0cc23601c4d09bc21511cbccba8653069d50c"
+            },
+            "dist": {
+                "type": "zip",
+                "url": "https://api.github.com/repos/php-internal/container/zipball/a1a0cc23601c4d09bc21511cbccba8653069d50c",
+                "reference": "a1a0cc23601c4d09bc21511cbccba8653069d50c",
+                "shasum": ""
+            },
+            "require": {
+                "internal/destroy": "^1.0",
+                "php": ">=8.1",
+                "psr/container": "1 - 2",
+                "yiisoft/injector": "^1.2"
+            },
+            "provide": {
+                "psr/container-implementation": "1.0 - 2.0"
+            },
+            "require-dev": {
+                "bamarni/composer-bin-plugin": "^1.8",
+                "llm/skills": "^1.12",
+                "revolt/event-loop": "^1.0",
+                "roxblnfk/unpoly": "^1.8",
+                "testo/codecov": "^0.2.1",
+                "testo/fiber": "^0.1.3",
+                "testo/testo": "^0.10.46"
+            },
+            "type": "library",
+            "extra": {
+                "bamarni-bin": {
+                    "bin-links": true,
+                    "forward-command": false,
+                    "target-directory": "tools"
+                }
+            },
+            "autoload": {
+                "psr-4": {
+                    "Internal\\Container\\": "src/"
+                }
+            },
+            "notification-url": "https://packagist.org/downloads/",
+            "license": [
+                "BSD-3-Clause"
+            ],
+            "authors": [
+                {
+                    "name": "Aleksei Gagarin",
+                    "homepage": "https://github.com/roxblnfk"
+                }
+            ],
+            "description": "Lightweight PSR-11 container for CLI tools: autowiring, scopes, inflectors and explicit destruction without a DI framework.",
+            "keywords": [
+                "Autowiring",
+                "PSR-11",
+                "cli",
+                "console",
+                "container",
+                "dependency injection"
+            ],
+            "support": {
+                "issues": "https://github.com/php-internal/container/issues",
+                "source": "https://github.com/php-internal/container/tree/1.1.0"
+            },
+            "funding": [
+                {
+                    "url": "https://boosty.to/roxblnfk",
+                    "type": "boosty"
+                }
+            ],
+            "time": "2026-09-08T09:20:40+00:00"
+        },
+        {
+            "name": "internal/destroy",
+            "version": "1.0.0",
+            "source": {
+                "type": "git",
+                "url": "https://github.com/php-internal/destroy.git",
+                "reference": "93068c4f7da218034f5373e31407f564b74b4a06"
+            },
+            "dist": {
+                "type": "zip",
+                "url": "https://api.github.com/repos/php-internal/destroy/zipball/93068c4f7da218034f5373e31407f564b74b4a06",
+                "reference": "93068c4f7da218034f5373e31407f564b74b4a06",
+                "shasum": ""
+            },
+            "require": {
+                "php": ">=8.1"
+            },
+            "require-dev": {
+                "buggregator/trap": "^1.10",
+                "phpunit/phpunit": "^10.5",
+                "spiral/code-style": "^2.2.2",
+                "ta-tikoma/phpunit-architecture-test": "^0.8.4",
+                "vimeo/psalm": "^6.10"
+            },
+            "suggest": {
+                "ext-simplexml": "to support XML configs parsing"
+            },
+            "type": "library",
+            "autoload": {
+                "psr-4": {
+                    "Internal\\Destroy\\": "src/"
+                }
+            },
+            "notification-url": "https://packagist.org/downloads/",
+            "license": [
+                "BSD-3-Clause"
+            ],
+            "authors": [
+                {
+                    "name": "Aleksei Gagarin (roxblnfk)",
+                    "homepage": "https://github.com/roxblnfk"
+                }
+            ],
+            "keywords": [
+                "download binaries",
+                "memory"
+            ],
+            "support": {
+                "issues": "https://github.com/php-internal/destroy/issues",
+                "source": "https://github.com/php-internal/destroy/tree/1.0.0"
+            },
+            "funding": [
+                {
+                    "url": "https://patreon.com/roxblnfk",
+                    "type": "patreon"
+                }
+            ],
+            "time": "2025-09-08T14:29:16+00:00"
+        },
+        {
+            "name": "internal/path",
+            "version": "1.4.0",
+            "source": {
+                "type": "git",
+                "url": "https://github.com/php-internal/path.git",
+                "reference": "e59fc0d530891483b5f47417ccfecb3d02b2218c"
+            },
+            "dist": {
+                "type": "zip",
+                "url": "https://api.github.com/repos/php-internal/path/zipball/e59fc0d530891483b5f47417ccfecb3d02b2218c",
+                "reference": "e59fc0d530891483b5f47417ccfecb3d02b2218c",
+                "shasum": ""
+            },
+            "require": {
+                "php": ">=8.1"
+            },
+            "require-dev": {
+                "buggregator/trap": "^1.15",
+                "infection/infection": "^0.33.2",
+                "llm/skills": "^1.7",
+                "roxblnfk/unpoly": "^1.8.1",
+                "spiral/code-style": "^2.3.1",
+                "testo/bridge-infection": "^0.1.6",
+                "testo/testo": "^0.10.21",
+                "vimeo/psalm": "^7"
+            },
+            "type": "library",
+            "autoload": {
+                "psr-4": {
+                    "Internal\\": "src/"
+                }
+            },
+            "notification-url": "https://packagist.org/downloads/",
+            "license": [
+                "BSD-3-Clause"
+            ],
+            "authors": [
+                {
+                    "name": "Aleksei Gagarin",
+                    "homepage": "https://github.com/roxblnfk"
+                }
+            ],
+            "description": "Type-safe, immutable file path library with cross-platform support and automatic normalization.",
+            "keywords": [
+                "cross-platform",
+                "file",
+                "filepath",
+                "filesystem",
+                "helper",
+                "path",
+                "unix",
+                "windows"
+            ],
+            "support": {
+                "issues": "https://github.com/php-internal/path/issues",
+                "source": "https://github.com/php-internal/path/tree/1.4.0"
+            },
+            "funding": [
+                {
+                    "url": "https://boosty.to/roxblnfk",
+                    "type": "boosty"
+                }
+            ],
+            "time": "2026-09-08T10:51:37+00:00"
+        },
+        {
+            "name": "psr/container",
+            "version": "2.0.2",
+            "source": {
+                "type": "git",
+                "url": "https://github.com/php-fig/container.git",
+                "reference": "c71ecc56dfe541dbd90c5360474fbc405f8d5963"
+            },
+            "dist": {
+                "type": "zip",
+                "url": "https://api.github.com/repos/php-fig/container/zipball/c71ecc56dfe541dbd90c5360474fbc405f8d5963",
+                "reference": "c71ecc56dfe541dbd90c5360474fbc405f8d5963",
+                "shasum": ""
+            },
+            "require": {
+                "php": ">=7.4.0"
+            },
+            "type": "library",
+            "extra": {
+                "branch-alias": {
+                    "dev-master": "2.0.x-dev"
+                }
+            },
+            "autoload": {
+                "psr-4": {
+                    "Psr\\Container\\": "src/"
+                }
+            },
+            "notification-url": "https://packagist.org/downloads/",
+            "license": [
+                "MIT"
+            ],
+            "authors": [
+                {
+                    "name": "PHP-FIG",
+                    "homepage": "https://www.php-fig.org/"
+                }
+            ],
+            "description": "Common Container Interface (PHP FIG PSR-11)",
+            "homepage": "https://github.com/php-fig/container",
+            "keywords": [
+                "PSR-11",
+                "container",
+                "container-interface",
+                "container-interop",
+                "psr"
+            ],
+            "support": {
+                "issues": "https://github.com/php-fig/container/issues",
+                "source": "https://github.com/php-fig/container/tree/2.0.2"
+            },
+            "time": "2021-11-05T16:47:00+00:00"
+        },
+        {
+            "name": "psr/event-dispatcher",
+            "version": "1.0.0",
+            "source": {
+                "type": "git",
+                "url": "https://github.com/php-fig/event-dispatcher.git",
+                "reference": "dbefd12671e8a14ec7f180cab83036ed26714bb0"
+            },
+            "dist": {
+                "type": "zip",
+                "url": "https://api.github.com/repos/php-fig/event-dispatcher/zipball/dbefd12671e8a14ec7f180cab83036ed26714bb0",
+                "reference": "dbefd12671e8a14ec7f180cab83036ed26714bb0",
+                "shasum": ""
+            },
+            "require": {
+                "php": ">=7.2.0"
+            },
+            "type": "library",
+            "extra": {
+                "branch-alias": {
+                    "dev-master": "1.0.x-dev"
+                }
+            },
+            "autoload": {
+                "psr-4": {
+                    "Psr\\EventDispatcher\\": "src/"
+                }
+            },
+            "notification-url": "https://packagist.org/downloads/",
+            "license": [
+                "MIT"
+            ],
+            "authors": [
+                {
+                    "name": "PHP-FIG",
+                    "homepage": "http://www.php-fig.org/"
+                }
+            ],
+            "description": "Standard interfaces for event handling.",
+            "keywords": [
+                "events",
+                "psr",
+                "psr-14"
+            ],
+            "support": {
+                "issues": "https://github.com/php-fig/event-dispatcher/issues",
+                "source": "https://github.com/php-fig/event-dispatcher/tree/1.0.0"
+            },
+            "time": "2019-01-08T18:20:26+00:00"
+        },
+        {
+            "name": "psr/log",
+            "version": "3.0.2",
+            "source": {
+                "type": "git",
+                "url": "https://github.com/php-fig/log.git",
+                "reference": "f16e1d5863e37f8d8c2a01719f5b34baa2b714d3"
+            },
+            "dist": {
+                "type": "zip",
+                "url": "https://api.github.com/repos/php-fig/log/zipball/f16e1d5863e37f8d8c2a01719f5b34baa2b714d3",
+                "reference": "f16e1d5863e37f8d8c2a01719f5b34baa2b714d3",
+                "shasum": ""
+            },
+            "require": {
+                "php": ">=8.0.0"
+            },
+            "type": "library",
+            "extra": {
+                "branch-alias": {
+                    "dev-master": "3.x-dev"
+                }
+            },
+            "autoload": {
+                "psr-4": {
+                    "Psr\\Log\\": "src"
+                }
+            },
+            "notification-url": "https://packagist.org/downloads/",
+            "license": [
+                "MIT"
+            ],
+            "authors": [
+                {
+                    "name": "PHP-FIG",
+                    "homepage": "https://www.php-fig.org/"
+                }
+            ],
+            "description": "Common interface for logging libraries",
+            "homepage": "https://github.com/php-fig/log",
+            "keywords": [
+                "log",
+                "psr",
+                "psr-3"
+            ],
+            "support": {
+                "source": "https://github.com/php-fig/log/tree/3.0.2"
+            },
+            "time": "2024-09-11T13:17:53+00:00"
+        },
+        {
+            "name": "symfony/console",
+            "version": "v7.4.20",
+            "source": {
+                "type": "git",
+                "url": "https://github.com/symfony/console.git",
+                "reference": "d7bca2fe05241dc7732d0c8b6d551b879f5d0a7d"
+            },
+            "dist": {
+                "type": "zip",
+                "url": "https://api.github.com/repos/symfony/console/zipball/d7bca2fe05241dc7732d0c8b6d551b879f5d0a7d",
+                "reference": "d7bca2fe05241dc7732d0c8b6d551b879f5d0a7d",
+                "shasum": ""
+            },
+            "require": {
+                "php": ">=8.2",
+                "symfony/deprecation-contracts": "^2.5|^3",
+                "symfony/polyfill-mbstring": "~1.0",
+                "symfony/service-contracts": "^2.5|^3",
+                "symfony/string": "^7.2|^8.0"
+            },
+            "conflict": {
+                "symfony/dependency-injection": "<6.4",
+                "symfony/dotenv": "<6.4",
+                "symfony/event-dispatcher": "<6.4",
+                "symfony/lock": "<6.4",
+                "symfony/process": "<6.4"
+            },
+            "provide": {
+                "psr/log-implementation": "1.0|2.0|3.0"
+            },
+            "require-dev": {
+                "psr/log": "^1|^2|^3",
+                "symfony/config": "^6.4|^7.0|^8.0",
+                "symfony/dependency-injection": "^6.4|^7.0|^8.0",
+                "symfony/event-dispatcher": "^6.4|^7.0|^8.0",
+                "symfony/http-foundation": "^6.4|^7.0|^8.0",
+                "symfony/http-kernel": "^6.4|^7.0|^8.0",
+                "symfony/lock": "^6.4|^7.0|^8.0",
+                "symfony/messenger": "^6.4|^7.0|^8.0",
+                "symfony/process": "^6.4|^7.0|^8.0",
+                "symfony/stopwatch": "^6.4|^7.0|^8.0",
+                "symfony/var-dumper": "^6.4|^7.0|^8.0"
+            },
+            "type": "library",
+            "autoload": {
+                "psr-4": {
+                    "Symfony\\Component\\Console\\": ""
+                },
+                "exclude-from-classmap": [
+                    "/Tests/"
+                ]
+            },
+            "notification-url": "https://packagist.org/downloads/",
+            "license": [
+                "MIT"
+            ],
+            "authors": [
+                {
+                    "name": "Fabien Potencier",
+                    "email": "fabien@symfony.com"
+                },
+                {
+                    "name": "Symfony Community",
+                    "homepage": "https://symfony.com/contributors"
+                }
+            ],
+            "description": "Eases the creation of beautiful and testable command line interfaces",
+            "homepage": "https://symfony.com",
+            "keywords": [
+                "cli",
+                "command-line",
+                "console",
+                "terminal"
+            ],
+            "support": {
+                "source": "https://github.com/symfony/console/tree/v7.4.20"
+            },
+            "funding": [
+                {
+                    "url": "https://symfony.com/sponsor",
+                    "type": "custom"
+                },
+                {
+                    "url": "https://github.com/fabpot",
+                    "type": "github"
+                },
+                {
+                    "url": "https://github.com/nicolas-grekas",
+                    "type": "github"
+                },
+                {
+                    "url": "https://tidelift.com/funding/github/packagist/symfony/symfony",
+                    "type": "tidelift"
+                }
+            ],
+            "time": "2026-09-18T15:55:00+00:00"
+        },
+        {
+            "name": "symfony/deprecation-contracts",
+            "version": "v3.7.1",
+            "source": {
+                "type": "git",
+                "url": "https://github.com/symfony/deprecation-contracts.git",
+                "reference": "f3202fa1b5097b0af062dc978b32ecf63404e31d"
+            },
+            "dist": {
+                "type": "zip",
+                "url": "https://api.github.com/repos/symfony/deprecation-contracts/zipball/f3202fa1b5097b0af062dc978b32ecf63404e31d",
+                "reference": "f3202fa1b5097b0af062dc978b32ecf63404e31d",
+                "shasum": ""
+            },
+            "require": {
+                "php": ">=8.1"
+            },
+            "type": "library",
+            "extra": {
+                "thanks": {
+                    "url": "https://github.com/symfony/contracts",
+                    "name": "symfony/contracts"
+                },
+                "branch-alias": {
+                    "dev-main": "3.7-dev"
+                }
+            },
+            "autoload": {
+                "files": [
+                    "function.php"
+                ]
+            },
+            "notification-url": "https://packagist.org/downloads/",
+            "license": [
+                "MIT"
+            ],
+            "authors": [
+                {
+                    "name": "Nicolas Grekas",
+                    "email": "p@tchwork.com"
+                },
+                {
+                    "name": "Symfony Community",
+                    "homepage": "https://symfony.com/contributors"
+                }
+            ],
+            "description": "A generic function and convention to trigger deprecation notices",
+            "homepage": "https://symfony.com",
+            "support": {
+                "source": "https://github.com/symfony/deprecation-contracts/tree/v3.7.1"
+            },
+            "funding": [
+                {
+                    "url": "https://symfony.com/sponsor",
+                    "type": "custom"
+                },
+                {
+                    "url": "https://github.com/fabpot",
+                    "type": "github"
+                },
+                {
+                    "url": "https://github.com/nicolas-grekas",
+                    "type": "github"
+                },
+                {
+                    "url": "https://tidelift.com/funding/github/packagist/symfony/symfony",
+                    "type": "tidelift"
+                }
+            ],
+            "time": "2026-06-05T06:23:12+00:00"
+        },
+        {
+            "name": "symfony/finder",
+            "version": "v7.4.20",
+            "source": {
+                "type": "git",
+                "url": "https://github.com/symfony/finder.git",
+                "reference": "2dd31e5208db7a0fda7bfc998ad727b79c2e4d1e"
+            },
+            "dist": {
+                "type": "zip",
+                "url": "https://api.github.com/repos/symfony/finder/zipball/2dd31e5208db7a0fda7bfc998ad727b79c2e4d1e",
+                "reference": "2dd31e5208db7a0fda7bfc998ad727b79c2e4d1e",
+                "shasum": ""
+            },
+            "require": {
+                "php": ">=8.2"
+            },
+            "require-dev": {
+                "symfony/filesystem": "^6.4|^7.0|^8.0"
+            },
+            "type": "library",
+            "autoload": {
+                "psr-4": {
+                    "Symfony\\Component\\Finder\\": ""
+                },
+                "exclude-from-classmap": [
+                    "/Tests/"
+                ]
+            },
+            "notification-url": "https://packagist.org/downloads/",
+            "license": [
+                "MIT"
+            ],
+            "authors": [
+                {
+                    "name": "Fabien Potencier",
+                    "email": "fabien@symfony.com"
+                },
+                {
+                    "name": "Symfony Community",
+                    "homepage": "https://symfony.com/contributors"
+                }
+            ],
+            "description": "Finds files and directories via an intuitive fluent interface",
+            "homepage": "https://symfony.com",
+            "support": {
+                "source": "https://github.com/symfony/finder/tree/v7.4.20"
+            },
+            "funding": [
+                {
+                    "url": "https://symfony.com/sponsor",
+                    "type": "custom"
+                },
+                {
+                    "url": "https://github.com/fabpot",
+                    "type": "github"
+                },
+                {
+                    "url": "https://github.com/nicolas-grekas",
+                    "type": "github"
+                },
+                {
+                    "url": "https://tidelift.com/funding/github/packagist/symfony/symfony",
+                    "type": "tidelift"
+                }
+            ],
+            "time": "2026-09-26T06:31:10+00:00"
+        },
+        {
+            "name": "symfony/polyfill-ctype",
+            "version": "v1.37.0",
+            "source": {
+                "type": "git",
+                "url": "https://github.com/symfony/polyfill-ctype.git",
+                "reference": "141046a8f9477948ff284fa65be2095baafb94f2"
+            },
+            "dist": {
+                "type": "zip",
+                "url": "https://api.github.com/repos/symfony/polyfill-ctype/zipball/141046a8f9477948ff284fa65be2095baafb94f2",
+                "reference": "141046a8f9477948ff284fa65be2095baafb94f2",
+                "shasum": ""
+            },
+            "require": {
+                "php": ">=7.2"
+            },
+            "provide": {
+                "ext-ctype": "*"
+            },
+            "suggest": {
+                "ext-ctype": "For best performance"
+            },
+            "type": "library",
+            "extra": {
+                "thanks": {
+                    "url": "https://github.com/symfony/polyfill",
+                    "name": "symfony/polyfill"
+                }
+            },
+            "autoload": {
+                "files": [
+                    "bootstrap.php"
+                ],
+                "psr-4": {
+                    "Symfony\\Polyfill\\Ctype\\": ""
+                }
+            },
+            "notification-url": "https://packagist.org/downloads/",
+            "license": [
+                "MIT"
+            ],
+            "authors": [
+                {
+                    "name": "Gert de Pagter",
+                    "email": "BackEndTea@gmail.com"
+                },
+                {
+                    "name": "Symfony Community",
+                    "homepage": "https://symfony.com/contributors"
+                }
+            ],
+            "description": "Symfony polyfill for ctype functions",
+            "homepage": "https://symfony.com",
+            "keywords": [
+                "compatibility",
+                "ctype",
+                "polyfill",
+                "portable"
+            ],
+            "support": {
+                "source": "https://github.com/symfony/polyfill-ctype/tree/v1.37.0"
+            },
+            "funding": [
+                {
+                    "url": "https://symfony.com/sponsor",
+                    "type": "custom"
+                },
+                {
+                    "url": "https://github.com/fabpot",
+                    "type": "github"
+                },
+                {
+                    "url": "https://github.com/nicolas-grekas",
+                    "type": "github"
+                },
+                {
+                    "url": "https://tidelift.com/funding/github/packagist/symfony/symfony",
+                    "type": "tidelift"
+                }
+            ],
+            "time": "2026-04-10T16:19:22+00:00"
+        },
+        {
+            "name": "symfony/polyfill-intl-grapheme",
+            "version": "v1.43.0",
+            "source": {
+                "type": "git",
+                "url": "https://github.com/symfony/polyfill-intl-grapheme.git",
+                "reference": "5cac8f4db97208823aa353f59a01faad2da52c75"
+            },
+            "dist": {
+                "type": "zip",
+                "url": "https://api.github.com/repos/symfony/polyfill-intl-grapheme/zipball/5cac8f4db97208823aa353f59a01faad2da52c75",
+                "reference": "5cac8f4db97208823aa353f59a01faad2da52c75",
+                "shasum": ""
+            },
+            "require": {
+                "php": ">=7.2"
+            },
+            "suggest": {
+                "ext-intl": "For best performance"
+            },
+            "type": "library",
+            "extra": {
+                "thanks": {
+                    "url": "https://github.com/symfony/polyfill",
+                    "name": "symfony/polyfill"
+                }
+            },
+            "autoload": {
+                "files": [
+                    "bootstrap.php"
+                ],
+                "psr-4": {
+                    "Symfony\\Polyfill\\Intl\\Grapheme\\": ""
+                }
+            },
+            "notification-url": "https://packagist.org/downloads/",
+            "license": [
+                "MIT"
+            ],
+            "authors": [
+                {
+                    "name": "Nicolas Grekas",
+                    "email": "p@tchwork.com"
+                },
+                {
+                    "name": "Symfony Community",
+                    "homepage": "https://symfony.com/contributors"
+                }
+            ],
+            "description": "Symfony polyfill for intl's grapheme_* functions",
+            "homepage": "https://symfony.com",
+            "keywords": [
+                "compatibility",
+                "grapheme",
+                "intl",
+                "polyfill",
+                "portable",
+                "shim"
+            ],
+            "support": {
+                "source": "https://github.com/symfony/polyfill-intl-grapheme/tree/v1.43.0"
+            },
+            "funding": [
+                {
+                    "url": "https://symfony.com/sponsor",
+                    "type": "custom"
+                },
+                {
+                    "url": "https://github.com/fabpot",
+                    "type": "github"
+                },
+                {
+                    "url": "https://github.com/nicolas-grekas",
+                    "type": "github"
+                },
+                {
+                    "url": "https://tidelift.com/funding/github/packagist/symfony/symfony",
+                    "type": "tidelift"
+                }
+            ],
+            "time": "2026-09-25T15:46:47+00:00"
+        },
+        {
+            "name": "symfony/polyfill-intl-normalizer",
+            "version": "v1.43.0",
+            "source": {
+                "type": "git",
+                "url": "https://github.com/symfony/polyfill-intl-normalizer.git",
+                "reference": "ebd57ccc7edb93d632e184efbe7693d2517bab3b"
+            },
+            "dist": {
+                "type": "zip",
+                "url": "https://api.github.com/repos/symfony/polyfill-intl-normalizer/zipball/ebd57ccc7edb93d632e184efbe7693d2517bab3b",
+                "reference": "ebd57ccc7edb93d632e184efbe7693d2517bab3b",
+                "shasum": ""
+            },
+            "require": {
+                "php": ">=7.2"
+            },
+            "suggest": {
+                "ext-intl": "For best performance"
+            },
+            "type": "library",
+            "extra": {
+                "thanks": {
+                    "url": "https://github.com/symfony/polyfill",
+                    "name": "symfony/polyfill"
+                }
+            },
+            "autoload": {
+                "files": [
+                    "bootstrap.php"
+                ],
+                "psr-4": {
+                    "Symfony\\Polyfill\\Intl\\Normalizer\\": ""
+                },
+                "classmap": [
+                    "Resources/stubs"
+                ]
+            },
+            "notification-url": "https://packagist.org/downloads/",
+            "license": [
+                "MIT"
+            ],
+            "authors": [
+                {
+                    "name": "Nicolas Grekas",
+                    "email": "p@tchwork.com"
+                },
+                {
+                    "name": "Symfony Community",
+                    "homepage": "https://symfony.com/contributors"
+                }
+            ],
+            "description": "Symfony polyfill for intl's Normalizer class and related functions",
+            "homepage": "https://symfony.com",
+            "keywords": [
+                "compatibility",
+                "intl",
+                "normalizer",
+                "polyfill",
+                "portable",
+                "shim"
+            ],
+            "support": {
+                "source": "https://github.com/symfony/polyfill-intl-normalizer/tree/v1.43.0"
+            },
+            "funding": [
+                {
+                    "url": "https://symfony.com/sponsor",
+                    "type": "custom"
+                },
+                {
+                    "url": "https://github.com/fabpot",
+                    "type": "github"
+                },
+                {
+                    "url": "https://github.com/nicolas-grekas",
+                    "type": "github"
+                },
+                {
+                    "url": "https://tidelift.com/funding/github/packagist/symfony/symfony",
+                    "type": "tidelift"
+                }
+            ],
+            "time": "2026-09-23T22:02:09+00:00"
+        },
+        {
+            "name": "symfony/polyfill-mbstring",
+            "version": "v1.43.0",
+            "source": {
+                "type": "git",
+                "url": "https://github.com/symfony/polyfill-mbstring.git",
+                "reference": "4d5d331bf731e0aedbc6b2f5e61135b7b7996a72"
+            },
+            "dist": {
+                "type": "zip",
+                "url": "https://api.github.com/repos/symfony/polyfill-mbstring/zipball/4d5d331bf731e0aedbc6b2f5e61135b7b7996a72",
+                "reference": "4d5d331bf731e0aedbc6b2f5e61135b7b7996a72",
+                "shasum": ""
+            },
+            "require": {
+                "ext-iconv": "*",
+                "php": ">=7.2"
+            },
+            "provide": {
+                "ext-mbstring": "*"
+            },
+            "suggest": {
+                "ext-mbstring": "For best performance"
+            },
+            "type": "library",
+            "extra": {
+                "thanks": {
+                    "url": "https://github.com/symfony/polyfill",
+                    "name": "symfony/polyfill"
+                }
+            },
+            "autoload": {
+                "files": [
+                    "bootstrap.php"
+                ],
+                "psr-4": {
+                    "Symfony\\Polyfill\\Mbstring\\": ""
+                }
+            },
+            "notification-url": "https://packagist.org/downloads/",
+            "license": [
+                "MIT"
+            ],
+            "authors": [
+                {
+                    "name": "Nicolas Grekas",
+                    "email": "p@tchwork.com"
+                },
+                {
+                    "name": "Symfony Community",
+                    "homepage": "https://symfony.com/contributors"
+                }
+            ],
+            "description": "Symfony polyfill for the Mbstring extension",
+            "homepage": "https://symfony.com",
+            "keywords": [
+                "compatibility",
+                "mbstring",
+                "polyfill",
+                "portable",
+                "shim"
+            ],
+            "support": {
+                "source": "https://github.com/symfony/polyfill-mbstring/tree/v1.43.0"
+            },
+            "funding": [
+                {
+                    "url": "https://symfony.com/sponsor",
+                    "type": "custom"
+                },
+                {
+                    "url": "https://github.com/fabpot",
+                    "type": "github"
+                },
+                {
+                    "url": "https://github.com/nicolas-grekas",
+                    "type": "github"
+                },
+                {
+                    "url": "https://tidelift.com/funding/github/packagist/symfony/symfony",
+                    "type": "tidelift"
+                }
+            ],
+            "time": "2026-09-24T15:19:04+00:00"
+        },
+        {
+            "name": "symfony/service-contracts",
+            "version": "v3.7.3",
+            "source": {
+                "type": "git",
+                "url": "https://github.com/symfony/service-contracts.git",
+                "reference": "15e6a07ec2a2c75ceb1b21dd98105ee8456d2257"
+            },
+            "dist": {
+                "type": "zip",
+                "url": "https://api.github.com/repos/symfony/service-contracts/zipball/15e6a07ec2a2c75ceb1b21dd98105ee8456d2257",
+                "reference": "15e6a07ec2a2c75ceb1b21dd98105ee8456d2257",
+                "shasum": ""
+            },
+            "require": {
+                "php": ">=8.1",
+                "psr/container": "^1.1|^2.0",
+                "symfony/deprecation-contracts": "^2.5|^3"
+            },
+            "conflict": {
+                "ext-psr": "<1.1|>=2"
+            },
+            "type": "library",
+            "extra": {
+                "thanks": {
+                    "url": "https://github.com/symfony/contracts",
+                    "name": "symfony/contracts"
+                },
+                "branch-alias": {
+                    "dev-main": "3.7-dev"
+                }
+            },
+            "autoload": {
+                "psr-4": {
+                    "Symfony\\Contracts\\Service\\": ""
+                },
+                "exclude-from-classmap": [
+                    "/Test/"
+                ]
+            },
+            "notification-url": "https://packagist.org/downloads/",
+            "license": [
+                "MIT"
+            ],
+            "authors": [
+                {
+                    "name": "Nicolas Grekas",
+                    "email": "p@tchwork.com"
+                },
+                {
+                    "name": "Symfony Community",
+                    "homepage": "https://symfony.com/contributors"
+                }
+            ],
+            "description": "Generic abstractions related to writing services",
+            "homepage": "https://symfony.com",
+            "keywords": [
+                "abstractions",
+                "contracts",
+                "decoupling",
+                "interfaces",
+                "interoperability",
+                "standards"
+            ],
+            "support": {
+                "source": "https://github.com/symfony/service-contracts/tree/v3.7.3"
+            },
+            "funding": [
+                {
+                    "url": "https://symfony.com/sponsor",
+                    "type": "custom"
+                },
+                {
+                    "url": "https://github.com/fabpot",
+                    "type": "github"
+                },
+                {
+                    "url": "https://github.com/nicolas-grekas",
+                    "type": "github"
+                },
+                {
+                    "url": "https://tidelift.com/funding/github/packagist/symfony/symfony",
+                    "type": "tidelift"
+                }
+            ],
+            "time": "2026-07-27T15:39:01+00:00"
+        },
+        {
+            "name": "symfony/string",
+            "version": "v7.4.19",
+            "source": {
+                "type": "git",
+                "url": "https://github.com/symfony/string.git",
+                "reference": "02731ce2bd26514bec9efc0baef2cd0b0cf67f46"
+            },
+            "dist": {
+                "type": "zip",
+                "url": "https://api.github.com/repos/symfony/string/zipball/02731ce2bd26514bec9efc0baef2cd0b0cf67f46",
+                "reference": "02731ce2bd26514bec9efc0baef2cd0b0cf67f46",
+                "shasum": ""
+            },
+            "require": {
+                "php": ">=8.2",
+                "symfony/deprecation-contracts": "^2.5|^3.0",
+                "symfony/polyfill-ctype": "~1.8",
+                "symfony/polyfill-intl-grapheme": "~1.33",
+                "symfony/polyfill-intl-normalizer": "~1.0",
+                "symfony/polyfill-mbstring": "~1.0"
+            },
+            "conflict": {
+                "symfony/translation-contracts": "<2.5"
+            },
+            "require-dev": {
+                "symfony/emoji": "^7.1|^8.0",
+                "symfony/http-client": "^6.4|^7.0|^8.0",
+                "symfony/intl": "^6.4|^7.0|^8.0",
+                "symfony/translation-contracts": "^2.5|^3.0",
+                "symfony/var-exporter": "^6.4|^7.0|^8.0"
+            },
+            "type": "library",
+            "autoload": {
+                "files": [
+                    "Resources/functions.php"
+                ],
+                "psr-4": {
+                    "Symfony\\Component\\String\\": ""
+                },
+                "exclude-from-classmap": [
+                    "/Tests/"
+                ]
+            },
+            "notification-url": "https://packagist.org/downloads/",
+            "license": [
+                "MIT"
+            ],
+            "authors": [
+                {
+                    "name": "Nicolas Grekas",
+                    "email": "p@tchwork.com"
+                },
+                {
+                    "name": "Symfony Community",
+                    "homepage": "https://symfony.com/contributors"
+                }
+            ],
+            "description": "Provides an object-oriented API to strings and deals with bytes, UTF-8 code points and grapheme clusters in a unified way",
+            "homepage": "https://symfony.com",
+            "keywords": [
+                "grapheme",
+                "i18n",
+                "string",
+                "unicode",
+                "utf-8",
+                "utf8"
+            ],
+            "support": {
+                "source": "https://github.com/symfony/string/tree/v7.4.19"
+            },
+            "funding": [
+                {
+                    "url": "https://symfony.com/sponsor",
+                    "type": "custom"
+                },
+                {
+                    "url": "https://github.com/fabpot",
+                    "type": "github"
+                },
+                {
+                    "url": "https://github.com/nicolas-grekas",
+                    "type": "github"
+                },
+                {
+                    "url": "https://tidelift.com/funding/github/packagist/symfony/symfony",
+                    "type": "tidelift"
+                }
+            ],
+            "time": "2026-09-11T14:46:58+00:00"
+        },
+        {
+            "name": "testo/assert",
+            "version": "0.1.17",
+            "source": {
+                "type": "git",
+                "url": "https://github.com/php-testo/assert.git",
+                "reference": "923d3ddf8c75d12ff240ccd90a5586236e0dc2c5"
+            },
+            "dist": {
+                "type": "zip",
+                "url": "https://api.github.com/repos/php-testo/assert/zipball/923d3ddf8c75d12ff240ccd90a5586236e0dc2c5",
+                "reference": "923d3ddf8c75d12ff240ccd90a5586236e0dc2c5",
+                "shasum": ""
+            },
+            "require": {
+                "internal/container": "^1.1",
+                "php": ">=8.2",
+                "symfony/polyfill-mbstring": "^1.0",
+                "testo/testo": "0.10.53 - 1"
+            },
+            "type": "library",
+            "extra": {
+                "branch-alias": {
+                    "dev-1.x": "1.x-dev"
+                }
+            },
+            "autoload": {
+                "files": [
+                    "Assert.php",
+                    "Expect.php"
+                ],
+                "psr-4": {
+                    "Testo\\Assert\\": "src/"
+                }
+            },
+            "notification-url": "https://packagist.org/downloads/",
+            "license": [
+                "BSD-3-Clause"
+            ],
+            "authors": [
+                {
+                    "name": "Aleksei Gagarin (roxblnfk)",
+                    "homepage": "https://github.com/roxblnfk"
+                }
+            ],
+            "description": "Assert plugin for the Testo testing framework.",
+            "keywords": [
+                "assert",
+                "testo"
+            ],
+            "support": {
+                "source": "https://github.com/php-testo/assert/tree/0.1.17"
+            },
+            "funding": [
+                {
+                    "url": "https://boosty.to/roxblnfk",
+                    "type": "boosty"
+                }
+            ],
+            "time": "2026-09-26T14:31:31+00:00"
+        },
+        {
+            "name": "testo/bench",
+            "version": "0.1.13",
+            "source": {
+                "type": "git",
+                "url": "https://github.com/php-testo/bench.git",
+                "reference": "ea08629b62a0dd0b0cd9d1e5f25b7f9937c7b40c"
+            },
+            "dist": {
+                "type": "zip",
+                "url": "https://api.github.com/repos/php-testo/bench/zipball/ea08629b62a0dd0b0cd9d1e5f25b7f9937c7b40c",
+                "reference": "ea08629b62a0dd0b0cd9d1e5f25b7f9937c7b40c",
+                "shasum": ""
+            },
+            "require": {
+                "internal/container": "^1.1",
+                "php": ">=8.2",
+                "testo/data": "^0.1.10",
+                "testo/filter": "^0.1.8",
+                "testo/inline": "^0.1.9",
+                "testo/testo": "0.10.52 - 1"
+            },
+            "require-dev": {
+                "testo/assert": "^0.1.16"
+            },
+            "suggest": {
+                "testo/assert": "Enables the benchmark verdict as an assertion: current must be the fastest within tolerance, otherwise the test fails."
+            },
+            "type": "library",
+            "extra": {
+                "branch-alias": {
+                    "dev-1.x": "1.x-dev"
+                }
+            },
+            "autoload": {
+                "files": [
+                    "Bench.php"
+                ],
+                "psr-4": {
+                    "Testo\\Bench\\": "src/"
+                }
+            },
+            "notification-url": "https://packagist.org/downloads/",
+            "license": [
+                "BSD-3-Clause"
+            ],
+            "authors": [
+                {
+                    "name": "Aleksei Gagarin (roxblnfk)",
+                    "homepage": "https://github.com/roxblnfk"
+                }
+            ],
+            "description": "Benchmark plugin for the Testo testing framework.",
+            "keywords": [
+                "benchmark",
+                "testo"
+            ],
+            "support": {
+                "source": "https://github.com/php-testo/bench/tree/0.1.13"
+            },
+            "funding": [
+                {
+                    "url": "https://boosty.to/roxblnfk",
+                    "type": "boosty"
+                }
+            ],
+            "time": "2026-09-25T20:50:43+00:00"
+        },
+        {
+            "name": "testo/bridge-symfony-console",
+            "version": "0.1.14",
+            "source": {
+                "type": "git",
+                "url": "https://github.com/php-testo/bridge-symfony-console.git",
+                "reference": "65a8435b8a219b18b2cc78bd0a75fd0dd8b549c8"
+            },
+            "dist": {
+                "type": "zip",
+                "url": "https://api.github.com/repos/php-testo/bridge-symfony-console/zipball/65a8435b8a219b18b2cc78bd0a75fd0dd8b549c8",
+                "reference": "65a8435b8a219b18b2cc78bd0a75fd0dd8b549c8",
+                "shasum": ""
+            },
+            "require": {
+                "php": ">=8.2",
+                "symfony/console": "^6.4 || ^7 || ^8.0",
+                "testo/testo": "0.10.49 - 1"
+            },
+            "bin": [
+                "bin/testo"
+            ],
+            "type": "library",
+            "extra": {
+                "branch-alias": {
+                    "dev-1.x": "1.x-dev"
+                }
+            },
+            "autoload": {
+                "psr-4": {
+                    "Testo\\Bridge\\Symfony\\Console\\": "src/"
+                }
+            },
+            "notification-url": "https://packagist.org/downloads/",
+            "license": [
+                "BSD-3-Clause"
+            ],
+            "authors": [
+                {
+                    "name": "Aleksei Gagarin (roxblnfk)",
+                    "homepage": "https://github.com/roxblnfk"
+                }
+            ],
+            "description": "Symfony Console bridge for the Testo testing framework.",
+            "keywords": [
+                "console",
+                "symfony",
+                "testo"
+            ],
+            "support": {
+                "source": "https://github.com/php-testo/bridge-symfony-console/tree/0.1.14"
+            },
+            "funding": [
+                {
+                    "url": "https://boosty.to/roxblnfk",
+                    "type": "boosty"
+                }
+            ],
+            "time": "2026-09-19T22:13:40+00:00"
+        },
+        {
+            "name": "testo/codecov",
+            "version": "0.2.3",
+            "source": {
+                "type": "git",
+                "url": "https://github.com/php-testo/codecov.git",
+                "reference": "bfd04182b9fef55177f8464c63063f6e9ddb314d"
+            },
+            "dist": {
+                "type": "zip",
+                "url": "https://api.github.com/repos/php-testo/codecov/zipball/bfd04182b9fef55177f8464c63063f6e9ddb314d",
+                "reference": "bfd04182b9fef55177f8464c63063f6e9ddb314d",
+                "shasum": ""
+            },
+            "require": {
+                "ext-xmlwriter": "*",
+                "internal/container": "^1.1",
+                "php": ">=8.2",
+                "testo/data": "^0.1.9",
+                "testo/inline": "^0.1.9",
+                "testo/testo": "0.10.51 - 1"
+            },
+            "type": "library",
+            "extra": {
+                "branch-alias": {
+                    "dev-1.x": "1.x-dev"
+                }
+            },
+            "autoload": {
+                "psr-4": {
+                    "Testo\\Codecov\\": "src/"
+                }
+            },
+            "notification-url": "https://packagist.org/downloads/",
+            "license": [
+                "BSD-3-Clause"
+            ],
+            "authors": [
+                {
+                    "name": "Aleksei Gagarin (roxblnfk)",
+                    "homepage": "https://github.com/roxblnfk"
+                }
+            ],
+            "description": "Code coverage plugin for the Testo testing framework.",
+            "keywords": [
+                "code-coverage",
+                "testo"
+            ],
+            "support": {
+                "source": "https://github.com/php-testo/codecov/tree/0.2.3"
+            },
+            "funding": [
+                {
+                    "url": "https://boosty.to/roxblnfk",
+                    "type": "boosty"
+                }
+            ],
+            "time": "2026-09-25T08:59:27+00:00"
+        },
+        {
+            "name": "testo/convention",
+            "version": "0.1.5",
+            "source": {
+                "type": "git",
+                "url": "https://github.com/php-testo/convention.git",
+                "reference": "dc562b780d1bfd428e9149344aa3fbf7013bb922"
+            },
+            "dist": {
+                "type": "zip",
+                "url": "https://api.github.com/repos/php-testo/convention/zipball/dc562b780d1bfd428e9149344aa3fbf7013bb922",
+                "reference": "dc562b780d1bfd428e9149344aa3fbf7013bb922",
+                "shasum": ""
+            },
+            "require": {
+                "php": ">=8.2",
+                "testo/testo": "0.10.46 - 1"
+            },
+            "type": "library",
+            "extra": {
+                "branch-alias": {
+                    "dev-1.x": "1.x-dev"
+                }
+            },
+            "autoload": {
+                "psr-4": {
+                    "Testo\\Convention\\": "src/"
+                }
+            },
+            "notification-url": "https://packagist.org/downloads/",
+            "license": [
+                "BSD-3-Clause"
+            ],
+            "authors": [
+                {
+                    "name": "Aleksei Gagarin (roxblnfk)",
+                    "homepage": "https://github.com/roxblnfk"
+                }
+            ],
+            "description": "Naming convention plugin for the Testo testing framework.",
+            "keywords": [
+                "convention",
+                "testo"
+            ],
+            "support": {
+                "source": "https://github.com/php-testo/convention/tree/0.1.5"
+            },
+            "funding": [
+                {
+                    "url": "https://boosty.to/roxblnfk",
+                    "type": "boosty"
+                }
+            ],
+            "time": "2026-09-07T20:37:08+00:00"
+        },
+        {
+            "name": "testo/data",
+            "version": "0.1.10",
+            "source": {
+                "type": "git",
+                "url": "https://github.com/php-testo/data.git",
+                "reference": "910d7ee39d8e0f8272cc64629665e44ed076cdb2"
+            },
+            "dist": {
+                "type": "zip",
+                "url": "https://api.github.com/repos/php-testo/data/zipball/910d7ee39d8e0f8272cc64629665e44ed076cdb2",
+                "reference": "910d7ee39d8e0f8272cc64629665e44ed076cdb2",
+                "shasum": ""
+            },
+            "require": {
+                "php": ">=8.2",
+                "testo/filter": "^0.1.8",
+                "testo/testo": "0.10.52 - 1"
+            },
+            "type": "library",
+            "extra": {
+                "branch-alias": {
+                    "dev-1.x": "1.x-dev"
+                }
+            },
+            "autoload": {
+                "psr-4": {
+                    "Testo\\Data\\": "src/"
+                }
+            },
+            "notification-url": "https://packagist.org/downloads/",
+            "license": [
+                "BSD-3-Clause"
+            ],
+            "authors": [
+                {
+                    "name": "Aleksei Gagarin (roxblnfk)",
+                    "homepage": "https://github.com/roxblnfk"
+                }
+            ],
+            "description": "Data provider plugin for the Testo testing framework.",
+            "keywords": [
+                "data-provider",
+                "testo"
+            ],
+            "support": {
+                "source": "https://github.com/php-testo/data/tree/0.1.10"
+            },
+            "funding": [
+                {
+                    "url": "https://boosty.to/roxblnfk",
+                    "type": "boosty"
+                }
+            ],
+            "time": "2026-09-25T20:52:03+00:00"
+        },
+        {
+            "name": "testo/fiber",
+            "version": "0.1.3",
+            "source": {
+                "type": "git",
+                "url": "https://github.com/php-testo/fiber.git",
+                "reference": "80806749fd830d27f8fe32febd92021b856e442d"
+            },
+            "dist": {
+                "type": "zip",
+                "url": "https://api.github.com/repos/php-testo/fiber/zipball/80806749fd830d27f8fe32febd92021b856e442d",
+                "reference": "80806749fd830d27f8fe32febd92021b856e442d",
+                "shasum": ""
+            },
+            "require": {
+                "php": ">=8.2",
+                "testo/testo": "0.10.43 - 1"
+            },
+            "type": "library",
+            "extra": {
+                "branch-alias": {
+                    "dev-1.x": "1.x-dev"
+                }
+            },
+            "autoload": {
+                "psr-4": {
+                    "Testo\\Fiber\\": "src/"
+                }
+            },
+            "notification-url": "https://packagist.org/downloads/",
+            "license": [
+                "BSD-3-Clause"
+            ],
+            "authors": [
+                {
+                    "name": "Aleksei Gagarin (roxblnfk)",
+                    "homepage": "https://github.com/roxblnfk"
+                }
+            ],
+            "description": "Fiber/coroutine execution plugin for the Testo testing framework: run tests as cooperatively-scheduled plain fibers.",
+            "keywords": [
+                "concurrency",
+                "coroutine",
+                "fiber",
+                "scheduler",
+                "testo"
+            ],
+            "support": {
+                "source": "https://github.com/php-testo/fiber/tree/0.1.3"
+            },
+            "funding": [
+                {
+                    "url": "https://boosty.to/roxblnfk",
+                    "type": "boosty"
+                }
+            ],
+            "time": "2026-08-25T15:47:38+00:00"
+        },
+        {
+            "name": "testo/filter",
+            "version": "0.1.8",
+            "source": {
+                "type": "git",
+                "url": "https://github.com/php-testo/filter.git",
+                "reference": "d387beee996d5910bd26cec62abc952089ecc4b5"
+            },
+            "dist": {
+                "type": "zip",
+                "url": "https://api.github.com/repos/php-testo/filter/zipball/d387beee996d5910bd26cec62abc952089ecc4b5",
+                "reference": "d387beee996d5910bd26cec62abc952089ecc4b5",
+                "shasum": ""
+            },
+            "require": {
+                "internal/container": "^1.1",
+                "php": ">=8.2",
+                "testo/testo": "0.10.47 - 1"
+            },
+            "type": "library",
+            "extra": {
+                "branch-alias": {
+                    "dev-1.x": "1.x-dev"
+                }
+            },
+            "autoload": {
+                "files": [
+                    "Filter.php"
+                ],
+                "psr-4": {
+                    "Testo\\Filter\\": "src/"
+                }
+            },
+            "notification-url": "https://packagist.org/downloads/",
+            "license": [
+                "BSD-3-Clause"
+            ],
+            "authors": [
+                {
+                    "name": "Aleksei Gagarin (roxblnfk)",
+                    "homepage": "https://github.com/roxblnfk"
+                }
+            ],
+            "description": "Test filtering plugin for the Testo testing framework.",
+            "keywords": [
+                "filter",
+                "testo"
+            ],
+            "support": {
+                "source": "https://github.com/php-testo/filter/tree/0.1.8"
+            },
+            "funding": [
+                {
+                    "url": "https://boosty.to/roxblnfk",
+                    "type": "boosty"
+                }
+            ],
+            "time": "2026-09-14T13:27:34+00:00"
+        },
+        {
+            "name": "testo/inline",
+            "version": "0.1.9",
+            "source": {
+                "type": "git",
+                "url": "https://github.com/php-testo/inline.git",
+                "reference": "751c48ce444285ed3436bf0be7f3ef5b58f1d365"
+            },
+            "dist": {
+                "type": "zip",
+                "url": "https://api.github.com/repos/php-testo/inline/zipball/751c48ce444285ed3436bf0be7f3ef5b58f1d365",
+                "reference": "751c48ce444285ed3436bf0be7f3ef5b58f1d365",
+                "shasum": ""
+            },
+            "require": {
+                "php": ">=8.2",
+                "testo/assert": "^0.1.14",
+                "testo/data": "^0.1.9",
+                "testo/filter": "^0.1.7",
+                "testo/testo": "0.10.46 - 1"
+            },
+            "type": "library",
+            "extra": {
+                "branch-alias": {
+                    "dev-1.x": "1.x-dev"
+                }
+            },
+            "autoload": {
+                "psr-4": {
+                    "Testo\\Inline\\": "src/"
+                }
+            },
+            "notification-url": "https://packagist.org/downloads/",
+            "license": [
+                "BSD-3-Clause"
+            ],
+            "authors": [
+                {
+                    "name": "Aleksei Gagarin (roxblnfk)",
+                    "homepage": "https://github.com/roxblnfk"
+                }
+            ],
+            "description": "Inline test plugin for the Testo testing framework.",
+            "keywords": [
+                "inline",
+                "testo"
+            ],
+            "support": {
+                "source": "https://github.com/php-testo/inline/tree/0.1.9"
+            },
+            "funding": [
+                {
+                    "url": "https://boosty.to/roxblnfk",
+                    "type": "boosty"
+                }
+            ],
+            "time": "2026-09-07T20:36:15+00:00"
+        },
+        {
+            "name": "testo/lifecycle",
+            "version": "0.1.8",
+            "source": {
+                "type": "git",
+                "url": "https://github.com/php-testo/lifecycle.git",
+                "reference": "fdcc292396ffbe5bd293ecd2de0b0fefd7403716"
+            },
+            "dist": {
+                "type": "zip",
+                "url": "https://api.github.com/repos/php-testo/lifecycle/zipball/fdcc292396ffbe5bd293ecd2de0b0fefd7403716",
+                "reference": "fdcc292396ffbe5bd293ecd2de0b0fefd7403716",
+                "shasum": ""
+            },
+            "require": {
+                "php": ">=8.2",
+                "testo/testo": "0.10.54 - 1"
+            },
+            "type": "library",
+            "extra": {
+                "branch-alias": {
+                    "dev-1.x": "1.x-dev"
+                }
+            },
+            "autoload": {
+                "psr-4": {
+                    "Testo\\Lifecycle\\": "src/"
+                }
+            },
+            "notification-url": "https://packagist.org/downloads/",
+            "license": [
+                "BSD-3-Clause"
+            ],
+            "authors": [
+                {
+                    "name": "Aleksei Gagarin (roxblnfk)",
+                    "homepage": "https://github.com/roxblnfk"
+                }
+            ],
+            "description": "Lifecycle hooks plugin for the Testo testing framework.",
+            "keywords": [
+                "lifecycle",
+                "testo"
+            ],
+            "support": {
+                "source": "https://github.com/php-testo/lifecycle/tree/0.1.8"
+            },
+            "funding": [
+                {
+                    "url": "https://boosty.to/roxblnfk",
+                    "type": "boosty"
+                }
+            ],
+            "time": "2026-09-29T11:17:44+00:00"
+        },
+        {
+            "name": "testo/repeat",
+            "version": "0.1.9",
+            "source": {
+                "type": "git",
+                "url": "https://github.com/php-testo/repeat.git",
+                "reference": "9d20e475e6fe94d0bb7a43d6ab2b12c69d77a0f5"
+            },
+            "dist": {
+                "type": "zip",
+                "url": "https://api.github.com/repos/php-testo/repeat/zipball/9d20e475e6fe94d0bb7a43d6ab2b12c69d77a0f5",
+                "reference": "9d20e475e6fe94d0bb7a43d6ab2b12c69d77a0f5",
+                "shasum": ""
+            },
+            "require": {
+                "php": ">=8.2",
+                "testo/testo": "0.10.39 - 1"
+            },
+            "type": "library",
+            "extra": {
+                "branch-alias": {
+                    "dev-1.x": "1.x-dev"
+                }
+            },
+            "autoload": {
+                "files": [
+                    "Repeat.php"
+                ],
+                "psr-4": {
+                    "Testo\\Repeat\\": "src/"
+                }
+            },
+            "notification-url": "https://packagist.org/downloads/",
+            "license": [
+                "BSD-3-Clause"
+            ],
+            "authors": [
+                {
+                    "name": "Aleksei Gagarin (roxblnfk)",
+                    "homepage": "https://github.com/roxblnfk"
+                }
+            ],
+            "description": "Repeat policy plugin for the Testo testing framework.",
+            "keywords": [
+                "repeat",
+                "test",
+                "testo"
+            ],
+            "support": {
+                "source": "https://github.com/php-testo/repeat/tree/0.1.9"
+            },
+            "funding": [
+                {
+                    "url": "https://boosty.to/roxblnfk",
+                    "type": "boosty"
+                }
+            ],
+            "time": "2026-08-06T07:42:29+00:00"
+        },
+        {
+            "name": "testo/retry",
+            "version": "0.1.5",
+            "source": {
+                "type": "git",
+                "url": "https://github.com/php-testo/retry.git",
+                "reference": "8e158e8341a5824b96f252fc711988daf15694d2"
+            },
+            "dist": {
+                "type": "zip",
+                "url": "https://api.github.com/repos/php-testo/retry/zipball/8e158e8341a5824b96f252fc711988daf15694d2",
+                "reference": "8e158e8341a5824b96f252fc711988daf15694d2",
+                "shasum": ""
+            },
+            "require": {
+                "php": ">=8.2",
+                "testo/testo": "0.10.39 - 1"
+            },
+            "type": "library",
+            "extra": {
+                "branch-alias": {
+                    "dev-1.x": "1.x-dev"
+                }
+            },
+            "autoload": {
+                "files": [
+                    "Retry.php"
+                ],
+                "psr-4": {
+                    "Testo\\Retry\\": "src/"
+                }
+            },
+            "notification-url": "https://packagist.org/downloads/",
+            "license": [
+                "BSD-3-Clause"
+            ],
+            "authors": [
+                {
+                    "name": "Aleksei Gagarin (roxblnfk)",
+                    "homepage": "https://github.com/roxblnfk"
+                }
+            ],
+            "description": "Retry policy plugin for the Testo testing framework.",
+            "keywords": [
+                "retry",
+                "testo"
+            ],
+            "support": {
+                "source": "https://github.com/php-testo/retry/tree/0.1.5"
+            },
+            "funding": [
+                {
+                    "url": "https://boosty.to/roxblnfk",
+                    "type": "boosty"
+                }
+            ],
+            "time": "2026-08-06T07:43:03+00:00"
+        },
+        {
+            "name": "testo/skip",
+            "version": "0.1.1",
+            "source": {
+                "type": "git",
+                "url": "https://github.com/php-testo/skip.git",
+                "reference": "3bb91c1433817583bd23a2e180c06790a214ba9f"
+            },
+            "dist": {
+                "type": "zip",
+                "url": "https://api.github.com/repos/php-testo/skip/zipball/3bb91c1433817583bd23a2e180c06790a214ba9f",
+                "reference": "3bb91c1433817583bd23a2e180c06790a214ba9f",
+                "shasum": ""
+            },
+            "require": {
+                "php": ">=8.2",
+                "testo/testo": "0.10.49 - 1"
+            },
+            "type": "library",
+            "extra": {
+                "branch-alias": {
+                    "dev-1.x": "1.x-dev"
+                }
+            },
+            "autoload": {
+                "files": [
+                    "Skip.php"
+                ],
+                "psr-4": {
+                    "Testo\\Skip\\": "src/"
+                }
+            },
+            "notification-url": "https://packagist.org/downloads/",
+            "license": [
+                "BSD-3-Clause"
+            ],
+            "authors": [
+                {
+                    "name": "Aleksei Gagarin (roxblnfk)",
+                    "homepage": "https://github.com/roxblnfk"
+                }
+            ],
+            "description": "Skip attribute plugin for the Testo testing framework.",
+            "keywords": [
+                "skip",
+                "test",
+                "testo"
+            ],
+            "support": {
+                "source": "https://github.com/php-testo/skip/tree/0.1.1"
+            },
+            "funding": [
+                {
+                    "url": "https://boosty.to/roxblnfk",
+                    "type": "boosty"
+                }
+            ],
+            "time": "2026-09-19T22:14:06+00:00"
+        },
+        {
+            "name": "testo/test",
+            "version": "0.1.8",
+            "source": {
+                "type": "git",
+                "url": "https://github.com/php-testo/test.git",
+                "reference": "8bfad5018a7fb467a8bc6a3d89596031f52b826f"
+            },
+            "dist": {
+                "type": "zip",
+                "url": "https://api.github.com/repos/php-testo/test/zipball/8bfad5018a7fb467a8bc6a3d89596031f52b826f",
+                "reference": "8bfad5018a7fb467a8bc6a3d89596031f52b826f",
+                "shasum": ""
+            },
+            "require": {
+                "php": ">=8.2",
+                "testo/testo": "0.10.47 - 1"
+            },
+            "type": "library",
+            "extra": {
+                "branch-alias": {
+                    "dev-1.x": "1.x-dev"
+                }
+            },
+            "autoload": {
+                "files": [
+                    "Test.php"
+                ],
+                "psr-4": {
+                    "Testo\\Test\\": "src/"
+                }
+            },
+            "notification-url": "https://packagist.org/downloads/",
+            "license": [
+                "BSD-3-Clause"
+            ],
+            "authors": [
+                {
+                    "name": "Aleksei Gagarin (roxblnfk)",
+                    "homepage": "https://github.com/roxblnfk"
+                }
+            ],
+            "description": "Test attribute plugin for the Testo testing framework.",
+            "keywords": [
+                "test",
+                "testo"
+            ],
+            "support": {
+                "source": "https://github.com/php-testo/test/tree/0.1.8"
+            },
+            "funding": [
+                {
+                    "url": "https://boosty.to/roxblnfk",
+                    "type": "boosty"
+                }
+            ],
+            "time": "2026-09-14T13:29:43+00:00"
+        },
+        {
+            "name": "testo/testo",
+            "version": "0.10.54",
+            "source": {
+                "type": "git",
+                "url": "https://github.com/php-testo/testo.git",
+                "reference": "5ac7a5c47cabd2abc6a20d193775b3d9648748ff"
+            },
+            "dist": {
+                "type": "zip",
+                "url": "https://api.github.com/repos/php-testo/testo/zipball/5ac7a5c47cabd2abc6a20d193775b3d9648748ff",
+                "reference": "5ac7a5c47cabd2abc6a20d193775b3d9648748ff",
+                "shasum": ""
+            },
+            "require": {
+                "ext-tokenizer": "*",
+                "internal/container": "^1.1",
+                "internal/destroy": "^1.0",
+                "internal/path": "^1.3",
+                "php": ">=8.2",
+                "psr/container": "1 - 2",
+                "psr/event-dispatcher": "^1.0",
+                "psr/log": "^2.0 || ^3.0",
+                "symfony/console": "^6.4 || ^7 || ^8.0",
+                "symfony/finder": "^6.4 || ^7 || ^8.0",
+                "symfony/polyfill-mbstring": "^1.0",
+                "testo/assert": "^0.1.17",
+                "testo/bench": "^0.1.13",
+                "testo/bridge-symfony-console": "^0.1.14",
+                "testo/codecov": "^0.2.3",
+                "testo/convention": "^0.1.5",
+                "testo/data": "^0.1.10",
+                "testo/fiber": "^0.1.3",
+                "testo/filter": "^0.1.8",
+                "testo/inline": "^0.1.9",
+                "testo/lifecycle": "^0.1.8",
+                "testo/repeat": "^0.1.9",
+                "testo/retry": "^0.1.5",
+                "testo/skip": "^0.1.1",
+                "testo/test": "^0.1.8",
+                "yiisoft/injector": "^1.2"
+            },
+            "replace": {
+                "internal/fiber": "*"
+            },
+            "require-dev": {
+                "bamarni/composer-bin-plugin": "^1.8",
+                "buggregator/trap": "^1.10",
+                "llm/skills": "^1.3",
+                "roxblnfk/unpoly": "1.8.2",
+                "testo/bridge-infection": "^0.1.9",
+                "testo/facade": "^0.1.1"
+            },
+            "suggest": {
+                "llm/skills": "Ship Testo's bundled AI-agent skills into your project's skills directory automatically.",
+                "testo/bridge-double": "Auto-verifies Double mocks, stubs and spies after every test — fiber-safe, no manual verify() calls.",
+                "testo/bridge-infection": "Provides integration with Infection PHP mutation testing framework.",
+                "testo/bridge-mockery": "Provides integration with the Mockery mocking framework."
+            },
+            "type": "library",
+            "extra": {
+                "skills": {
+                    "source": "skills"
+                },
+                "bamarni-bin": {
+                    "bin-links": true,
+                    "forward-command": false,
+                    "target-directory": "tools"
+                }
+            },
+            "autoload": {
+                "psr-4": {
+                    "Testo\\": "core/",
+                    "Internal\\Fiber\\": "internal/fiber/src"
+                }
+            },
+            "notification-url": "https://packagist.org/downloads/",
+            "license": [
+                "BSD-3-Clause"
+            ],
+            "authors": [
+                {
+                    "name": "Aleksei Gagarin",
+                    "homepage": "https://github.com/roxblnfk"
+                }
+            ],
+            "description": "A lightweight PHP testing framework.",
+            "homepage": "https://php-testo.github.io/",
+            "keywords": [
+                "dev",
+                "test",
+                "testing",
+                "tests"
+            ],
+            "support": {
+                "docs": "https://php-testo.github.io/",
+                "issues": "https://github.com/php-testo/testo/issues",
+                "source": "https://github.com/php-testo/testo"
+            },
+            "funding": [
+                {
+                    "url": "https://boosty.to/roxblnfk",
+                    "type": "boosty"
+                }
+            ],
+            "time": "2026-09-29T11:16:42+00:00"
+        },
+        {
+            "name": "yiisoft/injector",
+            "version": "1.2.1",
+            "source": {
+                "type": "git",
+                "url": "https://github.com/yiisoft/injector.git",
+                "reference": "d3f718256b734933670ad11143cca724d340fc90"
+            },
+            "dist": {
+                "type": "zip",
+                "url": "https://api.github.com/repos/yiisoft/injector/zipball/d3f718256b734933670ad11143cca724d340fc90",
+                "reference": "d3f718256b734933670ad11143cca724d340fc90",
+                "shasum": ""
+            },
+            "require": {
+                "php": "7.4 - 8.5"
+            },
+            "require-dev": {
+                "bamarni/composer-bin-plugin": "^1.8.3",
+                "maglnet/composer-require-checker": "^3.8 || ^4.2",
+                "phpbench/phpbench": "^1.1",
+                "phpunit/phpunit": "^9.5",
+                "psr/container": "^1.0 || ^2.0",
+                "rector/rector": "^2.0.10",
+                "spatie/phpunit-watcher": "^1.23",
+                "yiisoft/test-support": "^1.4 || ^3.1"
+            },
+            "suggest": {
+                "psr/container": "For automatic resolving of dependencies"
+            },
+            "type": "library",
+            "extra": {
+                "bamarni-bin": {
+                    "bin-links": true,
+                    "forward-command": true,
+                    "target-directory": "tools"
+                }
+            },
+            "autoload": {
+                "psr-4": {
+                    "Yiisoft\\Injector\\": "src"
+                }
+            },
+            "notification-url": "https://packagist.org/downloads/",
+            "license": [
+                "BSD-3-Clause"
+            ],
+            "description": "PSR-11 compatible injector. Executes a callable and makes an instances by injecting dependencies from a given DI container.",
+            "homepage": "https://www.yiiframework.com/",
+            "keywords": [
+                "PSR-11",
+                "dependency injection",
+                "di",
+                "injector",
+                "reflection"
+            ],
+            "support": {
+                "chat": "https://t.me/yii3en",
+                "forum": "https://www.yiiframework.com/forum/",
+                "irc": "ircs://irc.libera.chat:6697/yii",
+                "issues": "https://github.com/yiisoft/injector/issues?state=open",
+                "source": "https://github.com/yiisoft/injector",
+                "wiki": "https://www.yiiframework.com/wiki/"
+            },
+            "funding": [
+                {
+                    "url": "https://github.com/sponsors/yiisoft",
+                    "type": "github"
+                },
+                {
+                    "url": "https://opencollective.com/yiisoft",
+                    "type": "opencollective"
+                }
+            ],
+            "time": "2025-12-01T11:14:17+00:00"
+        }
+    ],
     "aliases": [],
     "minimum-stability": "stable",
     "stability-flags": {
@@ -399,5 +2510,8 @@
         "ext-pdo_sqlite": "*"
     },
     "platform-dev": {},
+    "platform-overrides": {
+        "php": "8.2.0"
+    },
     "plugin-api-version": "2.9.0"
 }

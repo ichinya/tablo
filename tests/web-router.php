@@ -7,4 +7,6 @@ if ($path !== '/' && is_file(dirname(__DIR__) . '/public' . $path)) {
 }
 require dirname(__DIR__) . '/vendor/autoload.php';
 require __DIR__ . '/github-fixture.php';
-(new Tablo\Web(new FixtureGitHubHttp()))->run();
+$runtime = getenv('TABLO_TEST_RUNTIME');
+if (!$runtime) { throw new RuntimeException('HTTP fixture requires an isolated runtime directory'); }
+(new Tablo\Web(new FixtureGitHubHttp(), $runtime))->run();
