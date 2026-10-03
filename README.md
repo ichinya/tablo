@@ -314,7 +314,7 @@ HTTP-тесты используют синтетические пароли и 
 настоящий токен GitHub для тестов не нужен.
 
 GitHub Actions запускает полный `composer verify` на push и pull request для
-Linux и Windows с PHP 8.2 и 8.4. Lekalo собирается из коммита
+Linux и Windows с PHP 8.2, 8.4 и 8.5. Lekalo собирается из коммита
 `9510dd0767a56c0ab34b8d3c8ceb2a14db8de825` тега
 [`v0.6.4`](https://github.com/ichinya/lekalo/tree/v0.6.4), который выпускает CLI
 0.6.3; сборка кэшируется отдельно для каждой ОС. Lock не обновляется в CI.

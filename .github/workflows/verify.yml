@@ -21,7 +21,7 @@ jobs:
       fail-fast: false
       matrix:
         os: [ubuntu-latest, windows-latest]
-        php: ['8.2', '8.4']
+        php: ['8.2', '8.4', '8.5']
     defaults:
       run:
         shell: pwsh
