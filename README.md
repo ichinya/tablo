@@ -262,8 +262,8 @@ composer verify
 2. проверку сохранённых SHA256 исходников;
 3. регистрацию сохранённых bindings и привязку native tests;
 4. `lekalo contract check --module dashboard --no-cache`;
-5. независимые тесты PHP, реальные локальные cURL проверки (JSON, редирект,
-   ограничение ответа, таймаут) и HTTP-сценарий с отдельной временной SQLite.
+5. три набора Testo: Unit, Network (реальные локальные cURL проверки JSON,
+   редиректов, размера ответа и таймаутов) и Http (независимые HTTP-сценарии).
 
 При необходимости задайте `LEKALO_BIN` полным путём к CLI. Результат успешного
 запуска сохраняется в `artifacts/verification.json`.
@@ -284,10 +284,76 @@ Capture фиксирует канонические контракты, source l
 корневой `/`, поэтому dashboard описан query `dashboard.list_sites`, без
 вымышленного transport endpoint. Остальные POST endpoints есть в модели.
 
-Для запуска тестов без Lekalo:
+## Тесты и CI
+
+Используется Testo **0.10.54**, закреплённый в `composer.lock`. Для разработки
+устанавливайте зависимости обычным `composer install`, включая dev-пакеты.
+Composer разрешает зависимости для PHP 8.2; `composer check-platform-reqs`
+проверяет фактический PHP и расширения вашей установки.
+
+Одинаковые команды работают в PowerShell на Windows и в shell на Linux:
 
 ```powershell
 composer test
+php vendor/bin/testo run --suite=Unit
+php vendor/bin/testo run --suite=Network
+php vendor/bin/testo run --suite=Http
+composer verify
+```
+
+`composer test` запускает все три набора без Lekalo. `composer verify` дополнительно
+проверяет модель, lock и bindings. Любая ошибка возвращает ненулевой код выхода.
+Наборы определены явно в `testo.php`: вспомогательные классы и router/fixture
+скрипты не запускаются как тесты.
+
+HTTP-тесты используют синтетические пароли и токены, отдельные временные SQLite,
+ключи шифрования, cookies, сессии и кэш Volt. Серверы слушают свободные локальные
+порты; сервер, соединения SQLite и временные каталоги закрываются после каждого
+теста, включая ошибки. `storage/`, текущий администратор и рабочие токены
+установки не используются. Запросы к GitHub заменены тестовым transport;
+настоящий токен GitHub для тестов не нужен.
+
+GitHub Actions запускает полный `composer verify` на push и pull request для
+Linux и Windows с PHP 8.2 и 8.4. Lekalo собирается из коммита
+`9510dd0767a56c0ab34b8d3c8ceb2a14db8de825` тега
+[`v0.6.4`](https://github.com/ichinya/lekalo/tree/v0.6.4), который выпускает CLI
+0.6.3; сборка кэшируется отдельно для каждой ОС. Lock не обновляется в CI.
+
+### Запуск тестов в Docker
+
+Следующий пример PowerShell использует текущий производственный образ PHP 8.4
+как среду выполнения. Исходники подключаются read-only; во временный каталог
+одноразового контейнера копируются только код, схема и тестовые фикстуры.
+Рабочие `.env`, SQLite, ключи и `vendor/` не копируются. Dev-зависимости
+устанавливаются внутри контейнера и не попадают в производственный образ.
+
+```powershell
+docker build -t tablo:test-runtime .
+if ($LASTEXITCODE -ne 0) { throw 'Docker build failed.' }
+$testInContainer = @'
+set -eu
+mkdir /tmp/tablo-tests
+cp -R /source/app /source/public /source/views /source/database /source/tests /source/composer.json /source/composer.lock /source/testo.php /tmp/tablo-tests/
+cd /tmp/tablo-tests
+composer install --no-interaction --prefer-dist
+composer test
+'@
+docker run --rm --mount "type=bind,source=$PWD,target=/source,readonly" --entrypoint sh tablo:test-runtime -lc $testInContainer
+if ($LASTEXITCODE -ne 0) { throw 'Docker tests failed.' }
+```
+
+На Linux после той же сборки:
+
+```sh
+docker run --rm --mount "type=bind,source=$PWD,target=/source,readonly" \
+  --entrypoint sh tablo:test-runtime -lc '
+set -eu
+mkdir /tmp/tablo-tests
+cp -R /source/app /source/public /source/views /source/database /source/tests /source/composer.json /source/composer.lock /source/testo.php /tmp/tablo-tests/
+cd /tmp/tablo-tests
+composer install --no-interaction --prefer-dist
+composer test
+'
 ```
 
 `tests/browser-fixture.php` создаёт только `artifacts/browser.sqlite` с явно

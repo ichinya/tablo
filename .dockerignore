@@ -3,6 +3,7 @@ storage/*
 artifacts
 .lekalo
 .repowise
+.ci
 .git
 .env
 tests

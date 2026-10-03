@@ -27,14 +27,19 @@ try {
     runGate([$lekalo, 'contract', 'update', '--declaration', 'contracts/php-bindings.json']);
     foreach ($declaration['symbols'] as $symbol) {
         if (in_array($symbol['kind'], ['command', 'query'], true)) {
-            $tests = $symbol['id'] === 'dashboard.check_site' ? 'tests/run.php,tests/network.php' : 'tests/run.php,tests/http.php';
+            $unitTests = match ($symbol['id']) {
+                'dashboard.setup', 'dashboard.login' => 'tests/Unit/AuthTest.php',
+                'dashboard.list_branches' => 'tests/Unit/GitHubProviderTest.php',
+                'dashboard.check_site' => 'tests/Unit/SiteCheckerTest.php,tests/Network/HttpClientTest.php',
+                'dashboard.logout' => '',
+                default => 'tests/Unit/SiteRepositoryTest.php',
+            };
+            $tests = ($unitTests === '' ? '' : $unitTests . ',') . 'tests/Http/DashboardTest.php';
             runGate([$lekalo, 'contract', 'attach', $symbol['id'], '--native-test', $tests, '--gate', 'native-php-tests']);
         }
     }
     runGate([$lekalo, 'contract', 'check', '--module', 'dashboard', '--no-cache']);
-    runGate([PHP_BINARY, 'tests/run.php']);
-    runGate([PHP_BINARY, 'tests/network.php']);
-    runGate([PHP_BINARY, 'tests/http.php']);
+    runGate([PHP_BINARY, 'vendor/bin/testo', 'run']);
     if (!is_dir('artifacts')) { mkdir('artifacts'); }
     file_put_contents('artifacts/verification.json', json_encode([
         'status' => 'passed', 'checked_at' => gmdate('c'), 'lekalo_lock' => hash_file('sha256', 'lekalo.lock'),

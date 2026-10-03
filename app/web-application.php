@@ -17,15 +17,16 @@ final class Web
     private readonly GitHubConnection $github;
     private readonly Simple $view;
 
-    public function __construct(?HttpClient $githubHttp = null)
+    public function __construct(?HttpClient $githubHttp = null, ?string $runtimeDirectory = null)
     {
         $root = dirname(__DIR__);
+        $runtimeDirectory ??= $root . '/storage';
         foreach (['sessions', 'views'] as $dir) {
-            if (!is_dir($root . '/storage/' . $dir)) {
-                mkdir($root . '/storage/' . $dir, 0700, true);
+            if (!is_dir($runtimeDirectory . '/' . $dir)) {
+                mkdir($runtimeDirectory . '/' . $dir, 0700, true);
             }
         }
-        session_save_path($root . '/storage/sessions');
+        session_save_path($runtimeDirectory . '/sessions');
         ini_set('session.use_strict_mode', '1');
         ini_set('session.use_only_cookies', '1');
         session_name('tablo_session');
@@ -48,9 +49,9 @@ final class Web
         $this->view = new Simple();
         $this->view->setDI($di);
         $this->view->setViewsDir($root . '/views/');
-        $this->view->registerEngines(['.volt' => function ($view) use ($di, $root) {
+        $this->view->registerEngines(['.volt' => function ($view) use ($di, $runtimeDirectory) {
             $volt = new Volt($view, $di);
-            $volt->setOptions(['path' => $root . '/storage/views/', 'autoescape' => true]);
+            $volt->setOptions(['path' => $runtimeDirectory . '/views/', 'autoescape' => true]);
             return $volt;
         }]);
     }
