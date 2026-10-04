@@ -30,11 +30,15 @@ try {
             $unitTests = match ($symbol['id']) {
                 'dashboard.setup', 'dashboard.login' => 'tests/Unit/AuthTest.php',
                 'dashboard.list_branches' => 'tests/Unit/GitHubProviderTest.php',
-                'dashboard.check_site' => 'tests/Unit/SiteCheckerTest.php,tests/Network/HttpClientTest.php',
+                'dashboard.check_site' => 'tests/Unit/SiteCheckerTest.php,tests/Unit/JsonChecksTest.php,tests/Network/HttpClientTest.php',
+                'dashboard.create_site', 'dashboard.update_site' => 'tests/Unit/SiteRepositoryTest.php,tests/Unit/JsonChecksTest.php',
                 'dashboard.logout' => '',
                 default => 'tests/Unit/SiteRepositoryTest.php',
             };
             $tests = ($unitTests === '' ? '' : $unitTests . ',') . 'tests/Http/DashboardTest.php';
+            if (in_array($symbol['id'], ['dashboard.create_site', 'dashboard.update_site', 'dashboard.check_site'], true)) {
+                $tests .= ',tests/Http/JsonChecksTest.php';
+            }
             runGate([$lekalo, 'contract', 'attach', $symbol['id'], '--native-test', $tests, '--gate', 'native-php-tests']);
         }
     }

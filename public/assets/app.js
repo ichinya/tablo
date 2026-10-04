@@ -35,6 +35,20 @@ document.addEventListener('DOMContentLoaded', () => {
 
   const form = document.querySelector('[data-site-form]');
   if (!form) return;
+  const healthMode = form.querySelector('#health_check_mode');
+  const healthJsonFields = form.querySelector('#health-json-fields');
+  const healthJsonPath = form.querySelector('#health_json_path');
+  const versionEndpoint = form.querySelector('#version_path');
+  const versionJsonPath = form.querySelector('#version_json_path');
+  const checkFields = () => {
+    const json = healthMode.value === 'json';
+    healthJsonFields.hidden = !json;
+    healthJsonPath.required = json;
+    versionJsonPath.disabled = versionEndpoint.value.trim() === '';
+  };
+  healthMode.addEventListener('change', checkFields);
+  versionEndpoint.addEventListener('input', checkFields);
+  checkFields();
   const repository = form.querySelector('#repository');
   const token = form.querySelector('#github_token');
   const savedToken = form.querySelector('#git_token_id');

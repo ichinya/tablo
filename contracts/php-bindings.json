@@ -5,7 +5,7 @@
         "version": "0.1.0"
     },
     "project": "tablo",
-    "revision": "sha256:3c661e8e4b5d25cdf5c6a41b7cbb6bd810aed206bddca6c363657df77c7ebb20",
+    "revision": "sha256:dd35d7220cbf853089baf7508e2bb1ef907f2d6fd71dcba0e605ff526bf019cf",
     "symbols": [
         {
             "id": "dashboard.setup",
@@ -66,7 +66,7 @@
                 "path": "app/web-application.php",
                 "line": 115
             },
-            "fingerprint": "sha256:8bf49de3d07c9c025e1c3158a0fd9f80c6d8e1dd3746906f1ea3384a7a75b545",
+            "fingerprint": "sha256:844164837a5d48b072578e148f2f66508511ebf2a8d5ffcc70b70706aa8289aa",
             "signature": {
                 "inputs": [],
                 "output": null,
@@ -81,7 +81,7 @@
                 "path": "app/web-application.php",
                 "line": 203
             },
-            "fingerprint": "sha256:8bf49de3d07c9c025e1c3158a0fd9f80c6d8e1dd3746906f1ea3384a7a75b545",
+            "fingerprint": "sha256:844164837a5d48b072578e148f2f66508511ebf2a8d5ffcc70b70706aa8289aa",
             "signature": {
                 "inputs": [
                     {
@@ -107,7 +107,7 @@
                 "path": "app/web-application.php",
                 "line": 203
             },
-            "fingerprint": "sha256:8bf49de3d07c9c025e1c3158a0fd9f80c6d8e1dd3746906f1ea3384a7a75b545",
+            "fingerprint": "sha256:844164837a5d48b072578e148f2f66508511ebf2a8d5ffcc70b70706aa8289aa",
             "signature": {
                 "inputs": [
                     {
@@ -136,9 +136,9 @@
             "kind": "command",
             "source": {
                 "path": "app/site-repository.php",
-                "line": 178
+                "line": 213
             },
-            "fingerprint": "sha256:e9bdabe0b3db689165e45e3538eb3c3f02d4b7593dcb9340a65a9adf88f81caa",
+            "fingerprint": "sha256:42dd09fa7ae671c8d8fe362e7226a749c82742bc30ef8792c5d042054cce873c",
             "signature": {
                 "inputs": [
                     {
@@ -164,7 +164,7 @@
                 "path": "app/web-application.php",
                 "line": 165
             },
-            "fingerprint": "sha256:8bf49de3d07c9c025e1c3158a0fd9f80c6d8e1dd3746906f1ea3384a7a75b545",
+            "fingerprint": "sha256:844164837a5d48b072578e148f2f66508511ebf2a8d5ffcc70b70706aa8289aa",
             "signature": {
                 "inputs": [
                     {
@@ -188,9 +188,9 @@
             "kind": "query",
             "source": {
                 "path": "app/site-repository.php",
-                "line": 25
+                "line": 27
             },
-            "fingerprint": "sha256:e9bdabe0b3db689165e45e3538eb3c3f02d4b7593dcb9340a65a9adf88f81caa",
+            "fingerprint": "sha256:42dd09fa7ae671c8d8fe362e7226a749c82742bc30ef8792c5d042054cce873c",
             "signature": {
                 "inputs": [],
                 "output": "list(dashboard.site)",
@@ -248,7 +248,7 @@
                 "path": "database/schema.sql",
                 "line": 1
             },
-            "fingerprint": "sha256:0b28504672ed663a217b233b61f66ee43febb3f7ad4db6e4443ff381691aca95",
+            "fingerprint": "sha256:f6f7003cf7b0f648f458d88cf0057567c5bfaef0f1943da4dc22785b49a7fde5",
             "signature": null,
             "effects": [],
             "shape": {
@@ -278,7 +278,7 @@
                 "path": "database/schema.sql",
                 "line": 17
             },
-            "fingerprint": "sha256:0b28504672ed663a217b233b61f66ee43febb3f7ad4db6e4443ff381691aca95",
+            "fingerprint": "sha256:f6f7003cf7b0f648f458d88cf0057567c5bfaef0f1943da4dc22785b49a7fde5",
             "signature": null,
             "effects": [],
             "shape": {
@@ -320,6 +320,31 @@
                     },
                     {
                         "name": "version_path",
+                        "type": "dashboard.text",
+                        "required": true
+                    },
+                    {
+                        "name": "version_json_path",
+                        "type": "dashboard.text",
+                        "required": true
+                    },
+                    {
+                        "name": "health_check_mode",
+                        "type": "dashboard.health_check_mode",
+                        "required": true
+                    },
+                    {
+                        "name": "health_json_path",
+                        "type": "dashboard.text",
+                        "required": true
+                    },
+                    {
+                        "name": "health_json_operator",
+                        "type": "dashboard.health_json_operator",
+                        "required": true
+                    },
+                    {
+                        "name": "health_json_expected_value",
                         "type": "dashboard.text",
                         "required": true
                     },
@@ -418,7 +443,7 @@
                 "path": "database/schema.sql",
                 "line": 7
             },
-            "fingerprint": "sha256:0b28504672ed663a217b233b61f66ee43febb3f7ad4db6e4443ff381691aca95",
+            "fingerprint": "sha256:f6f7003cf7b0f648f458d88cf0057567c5bfaef0f1943da4dc22785b49a7fde5",
             "signature": null,
             "effects": [],
             "shape": {

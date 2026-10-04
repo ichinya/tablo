@@ -16,9 +16,9 @@ Phalcon **6.0.0 RC2**, Volt, PHP 8.2+, SQLite. Без SPA, Redis, очереде
 ![Обзор сайтов: доступность, версии и GitHub-метрики](docs/screenshots/dashboard-desktop.png)
 
 <details>
-<summary>Добавление сайта и выбор сохранённого токена</summary>
+<summary>Добавление сайта, выбор токена и JSON-проверки</summary>
 
-![Форма сайта с выбором токена, ветки и необязательным version endpoint](docs/screenshots/site-form-desktop.png)
+![Форма сайта с выбором токена, ветки, условием JSON health и JSON path версии](docs/screenshots/site-form-desktop.png)
 
 </details>
 
@@ -56,14 +56,18 @@ URL), токен, ветку, health path, необязательный version 
 ↻ на карточке. Изменение настроек сбрасывает старый результат; отключённые сайты
 не проверяются. Поиск и фильтры работают локально поверх отрисованных карточек.
 
-Состояния: `Online` для HTTP 2xx health, `Offline` для полученного ответа вне 2xx,
-«Нет данных» при DNS/transport/запрете запроса, «На паузе» для отключённого сайта.
+Состояния: `Online` для HTTP 2xx health и успешного условия в режиме JSON,
+`Offline` для полученного ответа вне 2xx или несовпадения JSON-значения,
+«Нет данных» при DNS/transport/запрете запроса или ошибке разбора JSON,
+«На паузе» для отключённого сайта.
 Отдельные ошибки version/GitHub не отменяют валидный health. Нет данных не
 приравнивается к нулю. Проверки старше 15 минут помечаются как устаревшие.
 
 ## Endpoints сайтов
 
-Health должен вернуть HTTP 2xx. Редиректы не выполняются. Version endpoint
+В режиме **HTTP-статус** health должен вернуть HTTP 2xx; тело не проверяется.
+Этот режим используется по умолчанию, в том числе для существующих сайтов.
+Редиректы не выполняются. Version endpoint
 необязателен и по умолчанию пустой. Без него запрос version не выполняется,
 доступность и Git-метрики проверяются, а отсутствие установленной версии не
 помечается ошибкой. Если endpoint указан, он должен вернуть
@@ -78,6 +82,76 @@ JSON-объект с `version` и/или `commit`:
 с префиксом полного SHA. Отличие коммитов не доказывает, что сайт отстаёт, поэтому
 панель сообщает «Коммиты различаются». Health/version paths добавляются к URL
 сайта, например `https://example.com/app` + `/version`.
+
+### JSON path версии
+
+Если версия находится во вложенном поле, задайте **JSON path версии**, например
+`$.build.version` для ответа:
+
+```json
+{"build":{"version":"1.3.1"},"commit":"a61de82"}
+```
+
+Выбранная версия должна быть непустой строкой до 200 байт. Корневые
+`commit`, `sha`, `deployed_commit` продолжают определяться автоматически.
+Пустой JSON path сохраняет определение `version` / `deployed_version`.
+Если version endpoint пустой, запрос не выполняется и его JSON path игнорируется.
+
+### JSON-проверка доступности
+
+Выберите режим **JSON-поле**, укажите путь, условие и ожидаемое
+значение. Например, для `{"result":"ok","checks":{"passed":3}}`:
+
+| JSON path | Условие | Ожидаемое значение | Проверка |
+| --- | --- | --- | --- |
+| `$.result` | `==` | `ok` | Точное совпадение; условие по умолчанию. |
+| `$.result` | `!=` | `error` | Точное несовпадение. |
+| `$.result` | `contains` | `o` | Содержит подстроку с учётом регистра. |
+| `$.checks.passed` | `>` | `2` | Больше. |
+| `$.checks.passed` | `>=` | `3` | Больше или равно. |
+| `$.checks.passed` | `<` | `4` | Меньше. |
+| `$.checks.passed` | `<=` | `3` | Меньше или равно. |
+
+Для `==`, `!=` и `contains` сравниваются строковые представления: JSON-строка
+без кавычек, число в JSON-представлении, boolean как `true` / `false`.
+Пробелы ожидаемого значения сохраняются; пустая строка разрешена.
+`0`, `false` и `""` считаются найденными значениями. Для `>`, `>=`, `<`, `<=`
+обе стороны должны быть конечными числами или числовыми строками; допускаются
+дроби, знак и экспоненциальная запись.
+
+Сайт `Online`, когда получен HTTP 2xx и условие выполнено. Несовпадение означает
+`Offline`; ответ вне 2xx также означает `Offline`, независимо от тела.
+Некорректный JSON, отсутствие поля, `null`, объект, массив или нечисловое
+значение в числовом сравнении дают «Нет данных» с причиной. Эти ошибки не
+отменяют независимые результаты version и GitHub. Полный ответ в ошибку
+не включается.
+
+### Синтаксис и ограничения JSON path
+
+Пути для health и version используют один ограниченный синтаксис:
+
+| Путь | Выбирает |
+| --- | --- |
+| `$` | Корневое значение. |
+| `$.build.version` | Вложенное поле объекта. |
+| `$.services[0].status` | Поле первого элемента массива. |
+| `$["build.version"]` | Ключ с точкой. |
+| `$["версия"]` | Ключ с Unicode-символами. |
+
+После точки имя начинается с ASCII-буквы или `_` и содержит ASCII-буквы,
+цифры и `_`. Остальные ключи записываются в двойных кавычках с экранированием
+JSON. Индекс массива — неотрицательное целое без ведущих нулей.
+Длина пути ограничена 512 байтами, ожидаемого значения — 512 символами,
+глубина JSON — 16. Пути не выполняют выражения или функции и не поддерживают
+wildcard, фильтры и рекурсивный поиск. Ограничения размера ответа, таймаутов
+и SSRF одинаковы для обоих режимов.
+
+При сохранении активные пути и условия проверяются на сервере; ошибка
+отображается возле соответствующего поля. Изменение любого JSON-параметра
+сбрасывает прежний результат и запрещает сохранение уже выполнявшейся проверки
+со старыми настройками. Ручная кнопка и `php bin/check.php` используют одну
+логику. Существующая SQLite получает новые поля автоматически; сайты сохраняют
+режим HTTP и автоматическое определение версии.
 
 `RepositoryProvider` — маленький контракт из четырёх методов. Реализован только
 `GitHubProvider`; GitLab/Gitea/Forgejo можно добавить отдельно. Для Issues и PR
@@ -334,7 +408,7 @@ if ($LASTEXITCODE -ne 0) { throw 'Docker build failed.' }
 $testInContainer = @'
 set -eu
 mkdir /tmp/tablo-tests
-cp -R /source/app /source/public /source/views /source/database /source/tests /source/composer.json /source/composer.lock /source/testo.php /tmp/tablo-tests/
+cp -R /source/app /source/bin /source/public /source/views /source/database /source/tests /source/composer.json /source/composer.lock /source/testo.php /tmp/tablo-tests/
 cd /tmp/tablo-tests
 composer install --no-interaction --prefer-dist
 composer test
@@ -350,7 +424,7 @@ docker run --rm --mount "type=bind,source=$PWD,target=/source,readonly" \
   --entrypoint sh tablo:test-runtime -lc '
 set -eu
 mkdir /tmp/tablo-tests
-cp -R /source/app /source/public /source/views /source/database /source/tests /source/composer.json /source/composer.lock /source/testo.php /tmp/tablo-tests/
+cp -R /source/app /source/bin /source/public /source/views /source/database /source/tests /source/composer.json /source/composer.lock /source/testo.php /tmp/tablo-tests/
 cd /tmp/tablo-tests
 composer install --no-interaction --prefer-dist
 composer test

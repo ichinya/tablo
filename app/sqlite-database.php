@@ -28,7 +28,7 @@ final class Database
 
     public static function migrate(PDO $db): void
     {
-        // Additive migration for installations created before per-site tokens.
+        // Additive migrations preserve existing credentials and endpoint behaviour.
         $db->exec('BEGIN IMMEDIATE');
         try {
             $columns = array_column($db->query('PRAGMA table_info(sites)')->fetchAll(), 'name');
@@ -37,6 +37,18 @@ final class Database
             }
             if (!in_array('git_token_id', $columns, true)) {
                 $db->exec('ALTER TABLE sites ADD COLUMN git_token_id INTEGER REFERENCES git_tokens(id) ON DELETE RESTRICT');
+            }
+            $jsonColumns = [
+                'version_json_path' => "TEXT NOT NULL DEFAULT ''",
+                'health_check_mode' => "TEXT NOT NULL DEFAULT 'http' CHECK (health_check_mode IN ('http', 'json'))",
+                'health_json_path' => "TEXT NOT NULL DEFAULT ''",
+                'health_json_operator' => "TEXT NOT NULL DEFAULT '==' CHECK (health_json_operator IN ('>', '>=', '<', '<=', '!=', '==', 'contains'))",
+                'health_json_expected_value' => "TEXT NOT NULL DEFAULT ''",
+            ];
+            foreach ($jsonColumns as $name => $definition) {
+                if (!in_array($name, $columns, true)) {
+                    $db->exec("ALTER TABLE sites ADD COLUMN $name $definition");
+                }
             }
             $db->exec('COMMIT');
         } catch (\Throwable $e) {

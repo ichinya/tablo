@@ -23,7 +23,36 @@
         <p class="field-hint branch-status" id="branch-status" role="status" aria-live="polite">Загрузите ветки из GitHub с указанным токеном. При сохранении выбранная ветка проверяется повторно.</p>
         <fieldset class="comparison-choice"><legend>Сравнивать установленную версию с</legend><label class="radio-card"><input type="radio" name="comparison_mode" value="release" {% if site['comparison_mode'] == 'release' %}checked{% endif %}><span><strong>Последним релизом</strong><small>Последний опубликованный стабильный release</small></span></label><label class="radio-card"><input type="radio" name="comparison_mode" value="branch" {% if site['comparison_mode'] == 'branch' %}checked{% endif %}><span><strong>HEAD ветки</strong><small>Последний коммит выбранной ветки</small></span></label></fieldset>
     </div>
-    <div class="form-section"><h2>Проверки</h2><p class="section-description">Пути относительно адреса сайта, без перехода на другой домен.</p><div class="field-row"><div><label for="health_path">Health endpoint</label><input id="health_path" name="health_path" value="{{ site['health_path'] }}" placeholder="/up" maxlength="300" required><p class="field-hint">HTTP 2xx означает Online.</p></div><div><label for="version_path">Version endpoint · необязательно</label><input id="version_path" name="version_path" value="{{ site['version_path'] }}" placeholder="/version" maxlength="300"><p class="field-hint">JSON с version и/или commit. Пустое поле отключает проверку установленной версии.</p></div></div><div class="field-row form-options"><label class="checkbox-label"><input type="checkbox" name="enabled" value="1" {% if site['enabled'] %}checked{% endif %}><span>Проверки включены</span></label><div class="sort-field"><label for="sort_order">Порядок</label><input type="number" id="sort_order" name="sort_order" value="{{ site['sort_order'] }}" min="0" max="9999" required></div></div></div>
+    <div class="form-section"><h2>Проверки</h2><p class="section-description">Пути относительно адреса сайта, без перехода на другой домен.</p>
+        <label for="health_path">Health endpoint</label><input id="health_path" name="health_path" value="{{ site['health_path'] }}" placeholder="/up" maxlength="300" required>
+        <label for="health_check_mode">Проверка доступности</label>
+        <select id="health_check_mode" name="health_check_mode" aria-describedby="health-mode-hint{% if errors['health_check_mode'] is defined %} health_check_mode-error{% endif %}" {% if errors['health_check_mode'] is defined %}aria-invalid="true"{% endif %}>
+            <option value="http" {% if site['health_check_mode'] == 'http' %}selected{% endif %}>HTTP-статус</option>
+            <option value="json" {% if site['health_check_mode'] == 'json' %}selected{% endif %}>JSON-поле</option>
+        </select>
+        <p class="field-hint" id="health-mode-hint">HTTP 2xx означает Online. В режиме JSON дополнительно проверяется выбранное значение.</p>
+        {% if errors['health_check_mode'] is defined %}<p class="field-error" id="health_check_mode-error">{{ errors['health_check_mode'] }}</p>{% endif %}
+        <div class="json-check-fields" id="health-json-fields">
+            <label for="health_json_path">JSON path</label><input id="health_json_path" name="health_json_path" value="{{ site['health_json_path'] }}" placeholder="$.result" maxlength="512" spellcheck="false" aria-describedby="health-json-hint{% if errors['health_json_path'] is defined %} health_json_path-error{% endif %}" {% if errors['health_json_path'] is defined %}aria-invalid="true"{% endif %}>
+            <p class="field-hint" id="health-json-hint">Поле из JSON-ответа, например $.result или $.checks[0].status.</p>
+            {% if errors['health_json_path'] is defined %}<p class="field-error" id="health_json_path-error">{{ errors['health_json_path'] }}</p>{% endif %}
+            <div class="json-condition-row">
+                <div><label for="health_json_operator">Условие</label><select id="health_json_operator" name="health_json_operator" {% if errors['health_json_operator'] is defined %}aria-invalid="true" aria-describedby="health_json_operator-error"{% endif %}>{% for operator in json_operators %}<option value="{{ operator }}" {% if site['health_json_operator'] == operator %}selected{% endif %}>{{ operator }}</option>{% endfor %}</select>
+                {% if errors['health_json_operator'] is defined %}<p class="field-error" id="health_json_operator-error">{{ errors['health_json_operator'] }}</p>{% endif %}</div>
+                <div><label for="health_json_expected_value">Ожидаемое значение</label><input id="health_json_expected_value" name="health_json_expected_value" value="{{ site['health_json_expected_value'] }}" placeholder="ok" maxlength="512" aria-describedby="health-expected-hint{% if errors['health_json_expected_value'] is defined %} health_json_expected_value-error{% endif %}" {% if errors['health_json_expected_value'] is defined %}aria-invalid="true"{% endif %}>
+                <p class="field-hint" id="health-expected-hint">Строка без кавычек, число или true/false. Пустая строка допустима.</p>
+                {% if errors['health_json_expected_value'] is defined %}<p class="field-error" id="health_json_expected_value-error">{{ errors['health_json_expected_value'] }}</p>{% endif %}</div>
+            </div>
+        </div>
+        <div class="version-check-fields">
+            <label for="version_path">Version endpoint · необязательно</label><input id="version_path" name="version_path" value="{{ site['version_path'] }}" placeholder="/version" maxlength="300">
+            <p class="field-hint">JSON с version и/или commit. Пустое поле отключает проверку установленной версии.</p>
+            <label for="version_json_path">JSON path версии · необязательно</label><input id="version_json_path" name="version_json_path" value="{{ site['version_json_path'] }}" placeholder="$.build.version" maxlength="512" spellcheck="false" aria-describedby="version-json-hint{% if errors['version_json_path'] is defined %} version_json_path-error{% endif %}" {% if errors['version_json_path'] is defined %}aria-invalid="true"{% endif %}>
+            <p class="field-hint" id="version-json-hint">Путь к строке версии. Пустое поле использует version/deployed_version. SHA коммита определяется как раньше.</p>
+            {% if errors['version_json_path'] is defined %}<p class="field-error" id="version_json_path-error">{{ errors['version_json_path'] }}</p>{% endif %}
+        </div>
+        <div class="field-row form-options"><label class="checkbox-label"><input type="checkbox" name="enabled" value="1" {% if site['enabled'] %}checked{% endif %}><span>Проверки включены</span></label><div class="sort-field"><label for="sort_order">Порядок</label><input type="number" id="sort_order" name="sort_order" value="{{ site['sort_order'] }}" min="0" max="9999" required></div></div>
+    </div>
     <div class="form-footer"><a class="button secondary" href="/">Отмена</a><button class="button primary" type="submit"><svg><use href="/assets/icons.svg#check"></use></svg>Сохранить сайт</button></div>
 </form><aside class="form-aside"><div class="aside-icon"><svg><use href="/assets/icons.svg#globe"></use></svg></div><h3>Всё начинается с адреса</h3><p>Tablo проверяет доступность сайта и сравнивает установленную версию с вашим репозиторием.</p><div class="aside-rule"></div><h4>Ответ version endpoint</h4><pre><code>{
   "version": "1.3.1",

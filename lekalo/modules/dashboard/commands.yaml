@@ -78,8 +78,8 @@
         {
             "id": "dashboard.create_site",
             "kind": "command",
-            "version": 1,
-            "description": "Authenticated CSRF-protected create; normalize GitHub URLs; reject invalid URL, branch, path, mode and sort order. Validate the actual GitHub branch using a supplied, saved or installation token; encrypt token replacement, preserve blank token or explicitly remove it.",
+            "version": 2,
+            "description": "Authenticated CSRF-protected create; normalize GitHub URLs; reject invalid URL, branch, path, mode and sort order. Validate the actual GitHub branch using a supplied or saved token; encrypt token replacement, preserve blank token or explicitly remove it. Validate active bounded JSON paths, health mode, operator and finite numeric expected values; retain submitted values and report field errors. Persist JSON settings; unchanged legacy inputs default to HTTP and automatic version extraction.",
             "input": [
                 {
                     "name": "site",
@@ -96,8 +96,8 @@
         {
             "id": "dashboard.update_site",
             "kind": "command",
-            "version": 1,
-            "description": "Authenticated CSRF-protected update; clear obsolete check state on configuration change. Validate the actual GitHub branch using a supplied, saved or installation token; encrypt token replacement, preserve blank token or explicitly remove it.",
+            "version": 2,
+            "description": "Authenticated CSRF-protected update; clear obsolete check state on configuration change. Validate the actual GitHub branch using a supplied or saved token; encrypt token replacement, preserve blank token or explicitly remove it. Validate active bounded JSON paths, health mode, operator and finite numeric expected values; retain submitted values and report field errors. Persist JSON settings; unchanged legacy inputs default to HTTP and automatic version extraction.",
             "input": [
                 {
                     "name": "id",
@@ -139,8 +139,8 @@
         {
             "id": "dashboard.check_site",
             "kind": "command",
-            "version": 1,
-            "description": "Skip disabled sites. Bounded HTTP health/version requests and GitHub provider metadata; store only against the unchanged configuration. Preserve partial/unknown outcomes instead of inventing successful data. Empty version_path skips version request without error. Reusable token changes invalidate in-flight results.",
+            "version": 2,
+            "description": "Skip disabled sites. Bounded HTTP health/version requests and GitHub provider metadata; store only against the unchanged configuration. Preserve partial/unknown outcomes instead of inventing successful data. Empty version_path skips version request without error. Reusable token changes invalidate in-flight results. HTTP health keeps 2xx semantics. JSON health requires 2xx plus ==, !=, contains or a finite numeric >, >=, <, <= comparison. Missing/null/composite/invalid JSON is unknown; a false predicate or non-2xx is offline. Optional version selector extracts a string and retains root commit aliases. All five JSON settings participate in the unchanged-configuration guard. Manual and CLI checks share this logic.",
             "input": [
                 {
                     "name": "id",

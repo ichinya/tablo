@@ -90,6 +90,19 @@
                 "dashboard.check_site",
                 "dashboard.list_sites"
             ]
+        },
+        {
+            "id": "dashboard.json_endpoint_checks",
+            "kind": "scenario",
+            "version": 1,
+            "summary": "Round-trip all JSON settings; additive migration retains admin and encrypted tokens with HTTP defaults. Shared bounded selectors support nested objects, arrays, quoted keys and scalar root. All seven operators cover match, mismatch, boundaries, zero, false and empty string. Malformed JSON, missing/null/composite values and invalid numbers are unknown without leaking response bodies. Non-2xx remains offline. Version selector requires a nonempty string, preserves commit aliases and is ignored without endpoint. Field validation works without JavaScript; errors retain escaped input. Each JSON setting invalidates in-flight checks; real HTTP and native CLI persist equivalent states.",
+            "covers": [
+                "dashboard.create_site",
+                "dashboard.update_site",
+                "dashboard.check_site",
+                "dashboard.site",
+                "dashboard.site_input"
+            ]
         }
     ]
 }

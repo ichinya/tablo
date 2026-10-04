@@ -73,7 +73,7 @@
         {
             "id": "dashboard.site_input",
             "kind": "value-object",
-            "version": 1,
+            "version": 2,
             "fields": [
                 {
                     "name": "name",
@@ -135,6 +135,46 @@
                     }
                 },
                 {
+                    "name": "version_json_path",
+                    "type": {
+                        "optional": {
+                            "ref": "dashboard.text"
+                        }
+                    }
+                },
+                {
+                    "name": "health_check_mode",
+                    "type": {
+                        "optional": {
+                            "ref": "dashboard.health_check_mode"
+                        }
+                    }
+                },
+                {
+                    "name": "health_json_path",
+                    "type": {
+                        "optional": {
+                            "ref": "dashboard.text"
+                        }
+                    }
+                },
+                {
+                    "name": "health_json_operator",
+                    "type": {
+                        "optional": {
+                            "ref": "dashboard.health_json_operator"
+                        }
+                    }
+                },
+                {
+                    "name": "health_json_expected_value",
+                    "type": {
+                        "optional": {
+                            "ref": "dashboard.text"
+                        }
+                    }
+                },
+                {
                     "name": "comparison_mode",
                     "type": {
                         "ref": "dashboard.mode"
@@ -163,13 +203,14 @@
                         }
                     }
                 }
-            ]
+            ],
+            "description": "Validated site configuration. JSON selectors accept root $, object fields, quoted JSON keys and array indexes, up to 512 bytes. Missing inputs default to HTTP health, operator == and empty paths/expected value. JSON health requires 2xx and a successful scalar predicate; extraction errors are unknown. Version selectors require a nonempty string up to 200 bytes; empty version endpoint disables selector validation and requests."
         },
         {
             "id": "dashboard.site",
             "kind": "entity",
-            "version": 1,
-            "description": "A configured site and its most recent check. Null state means unknown, and stale checks are visibly marked. GitHub credentials are encrypted at rest and never returned to the UI; preserve key alongside database backups. Shared credentials are referenced by git_token_id; empty version_path disables installed-version requests and comparison.",
+            "version": 2,
+            "description": "A configured site and its most recent check. Null state means unknown, and stale checks are visibly marked. GitHub credentials are encrypted at rest and never returned to the UI; preserve key alongside database backups. Shared credentials are referenced by git_token_id; empty version_path disables installed-version requests and comparison. JSON selectors accept root $, object fields, quoted JSON keys and array indexes, up to 512 bytes. Missing inputs default to HTTP health, operator == and empty paths/expected value. JSON health requires 2xx and a successful scalar predicate; extraction errors are unknown. Version selectors require a nonempty string up to 200 bytes; empty version endpoint disables selector validation and requests.",
             "identity": [
                 "id"
             ],
@@ -226,6 +267,41 @@
                 },
                 {
                     "name": "version_path",
+                    "type": {
+                        "ref": "dashboard.text"
+                    },
+                    "required": true
+                },
+                {
+                    "name": "version_json_path",
+                    "type": {
+                        "ref": "dashboard.text"
+                    },
+                    "required": true
+                },
+                {
+                    "name": "health_check_mode",
+                    "type": {
+                        "ref": "dashboard.health_check_mode"
+                    },
+                    "required": true
+                },
+                {
+                    "name": "health_json_path",
+                    "type": {
+                        "ref": "dashboard.text"
+                    },
+                    "required": true
+                },
+                {
+                    "name": "health_json_operator",
+                    "type": {
+                        "ref": "dashboard.health_json_operator"
+                    },
+                    "required": true
+                },
+                {
+                    "name": "health_json_expected_value",
                     "type": {
                         "ref": "dashboard.text"
                     },
@@ -534,6 +610,26 @@
                     }
                 }
             ]
+        },
+        {
+            "id": "dashboard.health_check_mode",
+            "kind": "enum",
+            "version": 1,
+            "values": [
+                {
+                    "value": "http"
+                },
+                {
+                    "value": "json"
+                }
+            ]
+        },
+        {
+            "id": "dashboard.health_json_operator",
+            "kind": "scalar",
+            "version": 1,
+            "base": "string",
+            "description": "Validated operator whitelist: >, >=, <, <=, !=, ==, contains. Default ==. String equality and case-sensitive containment; finite numeric ordering."
         }
     ]
 }
