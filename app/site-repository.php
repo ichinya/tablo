@@ -19,7 +19,9 @@ final class SiteRepository
     public static function defaults(): array
     {
         return ['name' => '', 'url' => '', 'repository' => '', 'branch' => 'main', 'health_path' => '/up',
-            'version_path' => '', 'comparison_mode' => 'release', 'enabled' => 1, 'sort_order' => 0];
+            'version_path' => '', 'version_json_path' => '', 'health_check_mode' => 'http',
+            'health_json_path' => '', 'health_json_operator' => '==', 'health_json_expected_value' => '',
+            'comparison_mode' => 'release', 'enabled' => 1, 'sort_order' => 0];
     }
 
     public function all(): array
@@ -67,6 +69,39 @@ final class SiteRepository
             if (!str_starts_with($path, '/') || str_starts_with($path, '//') || strlen($path) > 300
                 || preg_match('~[\s\\\\\x00-\x1f#]~', $path)) {
                 $errors[$field] = 'Укажите путь на этом сайте, например /up.';
+            }
+        }
+        $mode = $input['health_check_mode'] ?? 'http';
+        if (!is_string($mode) || !in_array($mode, ['http', 'json'], true)) {
+            $errors['health_check_mode'] = 'Выберите HTTP-статус или JSON-поле.';
+        } else {
+            $data['health_check_mode'] = $mode;
+        }
+        foreach (['version_json_path', 'health_json_path'] as $field) {
+            $raw = $input[$field] ?? '';
+            $data[$field] = is_string($raw) ? trim($raw) : '';
+            $active = $field === 'version_json_path' ? $data['version_path'] !== '' : $mode === 'json';
+            if (!$active || ($field === 'version_json_path' && is_string($raw) && $data[$field] === '')) { continue; }
+            try {
+                if (!is_string($raw)) { throw new \InvalidArgumentException('Укажите JSON path строкой.'); }
+                JsonField::validatePath($data[$field]);
+            } catch (\InvalidArgumentException $e) {
+                $errors[$field] = $e->getMessage();
+            }
+        }
+        $operator = $input['health_json_operator'] ?? '==';
+        $data['health_json_operator'] = is_string($operator) && in_array($operator, JsonField::OPERATORS, true) ? $operator : '==';
+        $expected = $input['health_json_expected_value'] ?? '';
+        $data['health_json_expected_value'] = is_string($expected) ? $expected : '';
+        if ($mode === 'json') {
+            if (!is_string($operator) || !in_array($operator, JsonField::OPERATORS, true)) {
+                $errors['health_json_operator'] = 'Выберите допустимое условие JSON-проверки.';
+            }
+            if (!is_string($expected) || mb_strlen($expected) > JsonField::MAX_EXPECTED_LENGTH) {
+                $errors['health_json_expected_value'] = 'Ожидаемое значение — строка до 512 символов.';
+            } elseif (in_array($operator, ['>', '>=', '<', '<='], true)) {
+                try { JsonField::number($expected); }
+                catch (\InvalidArgumentException $e) { $errors['health_json_expected_value'] = $e->getMessage(); }
             }
         }
         if (!in_array($data['comparison_mode'], ['release', 'branch'], true)) {
@@ -185,7 +220,9 @@ final class SiteRepository
         // A result for an old configuration must not overwrite a concurrent edit.
         $fields = ['online', 'deployed_version', 'deployed_commit', 'latest_release', 'latest_commit',
             'open_issues', 'open_prs', 'response_time_ms', 'last_error', 'checked_at'];
-        $config = ['name', 'url', 'repository', 'branch', 'health_path', 'version_path', 'comparison_mode', 'enabled', 'sort_order'];
+        $config = ['name', 'url', 'repository', 'branch', 'health_path', 'version_path', 'version_json_path',
+            'health_check_mode', 'health_json_path', 'health_json_operator', 'health_json_expected_value',
+            'comparison_mode', 'enabled', 'sort_order'];
         $sql = 'UPDATE sites SET ' . implode(', ', array_map(fn ($f) => "$f = ?", $fields))
             . ' WHERE id = ? AND ' . implode(' AND ', array_map(fn ($f) => "$f = ?", $config)) . ' AND github_token IS ?
                 AND git_token_id IS ? AND (SELECT encrypted_token FROM git_tokens WHERE id = sites.git_token_id) IS ?';

@@ -19,6 +19,12 @@ final class SiteChecker
             $state['response_time_ms'] = $response['time_ms'];
             if (!$state['online']) {
                 $errors[] = 'Health: HTTP ' . $response['status'] . ' (нужен 2xx, без редиректов).';
+            } elseif (($site['health_check_mode'] ?? 'http') === 'json') {
+                // Unknown until both extraction and comparison succeed.
+                $state['online'] = null;
+                $value = JsonField::extract(JsonField::decode($response['body']), $site['health_json_path']);
+                $state['online'] = (int) JsonField::compare($value, $site['health_json_operator'], $site['health_json_expected_value']);
+                if (!$state['online']) { $errors[] = 'Health: JSON-значение не прошло выбранное условие.'; }
             }
         } catch (\Throwable $e) {
             // A blocked/DNS/transport check does not prove that the site is offline.
@@ -30,11 +36,14 @@ final class SiteChecker
                 if ($response['status'] < 200 || $response['status'] >= 300) {
                     throw new \RuntimeException('HTTP ' . $response['status']);
                 }
-                $json = json_decode($response['body'], true, 16, JSON_THROW_ON_ERROR);
-                if (!is_array($json)) {
+                $document = JsonField::decode($response['body']);
+                $json = $document instanceof \stdClass ? (array) $document : [];
+                $jsonPath = $site['version_json_path'] ?? '';
+                if ($jsonPath === '' && !($document instanceof \stdClass)) {
                     throw new \RuntimeException('Ожидается JSON-объект.');
                 }
-                $version = $json['version'] ?? $json['deployed_version'] ?? null;
+                $version = $jsonPath === '' ? ($json['version'] ?? $json['deployed_version'] ?? null)
+                    : JsonField::extract($document, $jsonPath);
                 $commit = $json['commit'] ?? $json['sha'] ?? $json['deployed_commit'] ?? null;
                 if ($version !== null && (!is_string($version) || $version === '' || strlen($version) > 200)) {
                     throw new \RuntimeException('Некорректное поле version.');

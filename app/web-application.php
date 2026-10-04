@@ -233,7 +233,7 @@ final class Web
         unset($site['github_token'], $site['selected_token_snapshot']);
         return $this->render('form', ['title' => $id === null ? 'Добавить сайт' : 'Настройки сайта', 'site' => $site,
             'action' => $id === null ? '/sites/new' : '/sites/' . $id . '/edit', 'editing' => $id !== null,
-            'errors' => $errors,
+            'errors' => $errors, 'json_operators' => JsonField::OPERATORS,
             'git_tokens' => array_values(array_filter($this->tokens->all(), fn ($token) => $token['provider'] === 'github'))], $status);
     }
 
