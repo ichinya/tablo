@@ -11,6 +11,8 @@ if (file_exists($path)) {
 $db = Tablo\Database::connect($path);
 $sites = new Tablo\SiteRepository($db);
 $token = (new Tablo\GitTokenRepository($db))->save([
+    // Synthetic fixture credentials; never valid for a real service.
+    // @mago-expect lint:no-literal-password
     'name' => 'Демонстрационный токен', 'provider' => 'github', 'token' => 'fixture-token',
 ]);
 $rows = [
@@ -26,7 +28,7 @@ foreach ($rows as [$name, $url, $repository, $mode, $enabled, $online, $version,
         'git_token_id' => $token, 'version_path' => $mode === 'branch' ? '' : '/version']));
     $sites->storeCheck($sites->find($id), ['online' => $online, 'deployed_version' => $version,
         'latest_release' => $release, 'deployed_commit' => $commit,
-        'latest_commit' => $commit ? $commit . str_repeat('0', 33) : null,
+        'latest_commit' => $commit ? $commit . str_repeat('0', times: 33) : null,
         'open_issues' => $issues, 'open_prs' => $prs, 'response_time_ms' => $ms,
         'last_error' => $online === 0 ? 'Health: HTTP 503 (пример тестового состояния).' : null,
         'checked_at' => $enabled ? gmdate('Y-m-d\TH:i:s\Z') : null]);

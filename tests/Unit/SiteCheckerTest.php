@@ -66,6 +66,6 @@ final class SiteCheckerTest
         Assert::true($state['deployed_version'] === null && $state['deployed_commit'] === null && $state['open_issues'] === 4, 'Git data lost or installed version fabricated');
         $presented = Presenter::site($site + $state);
         Assert::true(!$presented['attention'] && !$presented['tracks_version'] && $presented['comparison'] === 'Версия сайта не отслеживается', 'unconfigured version flagged attention');
-        UnitFixtures::rejects(fn () => SiteRepository::normalize(array_replace($sample, ['version_path' => '//evil.example'])), 'optional field accepts invalid nonempty value');
+        UnitFixtures::rejects(static fn () => SiteRepository::normalize(array_replace($sample, ['version_path' => '//evil.example'])), 'optional field accepts invalid nonempty value');
     }
 }

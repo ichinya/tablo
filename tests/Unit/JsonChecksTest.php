@@ -8,7 +8,7 @@ use RuntimeException;
 use Tablo\Auth;
 use Tablo\Database;
 use Tablo\GitTokenRepository;
-use Tablo\JsonField;
+
 use Tablo\SiteChecker;
 use Tablo\SiteRepository;
 use Tablo\TokenVault;
@@ -45,7 +45,7 @@ final class JsonChecksTest
             ['==', '', '', true], ['==', ' ', '', false], ['==', ' ok ', ' ok ', true],
             ['==', 1.0, '1', true], ['==', 1, '1.0', false], ['==', 1.25, '1.25', true],
             ['>=', '3', '3', true], ['<', -1.5, '-1', true], ['>', 2, '1e0', true],
-            ['>', 9007199254740993, '9007199254740992', true],
+            ['>', 9_007_199_254_740_993, '9007199254740992', true],
         ];
         foreach ($cases as [$operator, $value, $expected, $passes]) {
             $state = $this->check(json_encode(['value' => $value], JSON_THROW_ON_ERROR),
@@ -75,7 +75,7 @@ final class JsonChecksTest
     public function reportsUnknownForExtractionErrorsWithoutLeakingResponse(): void
     {
         foreach (['not JSON private-fixture', '{}', '{"value":null}', '{"value":[]}',
-            '{"value":{}}', '{"value":1e400}', str_repeat('{"value":', 20) . '0' . str_repeat('}', 20)] as $body) {
+            '{"value":{}}', '{"value":1e400}', str_repeat('{"value":', times: 20) . '0' . str_repeat('}', times: 20)] as $body) {
             $state = $this->check($body, ['health_json_operator' => '!=', 'health_json_expected_value' => 'error']);
             Assert::same($state['online'], null, 'invalid/missing field is not a passing inequality');
             Assert::true(str_contains($state['last_error'], 'Health:') && !str_contains($state['last_error'], 'private-fixture'), 'safe health error');
@@ -108,7 +108,7 @@ final class JsonChecksTest
             Assert::same($state['last_error'], null);
         }
         foreach (['{}', '{"build":null}', '{"build":false}', '{"build":2}', '{"build":""}',
-            '{"build":[]}', '{"build":{}}', '{"build":"' . str_repeat('x', 201) . '"}', 'broken private-fixture'] as $body) {
+            '{"build":[]}', '{"build":{}}', '{"build":"' . str_repeat('x', times: 201) . '"}', 'broken private-fixture'] as $body) {
             $state = $this->check('{"value":"ok"}', ['version_json_path' => '$.build'], $body);
             Assert::same($state['deployed_version'], null, 'invalid extracted version');
             Assert::same($state['online'], 1, 'bad version did not erase valid health');
@@ -124,18 +124,18 @@ final class JsonChecksTest
     {
         $base = array_replace(UnitFixtures::site(), ['health_check_mode' => 'json', 'health_json_path' => '$.value']);
         foreach (['', 'value', '$.', '$..value', '$[*]', '$[01]', '$[-1]', '$[999999999999999999999999999999]',
-            '$["unterminated]', '$["bad\z"]', '$.value()', '$.value trailing', '$.' . str_repeat('x', 512)] as $path) {
-            UnitFixtures::rejects(fn () => SiteRepository::normalize(array_replace($base, ['health_json_path' => $path])), 'bad JSON path');
+            '$["unterminated]', '$["bad\z"]', '$.value()', '$.value trailing', '$.' . str_repeat('x', times: 512)] as $path) {
+            UnitFixtures::rejects(static fn () => SiteRepository::normalize(array_replace($base, ['health_json_path' => $path])), 'bad JSON path');
         }
         foreach ([
             ['health_check_mode' => 'unknown'], ['health_check_mode' => []],
             ['health_json_operator' => '==='], ['health_json_operator' => []], ['health_json_path' => []],
-            ['health_json_expected_value' => []], ['health_json_expected_value' => str_repeat('x', 513)],
+            ['health_json_expected_value' => []], ['health_json_expected_value' => str_repeat('x', times: 513)],
             ['health_json_operator' => '>', 'health_json_expected_value' => 'no'],
             ['health_json_operator' => '<=', 'health_json_expected_value' => '1e400'],
             ['version_json_path' => 'invalid'], ['version_json_path' => []],
         ] as $settings) {
-            UnitFixtures::rejects(fn () => SiteRepository::normalize(array_replace($base, $settings)), 'bad settings');
+            UnitFixtures::rejects(static fn () => SiteRepository::normalize(array_replace($base, $settings)), 'bad settings');
         }
         Assert::same(SiteRepository::normalize(array_replace($base, ['version_json_path' => '  ']))['version_json_path'], '', 'blank means automatic');
         $disabled = SiteRepository::normalize(array_replace($base, ['version_path' => '', 'version_json_path' => 'invalid']));
@@ -183,13 +183,15 @@ final class JsonChecksTest
         try {
             $path = $temporary->path . '/test.sqlite';
             $old = new PDO('sqlite:' . $path, null, null, [PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION]);
-            $schema = file_get_contents(dirname(__DIR__, 2) . '/database/schema.sql');
-            $old->exec(preg_replace('/^\s*(?:version_json_path|health_check_mode|health_json_path|health_json_operator|health_json_expected_value) TEXT.*\R/m', '', $schema));
+            $schema = file_get_contents(dirname(__DIR__, levels: 2) . '/database/schema.sql');
+            $old->exec(preg_replace('/^\s*(?:version_json_path|health_check_mode|health_json_path|health_json_operator|health_json_expected_value) TEXT.*\R/m', replacement: '', subject: $schema));
             (new Auth($old))->setup('fixture-password', 'fixture-password');
             $hash = $old->query('SELECT password_hash FROM users')->fetchColumn();
             $vault = new TokenVault($temporary->path . '/key');
             $cipher = $vault->encrypt('fixture-token');
             $tokens = new GitTokenRepository($old, $vault);
+            // Synthetic fixture credentials; never valid for a real service.
+            // @mago-expect lint:no-literal-password
             $token = $tokens->save(['name' => 'Fixture', 'provider' => 'github', 'token' => 'shared-fixture-token']);
             $old->prepare("INSERT INTO sites (name,url,repository,health_path,version_path,github_token) VALUES ('Legacy','https://example.com','fixture/public','/up','/version',?)")->execute([$cipher]);
             $old->prepare("INSERT INTO sites (name,url,repository,git_token_id) VALUES ('Shared','https://example.com','fixture/public',?)")->execute([$token]);

@@ -15,10 +15,10 @@ final class TokenVault
         return new self($directory . '/github-token.key');
     }
 
-    public function encrypt(string $token): string
+    public function encrypt(#[\SensitiveParameter] string $token): string
     {
         $iv = random_bytes(12);
-        $cipher = openssl_encrypt($token, 'aes-256-gcm', $this->key(true), OPENSSL_RAW_DATA, $iv, $tag);
+        $cipher = openssl_encrypt($token, cipher_algo: 'aes-256-gcm', passphrase: $this->key(create: true), options: OPENSSL_RAW_DATA, iv: $iv, tag: $tag);
         if ($cipher === false) {
             throw new \RuntimeException('Не удалось сохранить токен GitHub.');
         }
@@ -27,31 +27,37 @@ final class TokenVault
 
     public function decrypt(string $encrypted): string
     {
-        $bytes = str_starts_with($encrypted, 'v1:') ? base64_decode(substr($encrypted, 3), true) : false;
+        $bytes = str_starts_with($encrypted, 'v1:') ? base64_decode(substr($encrypted, offset: 3), strict: true) : false;
         if ($bytes === false || strlen($bytes) < 29) {
             throw new \RuntimeException('Сохранённый токен GitHub повреждён. Введите новый токен.');
         }
-        $token = openssl_decrypt(substr($bytes, 28), 'aes-256-gcm', $this->key(false), OPENSSL_RAW_DATA,
-            substr($bytes, 0, 12), substr($bytes, 12, 16));
+        $token = openssl_decrypt(substr($bytes, offset: 28), cipher_algo: 'aes-256-gcm', passphrase: $this->key(create: false), options: OPENSSL_RAW_DATA,
+            iv: substr($bytes, offset: 0, length: 12), tag: substr($bytes, offset: 12, length: 16));
         if ($token === false) {
             throw new \RuntimeException('Не удалось расшифровать токен GitHub. Введите новый токен.');
         }
         return $token;
     }
 
+    // An explicit internal mode; callers name the option at the call site.
+    // @mago-expect lint:no-boolean-flag-parameter
     private function key(bool $create): string
     {
         if ($create) {
             if (!is_dir(dirname($this->keyPath))) {
-                mkdir(dirname($this->keyPath), 0700, true);
+                mkdir(dirname($this->keyPath), permissions: 0o700, recursive: true);
             }
             // c+b does not truncate an existing key; initialize only under the exclusive lock.
-            $file = @fopen($this->keyPath, 'c+b');
+            // Handle the failure explicitly below; suppress raw filesystem/network warnings.
+            // @mago-expect lint:no-error-control-operator
+            $file = @fopen($this->keyPath, mode: 'c+b');
             if ($file === false || !flock($file, LOCK_EX)) {
                 if (is_resource($file)) { fclose($file); }
                 throw new \RuntimeException('Не удалось открыть ключ для токенов.');
             }
-            @chmod($this->keyPath, 0600);
+            // Best-effort POSIX permissions; Windows does not support the same file modes.
+            // @mago-expect lint:no-error-control-operator
+            @chmod($this->keyPath, permissions: 0o600);
             try {
                 if (fstat($file)['size'] === 0) {
                     if (fwrite($file, random_bytes(32)) !== 32) {
@@ -64,7 +70,9 @@ final class TokenVault
                 fclose($file);
             }
         }
-        $file = @fopen($this->keyPath, 'rb');
+        // Handle the failure explicitly below; suppress raw filesystem/network warnings.
+        // @mago-expect lint:no-error-control-operator
+        $file = @fopen($this->keyPath, mode: 'rb');
         if ($file === false) {
             throw new \RuntimeException('Ключ шифрования токенов недоступен. Восстановите его из резервной копии.');
         }

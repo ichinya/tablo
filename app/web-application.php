@@ -22,21 +22,25 @@ final class Web
         $root = dirname(__DIR__);
         $runtimeDirectory ??= $root . '/storage';
         foreach (['sessions', 'views'] as $dir) {
-            if (!is_dir($runtimeDirectory . '/' . $dir)) {
-                mkdir($runtimeDirectory . '/' . $dir, 0700, true);
-            }
+            if (is_dir($runtimeDirectory . '/' . $dir)) { continue; }
+
+            mkdir($runtimeDirectory . '/' . $dir, permissions: 0o700, recursive: true);
         }
         session_save_path($runtimeDirectory . '/sessions');
-        ini_set('session.use_strict_mode', '1');
-        ini_set('session.use_only_cookies', '1');
+        // Enforce secure session settings before session_start for every installation.
+        // @mago-expect lint:no-ini-set
+        ini_set('session.use_strict_mode', value: '1');
+        // Enforce secure session settings before session_start for every installation.
+        // @mago-expect lint:no-ini-set
+        ini_set('session.use_only_cookies', value: '1');
         session_name('tablo_session');
         session_set_cookie_params([
             'lifetime' => 0, 'path' => '/', 'httponly' => true, 'samesite' => 'Strict',
-            'secure' => getenv('TABLO_COOKIE_SECURE') === '1' || (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off'),
+            'secure' => getenv('TABLO_COOKIE_SECURE') === '1' || ((bool) ($_SERVER['HTTPS'] ?? null) && $_SERVER['HTTPS'] !== 'off'),
         ]);
         session_start();
         $_SESSION['csrf'] ??= bin2hex(random_bytes(32));
-        if (isset($_SESSION['authenticated_at']) && time() - $_SESSION['authenticated_at'] > 43200) {
+        if ((($_SESSION['authenticated_at'] ?? null) !== null) && time() - $_SESSION['authenticated_at'] > 43_200) {
             unset($_SESSION['authenticated_at']);
             $_SESSION['csrf'] = bin2hex(random_bytes(32));
         }
@@ -49,6 +53,8 @@ final class Web
         $this->view = new Simple();
         $this->view->setDI($di);
         $this->view->setViewsDir($root . '/views/');
+        // Phalcon rebinds engine factories with Closure::bind; this closure must be bindable.
+        // @mago-expect lint:prefer-static-closure
         $this->view->registerEngines(['.volt' => function ($view) use ($di, $runtimeDirectory) {
             $volt = new Volt($view, $di);
             $volt->setOptions(['path' => $runtimeDirectory . '/views/', 'autoescape' => true]);
@@ -56,6 +62,10 @@ final class Web
         }]);
     }
 
+    // Phalcon Micro rebinds route closures; static closures/method callables cannot be rebound.
+    // These expectations cover the registered route callbacks in this method only.
+    // @mago-expect lint:prefer-static-closure(21)
+    // @mago-expect lint:prefer-first-class-callable(5)
     public function run(): void
     {
         header('X-Content-Type-Options: nosniff');
@@ -63,19 +73,20 @@ final class Web
         header('Referrer-Policy: same-origin');
         header("Content-Security-Policy: default-src 'self'; style-src 'self'; script-src 'self'; img-src 'self' data:; base-uri 'none'; form-action 'self'; frame-ancestors 'none'");
         header('Cache-Control: no-store');
-        $path = parse_url($_SERVER['REQUEST_URI'] ?? '/', PHP_URL_PATH) ?: '/';
-        $public = in_array($path, ['/setup', '/login'], true);
+        $requestPath = parse_url($_SERVER['REQUEST_URI'] ?? '/', PHP_URL_PATH);
+        $path = $requestPath ? $requestPath : '/';
+        $public = in_array($path, ['/setup', '/login'], strict: true);
         if ($this->auth->needsSetup() && $path !== '/setup') {
             $this->redirect('/setup')->send();
             return;
         }
-        if (!$public && !isset($_SESSION['authenticated_at'])) {
+        if (!$public && (($_SESSION['authenticated_at'] ?? null) === null)) {
             $this->redirect('/login')->send();
             return;
         }
         if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST') {
             $csrf = $_POST['_csrf'] ?? null;
-            if (($_SERVER['CONTENT_LENGTH'] ?? 0) > 16384) {
+            if (($_SERVER['CONTENT_LENGTH'] ?? 0) > 16_384) {
                 $this->render('error', ['title' => 'Слишком большой запрос', 'message' => 'Данные формы превышают 16 КБ.'], 413)->send();
                 return;
             }
@@ -99,11 +110,13 @@ final class Web
                 return $web->render('auth', ['setup' => true, 'title' => 'Добро пожаловать', 'errors' => $e->errors], 422);
             }
         });
-        $app->get('/login', fn () => isset($_SESSION['authenticated_at']) ? $web->redirect('/') : $web->render('auth', ['setup' => false, 'title' => 'С возвращением']));
+        $app->get('/login', fn () => (($_SESSION['authenticated_at'] ?? null) !== null) ? $web->redirect('/') : $web->render('auth', ['setup' => false, 'title' => 'С возвращением']));
         $app->post('/login', function () use ($web) {
             try {
                 $password = $web->input('password');
                 if (strlen($password) > 72 || !$web->auth->login($password, $_SERVER['REMOTE_ADDR'] ?? 'unknown')) {
+                    // A validation message keyed by the form field; no credential is stored here.
+                    // @mago-expect lint:no-literal-password
                     throw new ValidationException(['password' => 'Неверный пароль.']);
                 }
                 $web->authenticate();
@@ -115,7 +128,7 @@ final class Web
         $app->post('/logout', function () use ($web) {
             $_SESSION = [];
             session_destroy();
-            setcookie(session_name(), '', ['expires' => time() - 3600, 'path' => '/', 'secure' => session_get_cookie_params()['secure'], 'httponly' => true, 'samesite' => 'Strict']);
+            setcookie(session_name(), value: '', expires_or_options: ['expires' => time() - 3600, 'path' => '/', 'secure' => session_get_cookie_params()['secure'], 'httponly' => true, 'samesite' => 'Strict']);
             return $web->redirect('/login');
         });
         $app->get('/', fn () => $web->dashboard());
@@ -169,22 +182,22 @@ final class Web
             }
             if (!$site['enabled']) {
                 $_SESSION['notice'] = 'Проверки этого сайта на паузе.';
-            } else {
-                // Release the session lock while network requests are in progress.
-                session_write_close();
-                try {
-                    $checker = new SiteChecker(new HttpClient(getenv('TABLO_ALLOW_PRIVATE_NETWORK') === '1'), $web->github->provider($site));
-                    $stored = $web->sites->storeCheck($site, $checker->check($site));
-                    $notice = $stored ? 'Проверка завершена. Результаты обновлены.' : 'Настройки изменились во время проверки. Запустите её ещё раз.';
-                } catch (ValidationException $e) {
-                    $notice = implode(' ', $e->errors);
-                }
-                session_start();
-                $_SESSION['notice'] = $notice;
+                return $web->redirect('/');
             }
+            // Release the session lock while network requests are in progress.
+            session_write_close();
+            try {
+                $checker = new SiteChecker(new HttpClient(getenv('TABLO_ALLOW_PRIVATE_NETWORK') === '1'), $web->github->provider($site));
+                $stored = $web->sites->storeCheck($site, $checker->check($site));
+                $notice = $stored ? 'Проверка завершена. Результаты обновлены.' : 'Настройки изменились во время проверки. Запустите её ещё раз.';
+            } catch (ValidationException $e) {
+                $notice = implode(' ', $e->errors);
+            }
+            session_start();
+            $_SESSION['notice'] = $notice;
             return $web->redirect('/');
         });
-        $app->notFound(fn () => $web->notFound());
+        $app->notFound($web->notFound(...));
         $app->handle($path);
     }
 
@@ -214,13 +227,13 @@ final class Web
         } catch (ValidationException | \RuntimeException $e) {
             $data = SiteRepository::defaults();
             foreach ($data as $key => $value) {
-                if (is_string($_POST[$key] ?? null)) {
-                    $data[$key] = $_POST[$key];
-                }
+                if (!is_string($_POST[$key] ?? null)) { continue; }
+
+                $data[$key] = $_POST[$key];
             }
-            $data['enabled'] = isset($_POST['enabled']) && is_string($_POST['enabled']) ? 1 : 0;
+            $data['enabled'] = (($_POST['enabled'] ?? null) !== null) && is_string($_POST['enabled']) ? 1 : 0;
             $data['id'] = $id;
-            $data['has_github_token'] = !empty($existing['github_token']);
+            $data['has_github_token'] = (bool) ($existing['github_token'] ?? null);
             $data['git_token_id'] = is_string($_POST['git_token_id'] ?? null) ? $_POST['git_token_id'] : ($existing['git_token_id'] ?? '');
             return $this->form($data, $id, $e instanceof ValidationException ? $e->errors : ['github_token' => $e->getMessage()], 422);
         }
@@ -228,13 +241,13 @@ final class Web
 
     private function form(array $site, ?int $id = null, array $errors = [], int $status = 200): Response
     {
-        $site['has_github_token'] = $site['has_github_token'] ?? !empty($site['github_token']);
+        $site['has_github_token'] ??= (bool) ($site['github_token'] ?? null);
         $site['git_token_id'] ??= '';
         unset($site['github_token'], $site['selected_token_snapshot']);
         return $this->render('form', ['title' => $id === null ? 'Добавить сайт' : 'Настройки сайта', 'site' => $site,
             'action' => $id === null ? '/sites/new' : '/sites/' . $id . '/edit', 'editing' => $id !== null,
             'errors' => $errors, 'json_operators' => JsonField::OPERATORS,
-            'git_tokens' => array_values(array_filter($this->tokens->all(), fn ($token) => $token['provider'] === 'github'))], $status);
+            'git_tokens' => array_values(array_filter($this->tokens->all(), static fn (#[\SensitiveParameter] $token) => $token['provider'] === 'github'))], $status);
     }
 
     private function settings(): Response
@@ -245,7 +258,7 @@ final class Web
             'providers' => GitProviders::available(), 'notice' => $notice]);
     }
 
-    private function tokenForm(array $token, ?int $id = null, array $errors = [], int $status = 200): Response
+    private function tokenForm(#[\SensitiveParameter] array $token, ?int $id = null, array $errors = [], int $status = 200): Response
     {
         return $this->render('token-form', ['title' => $id === null ? 'Добавить токен' : 'Настройки токена',
             'token' => $token, 'editing' => $id !== null, 'providers' => GitProviders::available(), 'errors' => $errors,
@@ -261,6 +274,8 @@ final class Web
             return $this->redirect('/settings');
         } catch (\RuntimeException $e) {
             return $this->tokenForm(['name' => $this->input('name'), 'provider' => $this->input('provider'), 'id' => $id], $id,
+                // A validation message keyed by the form field; no credential is stored here.
+                // @mago-expect lint:no-literal-password
                 $e instanceof ValidationException ? $e->errors : ['token' => 'Не удалось сохранить токен. Проверьте доступ к хранилищу.'], 422);
         }
     }
@@ -295,7 +310,9 @@ final class Web
         foreach ($sites as $site) {
             if (!$site['enabled']) {
                 ++$stats['paused'];
-            } elseif ($site['online'] === 1) {
+                continue;
+            }
+            if ($site['online'] === 1) {
                 ++$stats['online'];
             }
             if ($site['attention']) {
@@ -319,7 +336,7 @@ final class Web
 
     private function render(string $template, array $data, int $status = 200): Response
     {
-        $data += ['csrf' => $_SESSION['csrf'], 'errors' => [], 'authenticated' => isset($_SESSION['authenticated_at']), 'notice' => ''];
+        $data += ['csrf' => $_SESSION['csrf'], 'errors' => [], 'authenticated' => (($_SESSION['authenticated_at'] ?? null) !== null), 'notice' => ''];
         return (new Response())->setStatusCode($status)->setContentType('text/html', 'utf-8')
             ->setContent($this->view->render($template, $data));
     }

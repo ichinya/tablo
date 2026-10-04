@@ -22,7 +22,7 @@ final class JsonField
     public static function decode(string $body): mixed
     {
         try {
-            return json_decode($body, false, 16, JSON_THROW_ON_ERROR | JSON_BIGINT_AS_STRING);
+            return json_decode($body, associative: false, depth: 16, flags: JSON_THROW_ON_ERROR | JSON_BIGINT_AS_STRING);
         } catch (JsonException) {
             throw new RuntimeException('Ответ не является корректным JSON допустимой глубины.');
         }
@@ -34,11 +34,13 @@ final class JsonField
         foreach (self::segments($path) as [$kind, $key]) {
             if ($kind === 'key' && $value instanceof stdClass && property_exists($value, $key)) {
                 $value = $value->{$key};
-            } elseif ($kind === 'index' && is_array($value) && array_key_exists($key, $value)) {
-                $value = $value[$key];
-            } else {
-                throw new RuntimeException('Поле по JSON path не найдено.');
+                continue;
             }
+            if ($kind === 'index' && is_array($value) && array_key_exists($key, $value)) {
+                $value = $value[$key];
+                continue;
+            }
+            throw new RuntimeException('Поле по JSON path не найдено.');
         }
         if ($value === null) {
             throw new RuntimeException('JSON-поле содержит null.');
@@ -54,11 +56,14 @@ final class JsonField
 
     public static function compare(string|int|float|bool $value, string $operator, string $expected): bool
     {
-        if (!in_array($operator, self::OPERATORS, true)) {
+        if (!in_array($operator, self::OPERATORS, strict: true)) {
             throw new InvalidArgumentException('Выберите допустимое условие JSON-проверки.');
         }
-        $actual = is_bool($value) ? ($value ? 'true' : 'false')
-            : (is_float($value) ? json_encode($value, JSON_THROW_ON_ERROR) : (string) $value);
+        $actual = match (true) {
+            is_bool($value) => $value ? 'true' : 'false',
+            is_float($value) => json_encode($value, JSON_THROW_ON_ERROR),
+            default => (string) $value,
+        };
         return match ($operator) {
             '==' => $actual === $expected,
             '!=' => $actual !== $expected,
@@ -75,7 +80,7 @@ final class JsonField
         if (!is_numeric($value) || !is_finite((float) $value)) {
             throw new InvalidArgumentException('Для этого условия нужно конечное число.');
         }
-        return $value + 0;
+        return +$value;
     }
 
     private static function segments(string $path): array
@@ -87,17 +92,21 @@ final class JsonField
         $offset = 1;
         $length = strlen($path);
         while ($offset < $length) {
-            if (preg_match('/\G\.([a-zA-Z_][a-zA-Z0-9_]*)/', $path, $match, 0, $offset)) {
+            if (preg_match('/\G\.([a-zA-Z_][a-zA-Z0-9_]*)/', $path, $match, flags: 0, offset: $offset)) {
                 $segments[] = ['key', $match[1]];
                 $offset += strlen($match[0]);
-            } elseif (preg_match('/\G\[(0|[1-9][0-9]*)\]/', $path, $match, 0, $offset)) {
+                continue;
+            }
+            if (preg_match('/\G\[(0|[1-9][0-9]*)\]/', $path, $match, flags: 0, offset: $offset)) {
                 $index = filter_var($match[1], FILTER_VALIDATE_INT);
                 if ($index === false) {
                     throw new InvalidArgumentException('Индекс JSON-массива слишком большой.');
                 }
                 $segments[] = ['index', $index];
                 $offset += strlen($match[0]);
-            } elseif (substr($path, $offset, 2) === '["') {
+                continue;
+            }
+            if (substr($path, $offset, length: 2) === '["') {
                 $start = $offset + 1;
                 $cursor = $start + 1;
                 while ($cursor < $length && $path[$cursor] !== '"') {
@@ -107,15 +116,15 @@ final class JsonField
                     throw new InvalidArgumentException('Некорректный ключ в JSON path.');
                 }
                 try {
-                    $key = json_decode(substr($path, $start, $cursor - $start + 1), false, 2, JSON_THROW_ON_ERROR);
+                    $key = json_decode(substr($path, $start, $cursor - $start + 1), associative: false, depth: 2, flags: JSON_THROW_ON_ERROR);
                 } catch (JsonException) {
                     throw new InvalidArgumentException('Некорректный ключ в JSON path.');
                 }
                 $segments[] = ['key', $key];
                 $offset = $cursor + 2;
-            } else {
-                throw new InvalidArgumentException('JSON path: используйте .поле, [индекс] или ["ключ"].');
+                continue;
             }
+            throw new InvalidArgumentException('JSON path: используйте .поле, [индекс] или ["ключ"].');
         }
         return $segments;
     }

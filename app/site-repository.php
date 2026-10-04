@@ -35,7 +35,8 @@ final class SiteRepository
         $statement = $this->db->prepare('SELECT s.*, t.encrypted_token AS selected_token_snapshot
             FROM sites s LEFT JOIN git_tokens t ON t.id = s.git_token_id WHERE s.id = ?');
         $statement->execute([$id]);
-        return $statement->fetch() ?: null;
+        $site = $statement->fetch();
+        return $site === false ? null : $site;
     }
 
     public static function normalize(array $input): array
@@ -48,11 +49,11 @@ final class SiteRepository
         if ($data['name'] === '' || mb_strlen($data['name']) > 80) {
             $errors['name'] = 'Укажите название до 80 символов.';
         }
-        $data['url'] = rtrim($data['url'], '/');
+        $data['url'] = rtrim($data['url'], characters: '/');
         $parts = parse_url($data['url']);
         if (strlen($data['url']) > 500 || !filter_var($data['url'], FILTER_VALIDATE_URL)
-            || !is_array($parts) || !in_array($parts['scheme'] ?? '', ['http', 'https'], true)
-            || isset($parts['user']) || isset($parts['pass']) || isset($parts['query']) || isset($parts['fragment'])) {
+            || !is_array($parts) || !in_array($parts['scheme'] ?? '', ['http', 'https'], strict: true)
+            || (($parts['user'] ?? null) !== null) || (($parts['pass'] ?? null) !== null) || (($parts['query'] ?? null) !== null) || (($parts['fragment'] ?? null) !== null)) {
             $errors['url'] = 'Нужен HTTP(S) URL без логина, пароля, query и fragment.';
         }
         try {
@@ -72,9 +73,10 @@ final class SiteRepository
             }
         }
         $mode = $input['health_check_mode'] ?? 'http';
-        if (!is_string($mode) || !in_array($mode, ['http', 'json'], true)) {
+        if (!is_string($mode) || !in_array($mode, ['http', 'json'], strict: true)) {
             $errors['health_check_mode'] = 'Выберите HTTP-статус или JSON-поле.';
-        } else {
+        }
+        if (!($errors['health_check_mode'] ?? null)) {
             $data['health_check_mode'] = $mode;
         }
         foreach (['version_json_path', 'health_json_path'] as $field) {
@@ -90,28 +92,30 @@ final class SiteRepository
             }
         }
         $operator = $input['health_json_operator'] ?? '==';
-        $data['health_json_operator'] = is_string($operator) && in_array($operator, JsonField::OPERATORS, true) ? $operator : '==';
+        $data['health_json_operator'] = is_string($operator) && in_array($operator, JsonField::OPERATORS, strict: true) ? $operator : '==';
         $expected = $input['health_json_expected_value'] ?? '';
         $data['health_json_expected_value'] = is_string($expected) ? $expected : '';
         if ($mode === 'json') {
-            if (!is_string($operator) || !in_array($operator, JsonField::OPERATORS, true)) {
+            if (!is_string($operator) || !in_array($operator, JsonField::OPERATORS, strict: true)) {
                 $errors['health_json_operator'] = 'Выберите допустимое условие JSON-проверки.';
             }
             if (!is_string($expected) || mb_strlen($expected) > JsonField::MAX_EXPECTED_LENGTH) {
                 $errors['health_json_expected_value'] = 'Ожидаемое значение — строка до 512 символов.';
-            } elseif (in_array($operator, ['>', '>=', '<', '<='], true)) {
+            }
+            if (!($errors['health_json_expected_value'] ?? null) && in_array($operator, ['>', '>=', '<', '<='], strict: true)) {
                 try { JsonField::number($expected); }
                 catch (\InvalidArgumentException $e) { $errors['health_json_expected_value'] = $e->getMessage(); }
             }
         }
-        if (!in_array($data['comparison_mode'], ['release', 'branch'], true)) {
+        if (!in_array($data['comparison_mode'], ['release', 'branch'], strict: true)) {
             $errors['comparison_mode'] = 'Выберите релиз или HEAD ветки.';
         }
-        $data['enabled'] = in_array($input['enabled'] ?? null, [1, '1', 'on'], true) ? 1 : 0;
+        $data['enabled'] = in_array($input['enabled'] ?? null, [1, '1', 'on'], strict: true) ? 1 : 0;
         $order = filter_var($input['sort_order'] ?? 0, FILTER_VALIDATE_INT);
         if ($order === false || $order < 0 || $order > 9999) {
             $errors['sort_order'] = 'Порядок должен быть целым числом от 0 до 9999.';
-        } else {
+        }
+        if (!($errors['sort_order'] ?? null)) {
             $data['sort_order'] = $order;
         }
         if ($errors) {
@@ -126,17 +130,19 @@ final class SiteRepository
         if (preg_match('~^https://github\.com/([^/?#]+/[^/?#]+)/?$~i', $repository, $match)) {
             $repository = $match[1];
         }
-        $repository = preg_replace('~\.git$~', '', $repository);
+        $repository = preg_replace('~\.git$~', replacement: '', subject: $repository);
         if (!preg_match('~^[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,38})/[a-zA-Z0-9_.-]{1,100}$~D', $repository)
-            || in_array(explode('/', $repository)[1] ?? '', ['.', '..'], true)) {
+            || in_array(explode('/', $repository)[1] ?? '', ['.', '..'], strict: true)) {
             throw new ValidationException(['repository' => 'Укажите owner/repository или URL репозитория на github.com.']);
         }
         return $repository;
     }
 
-    public static function validateToken(mixed $token): string
+    public static function validateToken(#[\SensitiveParameter] mixed $token): string
     {
         if (!is_string($token) || ($token !== '' && !preg_match('/^[\x21-\x7e]{1,512}$/D', $token))) {
+            // A validation message keyed by the form field; no credential is stored here.
+            // @mago-expect lint:no-literal-password
             throw new ValidationException(['github_token' => 'Токен должен содержать до 512 печатных символов без пробелов.']);
         }
         return $token;
@@ -144,10 +150,10 @@ final class SiteRepository
 
     public function tokenFor(?array $site): string
     {
-        if (!empty($site['git_token_id'])) {
+        if ((bool) ($site['git_token_id'] ?? null)) {
             return $this->savedTokens->tokenFor((int) $site['git_token_id'], $site['provider'] ?? 'github');
         }
-        return empty($site['github_token']) ? '' : $this->tokens->decrypt($site['github_token']);
+        return !($site['github_token'] ?? null) ? '' : $this->tokens->decrypt($site['github_token']);
     }
 
     private function selectedToken(array $input, ?array $site): ?int
@@ -170,14 +176,16 @@ final class SiteRepository
         $token = self::validateToken($input['github_token'] ?? '');
         $selected = $this->selectedToken($input, $site);
         if ($selected !== null) {
+            // A validation message keyed by the form field; no credential is stored here.
+            // @mago-expect lint:no-literal-password
             if ($token !== '') { throw new ValidationException(['github_token' => 'Выберите сохранённый токен или введите свой.']); }
             return $this->savedTokens->tokenFor($selected, $site['provider'] ?? 'github');
         }
         if ($token !== '') {
             return $token;
         }
-        if (!in_array($input['remove_github_token'] ?? null, [1, '1', 'on'], true)) {
-            $token = empty($site['github_token']) ? '' : $this->tokens->decrypt($site['github_token']);
+        if (!in_array($input['remove_github_token'] ?? null, [1, '1', 'on'], strict: true)) {
+            $token = !($site['github_token'] ?? null) ? '' : $this->tokens->decrypt($site['github_token']);
         }
         return $token;
     }
@@ -192,17 +200,23 @@ final class SiteRepository
         $token = self::validateToken($input['github_token'] ?? '');
         $data['git_token_id'] = $this->selectedToken($input, $existing);
         if ($data['git_token_id'] !== null && $token !== '') {
+            // A validation message keyed by the form field; no credential is stored here.
+            // @mago-expect lint:no-literal-password
             throw new ValidationException(['github_token' => 'Выберите сохранённый токен или введите свой.']);
         }
-        $data['github_token'] = $data['git_token_id'] !== null ? null : ($token !== '' ? $this->tokens->encrypt($token)
-            : (in_array($input['remove_github_token'] ?? null, [1, '1', 'on'], true) ? null : ($existing['github_token'] ?? null)));
+        $data['github_token'] = $existing['github_token'] ?? null;
+        if ($data['git_token_id'] !== null || in_array($input['remove_github_token'] ?? null, [1, '1', 'on'], strict: true)) {
+            $data['github_token'] = null;
+        }
+        // An explicitly entered replacement takes precedence over the removal checkbox.
+        if ($token !== '') { $data['github_token'] = $this->tokens->encrypt($token); }
         $fields = array_keys($data);
         if ($id === null) {
-            $sql = 'INSERT INTO sites (' . implode(', ', $fields) . ') VALUES (' . implode(', ', array_fill(0, count($fields), '?')) . ')';
+            $sql = 'INSERT INTO sites (' . implode(', ', $fields) . ') VALUES (' . implode(', ', array_fill(0, count($fields), value: '?')) . ')';
             $this->db->prepare($sql)->execute(array_values($data));
             return (int) $this->db->lastInsertId();
         }
-        $sql = 'UPDATE sites SET ' . implode(', ', array_map(fn ($f) => "$f = ?", $fields)) . ',
+        $sql = 'UPDATE sites SET ' . implode(', ', array_map(static fn ($f) => "{$f} = ?", $fields)) . ',
             online = NULL, deployed_version = NULL, deployed_commit = NULL, latest_release = NULL,
             latest_commit = NULL, open_issues = NULL, open_prs = NULL, response_time_ms = NULL,
             last_error = NULL, checked_at = NULL, updated_at = strftime(\'%Y-%m-%dT%H:%M:%SZ\', \'now\') WHERE id = ?';
@@ -223,11 +237,11 @@ final class SiteRepository
         $config = ['name', 'url', 'repository', 'branch', 'health_path', 'version_path', 'version_json_path',
             'health_check_mode', 'health_json_path', 'health_json_operator', 'health_json_expected_value',
             'comparison_mode', 'enabled', 'sort_order'];
-        $sql = 'UPDATE sites SET ' . implode(', ', array_map(fn ($f) => "$f = ?", $fields))
-            . ' WHERE id = ? AND ' . implode(' AND ', array_map(fn ($f) => "$f = ?", $config)) . ' AND github_token IS ?
+        $sql = 'UPDATE sites SET ' . implode(', ', array_map(static fn ($f) => "{$f} = ?", $fields))
+            . ' WHERE id = ? AND ' . implode(' AND ', array_map(static fn ($f) => "{$f} = ?", $config)) . ' AND github_token IS ?
                 AND git_token_id IS ? AND (SELECT encrypted_token FROM git_tokens WHERE id = sites.git_token_id) IS ?';
         $statement = $this->db->prepare($sql);
-        $statement->execute([...array_map(fn ($f) => $state[$f] ?? null, $fields), $site['id'], ...array_map(fn ($f) => $site[$f], $config),
+        $statement->execute([...array_map(static fn ($f) => $state[$f] ?? null, $fields), $site['id'], ...array_map(static fn ($f) => $site[$f], $config),
             $site['github_token'] ?? null, $site['git_token_id'] ?? null, $site['selected_token_snapshot'] ?? null]);
         return $statement->rowCount() > 0;
     }

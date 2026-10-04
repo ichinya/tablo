@@ -26,7 +26,8 @@ final class GitTokenRepository
     {
         $statement = $this->db->prepare('SELECT id, name, provider, created_at, updated_at FROM git_tokens WHERE id = ?');
         $statement->execute([$id]);
-        return $statement->fetch() ?: null;
+        $token = $statement->fetch();
+        return $token === false ? null : $token;
     }
 
     public function tokenFor(int $id, string $provider): string
@@ -56,16 +57,20 @@ final class GitTokenRepository
             throw new ValidationException(['token' => $e->getMessage()]);
         }
         if ($value === '' && $existing === null) {
+            // A validation message keyed by the form field; no credential is stored here.
+            // @mago-expect lint:no-literal-password
             throw new ValidationException(['token' => 'Введите токен доступа.']);
         }
         $encrypted = $value !== '' ? $this->vault->encrypt($value) : null;
         $this->db->beginTransaction();
         try {
-            if ($id === null) {
+            $creating = $id === null;
+            if ($creating) {
                 $this->db->prepare('INSERT INTO git_tokens (name, provider, encrypted_token) VALUES (?, ?, ?)')
                     ->execute([$name, $provider, $encrypted]);
                 $id = (int) $this->db->lastInsertId();
-            } else {
+            }
+            if (!$creating) {
                 $this->db->prepare('UPDATE git_tokens SET name = ?, provider = ?, encrypted_token = COALESCE(?, encrypted_token),
                     updated_at = strftime(\'%Y-%m-%dT%H:%M:%SZ\', \'now\') WHERE id = ?')->execute([$name, $provider, $encrypted, $id]);
                 if ($encrypted !== null) {
@@ -91,6 +96,8 @@ final class GitTokenRepository
             $this->db->prepare('DELETE FROM git_tokens WHERE id = ?')->execute([$id]);
         } catch (\PDOException $e) {
             if ($e->getCode() === '23000') {
+                // A validation message keyed by the form field; no credential is stored here.
+                // @mago-expect lint:no-literal-password
                 throw new ValidationException(['token' => 'Токен используется в проектах. Сначала выберите для них другой токен.']);
             }
             throw $e;

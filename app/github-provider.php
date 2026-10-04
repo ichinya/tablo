@@ -5,8 +5,10 @@ namespace Tablo;
 
 final class GitHubProvider implements RepositoryProvider
 {
-    public function __construct(private readonly HttpClient $http, private readonly string $token = '') {}
+    public function __construct(private readonly HttpClient $http, #[\SensitiveParameter] private readonly string $token = '') {}
 
+    // Allow only the expected missing-release response, rather than every HTTP error.
+    // @mago-expect lint:no-boolean-flag-parameter
     private function request(string $path, bool $allowMissing = false): ?array
     {
         $headers = ['Accept: application/vnd.github+json', 'X-GitHub-Api-Version: 2022-11-28'];
@@ -27,7 +29,7 @@ final class GitHubProvider implements RepositoryProvider
             };
             throw new \RuntimeException('GitHub HTTP ' . $response['status'] . '. ' . $message);
         }
-        $json = json_decode($response['body'], true, 32, JSON_THROW_ON_ERROR);
+        $json = json_decode($response['body'], associative: true, depth: 32, flags: JSON_THROW_ON_ERROR);
         if (!is_array($json)) {
             throw new \RuntimeException('GitHub вернул некорректный JSON.');
         }
@@ -82,7 +84,7 @@ final class GitHubProvider implements RepositoryProvider
 
     public function getLatestRelease(string $repository): ?string
     {
-        $json = $this->request($this->path($repository) . '/releases/latest', true);
+        $json = $this->request($this->path($repository) . '/releases/latest', allowMissing: true);
         if ($json === null) {
             // Distinguish a repository with no releases from a missing/private repository.
             $this->request($this->path($repository));
@@ -107,7 +109,7 @@ final class GitHubProvider implements RepositoryProvider
 
     private function count(string $repository, string $kind): int
     {
-        $json = $this->request('/search/issues?q=' . rawurlencode("repo:$repository is:$kind is:open") . '&per_page=1');
+        $json = $this->request('/search/issues?q=' . rawurlencode("repo:{$repository} is:{$kind} is:open") . '&per_page=1');
         if (($json['incomplete_results'] ?? true) !== false || !is_int($json['total_count'] ?? null) || $json['total_count'] < 0) {
             throw new \RuntimeException('GitHub вернул неполный результат поиска.');
         }

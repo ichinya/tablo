@@ -60,7 +60,7 @@ final class JsonChecksTest
         Assert::true(str_contains($form['body'], 'value="http" selected'), 'default mode');
         preg_match('/id="health_json_operator"[^>]*>(.*?)<\/select>/s', $form['body'], $select);
         preg_match_all('/<option value="([^"]*)"/', $select[1], $options);
-        Assert::same(array_map(fn ($value) => html_entity_decode($value, ENT_QUOTES, 'UTF-8'), $options[1]), ['>', '>=', '<', '<=', '!=', '==', 'contains']);
+        Assert::same(array_map(static fn ($value) => html_entity_decode($value, ENT_QUOTES, encoding: 'UTF-8'), $options[1]), ['>', '>=', '<', '<=', '!=', '==', 'contains']);
         $input = $this->input($csrf);
         $input['health_json_operator'] = 'contains';
         $input['health_json_expected_value'] = '<script>alert("fixture")</script>';
@@ -99,7 +99,7 @@ final class JsonChecksTest
             $manual = $this->web->database()->query($query)->fetch();
             Assert::same($manual['online'], $online);
             Assert::same($manual['deployed_version'], '1.2.3');
-            $root = dirname(__DIR__, 2);
+            $root = dirname(__DIR__, levels: 2);
             $result = Subprocess::run([PHP_BINARY, '-d', 'auto_prepend_file=' . $root . '/tests/cli-github-fixture.php',
                 $root . '/bin/check.php'], $this->web->directory, [
                     'TABLO_DB' => $this->web->directory->path . '/test.sqlite', 'TABLO_ALLOW_PRIVATE_NETWORK' => '1',

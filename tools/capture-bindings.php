@@ -5,7 +5,7 @@ declare(strict_types=1);
 $root = dirname(__DIR__);
 $definitions = [];
 foreach (glob($root . '/lekalo/modules/dashboard/*.yaml') as $file) {
-    foreach (json_decode(file_get_contents($file), true, 64, JSON_THROW_ON_ERROR)['definitions'] as $definition) {
+    foreach (json_decode(file_get_contents($file), associative: true, depth: 64, flags: JSON_THROW_ON_ERROR)['definitions'] as $definition) {
         $definitions[$definition['id']] = $definition;
     }
 }
@@ -27,11 +27,11 @@ $mapping = [
     'update_git_token' => ['app/git-token-repository.php', 'public function save'],
     'delete_git_token' => ['app/git-token-repository.php', 'public function delete'],
 ];
-function typeName(array $type): string
+function type_name(array $type): string
 {
-    if (isset($type['ref'])) { return $type['ref']; }
+    if (($type['ref'] ?? null) !== null) { return $type['ref']; }
     foreach (['optional', 'list'] as $wrapper) {
-        if (isset($type[$wrapper])) { return $wrapper . '(' . typeName($type[$wrapper]) . ')'; }
+        if (($type[$wrapper] ?? null) !== null) { return $wrapper . '(' . type_name($type[$wrapper]) . ')'; }
     }
     throw new RuntimeException('Unmapped type');
 }
@@ -43,10 +43,10 @@ foreach ($mapping as $name => [$path, $needle]) {
     if ($offset === false) { throw new RuntimeException('Missing implementation: ' . $name); }
     $signature = null;
     $effects = [];
-    if (in_array($definition['kind'], ['command', 'query'], true)) {
-        $signature = ['inputs' => [], 'output' => isset($definition['returns']) ? typeName($definition['returns']) : null, 'reads' => $definition['reads'] ?? []];
+    if (in_array($definition['kind'], ['command', 'query'], strict: true)) {
+        $signature = ['inputs' => [], 'output' => (($definition['returns'] ?? null) !== null) ? type_name($definition['returns']) : null, 'reads' => $definition['reads'] ?? []];
         foreach ($definition['input'] ?? [] as $input) {
-            $signature['inputs'][] = ['name' => $input['name'], 'type' => typeName($input['type']), 'required' => !isset($input['type']['optional'])];
+            $signature['inputs'][] = ['name' => $input['name'], 'type' => type_name($input['type']), 'required' => (($input['type']['optional'] ?? null) === null)];
         }
         foreach ($definition['effects'] ?? [] as $id) {
             $effect = $definitions[$id];
@@ -54,11 +54,11 @@ foreach ($mapping as $name => [$path, $needle]) {
         }
     }
     $symbol = ['id' => $definition['id'], 'kind' => $definition['kind'],
-        'source' => ['path' => $path, 'line' => substr_count(substr($source, 0, $offset), "\n") + 1],
+        'source' => ['path' => $path, 'line' => substr_count(substr($source, offset: 0, length: $offset), needle: "\n") + 1],
         'fingerprint' => 'sha256:' . hash('sha256', $source), 'signature' => $signature, 'effects' => $effects];
     if ($definition['kind'] === 'entity') {
         $symbol['shape'] = ['fields' => array_map(fn (array $field) => ['name' => $field['name'],
-            'type' => typeName($field['type']), 'required' => $field['required'] ?? false], $definition['fields'])];
+            'type' => type_name($field['type']), 'required' => $field['required'] ?? false], $definition['fields'])];
     }
     $symbols[] = $symbol;
 }

@@ -11,35 +11,30 @@ final class FixtureGitHubHttp extends Tablo\HttpClient
         }
         $path = parse_url($url, PHP_URL_PATH);
         $authorization = implode("\n", $headers);
-        $status = 200;
-        if (str_contains($authorization, 'Bearer invalid-fixture-token')) {
-            $status = 401;
-        } elseif (str_contains($authorization, 'Bearer forbidden-fixture-token')) {
-            $status = 403;
-        } elseif (str_contains($path, '/fixture/private')
-            && !in_array('Authorization: Bearer fixture-token', $headers, true)
-            && !in_array('Authorization: Bearer replacement-token', $headers, true)) {
-            $status = 404;
-        }
+        $authorized = in_array('Authorization: Bearer fixture-token', $headers, strict: true)
+            || in_array('Authorization: Bearer replacement-token', $headers, strict: true);
+        $status = match (true) {
+            str_contains($authorization, 'Bearer invalid-fixture-token') => 401,
+            str_contains($authorization, 'Bearer forbidden-fixture-token') => 403,
+            str_contains($path, '/fixture/private') && !$authorized => 404,
+            default => 200,
+        };
         $branches = ['main', 'develop', 'feature/login'];
-        $sha = str_repeat('a', 40);
-        if (str_ends_with($path, '/branches')) {
-            $body = array_map(fn ($name) => ['name' => $name, 'commit' => ['sha' => $sha]], $branches);
-        } elseif (str_contains($path, '/branches/')) {
-            $branch = rawurldecode(substr($path, strpos($path, '/branches/') + 10));
-            if (!in_array($branch, $branches, true)) { $status = 404; }
-            $body = ['name' => $branch, 'commit' => ['sha' => $sha]];
-        } elseif (str_contains($path, '/commits/')) {
-            $body = ['sha' => $sha];
-        } elseif (str_ends_with($path, '/releases/latest')) {
-            $body = ['tag_name' => 'v1.0.0'];
-        } elseif ($path === '/search/issues') {
-            $body = ['total_count' => 2, 'incomplete_results' => false];
-            if (str_contains($url, 'fixture%2Fprivate') && !in_array('Authorization: Bearer fixture-token', $headers, true)
-                && !in_array('Authorization: Bearer replacement-token', $headers, true)) { $status = 404; }
-        } else {
-            $body = ['default_branch' => 'main'];
+        $sha = str_repeat('a', times: 40);
+        $branch = '';
+        if (str_contains($path, '/branches/')) {
+            $branch = rawurldecode(substr($path, strpos($path, needle: '/branches/') + 10));
+            if (!in_array($branch, $branches, strict: true)) { $status = 404; }
         }
+        $body = match (true) {
+            str_ends_with($path, '/branches') => array_map(static fn ($name) => ['name' => $name, 'commit' => ['sha' => $sha]], $branches),
+            str_contains($path, '/branches/') => ['name' => $branch, 'commit' => ['sha' => $sha]],
+            str_contains($path, '/commits/') => ['sha' => $sha],
+            str_ends_with($path, '/releases/latest') => ['tag_name' => 'v1.0.0'],
+            $path === '/search/issues' => ['total_count' => 2, 'incomplete_results' => false],
+            default => ['default_branch' => 'main'],
+        };
+        if ($path === '/search/issues' && str_contains($url, 'fixture%2Fprivate') && !$authorized) { $status = 404; }
         // An upstream error can reflect sensitive headers; application must discard it.
         if ($status !== 200) { $body = ['message' => 'Reflected ' . $authorization]; }
         return ['status' => $status, 'body' => json_encode($body, JSON_THROW_ON_ERROR), 'time_ms' => 1];

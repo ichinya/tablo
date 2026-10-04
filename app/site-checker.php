@@ -19,7 +19,8 @@ final class SiteChecker
             $state['response_time_ms'] = $response['time_ms'];
             if (!$state['online']) {
                 $errors[] = 'Health: HTTP ' . $response['status'] . ' (нужен 2xx, без редиректов).';
-            } elseif (($site['health_check_mode'] ?? 'http') === 'json') {
+            }
+            if ($state['online'] && ($site['health_check_mode'] ?? 'http') === 'json') {
                 // Unknown until both extraction and comparison succeed.
                 $state['online'] = null;
                 $value = JsonField::extract(JsonField::decode($response['body']), $site['health_json_path']);

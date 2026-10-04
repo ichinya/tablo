@@ -19,10 +19,10 @@ switch (parse_url($_SERVER['REQUEST_URI'], PHP_URL_PATH)) {
         echo '{"build":{"version":"1.2.3"},"sha":"abcdef1"}';
         break;
     case '/redirect':
-        header('Location: /up', true, 302);
+        header('Location: /up', replace: true, response_code: 302);
         break;
     case '/large':
-        echo str_repeat('x', 1048577);
+        echo str_repeat('x', times: 1_048_577);
         break;
     case '/slow':
         sleep(10);

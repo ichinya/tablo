@@ -12,7 +12,7 @@ final class Subprocess
         $stdout = $directory->path . '/command.out';
         $stderr = $directory->path . '/command.err';
         $process = proc_open($command, [0 => ['pipe', 'r'], 1 => ['file', $stdout, 'w'],
-            2 => ['file', $stderr, 'w']], $pipes, dirname(__DIR__, 2), array_replace(getenv(), $environment));
+            2 => ['file', $stderr, 'w']], $pipes, dirname(__DIR__, levels: 2), array_replace(getenv(), $environment));
         if (!is_resource($process)) { throw new RuntimeException('Cannot start test command'); }
         fclose($pipes[0]);
         try {
@@ -23,15 +23,15 @@ final class Subprocess
                     return ['exit_code' => $status['exitcode'], 'stdout' => file_get_contents($stdout),
                         'stderr' => file_get_contents($stderr)];
                 }
-                usleep(20000);
+                usleep(20_000);
             } while (microtime(true) < $deadline);
             throw new RuntimeException('Test command timed out: ' . file_get_contents($stderr));
         } finally {
             if (proc_get_status($process)['running']) {
                 proc_terminate($process);
                 $deadline = microtime(true) + 2;
-                while (proc_get_status($process)['running'] && microtime(true) < $deadline) { usleep(20000); }
-                if (proc_get_status($process)['running']) { proc_terminate($process, 9); }
+                while (proc_get_status($process)['running'] && microtime(true) < $deadline) { usleep(20_000); }
+                if (proc_get_status($process)['running']) { proc_terminate($process, signal: 9); }
             }
             proc_close($process);
         }

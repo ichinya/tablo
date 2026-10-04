@@ -16,13 +16,15 @@ final class WebFixture
     public function __construct(bool $allowPrivateNetwork = false)
     {
         $this->directory = new TemporaryDirectory('tablo-http-');
-        $root = dirname(__DIR__, 2);
+        $root = dirname(__DIR__, levels: 2);
         try {
             $this->server = new TestServer($this->directory, $root . '/tests/web-router.php', $root . '/public', [
                 'TABLO_DB' => $this->directory->path . '/test.sqlite',
                 'TABLO_TEST_RUNTIME' => $this->directory->path . '/runtime',
                 'TABLO_ALLOW_PRIVATE_NETWORK' => $allowPrivateNetwork ? '1' : '0', 'TABLO_COOKIE_SECURE' => '0',
                 // Assert that a legacy environment token cannot grant private repository access.
+                // Synthetic fixture credentials; never valid for a real service.
+                // @mago-expect lint:no-literal-password
                 'GITHUB_TOKEN' => 'fixture-token',
             ]);
         } catch (\Throwable $error) {
@@ -31,6 +33,8 @@ final class WebFixture
         }
     }
 
+    // Tests explicitly opt out of cookies to exercise unauthenticated requests.
+    // @mago-expect lint:no-boolean-flag-parameter
     public function request(string $path, ?array $data = null, bool $cookie = true): array
     {
         $curl = curl_init($this->server->base . $path);
@@ -41,19 +45,21 @@ final class WebFixture
         $raw = curl_exec($curl);
         if ($raw === false) { throw new RuntimeException('HTTP fixture request failed: ' . curl_error($curl) . "\n" . $this->server->diagnostics()); }
         $size = curl_getinfo($curl, CURLINFO_HEADER_SIZE);
-        return ['status' => curl_getinfo($curl, CURLINFO_RESPONSE_CODE), 'headers' => substr($raw, 0, $size), 'body' => substr($raw, $size)];
+        return ['status' => curl_getinfo($curl, CURLINFO_RESPONSE_CODE), 'headers' => substr($raw, offset: 0, length: $size), 'body' => substr($raw, $size)];
     }
 
     public static function csrf(array $response): string
     {
         preg_match('/name="_csrf" value="([a-f0-9]+)"/', $response['body'], $match);
-        if (!isset($match[1])) { throw new RuntimeException('CSRF missing: ' . substr($response['body'], 0, 250)); }
+        if (($match[1] ?? null) === null) { throw new RuntimeException('CSRF missing: ' . substr($response['body'], offset: 0, length: 250)); }
         return $match[1];
     }
 
     public function authenticate(): string
     {
         $setup = $this->request('/setup');
+        // Synthetic fixture credentials; never valid for a real service.
+        // @mago-expect lint:no-literal-password
         Assert::same($this->request('/setup', ['_csrf' => self::csrf($setup), 'password' => 'fixture-password',
             'confirmation' => 'fixture-password'])['status'], 303, 'Fixture administrator setup');
         return self::csrf($this->request('/'));

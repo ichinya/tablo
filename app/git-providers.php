@@ -10,7 +10,7 @@ final class GitProviders
 
     public static function requireSupported(string $provider): void
     {
-        if (!isset(self::available()[$provider])) {
+        if ((self::available()[$provider] ?? null) === null) {
             throw new ValidationException(['provider' => 'Этот Git-провайдер пока не поддерживается.']);
         }
     }

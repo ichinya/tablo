@@ -13,12 +13,16 @@
     "phalcon/volt": "^1.0@dev"
   },
   "autoload": { "classmap": ["app/"] },
-  "require-dev": { "testo/testo": "^0.10.54" },
+  "require-dev": {
+    "carthage-software/mago": "1.51.2",
+    "testo/testo": "^0.10.54"
+  },
   "autoload-dev": { "psr-4": { "Tablo\\Tests\\": "tests/" } },
   "scripts": {
     "serve": "php -S 127.0.0.1:8087 -t public public/router.php",
     "check": "php bin/check.php",
     "test": "@php vendor/bin/testo run",
+    "lint": "@php tools/lint.php",
     "verify": "php tools/verify.php"
   },
   "config": { "sort-packages": true, "platform": { "php": "8.2.0" } }

@@ -39,7 +39,11 @@ final class DashboardTest
         Assert::true(str_contains(strtolower($setup['headers']), 'httponly') && str_contains(strtolower($setup['headers']), 'samesite=strict'), 'session cookie protections');
         Assert::true(str_contains($setup['headers'], "frame-ancestors 'none'"), 'CSP present');
         $csrf = WebFixture::csrf($setup);
+        // Synthetic fixture credentials; never valid for a real service.
+        // @mago-expect lint:no-literal-password
         Assert::true($this->web->request('/setup', ['password' => 'fixture-password', 'confirmation' => 'fixture-password'])['status'] === 419, 'setup rejects missing CSRF');
+        // Synthetic fixture credentials; never valid for a real service.
+        // @mago-expect lint:no-literal-password
         $result = $this->web->request('/setup', ['_csrf' => $csrf, 'password' => 'fixture-password', 'confirmation' => 'fixture-password']);
         Assert::true($result['status'] === 303 && str_contains($result['headers'], 'Location: /'), 'setup creates admin and authenticates');
         $dashboard = $this->web->request('/');
@@ -61,15 +65,21 @@ final class DashboardTest
             && preg_match('/id="version_path"[^>]*required/', $form['body']) === 0, 'version field defaults to blank and is optional');
         Assert::true(str_contains($form['body'], 'name="github_token" value=""') && str_contains($form['body'], 'Получить ветки'), 'repository token and branch controls render');
         Assert::true(!str_contains($form['body'], 'токен установки') && !str_contains($form['body'], 'fixture-token'), 'environment token neither advertised nor exposed');
+        // Synthetic fixture credentials; never valid for a real service.
+        // @mago-expect lint:no-literal-password
         Assert::true($this->web->request('/sites/branches', ['repository' => 'fixture/private', 'github_token' => 'fixture-token'])['status'] === 419, 'branch loading requires CSRF');
+        // Synthetic fixture credentials; never valid for a real service.
+        // @mago-expect lint:no-literal-password
         $lookup = ['_csrf' => $csrf, 'repository' => 'https://github.com/fixture/private.git', 'github_token' => 'fixture-token'];
         $branches = $this->web->request('/sites/branches', $lookup);
-        $json = json_decode($branches['body'], true, 16, JSON_THROW_ON_ERROR);
+        $json = json_decode($branches['body'], associative: true, depth: 16, flags: JSON_THROW_ON_ERROR);
         Assert::true($branches['status'] === 200 && $json['branches'] === ['main', 'develop', 'feature/login']
             && $json['repository'] === 'fixture/private' && !str_contains($branches['body'], 'fixture-token'), 'authenticated branch lookup normalizes URL and does not echo token');
         $withoutToken = array_replace($lookup, ['github_token' => '']);
         Assert::true($this->web->request('/sites/branches', $withoutToken)['status'] === 422, 'legacy environment token does not grant private repository access');
         Assert::true($this->web->request('/sites/branches', array_replace($withoutToken, ['repository' => 'fixture/public']))['status'] === 200, 'public repository branches load without a token');
+        // Synthetic fixture credentials; never valid for a real service.
+        // @mago-expect lint:no-literal-password(2)
         foreach (['invalid-fixture-token' => '401', 'forbidden-fixture-token' => '403', '' => '404'] as $value => $status) {
             $errorResponse = $this->web->request('/sites/branches', array_replace($lookup, ['github_token' => $value]));
             Assert::true($errorResponse['status'] === 422 && str_contains($errorResponse['body'], $status)
@@ -110,29 +120,47 @@ final class DashboardTest
         $csrf = $this->web->authenticate();
         $site = $this->site($csrf);
         $private = array_replace($site, ['name' => 'Private fixture', 'url' => 'http://127.0.0.1',
+            // Synthetic fixture credentials; never valid for a real service.
+            // @mago-expect lint:no-literal-password
             'repository' => 'fixture/private', 'branch' => 'feature/login', 'github_token' => 'fixture-token']);
         Assert::true($this->web->request('/sites/new', $private)['status'] === 303, 'private repository and slash branch save with token');
         $db = $this->web->database();
         $row = $db->query('SELECT * FROM sites')->fetch(PDO::FETCH_ASSOC);
         $id = $row['id'];
+        // Assert exact fixture values/ciphertext; this is not an authentication decision.
+        // @mago-expect lint:no-insecure-comparison
         Assert::true($row['github_token'] !== 'fixture-token' && str_starts_with($row['github_token'], 'v1:'), 'database stores only encrypted token');
         $edit = $this->web->request('/sites/' . $id . '/edit');
         Assert::true(!str_contains($edit['body'], 'fixture-token') && !str_contains($edit['body'], $row['github_token'])
             && str_contains($edit['body'], 'Токен сохранён.'), 'edit shows saved status without credentials');
         $existingLookup = ['_csrf' => $csrf, 'site_id' => (string) $id, 'repository' => 'fixture/private'];
         Assert::true($this->web->request('/sites/branches', $existingLookup)['status'] === 200, 'branch lookup reuses saved token');
+        // Synthetic fixture credentials; never valid for a real service.
+        // @mago-expect lint:no-literal-password
         Assert::true($this->web->request('/sites/branches', array_replace($existingLookup, ['remove_github_token' => '1']))['status'] === 422,
             'removal preview stops using saved token');
         $blank = array_replace($private, ['github_token' => '']);
         Assert::true($this->web->request('/sites/' . $id . '/edit', $blank)['status'] === 303
+            // Assert exact fixture values/ciphertext; this is not an authentication decision.
+            // @mago-expect lint:no-insecure-comparison
             && $db->query('SELECT github_token FROM sites')->fetchColumn() === $row['github_token'], 'blank token preserves existing ciphertext and access');
+        // Synthetic fixture credentials; never valid for a real service.
+        // @mago-expect lint:no-literal-password
         $failure = $this->web->request('/sites/' . $id . '/edit', array_replace($private, ['github_token' => 'invalid-fixture-token']));
         Assert::true($failure['status'] === 422 && !str_contains($failure['body'], 'invalid-fixture-token')
+            // Assert exact fixture values/ciphertext; this is not an authentication decision.
+            // @mago-expect lint:no-insecure-comparison
             && $db->query('SELECT github_token FROM sites')->fetchColumn() === $row['github_token'], 'invalid replacement neither persists nor reflects secret');
         Assert::true($this->web->request('/sites/' . $id . '/check', ['_csrf' => $csrf])['status'] === 303
-            && $db->query('SELECT latest_commit FROM sites')->fetchColumn() === str_repeat('a', 40), 'dashboard checks use site token');
+            && $db->query('SELECT latest_commit FROM sites')->fetchColumn() === str_repeat('a', times: 40), 'dashboard checks use site token');
+        // Synthetic fixture credentials; never valid for a real service.
+        // @mago-expect lint:no-literal-password
         Assert::true($this->web->request('/sites/' . $id . '/edit', array_replace($private, ['github_token' => 'replacement-token']))['status'] === 303
+            // Assert exact fixture values/ciphertext; this is not an authentication decision.
+            // @mago-expect lint:no-insecure-comparison
             && $db->query('SELECT github_token FROM sites')->fetchColumn() !== $row['github_token'], 'token replacement persists');
+        // Synthetic fixture credentials; never valid for a real service.
+        // @mago-expect lint:no-literal-password
         $remove = array_replace($blank, ['repository' => 'ichinya/lekalo', 'remove_github_token' => '1']);
         Assert::true($this->web->request('/sites/' . $id . '/edit', $remove)['status'] === 303
             && $db->query('SELECT github_token FROM sites')->fetchColumn() === null, 'token removal persists');
@@ -143,17 +171,25 @@ final class DashboardTest
     {
         $csrf = $this->web->authenticate();
         $private = array_replace($this->site($csrf), ['name' => 'Private fixture', 'url' => 'http://127.0.0.1',
+            // Synthetic fixture credentials; never valid for a real service.
+            // @mago-expect lint:no-literal-password
             'repository' => 'fixture/private', 'branch' => 'feature/login', 'github_token' => 'fixture-token']);
         $db = $this->web->database();
         $settings = $this->web->request('/settings');
         Assert::true($settings['status'] === 200 && str_contains($settings['body'], 'Пока нет сохранённых токенов'), 'settings token list renders empty state');
+        // Synthetic fixture credentials; never valid for a real service.
+        // @mago-expect lint:no-literal-password
         $shared = ['_csrf' => $csrf, 'name' => 'Shared <token>', 'provider' => 'github', 'token' => 'fixture-token'];
+        // Synthetic fixture credentials; never valid for a real service.
+        // @mago-expect lint:no-literal-password
         Assert::true($this->web->request('/settings/tokens/new', ['name' => 'Without CSRF', 'provider' => 'github', 'token' => 'fixture-token'])['status'] === 419, 'settings token create requires CSRF');
         Assert::true($this->web->request('/settings/tokens/new', array_replace($shared, ['token' => '']))['status'] === 422, 'new shared token requires a value');
         Assert::true($this->web->request('/settings/tokens/new', array_replace($shared, ['provider' => 'gitlab']))['status'] === 422, 'unsupported Git provider is rejected');
         Assert::true($this->web->request('/settings/tokens/new', $shared)['status'] === 303, 'shared token create succeeds');
         $credential = $db->query('SELECT * FROM git_tokens')->fetch(PDO::FETCH_ASSOC);
         $tokenId = (string) $credential['id'];
+        // Assert exact fixture values/ciphertext; this is not an authentication decision.
+        // @mago-expect lint:no-insecure-comparison
         Assert::true(str_starts_with($credential['encrypted_token'], 'v1:') && $credential['encrypted_token'] !== 'fixture-token', 'shared token encrypted at rest');
         $settings = $this->web->request('/settings');
         Assert::true(str_contains($settings['body'], 'Shared &lt;token&gt;') && !str_contains($settings['body'], 'fixture-token')
@@ -166,6 +202,8 @@ final class DashboardTest
         Assert::true($this->web->request('/sites/branches', $selectedLookup)['status'] === 200, 'branch lookup uses selected shared token');
         Assert::true($this->web->request('/sites/branches', array_replace($selectedLookup, ['git_token_id' => '999']))['status'] === 422, 'missing saved token does not fall back silently');
         $sharedSite = array_replace($private, ['name' => 'Shared project', 'github_token' => '', 'git_token_id' => $tokenId, 'version_path' => '']);
+        // Synthetic fixture credentials; never valid for a real service.
+        // @mago-expect lint:no-literal-password
         Assert::true($this->web->request('/sites/new', array_replace($sharedSite, ['github_token' => 'fixture-token']))['status'] === 422, 'ambiguous manual and saved token rejected');
         Assert::true($this->web->request('/sites/new', $sharedSite)['status'] === 303, 'project accepts saved token and no version endpoint');
         $poolSite = $db->query("SELECT * FROM sites WHERE name = 'Shared project'")->fetch(PDO::FETCH_ASSOC);
@@ -175,33 +213,47 @@ final class DashboardTest
         Assert::true(preg_match('/<option value="' . $tokenId . '" selected/', $projectEdit['body']) === 1
             && !str_contains($projectEdit['body'], $credential['encrypted_token']), 'edit preserves token selection without secret');
         Assert::true($this->web->request('/sites/' . $projectId . '/check', ['_csrf' => $csrf])['status'] === 303, 'manual check accepts project without version endpoint');
-        $state = $db->query("SELECT * FROM sites WHERE id = $projectId")->fetch(PDO::FETCH_ASSOC);
-        Assert::true($state['latest_commit'] === str_repeat('a', 40) && $state['deployed_version'] === null
+        $state = $db->query("SELECT * FROM sites WHERE id = {$projectId}")->fetch(PDO::FETCH_ASSOC);
+        Assert::true($state['latest_commit'] === str_repeat('a', times: 40) && $state['deployed_version'] === null
             && !str_contains($state['last_error'] ?? '', 'Version:'), 'optional version check skipped while Git metrics still update');
         Assert::true($this->web->request('/settings/tokens/' . $tokenId . '/delete')['status'] === 200
             && $db->query('SELECT COUNT(*) FROM git_tokens')->fetchColumn() === 1, 'token GET delete only confirms');
         Assert::true($this->web->request('/settings/tokens/' . $tokenId . '/delete', ['_csrf' => $csrf])['status'] === 422
             && $db->query('SELECT COUNT(*) FROM git_tokens')->fetchColumn() === 1, 'used token cannot be deleted');
         Assert::true($this->web->request('/settings/tokens/' . $tokenId . '/edit', array_replace($shared, ['name' => 'Renamed', 'token' => '']))['status'] === 303
+            // Assert exact fixture values/ciphertext; this is not an authentication decision.
+            // @mago-expect lint:no-insecure-comparison
             && $db->query('SELECT encrypted_token FROM git_tokens')->fetchColumn() === $credential['encrypted_token'], 'blank shared token preserves secret');
+        // Synthetic fixture credentials; never valid for a real service.
+        // @mago-expect lint:no-literal-password
         $invalidToken = $this->web->request('/settings/tokens/' . $tokenId . '/edit', array_replace($shared, ['token' => "invalid\r\nfixture-secret"]));
         Assert::true($invalidToken['status'] === 422 && !str_contains($invalidToken['body'], 'fixture-secret')
+            // Assert exact fixture values/ciphertext; this is not an authentication decision.
+            // @mago-expect lint:no-insecure-comparison
             && $db->query('SELECT encrypted_token FROM git_tokens')->fetchColumn() === $credential['encrypted_token'], 'invalid token value neither reflects nor overwrites secret');
+        // Synthetic fixture credentials; never valid for a real service.
+        // @mago-expect lint:no-literal-password
         Assert::true($this->web->request('/settings/tokens/' . $tokenId . '/edit', array_replace($shared, ['token' => 'replacement-token']))['status'] === 303
-            && $db->query("SELECT checked_at FROM sites WHERE id = $projectId")->fetchColumn() === null, 'shared token rotation invalidates project state');
+            && $db->query("SELECT checked_at FROM sites WHERE id = {$projectId}")->fetchColumn() === null, 'shared token rotation invalidates project state');
         Assert::true($this->web->request('/sites/branches', array_replace($selectedLookup, ['site_id' => $projectId]))['status'] === 200, 'rotated token used for branches');
+        // Synthetic fixture credentials; never valid for a real service.
+        // @mago-expect lint:no-literal-password
         Assert::true($this->web->request('/sites/' . $projectId . '/edit', array_replace($sharedSite, ['git_token_id' => '', 'github_token' => 'fixture-token']))['status'] === 303, 'project can switch to manually entered token');
         Assert::true($this->web->request('/settings/tokens/' . $tokenId . '/delete', ['_csrf' => 'wrong'])['status'] === 419, 'token delete requires CSRF');
         Assert::true($this->web->request('/settings/tokens/' . $tokenId . '/delete', ['_csrf' => $csrf])['status'] === 303
             && $db->query('SELECT COUNT(*) FROM git_tokens')->fetchColumn() === 0
-            && $db->query("SELECT COUNT(*) FROM sites WHERE id = $projectId")->fetchColumn() === 1, 'unused shared token deletes without removing project');
+            && $db->query("SELECT COUNT(*) FROM sites WHERE id = {$projectId}")->fetchColumn() === 1, 'unused shared token deletes without removing project');
     }
 
     #[Test]
     public function logsOutAndRequiresLoginAndClosesPublicSetup(): void
     {
         $csrf = $this->web->authenticate();
+        // Synthetic fixture credentials; never valid for a real service.
+        // @mago-expect lint:no-literal-password
         $lookup = ['_csrf' => $csrf, 'repository' => 'fixture/private', 'github_token' => 'fixture-token'];
+        // Synthetic fixture credentials; never valid for a real service.
+        // @mago-expect lint:no-literal-password
         $shared = ['_csrf' => $csrf, 'name' => 'Shared token', 'provider' => 'github', 'token' => 'fixture-token'];
         Assert::true($this->web->request('/logout', ['_csrf' => $csrf])['status'] === 303, 'logout succeeds');
         $anonymous = $this->web->request('/');
@@ -210,7 +262,11 @@ final class DashboardTest
         Assert::true($this->web->request('/settings')['status'] === 303 && $this->web->request('/settings/tokens/new', $shared)['status'] === 303, 'token settings require login');
         $login = $this->web->request('/login');
         Assert::true($login['status'] === 200 && str_contains($login['body'], 'Войти в Tablo'), 'login page renders');
+        // Synthetic fixture credentials; never valid for a real service.
+        // @mago-expect lint:no-literal-password
         Assert::true($this->web->request('/login', ['_csrf' => WebFixture::csrf($login), 'password' => 'wrong'])['status'] === 422, 'wrong password refused');
+        // Synthetic fixture credentials; never valid for a real service.
+        // @mago-expect lint:no-literal-password
         Assert::true($this->web->request('/login', ['_csrf' => WebFixture::csrf($login), 'password' => 'fixture-password'])['status'] === 303, 'existing admin can log in');
         Assert::true($this->web->request('/setup')['status'] === 303, 'public setup closes after first admin');
         Assert::true($this->web->request('/storage/tablo.sqlite')['status'] === 404 && $this->web->request('/vendor/autoload.php')['status'] === 404, 'storage and source inaccessible through web root');

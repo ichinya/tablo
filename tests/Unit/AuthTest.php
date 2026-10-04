@@ -18,13 +18,15 @@ final class AuthTest
         $db = Database::connect(':memory:');
         $auth = new Auth($db);
         Assert::true($auth->needsSetup(), 'setup required');
-        UnitFixtures::rejects(fn () => $auth->setup('short', 'short'), 'short password accepted');
-        UnitFixtures::rejects(fn () => $auth->setup('fixture-password', 'different'), 'mismatch accepted');
+        UnitFixtures::rejects(static fn () => $auth->setup('short', 'short'), 'short password accepted');
+        UnitFixtures::rejects(static fn () => $auth->setup('fixture-password', 'different'), 'mismatch accepted');
         $auth->setup('fixture-password', 'fixture-password');
         Assert::true(!$auth->needsSetup(), 'setup repeated');
         $hash = $db->query('SELECT password_hash FROM users')->fetchColumn();
+        // Assert exact fixture values/ciphertext; this is not an authentication decision.
+        // @mago-expect lint:no-insecure-comparison
         Assert::true($hash !== 'fixture-password' && password_verify('fixture-password', $hash), 'password not hashed');
-        UnitFixtures::rejects(fn () => $auth->setup('another-password', 'another-password'), 'second administrator accepted');
+        UnitFixtures::rejects(static fn () => $auth->setup('another-password', 'another-password'), 'second administrator accepted');
         Assert::true($auth->login('fixture-password', 'client'), 'valid login refused');
     }
 
@@ -37,7 +39,7 @@ final class AuthTest
         for ($i = 0; $i < 5; ++$i) {
             Assert::true(!(new Auth($db))->login('incorrect', 'client'), 'wrong password accepted');
         }
-        UnitFixtures::rejects(fn () => (new Auth($db))->login('fixture-password', 'client'), 'rate limit bypassed');
+        UnitFixtures::rejects(static fn () => (new Auth($db))->login('fixture-password', 'client'), 'rate limit bypassed');
         Assert::true($auth->login('fixture-password', 'other-client'), 'independent client blocked');
         $db->exec('UPDATE login_limits SET window_start = 0');
         Assert::true($auth->login('fixture-password', 'client'), 'rate limit never expires');

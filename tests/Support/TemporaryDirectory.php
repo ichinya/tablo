@@ -13,7 +13,7 @@ final class TemporaryDirectory
     public function __construct(string $prefix = 'tablo-test-')
     {
         $this->path = sys_get_temp_dir() . '/' . $prefix . bin2hex(random_bytes(8));
-        if (!mkdir($this->path, 0700)) {
+        if (!mkdir($this->path, permissions: 0o700)) {
             throw new RuntimeException('Cannot create temporary test directory');
         }
     }

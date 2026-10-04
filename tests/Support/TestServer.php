@@ -16,7 +16,7 @@ final class TestServer
     {
         $socket = stream_socket_server('tcp://127.0.0.1:0', $errno, $error);
         if ($socket === false) { throw new RuntimeException('Cannot allocate test port: ' . $error); }
-        $this->port = (int) substr(strrchr(stream_socket_get_name($socket, false), ':'), 1);
+        $this->port = (int) substr(strrchr(stream_socket_get_name($socket, remote: false), needle: ':'), offset: 1);
         fclose($socket);
         $this->base = 'http://127.0.0.1:' . $this->port;
         $this->log = $directory->path . '/server.log';
@@ -25,15 +25,17 @@ final class TestServer
         $command[] = $router;
         try {
             $this->process = proc_open($command, [0 => ['pipe', 'r'], 1 => ['file', $this->log, 'a'],
-                2 => ['file', $this->log, 'a']], $pipes, dirname(__DIR__, 2), array_replace(getenv(), $environment));
+                2 => ['file', $this->log, 'a']], $pipes, dirname(__DIR__, levels: 2), array_replace(getenv(), $environment));
             if (!is_resource($this->process)) { throw new RuntimeException('Cannot start test server'); }
             fclose($pipes[0]);
             $deadline = microtime(true) + 5;
             do {
                 if (!proc_get_status($this->process)['running']) { break; }
-                $connection = @fsockopen('127.0.0.1', $this->port, $errno, $error, .1);
+                // Handle the failure explicitly below; suppress raw filesystem/network warnings.
+                // @mago-expect lint:no-error-control-operator
+                $connection = @fsockopen('127.0.0.1', $this->port, $errno, $error, timeout: .1);
                 if ($connection !== false) { fclose($connection); return; }
-                usleep(50000);
+                usleep(50_000);
             } while (microtime(true) < $deadline);
             throw new RuntimeException('Test server did not become ready');
         } catch (\Throwable $error) {
@@ -53,8 +55,8 @@ final class TestServer
         if (proc_get_status($this->process)['running']) {
             proc_terminate($this->process);
             $deadline = microtime(true) + 2;
-            while (proc_get_status($this->process)['running'] && microtime(true) < $deadline) { usleep(20000); }
-            if (proc_get_status($this->process)['running']) { proc_terminate($this->process, 9); }
+            while (proc_get_status($this->process)['running'] && microtime(true) < $deadline) { usleep(20_000); }
+            if (proc_get_status($this->process)['running']) { proc_terminate($this->process, signal: 9); }
         }
         proc_close($this->process);
         $this->process = null;

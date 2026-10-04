@@ -43,6 +43,17 @@ jobs:
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
           composer check-platform-reqs
           exit $LASTEXITCODE
+      - name: Cache pinned Mago binary
+        uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
+        with:
+          path: vendor/carthage-software/mago/composer/bin
+          key: mago-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('composer.lock', 'mago.toml') }}
+      - name: Prepare and verify pinned Mago CLI
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          php tools/lint.php --version
+          exit $LASTEXITCODE
       - name: Cache pinned Lekalo CLI
         id: lekalo-cache
         uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
@@ -61,7 +72,7 @@ jobs:
           New-Item -ItemType Directory -Force .ci/lekalo-bin | Out-Null
           $binaryName = if ($IsWindows) { 'lekalo.exe' } else { 'lekalo' }
           Copy-Item -LiteralPath ".ci/lekalo-source/target/release/$binaryName" -Destination ".ci/lekalo-bin/$binaryName"
-      - name: Verify contracts and Testo suites
+      - name: Verify lint, contracts and Testo suites
         run: |
           $binaryName = if ($IsWindows) { 'lekalo.exe' } else { 'lekalo' }
           $env:LEKALO_BIN = Join-Path $PWD ".ci/lekalo-bin/$binaryName"

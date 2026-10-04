@@ -320,6 +320,58 @@ docker compose up -d tablo
    прежние сайты и токены отображаются, и восстановите внешний доступ, если
    закрывали его. `/setup` снова закроется после создания администратора.
 
+## Линтинг PHP
+
+Mago **1.51.2** установлен как точная dev-зависимость и закреплён в
+`composer.lock`. Требуется PHP 8.2+; production-установка с `--no-dev` не содержит
+линтер. Одинаковые команды работают на Windows и Linux:
+
+```powershell
+composer install
+php tools/lint.php --version
+composer lint
+composer verify
+```
+
+При первом запуске Composer wrapper скачивает подходящий нативный бинарник из
+[релиза Mago](https://github.com/carthage-software/mago/releases/tag/1.51.2).
+Нужен доступ к GitHub и возможность записи в
+`vendor/carthage-software/mago/composer/bin/`. Последующие запуски используют этот
+кэш и не требуют сети. Wrapper сам не проверяет digest скачанного архива.
+`tools/lint.php` проверяет совпадение установленной версии, бинарника и pin в
+`mago.toml`; несовпадение или ошибка запуска возвращает ненулевой код.
+
+Конфигурация целится в PHP **8.2** и проверяет `app/`, `bin/`, `public/`, `tests/`,
+`tools/` и `testo.php`. Зависимости, runtime, артефакты и кэши исключены.
+Включены 103 штатных правила. `file-name` отключено для принятого Composer
+classmap с описательными именами файлов; четыре метрики сложности оставлены
+отдельному архитектурному аудиту. Причины записаны в `mago.toml`. Правила
+безопасности включены; локальные `@mago-expect` объясняют синтетические тестовые
+данные, тексты валидации и намеренную обработку ошибок. Исчезнувшее ожидаемое
+замечание тоже блокирует проверку. Baseline не используется.
+
+`composer lint` выполняет только линтинг с `--minimum-fail-level=note`: любое
+замечание включённых правил возвращает ненулевой код. Файлы автоматически не
+исправляются. Formatter и статический анализ в эту команду не входят.
+
+Для обновления выберите и проверьте конкретный релиз, измените точную версию в
+`require-dev` и `version` в `mago.toml`, затем выполните:
+
+```powershell
+composer update carthage-software/mago --with-dependencies
+composer validate --strict
+php tools/lint.php --version
+composer lint
+composer test
+```
+
+Просмотрите изменения lock, правил и исходников. После правок приложения явно
+обновите bindings командой ниже и выполните полный `composer verify`. Если кэш
+бинарника повреждён, удалите только каталог соответствующей версии внутри
+`vendor/carthage-software/mago/composer/bin/` и повторите проверку версии.
+Служебный токен GitHub Actions используется только при подготовке инструмента;
+он не является токеном для проверяемых сайтов.
+
 ## Работа через Lekalo
 
 Проект создан командой `lekalo init --target php --project-id tablo --module dashboard`.
@@ -333,11 +385,12 @@ composer verify
 
 Проверка запускает:
 
-1. `lekalo validate --no-cache` и `lekalo lock --check --offline`;
-2. проверку сохранённых SHA256 исходников;
-3. регистрацию сохранённых bindings и привязку native tests;
-4. `lekalo contract check --module dashboard --no-cache`;
-5. три набора Testo: Unit, Network (реальные локальные cURL проверки JSON,
+1. Mago lint с закреплённой версией и отказом на любом замечании;
+2. `lekalo validate --no-cache` и `lekalo lock --check --offline`;
+3. проверку сохранённых SHA256 исходников;
+4. регистрацию сохранённых bindings и привязку native tests;
+5. `lekalo contract check --module dashboard --no-cache`;
+6. три набора Testo: Unit, Network (реальные локальные cURL проверки JSON,
    редиректов, размера ответа и таймаутов) и Http (независимые HTTP-сценарии).
 
 При необходимости задайте `LEKALO_BIN` полным путём к CLI. Результат успешного
@@ -373,11 +426,13 @@ composer test
 php vendor/bin/testo run --suite=Unit
 php vendor/bin/testo run --suite=Network
 php vendor/bin/testo run --suite=Http
+composer lint
 composer verify
 ```
 
-`composer test` запускает все три набора без Lekalo. `composer verify` дополнительно
-проверяет модель, lock и bindings. Любая ошибка возвращает ненулевой код выхода.
+`composer test` запускает все три набора без Lekalo и без загрузки Mago.
+`composer verify` дополнительно запускает lint и проверяет модель, lock и bindings.
+Любая ошибка возвращает ненулевой код выхода.
 Наборы определены явно в `testo.php`: вспомогательные классы и router/fixture
 скрипты не запускаются как тесты.
 
@@ -392,7 +447,9 @@ GitHub Actions запускает полный `composer verify` на push и pu
 Linux и Windows с PHP 8.2, 8.4 и 8.5. Lekalo собирается из коммита
 `9510dd0767a56c0ab34b8d3c8ceb2a14db8de825` тега
 [`v0.6.4`](https://github.com/ichinya/lekalo/tree/v0.6.4), который выпускает CLI
-0.6.3; сборка кэшируется отдельно для каждой ОС. Lock не обновляется в CI.
+0.6.3; сборка кэшируется отдельно для каждой ОС. Нативный Mago также кэшируется
+по ОС, архитектуре и закреплённым зависимостям/конфигурации; версия проверяется
+после восстановления кэша. Lock не обновляется в CI.
 
 ### Запуск тестов в Docker
 
@@ -408,9 +465,10 @@ if ($LASTEXITCODE -ne 0) { throw 'Docker build failed.' }
 $testInContainer = @'
 set -eu
 mkdir /tmp/tablo-tests
-cp -R /source/app /source/bin /source/public /source/views /source/database /source/tests /source/composer.json /source/composer.lock /source/testo.php /tmp/tablo-tests/
+cp -R /source/app /source/bin /source/public /source/views /source/database /source/tests /source/tools /source/composer.json /source/composer.lock /source/testo.php /source/mago.toml /tmp/tablo-tests/
 cd /tmp/tablo-tests
 composer install --no-interaction --prefer-dist
+composer lint
 composer test
 '@
 docker run --rm --mount "type=bind,source=$PWD,target=/source,readonly" --entrypoint sh tablo:test-runtime -lc $testInContainer
@@ -424,9 +482,10 @@ docker run --rm --mount "type=bind,source=$PWD,target=/source,readonly" \
   --entrypoint sh tablo:test-runtime -lc '
 set -eu
 mkdir /tmp/tablo-tests
-cp -R /source/app /source/bin /source/public /source/views /source/database /source/tests /source/composer.json /source/composer.lock /source/testo.php /tmp/tablo-tests/
+cp -R /source/app /source/bin /source/public /source/views /source/database /source/tests /source/tools /source/composer.json /source/composer.lock /source/testo.php /source/mago.toml /tmp/tablo-tests/
 cd /tmp/tablo-tests
 composer install --no-interaction --prefer-dist
+composer lint
 composer test
 '
 ```

@@ -10,11 +10,11 @@ class HttpClient
     public function get(string $url, array $headers = []): array
     {
         $parts = parse_url($url);
-        if (!is_array($parts) || !in_array($parts['scheme'] ?? '', ['http', 'https'], true)
-            || empty($parts['host']) || isset($parts['user']) || isset($parts['pass'])) {
+        if (!is_array($parts) || !in_array($parts['scheme'] ?? '', ['http', 'https'], strict: true)
+            || !($parts['host'] ?? null) || (($parts['user'] ?? null) !== null) || (($parts['pass'] ?? null) !== null)) {
             throw new \RuntimeException('Недопустимый адрес проверки.');
         }
-        $host = trim($parts['host'], '[]');
+        $host = trim($parts['host'], characters: '[]');
         $resolve = [];
         if (!$this->allowPrivate) {
             $addresses = filter_var($host, FILTER_VALIDATE_IP) ? [$host] : $this->resolve($host);
@@ -30,7 +30,7 @@ class HttpClient
             if (!filter_var($host, FILTER_VALIDATE_IP)) {
                 $port = $parts['port'] ?? ($parts['scheme'] === 'https' ? 443 : 80);
                 $address = $addresses[0];
-                $resolve[] = "$host:$port:" . (str_contains($address, ':') ? "[$address]" : $address);
+                $resolve[] = "{$host}:{$port}:" . (str_contains($address, ':') ? "[{$address}]" : $address);
             }
         }
         $curl = curl_init($url);
@@ -46,7 +46,7 @@ class HttpClient
             CURLOPT_RESOLVE => $resolve,
             CURLOPT_PROXY => '',
             CURLOPT_WRITEFUNCTION => static function ($curl, string $chunk) use (&$body): int {
-                if (strlen($body) + strlen($chunk) > 1048576) {
+                if (strlen($body) + strlen($chunk) > 1_048_576) {
                     return 0;
                 }
                 $body .= $chunk;
@@ -69,10 +69,12 @@ class HttpClient
     private function resolve(string $host): array
     {
         $addresses = [];
-        foreach (@dns_get_record($host, DNS_A | DNS_AAAA) ?: [] as $record) {
-            if (isset($record['ip']) || isset($record['ipv6'])) {
-                $addresses[] = $record['ip'] ?? $record['ipv6'];
-            }
+        // Handle the failure explicitly below; suppress raw filesystem/network warnings.
+        // @mago-expect lint:no-error-control-operator
+        $records = @dns_get_record($host, DNS_A | DNS_AAAA);
+        foreach ($records === false ? [] : $records as $record) {
+            if (($record['ip'] ?? $record['ipv6'] ?? null) === null) { continue; }
+            $addresses[] = $record['ip'] ?? $record['ipv6'];
         }
         return array_unique($addresses);
     }

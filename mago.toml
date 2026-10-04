@@ -1,0 +1,17 @@
+version = "1.51.2"
+php-version = "8.2"
+
+[source]
+paths = ["app", "bin", "public", "tests", "tools", "testo.php"]
+includes = []
+excludes = ["vendor/**", "storage/**", "artifacts/**", ".lekalo/**", ".ci/**", ".repowise/**"]
+extensions = ["php"]
+
+[linter.rules]
+# The project intentionally uses Composer classmap with descriptive kebab-case filenames.
+file-name = { enabled = false }
+# Architectural metrics belong to a separate audit, not a lint adoption refactor.
+cyclomatic-complexity = { enabled = false }
+halstead = { enabled = false }
+kan-defect = { enabled = false }
+too-many-methods = { enabled = false }
