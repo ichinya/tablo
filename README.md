@@ -323,8 +323,11 @@ docker compose up -d tablo
 ## Линтинг PHP
 
 Mago **1.51.2** установлен как точная dev-зависимость и закреплён в
-`composer.lock`. Требуется PHP 8.2+; production-установка с `--no-dev` не содержит
-линтер. Одинаковые команды работают на Windows и Linux:
+`composer.lock`. Требуется PHP 8.2+; на Windows также включите расширение `zip`
+в CLI PHP: оно нужно для распаковки нативного бинарника Mago через `ZipArchive`.
+Проверить наличие расширения можно командой `php --ri zip`.
+Production-установка с `--no-dev` не содержит линтер. Одинаковые команды работают
+на Windows и Linux:
 
 ```powershell
 composer install
