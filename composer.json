@@ -10,9 +10,10 @@
     "ext-pdo": "*",
     "ext-pdo_sqlite": "*",
     "phalcon/phalcon": "^6.0@RC",
-    "phalcon/volt": "^1.0@dev"
+    "phalcon/volt": "^1.0@dev",
+    "vlucas/phpdotenv": "^5.6"
   },
-  "autoload": { "classmap": ["app/"] },
+  "autoload": { "classmap": ["app/"], "files": ["app/bootstrap.php"] },
   "require-dev": { "testo/testo": "^0.10.54" },
   "autoload-dev": { "psr-4": { "Tablo\\Tests\\": "tests/" } },
   "scripts": {
