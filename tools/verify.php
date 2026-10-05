@@ -39,6 +39,8 @@ try {
             if (in_array($symbol['id'], ['dashboard.create_site', 'dashboard.update_site', 'dashboard.check_site'], true)) {
                 $tests .= ',tests/Http/JsonChecksTest.php';
             }
+            // Every HTTP action initializes the database before handling its own command/query.
+            $tests .= ',tests/Unit/DatabaseTest.php,tests/Network/DatabaseMigrationTest.php';
             runGate([$lekalo, 'contract', 'attach', $symbol['id'], '--native-test', $tests, '--gate', 'native-php-tests']);
         }
     }
