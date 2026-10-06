@@ -64,8 +64,17 @@ final class Web
         header("Content-Security-Policy: default-src 'self'; style-src 'self'; script-src 'self'; img-src 'self' data:; base-uri 'none'; form-action 'self'; frame-ancestors 'none'");
         header('Cache-Control: no-store');
         $path = parse_url($_SERVER['REQUEST_URI'] ?? '/', PHP_URL_PATH) ?: '/';
+        $needsSetup = $this->auth->needsSetup();
+        if ($needsSetup && isset($_SESSION['authenticated_at'])) {
+            session_regenerate_id(true);
+            $_SESSION = ['csrf' => bin2hex(random_bytes(32))];
+        }
+        if (!$needsSetup && $path === '/setup') {
+            $this->notFound()->send();
+            return;
+        }
         $public = in_array($path, ['/setup', '/login'], true);
-        if ($this->auth->needsSetup() && $path !== '/setup') {
+        if ($needsSetup && $path !== '/setup') {
             $this->redirect('/setup')->send();
             return;
         }
@@ -86,10 +95,10 @@ final class Web
         }
         $web = $this;
         $app = new Micro(new FactoryDefault());
-        $app->get('/setup', fn () => $web->auth->needsSetup() ? $web->render('auth', ['setup' => true, 'title' => 'Добро пожаловать']) : $web->redirect('/login'));
+        $app->get('/setup', fn () => $web->auth->needsSetup() ? $web->render('auth', ['setup' => true, 'title' => 'Добро пожаловать']) : $web->notFound());
         $app->post('/setup', function () use ($web) {
             if (!$web->auth->needsSetup()) {
-                return $web->redirect('/login');
+                return $web->notFound();
             }
             try {
                 $web->auth->setup($web->input('password'), $web->input('confirmation'));

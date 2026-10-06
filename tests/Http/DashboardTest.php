@@ -32,6 +32,54 @@ final class DashboardTest
     }
 
     #[Test]
+    public function redirectsFreshAndEmptyDatabasesToSetup(): void
+    {
+        $databasePath = $this->web->directory->path . '/test.sqlite';
+        Assert::true(!is_file($databasePath), 'new installation starts without a database file');
+        $response = $this->web->request('/');
+        Assert::true($response['status'] === 303 && str_contains($response['headers'], 'Location: /setup'), 'missing database redirects to setup');
+        Assert::true(is_file($databasePath), 'initial request creates the database schema');
+        foreach (['/', '/login', '/settings'] as $path) {
+            $response = $this->web->request($path);
+            Assert::true($response['status'] === 303 && str_contains($response['headers'], 'Location: /setup'), 'database without administrator still requires setup');
+        }
+        $setup = $this->web->request('/setup');
+        Assert::true($setup['status'] === 200 && str_contains($setup['body'], 'class="auth-shell"'), 'empty database keeps initial setup accessible');
+    }
+
+    #[Test]
+    public function hidesSetupAfterInitializationForEverySession(): void
+    {
+        $csrf = $this->web->authenticate();
+        $passwordHash = $this->web->database()->query('SELECT password_hash FROM users WHERE id = 1')->fetchColumn();
+        foreach ([true, false] as $cookie) {
+            foreach ([null, [], ['_csrf' => $csrf, 'password' => 'replacement-password', 'confirmation' => 'replacement-password']] as $data) {
+                $response = $this->web->request('/setup', $data, $cookie);
+                Assert::true($response['status'] === 404 && !str_contains($response['headers'], 'Location:')
+                    && !str_contains($response['body'], 'Создать панель'), 'initialized setup is unavailable for authenticated and anonymous GET/POST requests');
+            }
+        }
+        Assert::same($this->web->database()->query('SELECT password_hash FROM users WHERE id = 1')->fetchColumn(), $passwordHash, 'closed setup cannot replace administrator password');
+    }
+
+    #[Test]
+    public function clearsStaleAuthenticationWhenDatabaseNeedsSetupAgain(): void
+    {
+        $csrf = $this->web->authenticate();
+        $this->web->database()->exec('DELETE FROM users');
+        $response = $this->web->request('/');
+        Assert::true($response['status'] === 303 && str_contains($response['headers'], 'Location: /setup'), 'reset database redirects an old authenticated session to setup');
+        $setup = $this->web->request('/setup');
+        Assert::true($setup['status'] === 200 && str_contains($setup['body'], 'class="auth-shell"')
+            && !str_contains($setup['body'], 'class="app-shell"') && !str_contains($setup['body'], 'Основная навигация'), 'setup uses its standalone layout after a database reset');
+        Assert::true(WebFixture::csrf($setup) !== $csrf, 'database reset invalidates the previous session CSRF token');
+        $data = ['_csrf' => $csrf, 'password' => 'replacement-password', 'confirmation' => 'replacement-password'];
+        Assert::same($this->web->request('/setup', $data)['status'], 419, 'stale setup form is refused');
+        Assert::same($this->web->request('/setup', array_replace($data, ['_csrf' => WebFixture::csrf($setup)]))['status'], 303, 'reset installation can create a new administrator');
+        Assert::true(str_contains($this->web->request('/')['body'], 'class="app-shell"'), 'new setup restores the authenticated dashboard layout');
+    }
+
+    #[Test]
     public function setsUpAdministratorAndRotatesProtectedSession(): void
     {
         $setup = $this->web->request('/setup');
@@ -212,7 +260,7 @@ final class DashboardTest
         Assert::true($login['status'] === 200 && str_contains($login['body'], 'Войти в Tablo'), 'login page renders');
         Assert::true($this->web->request('/login', ['_csrf' => WebFixture::csrf($login), 'password' => 'wrong'])['status'] === 422, 'wrong password refused');
         Assert::true($this->web->request('/login', ['_csrf' => WebFixture::csrf($login), 'password' => 'fixture-password'])['status'] === 303, 'existing admin can log in');
-        Assert::true($this->web->request('/setup')['status'] === 303, 'public setup closes after first admin');
+        Assert::true($this->web->request('/setup')['status'] === 404, 'public setup closes after first admin');
         Assert::true($this->web->request('/storage/tablo.sqlite')['status'] === 404 && $this->web->request('/vendor/autoload.php')['status'] === 404, 'storage and source inaccessible through web root');
     }
 }
