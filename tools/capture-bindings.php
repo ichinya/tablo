@@ -67,4 +67,12 @@ $declaration = ['schemaVersion' => 'lekalo/contracted-declaration/v0.4.0',
     'revision' => 'sha256:' . hash('sha256', json_encode($definitions, JSON_THROW_ON_ERROR)), 'symbols' => $symbols];
 if (!is_dir($root . '/contracts')) { mkdir($root . '/contracts'); }
 file_put_contents($root . '/contracts/php-bindings.json', json_encode($declaration, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES | JSON_THROW_ON_ERROR) . "\n");
+// Local dependency review, separate from Lekalo's actual declaring symbols.
+$dependencies = ['scope' => 'project-local-reviewed-dependencies', 'files' => [[
+    'path' => 'app/client-address.php', 'owner' => 'Tablo\\ClientAddress', 'consumer' => 'Tablo\\Web::__construct',
+    'fingerprint' => 'sha256:' . hash_file('sha256', $root . '/app/client-address.php'),
+]]];
+file_put_contents($root . '/contracts/reviewed-dependencies.json', json_encode($dependencies,
+    JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES | JSON_THROW_ON_ERROR) . "\n");
 echo 'Captured ' . count($symbols) . " source bindings; review contracts/php-bindings.json before accepting.\n";
+echo "Captured ClientAddress dependency; review contracts/reviewed-dependencies.json before accepting.\n";

@@ -4,8 +4,8 @@
         {
             "id": "dashboard.single_owner",
             "kind": "scenario",
-            "version": 1,
-            "summary": "First setup creates id=1 only, duplicate setup is refused; password hash verifies and persistent failed-login rate limit denies the sixth attempt.",
+            "version": 2,
+            "summary": "First setup creates id=1 only, duplicate setup is refused; password hash verifies and persistent failed-login rate limit denies the sixth attempt. Canonical IPv6/mapped identities share persistent keys; independent proxy clients, success reset, expiry and write rollback retain atomic limiter behavior.",
             "covers": [
                 "dashboard.setup",
                 "dashboard.login",
@@ -37,8 +37,8 @@
         {
             "id": "dashboard.web_access",
             "kind": "scenario",
-            "version": 1,
-            "summary": "HTTP smoke: setup, login, session rotation, protected routes, CRUD, CSRF rejection, XSS escaping, deletion confirmation, logout and persistent data. Browser smoke on desktop and mobile.",
+            "version": 2,
+            "summary": "HTTP smoke: setup, login, session rotation, protected routes, CRUD, CSRF rejection, XSS escaping, deletion confirmation, logout and persistent data. Browser smoke on desktop and mobile. Real socket ingress proves direct/untrusted spoof rejection, sanitizing edge client isolation, two-hop and untrusted-middle selection, duplicate-wire handling and trusted malformed-chain refusal; invalid config fails before runtime/DB/session side effects.",
             "covers": [
                 "dashboard.setup",
                 "dashboard.login",

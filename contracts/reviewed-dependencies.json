@@ -1,0 +1,11 @@
+{
+    "scope": "project-local-reviewed-dependencies",
+    "files": [
+        {
+            "path": "app/client-address.php",
+            "owner": "Tablo\\ClientAddress",
+            "consumer": "Tablo\\Web::__construct",
+            "fingerprint": "sha256:791f0d410b6a37da8e367569060a44a260ca0d8365a1a34b1ad2149369ea5c52"
+        }
+    ]
+}
