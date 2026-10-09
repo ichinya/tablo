@@ -27,14 +27,29 @@ final class TemporaryDirectory
         );
         foreach ($files as $file) {
             $path = $file->getPathname();
-            $removed = $file->isDir() && !$file->isLink() ? @rmdir($path) : @unlink($path);
-            // A transient SQLite/Windows file can disappear after the directory was enumerated.
-            clearstatcache(true, $path);
-            if (!$removed && (file_exists($path) || is_link($path))) {
+            if (!self::remove($path, $file->isDir() && !$file->isLink())) {
                 throw new RuntimeException('Cannot remove test fixture: ' . $path);
             }
         }
-        if (!rmdir($this->path)) { throw new RuntimeException('Cannot remove test directory: ' . $this->path); }
+        if (!self::remove($this->path, directory: true)) {
+            throw new RuntimeException('Cannot remove test directory: ' . $this->path);
+        }
         $this->closed = true;
+    }
+
+    private static function remove(string $path, bool $directory): bool
+    {
+        // On Windows empty directories can remain briefly delete-pending after SQLite closes.
+        // Bound retries for every directory, including nested ones; retained files still fail.
+        $deadline = microtime(true) + 1;
+        do {
+            $removed = $directory ? @rmdir($path) : @unlink($path);
+            // A transient SQLite/Windows file can disappear after the directory was enumerated.
+            clearstatcache(true, $path);
+            if ($removed || (!file_exists($path) && !is_link($path))) { return true; }
+            if (!$directory) { return false; }
+            usleep(20_000);
+        } while (microtime(true) < $deadline);
+        return false;
     }
 }
