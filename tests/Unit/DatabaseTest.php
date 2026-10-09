@@ -53,11 +53,48 @@ final class DatabaseTest
                 Assert::same($db->query('SELECT name FROM sqlite_schema WHERE type = \'table\' AND name NOT LIKE \'sqlite_%\' ORDER BY name')
                     ->fetchAll(PDO::FETCH_COLUMN), ['git_tokens', 'login_limits', 'sites', 'users']);
                 Assert::same($db->query('PRAGMA foreign_key_check')->fetchAll(), []);
-                Assert::same($db->query('PRAGMA journal_mode')->fetchColumn(), $path === ':memory:' ? 'memory' : 'delete');
+                Assert::same($db->query('PRAGMA journal_mode')->fetchColumn(), $path === ':memory:' ? 'memory' : 'wal');
                 unset($db);
             }
             $db = Database::connect($directory->path . '/nested/test.sqlite');
+            Assert::same($db->query('PRAGMA journal_mode')->fetchColumn(), 'wal');
             Assert::same((int) $db->query('PRAGMA user_version')->fetchColumn(), Database::CURRENT_SCHEMA_VERSION);
+        } finally {
+            unset($db);
+            $directory->close();
+        }
+    }
+
+    #[Test]
+    public function rejectsUnsupportedWalWithoutFallbackOrPrivatePathInPolicyError(): void
+    {
+        // SQLite's unnamed temporary database cannot enter WAL and returns delete.
+        Assert::same(self::errorMessage(fn () => Database::connect('')),
+            'SQLite WAL is required for file databases; use writable local storage.');
+        // An explicit memory URI is also unsupported; only :memory: is the memory policy.
+        Assert::same(self::errorMessage(fn () => Database::connect('file::memory:?cache=shared')),
+            'SQLite WAL is required for file databases; use writable local storage.');
+    }
+
+    #[Test]
+    public function rejectedFileSchemasKeepDataVersionAndJournalMetadata(): void
+    {
+        $directory = new TemporaryDirectory('tablo-wal-rejected-');
+        try {
+            foreach ([Database::CURRENT_SCHEMA_VERSION + 1, -1, 0] as $version) {
+                $path = $directory->path . '/' . $version . '.sqlite';
+                $db = new MigrationPdo($path);
+                $db->exec('CREATE TABLE sites (id INTEGER PRIMARY KEY, name TEXT)');
+                $db->exec("INSERT INTO sites VALUES (1, 'preserved')");
+                $db->exec('PRAGMA user_version = ' . $version);
+                $before = self::snapshot($db);
+                unset($db);
+                Assert::true(self::errorMessage(fn () => Database::connect($path)) !== null);
+                $db = new MigrationPdo($path);
+                Assert::same(self::snapshot($db), $before);
+                Assert::same($db->query('PRAGMA journal_mode')->fetchColumn(), 'delete');
+                unset($db);
+            }
         } finally {
             unset($db);
             $directory->close();

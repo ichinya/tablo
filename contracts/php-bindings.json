@@ -276,9 +276,9 @@
             "kind": "entity",
             "source": {
                 "path": "app/sqlite-database.php",
-                "line": 115
+                "line": 123
             },
-            "fingerprint": "sha256:7703bb05374bf98d94da7064f366043cff2527271594470f36ae6264ca32586f",
+            "fingerprint": "sha256:43e744d52632125f1eebf790ba8c5bf259684aa66c80cad6a4f0c30af6d67156",
             "signature": null,
             "effects": [],
             "shape": {
