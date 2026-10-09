@@ -29,8 +29,8 @@ try {
         if (in_array($symbol['kind'], ['command', 'query'], true)) {
             $unitTests = match ($symbol['id']) {
                 'dashboard.setup', 'dashboard.login' => 'tests/Unit/AuthTest.php',
-                'dashboard.list_branches' => 'tests/Unit/GitHubProviderTest.php',
-                'dashboard.check_site' => 'tests/Unit/SiteCheckerTest.php,tests/Unit/HealthChecksTest.php,tests/Unit/HttpClientTest.php,tests/Unit/JsonChecksTest.php,tests/Network/HttpClientTest.php',
+                'dashboard.list_branches' => 'tests/Unit/GitHubProviderTest.php,tests/Unit/GitHubBudgetTest.php,tests/Network/HttpClientTest.php,tests/Network/GitHubSweepTest.php,tests/Http/GitHubBudgetTest.php',
+                'dashboard.check_site' => 'tests/Unit/SiteCheckerTest.php,tests/Unit/HealthChecksTest.php,tests/Unit/HttpClientTest.php,tests/Unit/JsonChecksTest.php,tests/Network/HttpClientTest.php,tests/Unit/GitHubProviderTest.php,tests/Unit/GitHubBudgetTest.php,tests/Network/GitHubSweepTest.php,tests/Http/GitHubBudgetTest.php',
                 'dashboard.create_site', 'dashboard.update_site' => 'tests/Unit/SiteRepositoryTest.php,tests/Unit/JsonChecksTest.php',
                 'dashboard.logout' => '',
                 default => 'tests/Unit/SiteRepositoryTest.php',
@@ -40,7 +40,7 @@ try {
                 $tests .= ',tests/Http/JsonChecksTest.php,tests/Http/HealthChecksTest.php';
             }
             // Every HTTP action initializes the database before handling its own command/query.
-            $tests .= ',tests/Unit/DatabaseTest.php,tests/Network/DatabaseMigrationTest.php';
+            $tests .= ',tests/Unit/DatabaseTest.php,tests/Unit/GitHubMigrationTest.php,tests/Network/DatabaseMigrationTest.php';
             runGate([$lekalo, 'contract', 'attach', $symbol['id'], '--native-test', $tests, '--gate', 'native-php-tests']);
         }
     }

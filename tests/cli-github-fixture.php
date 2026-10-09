@@ -8,11 +8,16 @@ require __DIR__ . '/github-fixture.php';
 
 final class FixtureCliGitHubConnection
 {
-    public function __construct(private readonly Tablo\SiteRepository $sites, Tablo\HttpClient $http) {}
+    private readonly Tablo\GitHubRequestPolicy $policy;
+    public function __construct(private readonly Tablo\SiteRepository $sites, Tablo\HttpClient $http)
+    {
+        $this->policy = new Tablo\GitHubRequestPolicy($sites->githubCooldowns());
+    }
 
     public function provider(array $site): Tablo\GitHubProvider
     {
-        return new Tablo\GitHubProvider(new FixtureGitHubHttp(), $this->sites->tokenFor($site));
+        return new Tablo\GitHubProvider(new FixtureGitHubHttp(), $this->sites->tokenFor($site), $this->policy,
+            new Tablo\GitHubCredential($this->sites->credentialRevision([], $site), $this->sites->credentialScope([], $site)));
     }
 }
 

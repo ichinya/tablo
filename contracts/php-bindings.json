@@ -5,7 +5,7 @@
         "version": "0.1.0"
     },
     "project": "tablo",
-    "revision": "sha256:edaac56af09133f323f40e53bdc5afe6721f1a63cb9efffe2c9f4c12f928d231",
+    "revision": "sha256:5e010bdcc74dd4b01786e98daafcfec0a4ae594c45a0eafe562913b8e8a4ae99",
     "symbols": [
         {
             "id": "dashboard.setup",
@@ -97,6 +97,14 @@
                 {
                     "kind": "create",
                     "subject": "dashboard.site"
+                },
+                {
+                    "kind": "create",
+                    "subject": "dashboard.github_cooldown"
+                },
+                {
+                    "kind": "update",
+                    "subject": "dashboard.github_cooldown"
                 }
             ]
         },
@@ -128,6 +136,14 @@
                 {
                     "kind": "update",
                     "subject": "dashboard.site"
+                },
+                {
+                    "kind": "create",
+                    "subject": "dashboard.github_cooldown"
+                },
+                {
+                    "kind": "update",
+                    "subject": "dashboard.github_cooldown"
                 }
             ]
         },
@@ -136,9 +152,9 @@
             "kind": "command",
             "source": {
                 "path": "app/site-repository.php",
-                "line": 217
+                "line": 246
             },
-            "fingerprint": "sha256:95ae9b8808b9e0c284014a67aebd6a92b292efa61f9dbc2f7803f47c7b4147eb",
+            "fingerprint": "sha256:6aa6501bc32f376d8d456d2cd9c7457aad7635b815028294cad70a963865ef87",
             "signature": {
                 "inputs": [
                     {
@@ -164,7 +180,7 @@
                 "path": "app/site-checker.php",
                 "line": 10
             },
-            "fingerprint": "sha256:ed1e03d10a1e4d3c09096ffd799278ef0f1c984ee0e4ac381efffca6012a72d9",
+            "fingerprint": "sha256:3f42f4b68b96cdcf2b7225678d560c5850470b3762a96b2bc6aefa5e7074cce2",
             "signature": {
                 "inputs": [
                     {
@@ -180,6 +196,14 @@
                 {
                     "kind": "update",
                     "subject": "dashboard.site"
+                },
+                {
+                    "kind": "create",
+                    "subject": "dashboard.github_cooldown"
+                },
+                {
+                    "kind": "update",
+                    "subject": "dashboard.github_cooldown"
                 }
             ]
         },
@@ -190,7 +214,7 @@
                 "path": "app/site-repository.php",
                 "line": 27
             },
-            "fingerprint": "sha256:95ae9b8808b9e0c284014a67aebd6a92b292efa61f9dbc2f7803f47c7b4147eb",
+            "fingerprint": "sha256:6aa6501bc32f376d8d456d2cd9c7457aad7635b815028294cad70a963865ef87",
             "signature": {
                 "inputs": [],
                 "output": "list(dashboard.site)",
@@ -205,9 +229,9 @@
             "kind": "command",
             "source": {
                 "path": "app/github-connection.php",
-                "line": 21
+                "line": 40
             },
-            "fingerprint": "sha256:c32b17d3912d321813ccf69f7604bde5bd6a717337097369fc8e183c1e5d0321",
+            "fingerprint": "sha256:34cfdf7ffa629f79db78e0ed4e629b7096aa8e635ad8d1e839e87635e2005ffa",
             "signature": {
                 "inputs": [
                     {
@@ -239,7 +263,16 @@
                 "output": null,
                 "reads": []
             },
-            "effects": []
+            "effects": [
+                {
+                    "kind": "create",
+                    "subject": "dashboard.github_cooldown"
+                },
+                {
+                    "kind": "update",
+                    "subject": "dashboard.github_cooldown"
+                }
+            ]
         },
         {
             "id": "dashboard.user",
@@ -276,9 +309,9 @@
             "kind": "entity",
             "source": {
                 "path": "app/sqlite-database.php",
-                "line": 115
+                "line": 116
             },
-            "fingerprint": "sha256:7703bb05374bf98d94da7064f366043cff2527271594470f36ae6264ca32586f",
+            "fingerprint": "sha256:cbe9f1ab1302ae1eda13ac15e38b373d23615b155b537e3f0671b1be6018c4f9",
             "signature": null,
             "effects": [],
             "shape": {
@@ -486,6 +519,36 @@
                     {
                         "name": "encrypted_token",
                         "type": "dashboard.text",
+                        "required": true
+                    }
+                ]
+            }
+        },
+        {
+            "id": "dashboard.github_cooldown",
+            "kind": "entity",
+            "source": {
+                "path": "app/sqlite-database.php",
+                "line": 123
+            },
+            "fingerprint": "sha256:cbe9f1ab1302ae1eda13ac15e38b373d23615b155b537e3f0671b1be6018c4f9",
+            "signature": null,
+            "effects": [],
+            "shape": {
+                "fields": [
+                    {
+                        "name": "scope",
+                        "type": "dashboard.text",
+                        "required": true
+                    },
+                    {
+                        "name": "resource",
+                        "type": "dashboard.text",
+                        "required": true
+                    },
+                    {
+                        "name": "eligible_at",
+                        "type": "dashboard.number",
                         "required": true
                     }
                 ]

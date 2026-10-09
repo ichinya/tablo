@@ -654,6 +654,39 @@
             "version": 1,
             "base": "string",
             "description": "Validated diagnostic whitelist: http, json-condition, timeout, refused, dns, ssrf, tls, size, invalid-response, invalid-url, network, check-error. Null means no health failure or no current diagnostic."
+        },
+        {
+            "id": "dashboard.github_cooldown",
+            "kind": "entity",
+            "version": 1,
+            "description": "Schema 3 additive persistent eligibility. Primary core/search scopes use anonymous, authenticated preview, saved credential id or per-site id; shared secondary scope survives rotation. No token, token digest, request headers or response body is stored. Atomic maximum updates cannot shorten eligibility.",
+            "identity": [
+                "scope",
+                "resource"
+            ],
+            "fields": [
+                {
+                    "name": "scope",
+                    "type": {
+                        "ref": "dashboard.text"
+                    },
+                    "required": true
+                },
+                {
+                    "name": "resource",
+                    "type": {
+                        "ref": "dashboard.text"
+                    },
+                    "required": true
+                },
+                {
+                    "name": "eligible_at",
+                    "type": {
+                        "ref": "dashboard.number"
+                    },
+                    "required": true
+                }
+            ]
         }
     ]
 }

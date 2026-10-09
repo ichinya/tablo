@@ -103,6 +103,19 @@
                 "dashboard.site",
                 "dashboard.site_input"
             ]
+        },
+        {
+            "id": "dashboard.github_budget",
+            "kind": "scenario",
+            "version": 1,
+            "summary": "Measure 20-site shared/distinct/anonymous and repeated/unique repository matrix through real localhost cURL. Rate limits stop subsequent relevant requests, preserve successful fields and health, persist across fresh web requests/CLI processes and cannot shorten. Anonymous and stable authenticated primary scopes are isolated; shared secondary crosses scopes. 401/plain 403/404 are access errors, 429 and primary exhaustion defer; malformed/duplicate headers use conservative fallback, successful remaining-zero defers following calls. Memo never caches errors/incomplete search/masked repository absence; branch and credential revisions isolate values. Same-ID and in-flight rotation reject stale private results; rename retains current memo. Schema 2 upgrades atomically to 3 without a WAL dependency. Scheduling deadlines stop new requests and clamp cURL; delayed synchronous DNS can overrun its deadline, then HTTP is not started. No hard resolver or whole-pass wall-clock bound is promised.",
+            "covers": [
+                "dashboard.check_site",
+                "dashboard.list_branches",
+                "dashboard.create_site",
+                "dashboard.update_site",
+                "dashboard.github_cooldown"
+            ]
         }
     ]
 }

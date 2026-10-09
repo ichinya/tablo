@@ -30,6 +30,11 @@ final class SiteRepository
             FROM sites s LEFT JOIN git_tokens t ON t.id = s.git_token_id ORDER BY s.sort_order, s.id')->fetchAll();
     }
 
+    public function githubCooldowns(): GitHubCooldownRepository
+    {
+        return new GitHubCooldownRepository($this->db);
+    }
+
     public function find(int $id): ?array
     {
         $statement = $this->db->prepare('SELECT s.*, t.encrypted_token AS selected_token_snapshot
@@ -183,6 +188,30 @@ final class SiteRepository
             $token = empty($site['github_token']) ? '' : $this->tokens->decrypt($site['github_token']);
         }
         return $token;
+    }
+
+    public function credentialRevision(array $input, ?array $site): string
+    {
+        $selected = $this->selectedToken($input, $site);
+        if ($selected !== null) {
+            $statement = $this->db->prepare('SELECT encrypted_token FROM git_tokens WHERE id = ?');
+            $statement->execute([$selected]);
+            try {
+                $revision = $statement->fetchColumn();
+                if (!is_string($revision)) { throw new ValidationException(['git_token_id' => 'Выберите сохранённый токен.']); }
+                return $revision;
+            } finally { $statement->closeCursor(); }
+        }
+        if (($input['github_token'] ?? '') !== '' || in_array($input['remove_github_token'] ?? null, [1, '1', 'on'], true)) { return ''; }
+        return $site['github_token'] ?? '';
+    }
+
+    public function credentialScope(array $input, ?array $site): string
+    {
+        $selected = $this->selectedToken($input, $site);
+        if ($selected !== null) { return 'saved:' . $selected; }
+        if ($this->resolveToken($input, $site) === '') { return 'anonymous'; }
+        return isset($site['id']) ? 'site:' . (int) $site['id'] : 'authenticated';
     }
 
     public function save(array $input, ?int $id = null): int

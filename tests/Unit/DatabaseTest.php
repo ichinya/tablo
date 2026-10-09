@@ -51,7 +51,7 @@ final class DatabaseTest
                 Assert::same((int) $db->query('PRAGMA busy_timeout')->fetchColumn(), 5000);
                 Assert::same($db->query('PRAGMA integrity_check')->fetchColumn(), 'ok');
                 Assert::same($db->query('SELECT name FROM sqlite_schema WHERE type = \'table\' AND name NOT LIKE \'sqlite_%\' ORDER BY name')
-                    ->fetchAll(PDO::FETCH_COLUMN), ['git_tokens', 'login_limits', 'sites', 'users']);
+                    ->fetchAll(PDO::FETCH_COLUMN), ['git_tokens', 'github_cooldowns', 'login_limits', 'sites', 'users']);
                 Assert::same($db->query('PRAGMA foreign_key_check')->fetchAll(), []);
                 Assert::same($db->query('PRAGMA journal_mode')->fetchColumn(), $path === ':memory:' ? 'memory' : 'delete');
                 unset($db);

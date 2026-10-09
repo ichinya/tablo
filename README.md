@@ -522,6 +522,10 @@ composer test
 php tests/browser-fixture.php artifacts/screenshots-demo/browser.sqlite
 ```
 
+GitHub-проверки используют последовательный REST без автоматических повторов. Лимиты
+core/search и общий secondary cooldown сохраняются между CLI и web; успешные частичные
+метрики остаются доступными. [Политика, реальные границы времени и измерения на 20 сайтах](docs/github-polling.md).
+
 Фикстура содержит только вымышленные проекты `example/*` и демонстрационный токен.
 Для визуальной проверки используйте `tests/web-router.php` с `TABLO_DB`, указывающим
 на эту БД, и `TABLO_TEST_RUNTIME`, указывающим на отдельный каталог сессий и кэша Volt.
