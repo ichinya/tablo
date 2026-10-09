@@ -15,6 +15,8 @@ function runGate(array $command): void
 }
 
 try {
+    require __DIR__ . '/reviewed-dependencies.php';
+    checkReviewedDependencies($root);
     runGate([$lekalo, 'validate', '--no-cache']);
     runGate([$lekalo, 'lock', '--check', '--offline']);
     $declaration = json_decode(file_get_contents('contracts/php-bindings.json'), true, 64, JSON_THROW_ON_ERROR);
@@ -50,7 +52,8 @@ try {
     file_put_contents('artifacts/verification.json', json_encode([
         'status' => 'passed', 'checked_at' => gmdate('c'), 'lekalo_lock' => hash_file('sha256', 'lekalo.lock'),
         'composer_lock' => hash_file('sha256', 'composer.lock'), 'bindings' => hash_file('sha256', 'contracts/php-bindings.json'),
-        'gates' => ['model-validation', 'lock-freshness', 'source-fingerprints', 'contract-conformance', 'native-logic-tests', 'real-http-client-tests', 'isolated-http-flow'],
+        'reviewed_dependencies' => hash_file('sha256', 'contracts/reviewed-dependencies.json'),
+        'gates' => ['reviewed-dependency-fingerprints', 'model-validation', 'lock-freshness', 'source-fingerprints', 'contract-conformance', 'native-logic-tests', 'real-http-client-tests', 'isolated-http-flow'],
     ], JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES) . "\n");
     echo "All gates passed.\n";
 } catch (Throwable $e) {

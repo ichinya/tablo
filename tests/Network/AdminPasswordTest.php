@@ -74,7 +74,9 @@ final class AdminPasswordTest
             foreach ([$path, 'space ж.sqlite', $uri . '?mode=rw', $uri . '?mode=rw&immutable=false&nolock=0',
                 $uri . '?mode=rw&nolock=false&nolock=0&immutable=no&immutable=off',
                 $uri . '?mode=rw&mode.x=ro&mode_x=ro&immutable+=1&no.lock=1&nolock_x=1',
-                $uri . '?mode=rw#&immutable=1&nolock=1'] as $selection) {
+                $uri . '?mode=rw#&immutable=1&nolock=1&vfs=unix-none',
+                $uri . '?mode=rw&VFS=unix-none&vfs+=unix-none&vfs.x=unix-none&vfs_x=unix-none',
+                $uri . '?mode=rw&cache=private&psow=0', $uri . '?mode=rw&cache=shared&psow=1'] as $selection) {
                 $result = self::command($directory, $selection, ['--show-installation']);
                 Assert::same($result['exit_code'], 0, $result['stderr']);
                 Assert::true(str_contains($result['stdout'], 'administrator=1; schema=2'));
@@ -121,6 +123,45 @@ final class AdminPasswordTest
     }
 
     #[Test]
+    public function refusesEveryExplicitDecodedVfsBeforeSelectionOrWrites(): void
+    {
+        $directory = new TemporaryDirectory('tablo-password-vfs-');
+        $db = null;
+        try {
+            $path = $directory->path . '/fixture.sqlite';
+            $db = Database::connect($path);
+            (new Auth($db))->setup('fixture-password', 'fixture-password');
+            $db->exec("INSERT INTO login_limits VALUES ('blocked-fixture', 9, 123)");
+            $old = $db->query('SELECT * FROM users')->fetchAll();
+            $limits = $db->query('SELECT * FROM login_limits')->fetchAll();
+            $schema = $db->query('SELECT * FROM sqlite_schema ORDER BY name')->fetchAll();
+            $db = null;
+            $bytes = hash_file('sha256', $path);
+            $uri = 'file:' . str_replace('%2F', '/', rawurlencode(str_replace('\\', '/', $path)));
+            foreach (['vfs=unix-none', 'vfs=win32-none', '%76%66%73=%75nix%2dnone', 'vfs=', 'vfs',
+                'vfs=unix', 'vfs=unknown', 'vfs=unix-none&vfs=unix', 'vfs=unix&vfs=unix-none',
+                'vfs=&%76fs=unix-none', 'vfs=unix-none&nolock=0&immutable=0',
+                'nolock=0&immutable=0&%76fs=%77in32%2dnone', 'vfs=unix-none#ignored'] as $query) {
+                foreach (['--show-installation', '--password-stdin'] as $mode) {
+                    $result = self::command($directory, $uri . '?mode=rw&' . $query, [$mode],
+                        $mode === '--password-stdin' ? "replacement-secret\nreplacement-secret\n" : '');
+                    Assert::same($result['exit_code'], 3, 'explicit VFS must refuse as an installation error');
+                    Assert::same($result['stdout'], '', 'refusal precedes the installation selection line');
+                    Assert::true(!str_contains($result['stderr'], $query));
+                    Assert::same(hash_file('sha256', $path), $bytes, 'all installation bytes retained');
+                    Assert::true(!is_file($path . '-journal') && !is_file($path . '-wal'));
+                }
+            }
+            $db = Database::openExisting($path);
+            Assert::same($db->query('SELECT * FROM users')->fetchAll(), $old);
+            Assert::same($db->query('SELECT * FROM login_limits')->fetchAll(), $limits);
+            Assert::same($db->query('SELECT * FROM sqlite_schema ORDER BY name')->fetchAll(), $schema);
+            Assert::true(!(new Auth($db))->needsSetup());
+            Assert::true(password_verify('fixture-password', $old[0]['password_hash']));
+        } finally { $old = $limits = $schema = $db = null; $directory->close(); }
+    }
+
+    #[Test]
     public function twoActualCommandsCannotOverwriteTheSameSnapshot(): void
     {
         $directory = new TemporaryDirectory('tablo-password-race-');
@@ -131,12 +172,19 @@ final class AdminPasswordTest
             $db = Database::connect($path);
             (new Auth($db))->setup('fixture-password', 'fixture-password');
             $uri = 'file:' . str_replace('%2F', '/', rawurlencode(str_replace('\\', '/', $path)));
-            foreach ([$path, $uri . '?mode=rw&nolock=0&immutable=false'] as $selection) {
+            $safeUri = $uri . '?mode=rw&nolock=0&immutable=false';
+            foreach ([[$path, $path], [$safeUri, $safeUri], [$path, $safeUri], [$safeUri, $path]] as [$selection, $contender]) {
                 $first = new PasswordProcess($directory, $selection);
-                $second = new PasswordProcess($directory, $selection);
+                $second = new PasswordProcess($directory, $contender);
                 $first->send("first-new-secret\nfirst-new-secret\n");
                 $second->send("second-new-secret\nsecond-new-secret\n");
-                $results = [$first->finish()['exit_code'], $second->finish()['exit_code']];
+                $firstResult = $first->finish();
+                $secondResult = $second->finish();
+                $hash = $db->query('SELECT password_hash FROM users WHERE id=1')->fetchColumn();
+                Assert::same(password_verify('first-new-secret', $hash), $firstResult['exit_code'] === 0);
+                Assert::same(password_verify('second-new-secret', $hash), $secondResult['exit_code'] === 0);
+                $hash = null;
+                $results = [$firstResult['exit_code'], $secondResult['exit_code']];
                 sort($results);
                 Assert::same($results, [0, 4]);
                 Assert::same((int) $db->query('SELECT COUNT(*) FROM users')->fetchColumn(), 1);

@@ -343,6 +343,13 @@ Read-only/memory URI, в том числе с percent-encoded параметра
 Явные false/0/off/no для immutable/nolock допустимы; исходный URI передаётся PDO без переписывания.
 При повторных параметрах любое read-only/memory или unsafe значение отвергается,
 чтобы не полагаться на разные правила выбора повторов SQLite core и VFS.
+Любой явный параметр `vfs` (включая пустой, percent-encoded и повторный)
+отвергается **до открытия PDO**: нестандартный VFS может обходить блокировки.
+Файловые URI без явного `vfs` используют штатный выбор SQLite. Имена параметров
+учитывают регистр; `+`, точки и подчёркивания не нормализуются как HTML form.
+Настоящий fragment после `#` SQLite игнорирует. `cache=shared/private` и `psow`
+сохраняют прежнюю обработку: доказанного нарушения блокировок для них нет;
+это не гарантия сохранности при сбое оборудования или файловой системы.
 CLI не создаёт БД/каталоги, не выполняет миграцию, chmod или смену journal mode.
 Отсутствующая/временная/повреждённая/непригодная БД, несовместимая схема, неверная
 таблица users или отсутствующий администратор дают отказ. Старую схему обновите
@@ -460,8 +467,8 @@ composer verify
 
 Проверка запускает:
 
-1. `lekalo validate --no-cache` и `lekalo lock --check --offline`;
-2. проверку сохранённых SHA256 исходников;
+1. проверку project-local зависимостей из `contracts/reviewed-dependencies.json`;
+2. `lekalo validate --no-cache`, `lekalo lock --check --offline` и SHA256 declaring owners;
 3. регистрацию сохранённых bindings и привязку native tests;
 4. `lekalo contract check --module dashboard --no-cache`;
 5. три набора Testo: Unit, Network (реальные локальные cURL проверки JSON,
@@ -475,6 +482,8 @@ composer verify
 ```powershell
 php tools/capture-bindings.php
 # Просмотрите изменения contracts/php-bindings.json.
+php tools/capture-reviewed-dependencies.php
+# Просмотрите изменения contracts/reviewed-dependencies.json после проверки исходников.
 composer verify
 ```
 
@@ -485,6 +494,16 @@ Capture фиксирует канонические контракты, source l
 не используется для Phalcon. Грамматика endpoint в текущем Model не принимает
 корневой `/`, поэтому dashboard описан query `dashboard.list_sites`, без
 вымышленного transport endpoint. Остальные POST endpoints есть в модели.
+
+Отдельный manifest с `scope=project-local-reviewed-dependencies` содержит
+`files=[{path,owner,consumer,fingerprint}]` только для семи новых зависимостей
+password CLI: PasswordService, AdminPasswordCommand, entrypoint, двух безопасных
+exception-классов и Bash/PowerShell helpers. Это project-local ownership,
+а не новые declaring owners Lekalo. Отсутствие, неверный состав/ownership,
+повтор пути или drift байтов даёт отказ до contract update, attachments и тестов.
+Capture явный и детерминированный; verify его не вызывает. Каждая ветка проверяет
+свой reviewed набор; будущая композиция требует обычного merge и явного review
+объединённого набора и проверок, без импорта чужих непринятых исходников.
 
 ## Тесты и CI
 

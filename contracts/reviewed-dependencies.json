@@ -1,0 +1,47 @@
+{
+    "scope": "project-local-reviewed-dependencies",
+    "files": [
+        {
+            "path": "app/password-service.php",
+            "owner": "Tablo\\PasswordService",
+            "consumer": "Tablo\\Auth setup and password change",
+            "fingerprint": "sha256:b708f12f8e696bef24b7bfd07837e1969c62df9d424a40ebe6a9af5593d63bbc"
+        },
+        {
+            "path": "app/admin-password-command.php",
+            "owner": "Tablo\\AdminPasswordCommand",
+            "consumer": "Local administrator password CLI",
+            "fingerprint": "sha256:5ec25a9959c8ba528c38c66b23828ed1226406eb8daa7f86648689a710973908"
+        },
+        {
+            "path": "bin/admin-password.php",
+            "owner": "Local CLI bootstrap and safe error boundary",
+            "consumer": "Local administrator password CLI",
+            "fingerprint": "sha256:7479a36e386205a37fcb58f121a4667d3437f63338cd5b1db5cda4083fbc7f7d"
+        },
+        {
+            "path": "app/installation-exception.php",
+            "owner": "Tablo\\InstallationException",
+            "consumer": "Existing installation refusal and CLI exit",
+            "fingerprint": "sha256:68b8b392c1345f94ca247630501631ab693686f9dbc7f2b16dc2ae0441bb9f49"
+        },
+        {
+            "path": "app/password-conflict.php",
+            "owner": "Tablo\\PasswordConflict",
+            "consumer": "Snapshot conflict and CLI exit",
+            "fingerprint": "sha256:b017d69e94c6f5d392a980c2e6a32d67fb4ba3b33502ca5c284cb0f8780a6883"
+        },
+        {
+            "path": "tools/admin-password.bash",
+            "owner": "Bash protected input helper",
+            "consumer": "Local administrator password CLI stdin",
+            "fingerprint": "sha256:86d0dee7d0fa910f55b5204387aaa12b609c587693e3e2047ba1a9273727250a"
+        },
+        {
+            "path": "tools/admin-password.ps1",
+            "owner": "PowerShell protected input helper",
+            "consumer": "Local or Docker administrator password CLI stdin",
+            "fingerprint": "sha256:d4d63a64b8f79ad590ccd74b7c655cb8a00f0d685814dba4f20723c58a5bcb62"
+        }
+    ]
+}

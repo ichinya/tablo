@@ -105,8 +105,10 @@ final class Database
             $name = rawurldecode($name);
             $value = rawurldecode($value);
             // SQLite decodes URI keys/values, and these options override useful
-            // READWRITE/locking behavior. Keep the original URI for actual PDO.
+            // READWRITE/locking behavior. Explicit VFS selection is unreviewed;
+            // use SQLite's native default. Keep the original URI for actual PDO.
             if (str_contains($name . $value, "\0")
+                || $name === 'vfs'
                 || ($name === 'mode' && in_array($value, ['ro', 'memory'], true))
                 || (in_array($name, ['immutable', 'nolock'], true)
                     && !in_array(strtolower($value), ['', '0', 'false', 'off', 'no'], true))) {
