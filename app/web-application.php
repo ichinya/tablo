@@ -14,11 +14,13 @@ final class Web
     private readonly SiteRepository $sites;
     private readonly GitTokenRepository $tokens;
     private readonly Auth $auth;
+    private readonly ClientAddress $clientAddress;
     private readonly GitHubConnection $github;
     private readonly Simple $view;
 
     public function __construct(?HttpClient $githubHttp = null, ?string $runtimeDirectory = null)
     {
+        $this->clientAddress = new ClientAddress(getenv('TABLO_TRUSTED_PROXIES'));
         $root = dirname(__DIR__);
         $runtimeDirectory ??= $root . '/storage';
         foreach (['sessions', 'views'] as $dir) {
@@ -112,7 +114,7 @@ final class Web
         $app->post('/login', function () use ($web) {
             try {
                 $password = $web->input('password');
-                if (strlen($password) > 72 || !$web->auth->login($password, $_SERVER['REMOTE_ADDR'] ?? 'unknown')) {
+                if (strlen($password) > 72 || !$web->auth->login($password, $web->clientAddress->resolve($_SERVER))) {
                     throw new ValidationException(['password' => 'Неверный пароль.']);
                 }
                 $web->authenticate();

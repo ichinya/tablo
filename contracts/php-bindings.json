@@ -5,7 +5,7 @@
         "version": "0.1.0"
     },
     "project": "tablo",
-    "revision": "sha256:edaac56af09133f323f40e53bdc5afe6721f1a63cb9efffe2c9f4c12f928d231",
+    "revision": "sha256:0e142cbedb40de53806b8113deb018ad1f1be8257958d432031a8d60c3862dc9",
     "symbols": [
         {
             "id": "dashboard.setup",
@@ -64,9 +64,9 @@
             "kind": "command",
             "source": {
                 "path": "app/web-application.php",
-                "line": 124
+                "line": 126
             },
-            "fingerprint": "sha256:81f66e576344afe4ce710f9dec6d9c56ad8065de7f34b1527da89595d3749b26",
+            "fingerprint": "sha256:8b216b292064bc8f0d35e5ad6a3a33421a47531a6bbf1d17c2e1a6184c201dbe",
             "signature": {
                 "inputs": [],
                 "output": null,
@@ -79,9 +79,9 @@
             "kind": "command",
             "source": {
                 "path": "app/web-application.php",
-                "line": 212
+                "line": 214
             },
-            "fingerprint": "sha256:81f66e576344afe4ce710f9dec6d9c56ad8065de7f34b1527da89595d3749b26",
+            "fingerprint": "sha256:8b216b292064bc8f0d35e5ad6a3a33421a47531a6bbf1d17c2e1a6184c201dbe",
             "signature": {
                 "inputs": [
                     {
@@ -105,9 +105,9 @@
             "kind": "command",
             "source": {
                 "path": "app/web-application.php",
-                "line": 212
+                "line": 214
             },
-            "fingerprint": "sha256:81f66e576344afe4ce710f9dec6d9c56ad8065de7f34b1527da89595d3749b26",
+            "fingerprint": "sha256:8b216b292064bc8f0d35e5ad6a3a33421a47531a6bbf1d17c2e1a6184c201dbe",
             "signature": {
                 "inputs": [
                     {

@@ -8,6 +8,7 @@ services:
     environment:
       TABLO_ALLOW_PRIVATE_NETWORK: "${TABLO_ALLOW_PRIVATE_NETWORK:-0}"
       TABLO_COOKIE_SECURE: "${TABLO_COOKIE_SECURE:-0}"
+      TABLO_TRUSTED_PROXIES: "${TABLO_TRUSTED_PROXIES:-}"
     restart: unless-stopped
 volumes:
   tablo-data:
