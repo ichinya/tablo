@@ -166,10 +166,16 @@ final class DatabaseWalTest
             Assert::same([$read['before'], $read['during'], $read['after']], [1, 1, 2]);
             Assert::same($db->query('PRAGMA wal_checkpoint(TRUNCATE)')->fetch(PDO::FETCH_NUM), [0, 0, 0]);
             clearstatcache(true, $path . '-wal');
-            Assert::same(filesize($path . '-wal'), 0);
+            // Runtime/VFS cleanup may remove an empty WAL; a surviving file must be empty.
+            Assert::same(is_file($path . '-wal') ? filesize($path . '-wal') : 0, 0);
+            // Independently verify checkpointed data in the main file, without source sidecars.
+            Assert::true(copy($path, $directory->path . '/checkpoint.sqlite'));
+            $checkpointed = Database::connect($directory->path . '/checkpoint.sqlite');
+            Assert::same((int) $checkpointed->query('SELECT count(*) FROM sites')->fetchColumn(), 2);
+            unset($checkpointed);
         } finally {
             $reader?->close();
-            unset($db, $restored, $stale, $tokens, $vault);
+            unset($db, $restored, $stale, $checkpointed, $tokens, $vault);
             $directory->close();
         }
         Assert::false(is_dir($directory->path));
@@ -262,10 +268,8 @@ final class DatabaseWalTest
             $failure = null;
             try { $directory->close(); } catch (RuntimeException $error) { $failure = $error->getMessage(); }
             unset($error);
-            if (PHP_OS_FAMILY === 'Windows') {
-                Assert::true($failure !== null);
-                Assert::true(is_dir($directory->path));
-            }
+            Assert::same($failure !== null, PHP_OS_FAMILY === 'Windows');
+            Assert::same(is_dir($directory->path), PHP_OS_FAMILY === 'Windows');
             $statement->closeCursor();
             unset($statement);
             $directory->close();
