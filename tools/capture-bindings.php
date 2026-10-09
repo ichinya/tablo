@@ -22,6 +22,7 @@ $mapping = [
     'user' => ['database/schema.sql', 'CREATE TABLE IF NOT EXISTS users'],
     'site' => ['app/sqlite-database.php', 'private static function migrateToVersionTwo'],
     'git_token' => ['database/schema.sql', 'CREATE TABLE IF NOT EXISTS git_tokens'],
+    'github_cooldown' => ['app/sqlite-database.php', 'private static function migrateToVersionThree'],
     'list_git_tokens' => ['app/git-token-repository.php', 'public function all'],
     'create_git_token' => ['app/git-token-repository.php', 'public function save'],
     'update_git_token' => ['app/git-token-repository.php', 'public function save'],

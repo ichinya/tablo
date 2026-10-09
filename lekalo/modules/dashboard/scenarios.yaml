@@ -103,6 +103,19 @@
                 "dashboard.site",
                 "dashboard.site_input"
             ]
+        },
+        {
+            "id": "dashboard.github_budget",
+            "kind": "scenario",
+            "version": 1,
+            "summary": "Measure 20-site shared/distinct/anonymous and repeated/unique repository matrix through real localhost cURL. Positive rate controls stop relevant requests, preserve successful fields/health and persist maximum eligibility across fresh web/CLI processes. Exact equal tokens share primary eligibility across saved/manual/duplicate handles and previews through private keyed identity; handle eligibility survives rotation. Anonymous and unrelated actual tokens remain isolated; affirmative secondary crosses scopes. 401/plain 403/404 remain access errors even with unusable remaining or Retry-After, which alone never establishes shared secondary; real 429, valid Retry-After, remaining-zero and recognized secondary messages still defer. Redirect 301/302, unconfirmed branch and oversized branch list retain fixed safe operator guidance; malformed/incomplete data remains distinct from permanent configuration advice and transport/5xx. Memo never caches errors; per-handle credential revisions retain load/memo freshness on rotation, removal and reselection; rename retains memo. Schema 2 upgrades atomically to 3 without a WAL dependency. Scheduling deadlines stop new requests and clamp cURL; synchronous DNS can overrun its deadline, then HTTP is not started. No hard resolver or whole-pass wall-clock bound is promised. Authenticated preview initializes a missing private identity key only before reusable/per-site ciphertext or any key-derived cooldown state exists. Established missing keys fail before key creation and HTTP with backup-restoration guidance; corrupt/unreadable keys remain unchanged. Restoring/moving the original key preserves equivalence/decryption. Public connection input/site arrays redact complete key-error trace arguments with PHP 8.2 SensitiveParameter; argument capture stays enabled.",
+            "covers": [
+                "dashboard.check_site",
+                "dashboard.list_branches",
+                "dashboard.create_site",
+                "dashboard.update_site",
+                "dashboard.github_cooldown"
+            ]
         }
     ]
 }

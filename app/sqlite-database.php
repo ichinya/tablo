@@ -9,7 +9,7 @@ use Throwable;
 
 final class Database
 {
-    public const CURRENT_SCHEMA_VERSION = 2;
+    public const CURRENT_SCHEMA_VERSION = 3;
 
     // Version 0 installations may lack these additive fields and git_tokens.
     private const SITE_ADDITIONS = [
@@ -75,6 +75,7 @@ final class Database
                 match ($version) {
                     0 => self::migrateToVersionOne($db),
                     1 => self::migrateToVersionTwo($db),
+                    2 => self::migrateToVersionThree($db),
                     default => throw new RuntimeException('No migration for SQLite schema version ' . $version),
                 };
                 $version++;
@@ -126,6 +127,17 @@ final class Database
         self::validateSchema($db, true);
         $db->exec('ALTER TABLE sites ADD COLUMN health_error_code TEXT');
         $db->exec('ALTER TABLE sites ADD COLUMN health_http_status INTEGER CHECK (health_http_status BETWEEN 100 AND 599)');
+    }
+
+    private static function migrateToVersionThree(PDO $db): void
+    {
+        self::validateSchema($db, true);
+        $db->exec("CREATE TABLE github_cooldowns (
+            scope TEXT NOT NULL,
+            resource TEXT NOT NULL CHECK (resource IN ('core', 'search', 'secondary')),
+            eligible_at INTEGER NOT NULL CHECK (typeof(eligible_at) = 'integer' AND eligible_at >= 0),
+            PRIMARY KEY (scope, resource)
+        )");
     }
 
     private static function validateSchema(PDO $db, bool $complete): void

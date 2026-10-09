@@ -78,8 +78,8 @@
         {
             "id": "dashboard.create_site",
             "kind": "command",
-            "version": 2,
-            "description": "Authenticated CSRF-protected create; normalize GitHub URLs; reject invalid URL, branch, path, mode and sort order. Validate the actual GitHub branch using a supplied or saved token; encrypt token replacement, preserve blank token or explicitly remove it. Validate active bounded JSON paths, health mode, operator and finite numeric expected values; retain submitted values and report field errors. Persist JSON settings; unchanged legacy inputs default to HTTP and automatic version extraction.",
+            "version": 3,
+            "description": "Authenticated CSRF-protected create; normalize GitHub URLs; reject invalid URL, branch, path, mode and sort order. Validate the actual GitHub branch using a supplied or saved token; encrypt token replacement, preserve blank token or explicitly remove it. Validate active bounded JSON paths, health mode, operator and finite numeric expected values; retain submitted values and report field errors. Persist JSON settings; unchanged legacy inputs default to HTTP and automatic version extraction. GitHub uses serial REST, safe typed access/rate/unavailable/budget/rotation failures and no retry/sleep. Primary core/search eligibility is stable-handle scoped; secondary is installation-shared and persisted across CLI/web. A 256-entry sweep-local semantic memo is isolated by credential revision and metric/branch; no-release requires repository access confirmation. Monitoring: five attempts/24s per site; branches: eleven attempts; connection: 100 attempts/120s scheduling budget. cURL is clamped; synchronous DNS can overrun and is checked before HTTP. Preserve partial metrics; reject credentials changed before/after load or cache hits. Authenticated preview initializes a missing private identity key only before reusable/per-site ciphertext or any key-derived cooldown state exists. Established missing keys fail before key creation and HTTP with backup-restoration guidance; corrupt/unreadable keys remain unchanged. Restoring/moving the original key preserves equivalence/decryption. Public connection input/site arrays redact complete key-error trace arguments with PHP 8.2 SensitiveParameter; argument capture stays enabled.",
             "input": [
                 {
                     "name": "site",
@@ -90,14 +90,16 @@
                 }
             ],
             "effects": [
-                "dashboard.site_created"
+                "dashboard.site_created",
+                "dashboard.github_cooldown_created",
+                "dashboard.github_cooldown_updated"
             ]
         },
         {
             "id": "dashboard.update_site",
             "kind": "command",
-            "version": 2,
-            "description": "Authenticated CSRF-protected update; clear obsolete check state on configuration change. Validate the actual GitHub branch using a supplied or saved token; encrypt token replacement, preserve blank token or explicitly remove it. Validate active bounded JSON paths, health mode, operator and finite numeric expected values; retain submitted values and report field errors. Persist JSON settings; unchanged legacy inputs default to HTTP and automatic version extraction.",
+            "version": 3,
+            "description": "Authenticated CSRF-protected update; clear obsolete check state on configuration change. Validate the actual GitHub branch using a supplied or saved token; encrypt token replacement, preserve blank token or explicitly remove it. Validate active bounded JSON paths, health mode, operator and finite numeric expected values; retain submitted values and report field errors. Persist JSON settings; unchanged legacy inputs default to HTTP and automatic version extraction. GitHub uses serial REST, safe typed access/rate/unavailable/budget/rotation failures and no retry/sleep. Primary core/search eligibility is stable-handle scoped; secondary is installation-shared and persisted across CLI/web. A 256-entry sweep-local semantic memo is isolated by credential revision and metric/branch; no-release requires repository access confirmation. Monitoring: five attempts/24s per site; branches: eleven attempts; connection: 100 attempts/120s scheduling budget. cURL is clamped; synchronous DNS can overrun and is checked before HTTP. Preserve partial metrics; reject credentials changed before/after load or cache hits. Authenticated preview initializes a missing private identity key only before reusable/per-site ciphertext or any key-derived cooldown state exists. Established missing keys fail before key creation and HTTP with backup-restoration guidance; corrupt/unreadable keys remain unchanged. Restoring/moving the original key preserves equivalence/decryption. Public connection input/site arrays redact complete key-error trace arguments with PHP 8.2 SensitiveParameter; argument capture stays enabled.",
             "input": [
                 {
                     "name": "id",
@@ -115,7 +117,9 @@
                 }
             ],
             "effects": [
-                "dashboard.site_updated"
+                "dashboard.site_updated",
+                "dashboard.github_cooldown_created",
+                "dashboard.github_cooldown_updated"
             ]
         },
         {
@@ -139,8 +143,8 @@
         {
             "id": "dashboard.check_site",
             "kind": "command",
-            "version": 3,
-            "description": "Skip disabled sites. Bounded HTTP health/version requests and GitHub provider metadata; store only against the unchanged configuration. Preserve partial/unknown outcomes instead of inventing successful data. Empty version_path skips version request without error. Reusable token changes invalidate in-flight results. HTTP health keeps 2xx semantics. JSON health requires 2xx plus ==, !=, contains or a finite numeric >, >=, <, <= comparison. Missing/null/composite/invalid JSON is unknown; a false predicate or non-2xx is offline. Optional version selector extracts a string and retains root commit aliases. All five JSON settings participate in the unchanged-configuration guard. Manual and CLI checks share this logic. Empty health_path selects the unchanged base URL and requires HTTP 200, without parsing HTML as JSON. HTTP failures and false JSON conditions are offline; timeout/refused/DNS/SSRF/TLS/size/invalid responses are unknown with health_error_code, and valid HTTP responses retain health_http_status. Transport errors never expose URLs, headers or response bodies. All health paths use the same error policy.",
+            "version": 4,
+            "description": "Skip disabled sites. Bounded HTTP health/version requests and GitHub provider metadata; store only against the unchanged configuration. Preserve partial/unknown outcomes instead of inventing successful data. Empty version_path skips version request without error. Reusable token changes invalidate in-flight results. HTTP health keeps 2xx semantics. JSON health requires 2xx plus ==, !=, contains or a finite numeric >, >=, <, <= comparison. Missing/null/composite/invalid JSON is unknown; a false predicate or non-2xx is offline. Optional version selector extracts a string and retains root commit aliases. All five JSON settings participate in the unchanged-configuration guard. Manual and CLI checks share this logic. Empty health_path selects the unchanged base URL and requires HTTP 200, without parsing HTML as JSON. HTTP failures and false JSON conditions are offline; timeout/refused/DNS/SSRF/TLS/size/invalid responses are unknown with health_error_code, and valid HTTP responses retain health_http_status. Transport errors never expose URLs, headers or response bodies. All health paths use the same error policy. GitHub uses serial REST, safe typed access/rate/unavailable/budget/rotation failures and no retry/sleep. Primary core/search eligibility is stable-handle scoped; secondary is installation-shared and persisted across CLI/web. A 256-entry sweep-local semantic memo is isolated by credential revision and metric/branch; no-release requires repository access confirmation. Monitoring: five attempts/24s per site; branches: eleven attempts; connection: 100 attempts/120s scheduling budget. cURL is clamped; synchronous DNS can overrun and is checked before HTTP. Preserve partial metrics; reject credentials changed before/after load or cache hits. Retained ciphertext/key identities forbid missing-key creation; restore backup before HTTP. Empty state initializes atomically; corrupt/unreadable keys stay unchanged. Public arrays use SensitiveParameter.",
             "input": [
                 {
                     "name": "id",
@@ -151,14 +155,16 @@
                 }
             ],
             "effects": [
-                "dashboard.site_updated"
+                "dashboard.site_updated",
+                "dashboard.github_cooldown_created",
+                "dashboard.github_cooldown_updated"
             ]
         },
         {
             "id": "dashboard.list_branches",
             "kind": "command",
-            "version": 1,
-            "description": "Authenticated CSRF-protected POST previews branches from the fixed GitHub API using new, saved or installation credentials. Paginate without silent truncation, bound requests, handle private access errors; never save or return credentials. HTTP success JSON contains repository, default_branch and branches; failure contains error. Selected shared token must exist and match the Git provider.",
+            "version": 2,
+            "description": "Authenticated CSRF-protected POST previews branches from the fixed GitHub API using new, saved or installation credentials. Paginate without silent truncation, bound requests, handle private access errors; never save or return credentials. HTTP success JSON contains repository, default_branch and branches; failure contains error. Selected shared token must exist and match the Git provider. GitHub uses serial REST, safe typed access/rate/unavailable/budget/rotation failures and no retry/sleep. Primary core/search eligibility is stable-handle scoped; secondary is installation-shared and persisted across CLI/web. A 256-entry sweep-local semantic memo is isolated by credential revision and metric/branch; no-release requires repository access confirmation. Monitoring: five attempts/24s per site; branches: eleven attempts; connection: 100 attempts/120s scheduling budget. cURL is clamped; synchronous DNS can overrun and is checked before HTTP. Preserve partial metrics; reject credentials changed before/after load or cache hits. Authenticated preview initializes a missing private identity key only before reusable/per-site ciphertext or any key-derived cooldown state exists. Established missing keys fail before key creation and HTTP with backup-restoration guidance; corrupt/unreadable keys remain unchanged. Restoring/moving the original key preserves equivalence/decryption. Public connection input/site arrays redact complete key-error trace arguments with PHP 8.2 SensitiveParameter; argument capture stays enabled.",
             "input": [
                 {
                     "name": "repository",
@@ -199,6 +205,10 @@
                         }
                     }
                 }
+            ],
+            "effects": [
+                "dashboard.github_cooldown_created",
+                "dashboard.github_cooldown_updated"
             ]
         },
         {
@@ -283,6 +293,20 @@
             "effects": [
                 "dashboard.git_token_deleted"
             ]
+        },
+        {
+            "id": "dashboard.github_cooldown_created",
+            "kind": "effect",
+            "version": 1,
+            "operation": "create",
+            "entity": "dashboard.github_cooldown"
+        },
+        {
+            "id": "dashboard.github_cooldown_updated",
+            "kind": "effect",
+            "version": 1,
+            "operation": "update",
+            "entity": "dashboard.github_cooldown"
         }
     ]
 }

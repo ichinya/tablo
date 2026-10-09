@@ -21,6 +21,7 @@ final class WebFixture
             $this->server = new TestServer($this->directory, $root . '/tests/web-router.php', $root . '/public', [
                 'TABLO_DB' => $this->directory->path . '/test.sqlite',
                 'TABLO_TEST_RUNTIME' => $this->directory->path . '/runtime',
+                'TABLO_TEST_GITHUB_LOG' => $this->directory->path . '/github-calls.log',
                 'TABLO_ALLOW_PRIVATE_NETWORK' => $allowPrivateNetwork ? '1' : '0', 'TABLO_COOKIE_SECURE' => '0',
                 // Assert that a legacy environment token cannot grant private repository access.
                 'GITHUB_TOKEN' => 'fixture-token',

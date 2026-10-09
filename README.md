@@ -223,7 +223,10 @@ wildcard, фильтры и рекурсивный поиск. Ограниче�
 GitHub token — разные учётные данные.
 
 Сохранённые и отдельные токены проектов хранятся в SQLite зашифрованными AES-256-GCM. Ключ
-`github-token.key` создаётся рядом с файлом БД при первом сохранении токена. Поле
+`github-token.key` создаётся рядом с файлом БД при первом сохранении токена или
+первом authenticated preview в пустой установке. Если сохранены зашифрованные
+credentials или private quota identities, preview при утрате ключа требует
+восстановить оригинал из бэкапа, до создания файла и GitHub-запросов. Поле
 на странице редактирования всегда пустое: пустое сохраняет прежний токен, новый
 заменяет его, флажок удаляет. Токен не возвращается в HTML/JSON и отправляется
 только в Authorization к `api.github.com`. Загрузка веток не сохраняет токен или
@@ -384,6 +387,11 @@ $db->exec('PRAGMA busy_timeout = 5000; PRAGMA foreign_keys = ON');
 $key = dirname($path) . '/github-token.key';
 $hasTokens = (int) $db->query("SELECT (SELECT count(*) FROM git_tokens)
     + (SELECT count(*) FROM sites WHERE github_token IS NOT NULL AND github_token <> '')")->fetchColumn() > 0;
+// Schema 3 can retain private quota identity after every encrypted credential is removed.
+$hasQuotaTable = (int) $db->query("SELECT count(*) FROM sqlite_schema WHERE type = 'table' AND name = 'github_cooldowns'")->fetchColumn() > 0;
+if ($hasQuotaTable) {
+    $hasTokens = $hasTokens || (bool) $db->query("SELECT EXISTS(SELECT 1 FROM github_cooldowns WHERE scope LIKE 'credential:v1:%')")->fetchColumn();
+}
 if ($hasTokens && !is_file($key)) { throw new RuntimeException('Ключ токенов отсутствует; бэкап неполон.'); }
 $backup = dirname($path) . '/backups/wal-' . gmdate('Ymd-His') . '-' . bin2hex(random_bytes(4));
 if (!mkdir($backup, 0700, true)) { throw new RuntimeException('Не удалось создать каталог бэкапа.'); }
@@ -410,7 +418,8 @@ if ($LASTEXITCODE -ne 0) { throw 'Бэкап не завершён.' }
 Для Docker передайте тот же скрипт через
 `$walBackupScript | docker compose exec -T --user www-data tablo php`.
 Проверьте код завершения. Если сохранены токены, отсутствие соответствующего
-`github-token.key` делает восстановление неполным. Прерванный `VACUUM INTO` оставляет
+`github-token.key` делает восстановление неполным; ключ также нужен для сохранённых
+private quota identities, даже после удаления всех зашифрованных токенов. Прерванный `VACUUM INTO` оставляет
 неполный выходной файл: он не считается бэкапом. Перенесите проверенную пару за пределы
 живого каталога/тома и ограничьте доступ (Windows ACL, Unix каталог 0700, файлы 0600);
 бэкап только внутри того же volume не защищает от его потери.
@@ -661,6 +670,14 @@ composer test
 ```powershell
 php tests/browser-fixture.php artifacts/screenshots-demo/browser.sqlite
 ```
+
+GitHub-проверки используют последовательный REST без автоматических повторов. Лимиты
+core/search и общий secondary cooldown сохраняются между CLI и web; успешные частичные
+метрики сохраняются. Одинаковый token под разными сохранёнными/ручными handles разделяет
+primary cooldown через HMAC с private vault key; ротация handle сохраняет его cooldown.
+Некорректные remaining/Retry-After сами по себе не блокируют другие credentials; 301/302,
+неподтверждённая ветка и большой список веток дают безопасные указания для исправления.
+[Политика, реальные границы времени и измерения на 20 сайтах](docs/github-polling.md).
 
 Фикстура содержит только вымышленные проекты `example/*` и демонстрационный токен.
 Для визуальной проверки используйте `tests/web-router.php` с `TABLO_DB`, указывающим
