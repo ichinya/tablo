@@ -39,11 +39,14 @@ final class TokenVault
         return $token;
     }
 
-    public function credentialScope(#[\SensitiveParameter] string $token): string
+    public function credentialScope(#[\SensitiveParameter] string $token, bool $initialize = true): string
     {
         // Domain separation: persist neither the token nor an unkeyed digest. The existing
         // private vault key makes this identity stable across processes and external key paths.
-        $identityKey = hash_hmac('sha256', 'tablo/github-primary-scope/v1', $this->key(!file_exists($this->keyPath)), true);
+        // The repository permits initialization only before encrypted/key-derived state exists.
+        // Existing corrupt/unreadable files and dangling links must never become replacement keys.
+        $identityKey = hash_hmac('sha256', 'tablo/github-primary-scope/v1',
+            $this->key($initialize && !file_exists($this->keyPath) && !is_link($this->keyPath)), true);
         return 'credential:v1:' . hash_hmac('sha256', $token, $identityKey);
     }
 

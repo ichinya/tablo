@@ -12,7 +12,7 @@ final class GitHubConnection
         $this->policy = $policy ?? new GitHubRequestPolicy($sites->githubCooldowns());
     }
 
-    public function provider(?array $site, array $input = []): GitHubProvider
+    public function provider(#[\SensitiveParameter] ?array $site, #[\SensitiveParameter] array $input = []): GitHubProvider
     {
         GitProviders::requireSupported($site['provider'] ?? 'github');
         try {
@@ -39,7 +39,7 @@ final class GitHubConnection
         return new GitHubProvider($this->http, $token, $this->policy, new GitHubCredential($revision, $scope, $current, $equivalentScope));
     }
 
-    public function branches(array $input, ?array $site = null): array
+    public function branches(#[\SensitiveParameter] array $input, #[\SensitiveParameter] ?array $site = null): array
     {
         $repository = SiteRepository::normalizeRepository(is_string($input['repository'] ?? null) ? $input['repository'] : '');
         $provider = $this->provider($site, $input);
@@ -50,7 +50,7 @@ final class GitHubConnection
         }
     }
 
-    public function validate(array $input, ?array $site = null): void
+    public function validate(#[\SensitiveParameter] array $input, #[\SensitiveParameter] ?array $site = null): void
     {
         $data = SiteRepository::normalize($input);
         $provider = $this->provider($site, $input);

@@ -36,7 +36,7 @@ try {
                 default => 'tests/Unit/SiteRepositoryTest.php',
             };
             if (in_array($symbol['id'], ['dashboard.list_branches', 'dashboard.check_site', 'dashboard.create_site', 'dashboard.update_site'], true)) {
-                $unitTests .= ',tests/Unit/GitHubCredentialTest.php,tests/Network/GitHubCorrectionsTest.php';
+                $unitTests .= ',tests/Unit/GitHubCredentialTest.php,tests/Network/GitHubCorrectionsTest.php,tests/Network/GitHubKeyCustodyTest.php';
             }
             $tests = ($unitTests === '' ? '' : $unitTests . ',') . 'tests/Http/DashboardTest.php';
             if (in_array($symbol['id'], ['dashboard.create_site', 'dashboard.update_site', 'dashboard.check_site'], true)) {

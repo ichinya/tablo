@@ -659,7 +659,7 @@
             "id": "dashboard.github_cooldown",
             "kind": "entity",
             "version": 1,
-            "description": "Schema 3 additive persistent eligibility. Primary core/search uses anonymous or stable saved/site handles plus a domain-separated HMAC identity of the exact effective token from the private vault key. Equal tokens across saved/manual/duplicate handles and previews share primary eligibility across processes; an observed equivalent handle retains eligibility on rotation. Shared secondary requires affirmative rate evidence. No raw token, unkeyed secret digest, request headers or response body is stored. Existing ciphertext/default/external keys are preserved. Atomic maximum updates cannot shorten eligibility.",
+            "description": "Schema 3 additive persistent eligibility. Primary core/search uses anonymous or stable saved/site handles plus a domain-separated HMAC identity of the exact effective token from the private vault key. Equal tokens across saved/manual/duplicate handles and previews share primary eligibility across processes; an observed equivalent handle retains eligibility on rotation. Shared secondary requires affirmative rate evidence. No raw token, unkeyed secret digest, request headers or response body is stored. Existing ciphertext/default/external keys are preserved. Atomic maximum updates cannot shorten eligibility. Retained credential:v1 identities, including expired rows without any remaining encrypted credential, forbid manual preview from replacing a missing vault key; restore the original key.",
             "identity": [
                 "scope",
                 "resource"

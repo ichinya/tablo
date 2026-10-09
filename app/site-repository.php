@@ -216,7 +216,14 @@ final class SiteRepository
 
     public function equivalentCredentialScope(#[\SensitiveParameter] string $token): ?string
     {
-        return $token === '' ? null : $this->tokens->credentialScope($token);
+        if ($token === '') { return null; }
+        // Even expired key-derived quota rows retain the original key's custody. A manual
+        // read-only preview must not orphan them or either kind of installed ciphertext.
+        $established = (bool) $this->db->query("SELECT
+            EXISTS(SELECT 1 FROM git_tokens WHERE encrypted_token <> '')
+            OR EXISTS(SELECT 1 FROM sites WHERE github_token <> '')
+            OR EXISTS(SELECT 1 FROM github_cooldowns WHERE scope LIKE 'credential:v1:%')")->fetchColumn();
+        return $this->tokens->credentialScope($token, !$established);
     }
 
     public function save(array $input, ?int $id = null): int
