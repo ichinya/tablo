@@ -58,10 +58,10 @@ final class Database
     public static function openExisting(#[\SensitiveParameter] ?string $path = null): PDO
     {
         $path = self::resolvePath($path);
-        if ($path === '' || $path === ':memory:' || str_contains($path, "\0")
-            || (str_starts_with($path, 'file:') && preg_match('/[?&]mode=(?:memory|ro)(?:&|$)/', $path) === 1)) {
+        if ($path === '' || $path === ':memory:' || str_contains($path, "\0")) {
             throw new InstallationException('Installation unavailable.');
         }
+        self::validateExistingUri($path);
         try {
             // URI options cannot grant CREATE when the actual open flags omit it.
             $flags = PHP_VERSION_ID >= 80400 ? \Pdo\Sqlite::ATTR_OPEN_FLAGS : PDO::SQLITE_ATTR_OPEN_FLAGS;
@@ -78,6 +78,25 @@ final class Database
         } catch (RuntimeException) {
             // DSNs and native diagnostics may contain private configuration.
             throw new InstallationException('Installation unavailable.');
+        }
+    }
+
+    private static function validateExistingUri(#[\SensitiveParameter] string $path): void
+    {
+        if (!str_starts_with($path, 'file:')) { return; }
+        $query = explode('?', explode('#', $path, 2)[0], 2)[1] ?? '';
+        foreach (explode('&', $query) as $parameter) {
+            [$name, $value] = array_pad(explode('=', $parameter, 2), 2, '');
+            $name = rawurldecode($name);
+            $value = rawurldecode($value);
+            // SQLite decodes URI keys/values, and these options override useful
+            // READWRITE/locking behavior. Keep the original URI for actual PDO.
+            if (str_contains($name . $value, "\0")
+                || ($name === 'mode' && in_array($value, ['ro', 'memory'], true))
+                || (in_array($name, ['immutable', 'nolock'], true)
+                    && !in_array(strtolower($value), ['', '0', 'false', 'off', 'no'], true))) {
+                throw new InstallationException('Installation unavailable.');
+            }
         }
     }
 

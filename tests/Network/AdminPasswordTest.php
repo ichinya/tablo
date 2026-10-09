@@ -70,7 +70,11 @@ final class AdminPasswordTest
             $db = Database::connect($path);
             (new Auth($db))->setup('fixture-password', 'fixture-password');
             $db = null;
-            foreach ([$path, 'space ж.sqlite', 'file:' . str_replace('%2F', '/', rawurlencode(str_replace('\\', '/', $path))) . '?mode=rw'] as $selection) {
+            $uri = 'file:' . str_replace('%2F', '/', rawurlencode(str_replace('\\', '/', $path)));
+            foreach ([$path, 'space ж.sqlite', $uri . '?mode=rw', $uri . '?mode=rw&immutable=false&nolock=0',
+                $uri . '?mode=rw&nolock=false&nolock=0&immutable=no&immutable=off',
+                $uri . '?mode=rw&mode.x=ro&mode_x=ro&immutable+=1&no.lock=1&nolock_x=1',
+                $uri . '?mode=rw#&immutable=1&nolock=1'] as $selection) {
                 $result = self::command($directory, $selection, ['--show-installation']);
                 Assert::same($result['exit_code'], 0, $result['stderr']);
                 Assert::true(str_contains($result['stdout'], 'administrator=1; schema=2'));
@@ -78,7 +82,12 @@ final class AdminPasswordTest
                 Assert::true(str_contains($result['stdout'], 'space ж.sqlite'));
             }
             foreach ([':memory:', 'file::memory:?cache=shared', 'file:transient?mode=memory', $directory->path . '/missing/sub.sqlite',
-                'file:' . $directory->path . '/missing.sqlite?mode=rwc', 'file:' . $path . '?mode=ro'] as $selection) {
+                'file:' . $directory->path . '/missing.sqlite?mode=rwc', $uri . '?mode=ro', $uri . '?mode=%72%6f',
+                $uri . '?%6dode=memory', $uri . '?mode=rw&immutable=1', $uri . '?%69mmutable=TrUe',
+                $uri . '?nolock=1', $uri . '?nolock=2', $uri . '?nolock=unknown', $uri . '?mode=rw%00',
+                $uri . '?mode=rw&immutable=0&nolock=on', $uri . '?nolock=0&nolock=1',
+                $uri . '?nolock=1&nolock=0', $uri . '?immutable=0&immutable=1', $uri . '?immutable=1&immutable=0',
+                $uri . '?mode=rw&mode=ro', $uri . '?mode=ro&mode=rw'] as $selection) {
                 Assert::same(self::command($directory, $selection, ['--show-installation'])['exit_code'], 3);
                 Assert::true(!file_exists($directory->path . '/missing') && !file_exists($directory->path . '/missing.sqlite'));
             }
@@ -115,17 +124,21 @@ final class AdminPasswordTest
             $path = $directory->path . '/fixture.sqlite';
             $db = Database::connect($path);
             (new Auth($db))->setup('fixture-password', 'fixture-password');
-            $first = new PasswordProcess($directory, $path);
-            $second = new PasswordProcess($directory, $path);
-            $first->send("first-new-secret\nfirst-new-secret\n");
-            $second->send("second-new-secret\nsecond-new-secret\n");
-            $results = [$first->finish()['exit_code'], $second->finish()['exit_code']];
-            sort($results);
-            Assert::same($results, [0, 4]);
-            Assert::same((int) $db->query('SELECT COUNT(*) FROM users')->fetchColumn(), 1);
-            Assert::true(!(new Auth($db))->needsSetup());
-            Assert::same(self::command($directory, $path, ['--password-stdin'], "later-new-secret\nlater-new-secret\n")['exit_code'], 0);
-            Assert::true((new Auth($db))->login('later-new-secret', 'client'));
+            $uri = 'file:' . str_replace('%2F', '/', rawurlencode(str_replace('\\', '/', $path)));
+            foreach ([$path, $uri . '?mode=rw&nolock=0&immutable=false'] as $selection) {
+                $first = new PasswordProcess($directory, $selection);
+                $second = new PasswordProcess($directory, $selection);
+                $first->send("first-new-secret\nfirst-new-secret\n");
+                $second->send("second-new-secret\nsecond-new-secret\n");
+                $results = [$first->finish()['exit_code'], $second->finish()['exit_code']];
+                sort($results);
+                Assert::same($results, [0, 4]);
+                Assert::same((int) $db->query('SELECT COUNT(*) FROM users')->fetchColumn(), 1);
+                Assert::true(!(new Auth($db))->needsSetup());
+                $first->close(); $second->close(); $first = $second = null;
+                Assert::same(self::command($directory, $selection, ['--password-stdin'], "later-new-secret\nlater-new-secret\n")['exit_code'], 0);
+                Assert::true((new Auth($db))->login('later-new-secret', 'client'));
+            }
         } finally { $first?->close(); $second?->close(); $db = null; $directory->close(); }
     }
 
