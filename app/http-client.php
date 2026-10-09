@@ -58,8 +58,9 @@ class HttpClient
         try {
             $ok = curl_exec($curl);
             if ($ok === false) {
-                throw $tooLarge ? new HttpFailure('size')
-                    : HttpFailure::fromCurl(curl_errno($curl), (int) curl_getinfo($curl, CURLINFO_OS_ERRNO));
+                if ($tooLarge) { throw new HttpFailure('size'); }
+                if (self::hasMalformedChunkFraming($curl)) { throw new HttpFailure('invalid-response'); }
+                throw HttpFailure::fromCurl(curl_errno($curl), (int) curl_getinfo($curl, CURLINFO_OS_ERRNO));
             }
             $status = curl_getinfo($curl, CURLINFO_RESPONSE_CODE);
             if ($status < 100 || $status > 599) { throw new HttpFailure('invalid-response'); }
@@ -69,6 +70,19 @@ class HttpClient
             // The handle is released by PHP when it leaves scope.
             unset($curl);
         }
+    }
+
+    private static function hasMalformedChunkFraming(\CurlHandle $curl): bool
+    {
+        // libcurl's HTTP chunk decoder also uses errno 56 for framing errors.
+        // Match only its known decoder diagnostics (lib/http_chunks.c). Never
+        // pass the raw buffer to an exception, stored result, or logger.
+        return curl_errno($curl) === CURLE_RECV_ERROR && preg_match(
+            '/\A(?:chunk hex-length char not a hex digit: 0x[0-9a-f]+|chunk hex-length longer than [0-9]+'
+            . '|invalid chunk size: \'[0-9a-fA-F]+\'|(?:Illegal or missing hexadecimal sequence'
+            . '|Too long hexadecimal number|Malformed encoding found) in chunked-encoding)\z/',
+            curl_error($curl),
+        ) === 1;
     }
 
     protected function resolve(string $host): array

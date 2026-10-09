@@ -30,7 +30,7 @@ try {
             $unitTests = match ($symbol['id']) {
                 'dashboard.setup', 'dashboard.login' => 'tests/Unit/AuthTest.php',
                 'dashboard.list_branches' => 'tests/Unit/GitHubProviderTest.php',
-                'dashboard.check_site' => 'tests/Unit/SiteCheckerTest.php,tests/Unit/HealthChecksTest.php,tests/Unit/HttpClientTest.php,tests/Unit/JsonChecksTest.php,tests/Network/HttpClientTest.php',
+                'dashboard.check_site' => 'tests/Unit/SiteCheckerTest.php,tests/Unit/HealthChecksTest.php,tests/Unit/HttpClientTest.php,tests/Unit/JsonChecksTest.php,tests/Network/HttpClientTest.php,tests/Network/HttpFramingTest.php,tests/Http/HttpFramingTest.php',
                 'dashboard.create_site', 'dashboard.update_site' => 'tests/Unit/SiteRepositoryTest.php,tests/Unit/JsonChecksTest.php',
                 'dashboard.logout' => '',
                 default => 'tests/Unit/SiteRepositoryTest.php',
