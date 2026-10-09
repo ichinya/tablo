@@ -43,7 +43,7 @@ try {
                 $tests .= ',tests/Http/JsonChecksTest.php,tests/Http/HealthChecksTest.php';
             }
             // Every HTTP action initializes the database before handling its own command/query.
-            $tests .= ',tests/Unit/DatabaseTest.php,tests/Unit/GitHubMigrationTest.php,tests/Network/DatabaseMigrationTest.php';
+            $tests .= ',tests/Unit/DatabaseTest.php,tests/Unit/GitHubMigrationTest.php,tests/Network/DatabaseMigrationTest.php,tests/Network/DatabaseWalTest.php,tests/Network/FixtureCleanupTest.php';
             runGate([$lekalo, 'contract', 'attach', $symbol['id'], '--native-test', $tests, '--gate', 'native-php-tests']);
         }
     }

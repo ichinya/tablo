@@ -309,9 +309,9 @@
             "kind": "entity",
             "source": {
                 "path": "app/sqlite-database.php",
-                "line": 116
+                "line": 125
             },
-            "fingerprint": "sha256:cbe9f1ab1302ae1eda13ac15e38b373d23615b155b537e3f0671b1be6018c4f9",
+            "fingerprint": "sha256:c5de01d0c57988fa4ecb2d36dd88e3f5476a2992b2f28b12884989314d79bb76",
             "signature": null,
             "effects": [],
             "shape": {
@@ -529,9 +529,9 @@
             "kind": "entity",
             "source": {
                 "path": "app/sqlite-database.php",
-                "line": 123
+                "line": 132
             },
-            "fingerprint": "sha256:cbe9f1ab1302ae1eda13ac15e38b373d23615b155b537e3f0671b1be6018c4f9",
+            "fingerprint": "sha256:c5de01d0c57988fa4ecb2d36dd88e3f5476a2992b2f28b12884989314d79bb76",
             "signature": null,
             "effects": [],
             "shape": {
