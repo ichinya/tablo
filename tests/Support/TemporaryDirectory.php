@@ -36,7 +36,19 @@ final class TemporaryDirectory
         }
         // Release Windows enumeration handles before removing their parent.
         unset($file, $files);
-        if (!rmdir($this->path)) { throw new RuntimeException('Cannot remove test directory: ' . $this->path); }
+        gc_collect_cycles();
+        $removed = @rmdir($this->path);
+        if (!$removed && DIRECTORY_SEPARATOR === '\\') {
+            // Windows may briefly retain delete-pending handles after child/file
+            // closure. Retry only this owned empty-directory removal, never files.
+            $deadline = microtime(true) + 0.5;
+            do {
+                usleep(10000);
+                clearstatcache(true, $this->path);
+                $removed = !is_dir($this->path) || @rmdir($this->path);
+            } while (!$removed && microtime(true) < $deadline);
+        }
+        if (!$removed) { throw new RuntimeException('Cannot remove test directory: ' . $this->path); }
         $this->closed = true;
     }
 }

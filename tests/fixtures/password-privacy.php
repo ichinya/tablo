@@ -19,6 +19,7 @@ try {
         fn () => $auth->setup('fixture-private-password', 'fixture-private-password'),
         fn () => $auth->setupSession('fixture-private-password', 'fixture-private-password'),
         fn () => $auth->changePassword('fixture-new-private-password', 'fixture-new-private-password', $fingerprint),
+        fn () => Tablo\Database::openExisting('file:' . $directory->path . '/fixture.sqlite?mode=fixture-private-confirmation'),
     ];
     for ($i = 0; $i < 5; $i++) { $auth->login('wrong', 'blocked'); }
     $actions[] = fn () => $auth->login('fixture-private-password', 'blocked');
@@ -43,6 +44,11 @@ try {
             if (count($parameters[$position]->getAttributes(SensitiveParameter::class)) !== 1) { throw new RuntimeException('Sensitive wrapper missing'); }
             ++$checks;
         }
+    }
+    foreach (['connect', 'openExisting', 'resolvePath', 'validateExistingUri', 'refuseExistingFailure'] as $method) {
+        $parameter = (new ReflectionMethod(Tablo\Database::class, $method))->getParameters()[0];
+        if (count($parameter->getAttributes(SensitiveParameter::class)) !== 1) { throw new RuntimeException('Sensitive connection wrapper missing'); }
+        ++$checks;
     }
     echo 'Complete propagated/previous traces redacted; ' . $checks . " checks.\n";
 } finally {

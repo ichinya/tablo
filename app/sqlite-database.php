@@ -75,16 +75,31 @@ final class Database
             self::installationIdentity($db);
             self::existingAdminHash($db);
             return $db;
-        } catch (RuntimeException) {
+        } catch (RuntimeException $error) {
             // DSNs and native diagnostics may contain private configuration.
-            throw new InstallationException('Installation unavailable.');
+            self::refuseExistingFailure($error, 'Installation unavailable.');
         }
+    }
+
+    private static function refuseExistingFailure(#[\SensitiveParameter] RuntimeException $error, string $message): never
+    {
+        $code = $error instanceof \PDOException ? (($error->errorInfo[1] ?? 0) & 255) : 0;
+        if (in_array($code, [5, 6], true)) {
+            $safe = new \PDOException('Installation busy.');
+            $safe->errorInfo = ['HY000', $code, null];
+            throw $safe;
+        }
+        throw new InstallationException($message);
     }
 
     private static function validateExistingUri(#[\SensitiveParameter] string $path): void
     {
         if (!str_starts_with($path, 'file:')) { return; }
-        $query = explode('?', explode('#', $path, 2)[0], 2)[1] ?? '';
+        $uri = explode('#', $path, 2)[0];
+        if (str_contains(rawurldecode($uri), "\0")) {
+            throw new InstallationException('Installation unavailable.');
+        }
+        $query = explode('?', $uri, 2)[1] ?? '';
         foreach (explode('&', $query) as $parameter) {
             [$name, $value] = array_pad(explode('=', $parameter, 2), 2, '');
             $name = rawurldecode($name);
@@ -122,8 +137,8 @@ final class Database
         try {
             $version = self::schemaVersion($db);
             self::validateSchema($db, true);
-        } catch (RuntimeException) {
-            throw new InstallationException('Installation schema incompatible.');
+        } catch (RuntimeException $error) {
+            self::refuseExistingFailure($error, 'Installation schema incompatible.');
         }
         if ($version !== self::CURRENT_SCHEMA_VERSION) {
             throw new InstallationException('Installation schema incompatible.');

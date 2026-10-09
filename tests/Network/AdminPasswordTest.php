@@ -87,9 +87,15 @@ final class AdminPasswordTest
                 $uri . '?nolock=1', $uri . '?nolock=2', $uri . '?nolock=unknown', $uri . '?mode=rw%00',
                 $uri . '?mode=rw&immutable=0&nolock=on', $uri . '?nolock=0&nolock=1',
                 $uri . '?nolock=1&nolock=0', $uri . '?immutable=0&immutable=1', $uri . '?immutable=1&immutable=0',
-                $uri . '?mode=rw&mode=ro', $uri . '?mode=ro&mode=rw'] as $selection) {
+                $uri . '?mode=rw&mode=ro', $uri . '?mode=ro&mode=rw', $uri . '?nolock%00suffix=1',
+                $uri . '?immutable%00suffix=1', $uri . '?mode%00suffix=ro', $uri . '%00suffix?mode=rw',
+                $uri . '?private=ignored%00suffix'] as $selection) {
                 Assert::same(self::command($directory, $selection, ['--show-installation'])['exit_code'], 3);
                 Assert::true(!file_exists($directory->path . '/missing') && !file_exists($directory->path . '/missing.sqlite'));
+            }
+            foreach (['?nolock%00suffix=1', '?immutable%00suffix=1', '?mode%00suffix=ro', '%00suffix?mode=rw',
+                '?private=ignored%00suffix', '?mode=%72%6f', '?immutable=1', '?nolock=1'] as $suffix) {
+                Assert::same(self::command($directory, $uri . $suffix, ['--password-stdin'], "replacement-secret\nreplacement-secret\n")['exit_code'], 3);
             }
             foreach ([0, 1, 3] as $version) {
                 $db = new PDO('sqlite:' . $path);
@@ -170,6 +176,14 @@ final class AdminPasswordTest
             Assert::same($process->finish()['exit_code'], 4, 'failed COMMIT busy');
             $process->close(); $process = null;
             $db->exec('ROLLBACK');
+            Assert::same($db->query('SELECT * FROM users')->fetchAll(), $old);
+            $db->exec('BEGIN EXCLUSIVE');
+            try {
+                $result = self::command($directory, $path, ['--password-stdin'], "replacement-secret\nreplacement-secret\n");
+                Assert::same($result['exit_code'], 4, 'opening an exclusively locked installation is busy');
+                Assert::same($result['stdout'], '');
+                Assert::true(!str_contains($result['stderr'], 'PDO'));
+            } finally { $db->exec('ROLLBACK'); }
             Assert::same($db->query('SELECT * FROM users')->fetchAll(), $old);
             $process = new PasswordProcess($directory, $path);
             $process->send('');
