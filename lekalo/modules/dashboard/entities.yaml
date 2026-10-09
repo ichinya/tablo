@@ -73,7 +73,7 @@
         {
             "id": "dashboard.site_input",
             "kind": "value-object",
-            "version": 2,
+            "version": 3,
             "fields": [
                 {
                     "name": "name",
@@ -122,9 +122,10 @@
                 {
                     "name": "health_path",
                     "type": {
-                        "ref": "dashboard.text"
-                    },
-                    "required": true
+                        "optional": {
+                            "ref": "dashboard.text"
+                        }
+                    }
                 },
                 {
                     "name": "version_path",
@@ -204,13 +205,13 @@
                     }
                 }
             ],
-            "description": "Validated site configuration. JSON selectors accept root $, object fields, quoted JSON keys and array indexes, up to 512 bytes. Missing inputs default to HTTP health, operator == and empty paths/expected value. JSON health requires 2xx and a successful scalar predicate; extraction errors are unknown. Version selectors require a nonempty string up to 200 bytes; empty version endpoint disables selector validation and requests."
+            "description": "Validated site configuration. JSON selectors accept root $, object fields, quoted JSON keys and array indexes, up to 512 bytes. Missing inputs default to HTTP health, operator == and empty paths/expected value. JSON health requires 2xx and a successful scalar predicate; extraction errors are unknown. Version selectors require a nonempty string up to 200 bytes; empty version endpoint disables selector validation and requests. Empty health_path selects the base URL and strict HTTP 200; JSON settings are inactive until a health path is set."
         },
         {
             "id": "dashboard.site",
             "kind": "entity",
-            "version": 2,
-            "description": "A configured site and its most recent check. Null state means unknown, and stale checks are visibly marked. GitHub credentials are encrypted at rest and never returned to the UI; preserve key alongside database backups. Shared credentials are referenced by git_token_id; empty version_path disables installed-version requests and comparison. JSON selectors accept root $, object fields, quoted JSON keys and array indexes, up to 512 bytes. Missing inputs default to HTTP health, operator == and empty paths/expected value. JSON health requires 2xx and a successful scalar predicate; extraction errors are unknown. Version selectors require a nonempty string up to 200 bytes; empty version endpoint disables selector validation and requests.",
+            "version": 3,
+            "description": "A configured site and its most recent check. Null state means unknown, and stale checks are visibly marked. GitHub credentials are encrypted at rest and never returned to the UI; preserve key alongside database backups. Shared credentials are referenced by git_token_id; empty version_path disables installed-version requests and comparison. JSON selectors accept root $, object fields, quoted JSON keys and array indexes, up to 512 bytes. Missing inputs default to HTTP health, operator == and empty paths/expected value. JSON health requires 2xx and a successful scalar predicate; extraction errors are unknown. Version selectors require a nonempty string up to 200 bytes; empty version endpoint disables selector validation and requests. Empty health_path checks the base URL with strict HTTP 200, ignoring JSON settings. health_error_code and health_http_status preserve secret-free structured diagnostics; network and invalid responses remain unknown.",
             "identity": [
                 "id"
             ],
@@ -436,6 +437,22 @@
                             "ref": "dashboard.number"
                         }
                     }
+                },
+                {
+                    "name": "health_error_code",
+                    "type": {
+                        "optional": {
+                            "ref": "dashboard.health_error_code"
+                        }
+                    }
+                },
+                {
+                    "name": "health_http_status",
+                    "type": {
+                        "optional": {
+                            "ref": "dashboard.number"
+                        }
+                    }
                 }
             ]
         },
@@ -630,6 +647,13 @@
             "version": 1,
             "base": "string",
             "description": "Validated operator whitelist: >, >=, <, <=, !=, ==, contains. Default ==. String equality and case-sensitive containment; finite numeric ordering."
+        },
+        {
+            "id": "dashboard.health_error_code",
+            "kind": "scalar",
+            "version": 1,
+            "base": "string",
+            "description": "Validated diagnostic whitelist: http, json-condition, timeout, refused, dns, ssrf, tls, size, invalid-response, invalid-url, network, check-error. Null means no health failure or no current diagnostic."
         }
     ]
 }

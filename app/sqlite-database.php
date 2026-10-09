@@ -9,7 +9,7 @@ use Throwable;
 
 final class Database
 {
-    public const CURRENT_SCHEMA_VERSION = 1;
+    public const CURRENT_SCHEMA_VERSION = 2;
 
     // Version 0 installations may lack these additive fields and git_tokens.
     private const SITE_ADDITIONS = [
@@ -65,6 +65,7 @@ final class Database
             while ($version < self::CURRENT_SCHEMA_VERSION) {
                 match ($version) {
                     0 => self::migrateToVersionOne($db),
+                    1 => self::migrateToVersionTwo($db),
                     default => throw new RuntimeException('No migration for SQLite schema version ' . $version),
                 };
                 $version++;
@@ -109,6 +110,13 @@ final class Database
             }
         }
         self::validateSchema($db, true);
+    }
+
+    private static function migrateToVersionTwo(PDO $db): void
+    {
+        self::validateSchema($db, true);
+        $db->exec('ALTER TABLE sites ADD COLUMN health_error_code TEXT');
+        $db->exec('ALTER TABLE sites ADD COLUMN health_http_status INTEGER CHECK (health_http_status BETWEEN 100 AND 599)');
     }
 
     private static function validateSchema(PDO $db, bool $complete): void

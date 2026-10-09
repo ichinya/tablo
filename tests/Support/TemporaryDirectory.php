@@ -26,8 +26,13 @@ final class TemporaryDirectory
             \RecursiveIteratorIterator::CHILD_FIRST,
         );
         foreach ($files as $file) {
-            $removed = $file->isDir() && !$file->isLink() ? rmdir($file->getPathname()) : unlink($file->getPathname());
-            if (!$removed) { throw new RuntimeException('Cannot remove test fixture: ' . $file->getPathname()); }
+            $path = $file->getPathname();
+            $removed = $file->isDir() && !$file->isLink() ? @rmdir($path) : @unlink($path);
+            // A transient SQLite/Windows file can disappear after the directory was enumerated.
+            clearstatcache(true, $path);
+            if (!$removed && (file_exists($path) || is_link($path))) {
+                throw new RuntimeException('Cannot remove test fixture: ' . $path);
+            }
         }
         if (!rmdir($this->path)) { throw new RuntimeException('Cannot remove test directory: ' . $this->path); }
         $this->closed = true;

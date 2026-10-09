@@ -24,7 +24,9 @@
         <fieldset class="comparison-choice"><legend>Сравнивать установленную версию с</legend><label class="radio-card"><input type="radio" name="comparison_mode" value="release" {% if site['comparison_mode'] == 'release' %}checked{% endif %}><span><strong>Последним релизом</strong><small>Последний опубликованный стабильный release</small></span></label><label class="radio-card"><input type="radio" name="comparison_mode" value="branch" {% if site['comparison_mode'] == 'branch' %}checked{% endif %}><span><strong>HEAD ветки</strong><small>Последний коммит выбранной ветки</small></span></label></fieldset>
     </div>
     <div class="form-section"><h2>Проверки</h2><p class="section-description">Пути относительно адреса сайта, без перехода на другой домен.</p>
-        <label for="health_path">Health endpoint</label><input id="health_path" name="health_path" value="{{ site['health_path'] }}" placeholder="/up" maxlength="300" required>
+        <label for="health_path">Health endpoint · необязательно</label><input id="health_path" name="health_path" value="{{ site['health_path'] }}" placeholder="/up" maxlength="300" aria-describedby="health-path-hint">
+        <p class="field-hint" id="health-path-hint">Если оставить пустым, проверяется главная страница. Только HTTP 200 означает Online.</p>
+        <div class="health-mode-fields" id="health-mode-fields">
         <label for="health_check_mode">Проверка доступности</label>
         <select id="health_check_mode" name="health_check_mode" aria-describedby="health-mode-hint{% if errors['health_check_mode'] is defined %} health_check_mode-error{% endif %}" {% if errors['health_check_mode'] is defined %}aria-invalid="true"{% endif %}>
             <option value="http" {% if site['health_check_mode'] == 'http' %}selected{% endif %}>HTTP-статус</option>
@@ -32,6 +34,7 @@
         </select>
         <p class="field-hint" id="health-mode-hint">HTTP 2xx означает Online. В режиме JSON дополнительно проверяется выбранное значение.</p>
         {% if errors['health_check_mode'] is defined %}<p class="field-error" id="health_check_mode-error">{{ errors['health_check_mode'] }}</p>{% endif %}
+        </div>
         <div class="json-check-fields" id="health-json-fields">
             <label for="health_json_path">JSON path</label><input id="health_json_path" name="health_json_path" value="{{ site['health_json_path'] }}" placeholder="$.result" maxlength="512" spellcheck="false" aria-describedby="health-json-hint{% if errors['health_json_path'] is defined %} health_json_path-error{% endif %}" {% if errors['health_json_path'] is defined %}aria-invalid="true"{% endif %}>
             <p class="field-hint" id="health-json-hint">Поле из JSON-ответа, например $.result или $.checks[0].status.</p>

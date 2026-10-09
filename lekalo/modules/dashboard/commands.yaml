@@ -139,8 +139,8 @@
         {
             "id": "dashboard.check_site",
             "kind": "command",
-            "version": 2,
-            "description": "Skip disabled sites. Bounded HTTP health/version requests and GitHub provider metadata; store only against the unchanged configuration. Preserve partial/unknown outcomes instead of inventing successful data. Empty version_path skips version request without error. Reusable token changes invalidate in-flight results. HTTP health keeps 2xx semantics. JSON health requires 2xx plus ==, !=, contains or a finite numeric >, >=, <, <= comparison. Missing/null/composite/invalid JSON is unknown; a false predicate or non-2xx is offline. Optional version selector extracts a string and retains root commit aliases. All five JSON settings participate in the unchanged-configuration guard. Manual and CLI checks share this logic.",
+            "version": 3,
+            "description": "Skip disabled sites. Bounded HTTP health/version requests and GitHub provider metadata; store only against the unchanged configuration. Preserve partial/unknown outcomes instead of inventing successful data. Empty version_path skips version request without error. Reusable token changes invalidate in-flight results. HTTP health keeps 2xx semantics. JSON health requires 2xx plus ==, !=, contains or a finite numeric >, >=, <, <= comparison. Missing/null/composite/invalid JSON is unknown; a false predicate or non-2xx is offline. Optional version selector extracts a string and retains root commit aliases. All five JSON settings participate in the unchanged-configuration guard. Manual and CLI checks share this logic. Empty health_path selects the unchanged base URL and requires HTTP 200, without parsing HTML as JSON. HTTP failures and false JSON conditions are offline; timeout/refused/DNS/SSRF/TLS/size/invalid responses are unknown with health_error_code, and valid HTTP responses retain health_http_status. Transport errors never expose URLs, headers or response bodies. All health paths use the same error policy.",
             "input": [
                 {
                     "name": "id",

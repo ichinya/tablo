@@ -11,6 +11,9 @@ final class Presenter
         $site['initial'] = mb_strtoupper(mb_substr($site['name'], 0, 1));
         $site['tone'] = 'muted';
         $site['status'] = 'Не проверен';
+        $reason = $site['health_error_code'] ?? null;
+        $site['health_reason_label'] = $reason === 'http' ? 'HTTP ' . ($site['health_http_status'] ?? '—')
+            : (HttpFailure::MESSAGES[$reason ?? ''] ?? '');
         if (!$site['enabled']) {
             $site['status'] = 'На паузе';
         } elseif ($site['online'] !== null) {

@@ -57,7 +57,7 @@ final class DatabaseTest
                 unset($db);
             }
             $db = Database::connect($directory->path . '/nested/test.sqlite');
-            Assert::same((int) $db->query('PRAGMA user_version')->fetchColumn(), 1);
+            Assert::same((int) $db->query('PRAGMA user_version')->fetchColumn(), Database::CURRENT_SCHEMA_VERSION);
         } finally {
             unset($db);
             $directory->close();
@@ -68,8 +68,7 @@ final class DatabaseTest
     public function currentSchemaOnlyReadsVersionEvenInsideCallerTransaction(): void
     {
         $db = new MigrationPdo(':memory:');
-        $db->exec(self::schema());
-        $db->exec('PRAGMA user_version = 1');
+        Database::migrate($db);
         $before = self::snapshot($db);
         $db->statements = [];
         Database::migrate($db);
@@ -123,7 +122,7 @@ final class DatabaseTest
                 $db = Database::connect($path);
                 Database::migrate($db);
                 $after = self::snapshot($db);
-                Assert::same($after['version'], 1);
+                Assert::same($after['version'], Database::CURRENT_SCHEMA_VERSION);
                 foreach ($before['rows'] as $table => $rows) {
                     foreach ($rows as $index => $row) {
                         Assert::same(array_intersect_key($after['rows'][$table][$index], $row), $row, 'Changed existing ' . $table . ' row');
@@ -146,6 +145,39 @@ final class DatabaseTest
                 unset($db, $old, $sites, $tokens, $vault);
                 $directory->close();
             }
+        }
+    }
+
+    #[Test]
+    public function upgradesVersionOneDiagnosticsAtomicallyWithoutChangingExistingRows(): void
+    {
+        foreach ([null, 'ALTER TABLE sites ADD COLUMN health_http_status', 'PRAGMA main.user_version = 2', 'COMMIT'] as $failure) {
+            $db = new MigrationPdo(':memory:');
+            $db->exec(self::schema());
+            $db->exec("PRAGMA user_version = 1;
+                INSERT INTO users (id,password_hash) VALUES (1,'synthetic-hash');
+                INSERT INTO sites (name,url,repository,github_token,health_path,online,last_error)
+                VALUES ('Existing','https://example.com/app','example/project','synthetic-ciphertext','/up',0,'Health: HTTP 503')");
+            $before = self::snapshot($db);
+            $db->failBefore = $failure;
+            if ($failure !== null) {
+                Assert::true(str_contains(self::errorMessage(fn () => Database::migrate($db)) ?? '', 'injected_migration_failure'));
+                Assert::same(self::snapshot($db), $before, 'failed version 2 migration leaves version 1 intact');
+                $db->failBefore = null;
+            }
+            Database::migrate($db);
+            $after = self::snapshot($db);
+            Assert::same($after['version'], Database::CURRENT_SCHEMA_VERSION);
+            foreach ($before['rows'] as $table => $rows) {
+                foreach ($rows as $index => $row) {
+                    Assert::same(array_intersect_key($after['rows'][$table][$index], $row), $row);
+                }
+            }
+            Assert::same($after['rows']['sites'][0]['health_error_code'], null);
+            Assert::same($after['rows']['sites'][0]['health_http_status'], null);
+            $db->statements = [];
+            Database::migrate($db);
+            Assert::same($db->statements, ['PRAGMA main.user_version']);
         }
     }
 
@@ -176,7 +208,7 @@ final class DatabaseTest
                 $db = new MigrationPdo($path);
                 Assert::same(self::snapshot($db), $before, $failure . ' persisted partial changes');
                 Database::migrate($db);
-                Assert::same((int) $db->query('PRAGMA user_version')->fetchColumn(), 1);
+                Assert::same((int) $db->query('PRAGMA user_version')->fetchColumn(), Database::CURRENT_SCHEMA_VERSION);
                 Assert::same($db->query('PRAGMA integrity_check')->fetchColumn(), 'ok');
             } finally {
                 unset($db);
@@ -188,7 +220,7 @@ final class DatabaseTest
     #[Test]
     public function rejectsFutureOrNegativeVersionsWithoutWrites(): void
     {
-        foreach ([2, -1] as $version) {
+        foreach ([Database::CURRENT_SCHEMA_VERSION + 1, -1] as $version) {
             $db = new MigrationPdo(':memory:');
             $db->exec(self::schema());
             $db->exec('PRAGMA user_version = ' . $version);
@@ -232,7 +264,7 @@ final class DatabaseTest
         $db->commit();
         Database::migrate($db);
         Assert::same($db->query('SELECT value FROM notes')->fetchColumn(), 'caller-owned');
-        Assert::same((int) $db->query('PRAGMA user_version')->fetchColumn(), 1);
+        Assert::same((int) $db->query('PRAGMA user_version')->fetchColumn(), Database::CURRENT_SCHEMA_VERSION);
     }
 
     #[Test]

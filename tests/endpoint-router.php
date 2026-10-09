@@ -1,7 +1,15 @@
 <?php
 declare(strict_types=1);
 
-switch (parse_url($_SERVER['REQUEST_URI'], PHP_URL_PATH)) {
+$path = parse_url($_SERVER['REQUEST_URI'], PHP_URL_PATH);
+if (preg_match('~^/homepage/(200|201|204|301|302|404|500|503)$~D', $path, $match)) {
+    http_response_code((int) $match[1]);
+    header('Content-Type: text/html');
+    if (in_array((int) $match[1], [301, 302], true)) { header('Location: /up'); }
+    echo '<html><body>Fixture homepage</body></html>';
+    return;
+}
+switch ($path) {
     case '/up':
         header('Content-Type: application/json');
         echo '{"status":"ok"}';
@@ -27,6 +35,10 @@ switch (parse_url($_SERVER['REQUEST_URI'], PHP_URL_PATH)) {
     case '/slow':
         sleep(10);
         echo 'late';
+        break;
+    case '/truncated':
+        header('Content-Length: 100');
+        echo 'short';
         break;
     default:
         http_response_code(404);

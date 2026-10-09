@@ -64,8 +64,11 @@ final class SiteRepository
             $errors['branch'] = 'Укажите ветку без пробелов, до 128 символов.';
         }
         foreach (['health_path', 'version_path'] as $field) {
+            if (array_key_exists($field, $input) && !is_string($input[$field])) {
+                $errors[$field] = 'Укажите путь строкой.';
+            }
             $path = $data[$field];
-            if ($field === 'version_path' && $path === '') { continue; }
+            if ($path === '') { continue; }
             if (!str_starts_with($path, '/') || str_starts_with($path, '//') || strlen($path) > 300
                 || preg_match('~[\s\\\\\x00-\x1f#]~', $path)) {
                 $errors[$field] = 'Укажите путь на этом сайте, например /up.';
@@ -80,7 +83,7 @@ final class SiteRepository
         foreach (['version_json_path', 'health_json_path'] as $field) {
             $raw = $input[$field] ?? '';
             $data[$field] = is_string($raw) ? trim($raw) : '';
-            $active = $field === 'version_json_path' ? $data['version_path'] !== '' : $mode === 'json';
+            $active = $field === 'version_json_path' ? $data['version_path'] !== '' : ($data['health_path'] !== '' && $mode === 'json');
             if (!$active || ($field === 'version_json_path' && is_string($raw) && $data[$field] === '')) { continue; }
             try {
                 if (!is_string($raw)) { throw new \InvalidArgumentException('Укажите JSON path строкой.'); }
@@ -93,7 +96,7 @@ final class SiteRepository
         $data['health_json_operator'] = is_string($operator) && in_array($operator, JsonField::OPERATORS, true) ? $operator : '==';
         $expected = $input['health_json_expected_value'] ?? '';
         $data['health_json_expected_value'] = is_string($expected) ? $expected : '';
-        if ($mode === 'json') {
+        if ($data['health_path'] !== '' && $mode === 'json') {
             if (!is_string($operator) || !in_array($operator, JsonField::OPERATORS, true)) {
                 $errors['health_json_operator'] = 'Выберите допустимое условие JSON-проверки.';
             }
@@ -203,7 +206,8 @@ final class SiteRepository
             return (int) $this->db->lastInsertId();
         }
         $sql = 'UPDATE sites SET ' . implode(', ', array_map(fn ($f) => "$f = ?", $fields)) . ',
-            online = NULL, deployed_version = NULL, deployed_commit = NULL, latest_release = NULL,
+            online = NULL, health_error_code = NULL, health_http_status = NULL,
+            deployed_version = NULL, deployed_commit = NULL, latest_release = NULL,
             latest_commit = NULL, open_issues = NULL, open_prs = NULL, response_time_ms = NULL,
             last_error = NULL, checked_at = NULL, updated_at = strftime(\'%Y-%m-%dT%H:%M:%SZ\', \'now\') WHERE id = ?';
         $this->db->prepare($sql)->execute([...array_values($data), $id]);
@@ -218,7 +222,7 @@ final class SiteRepository
     public function storeCheck(array $site, array $state): bool
     {
         // A result for an old configuration must not overwrite a concurrent edit.
-        $fields = ['online', 'deployed_version', 'deployed_commit', 'latest_release', 'latest_commit',
+        $fields = ['online', 'health_error_code', 'health_http_status', 'deployed_version', 'deployed_commit', 'latest_release', 'latest_commit',
             'open_issues', 'open_prs', 'response_time_ms', 'last_error', 'checked_at'];
         $config = ['name', 'url', 'repository', 'branch', 'health_path', 'version_path', 'version_json_path',
             'health_check_mode', 'health_json_path', 'health_json_operator', 'health_json_expected_value',

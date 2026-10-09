@@ -27,8 +27,8 @@
         {
             "id": "dashboard.check_outcomes",
             "kind": "scenario",
-            "version": 1,
-            "summary": "Health 2xx online, non-2xx offline, blocked/timeouts unknown; version or GitHub failure produces partial state; issues exclude PRs; comparison recognizes normalized release or SHA prefix.",
+            "version": 2,
+            "summary": "Empty health path checks the base URL with strict HTTP 200 and ignores JSON settings; explicit HTTP endpoints retain 2xx and JSON predicates. HTTP and false predicates are offline. DNS, timeout, refused, SSRF, TLS, size and invalid responses are unknown with persisted secret-free reasons and HTTP status. Manual and CLI checks agree; independent version/Git failures never overwrite valid health. Schema 1 upgrades atomically to 2 without rewriting existing rows.",
             "covers": [
                 "dashboard.check_site",
                 "dashboard.site"

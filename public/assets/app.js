@@ -36,17 +36,22 @@ document.addEventListener('DOMContentLoaded', () => {
   const form = document.querySelector('[data-site-form]');
   if (!form) return;
   const healthMode = form.querySelector('#health_check_mode');
+  const healthEndpoint = form.querySelector('#health_path');
+  const healthModeFields = form.querySelector('#health-mode-fields');
   const healthJsonFields = form.querySelector('#health-json-fields');
   const healthJsonPath = form.querySelector('#health_json_path');
   const versionEndpoint = form.querySelector('#version_path');
   const versionJsonPath = form.querySelector('#version_json_path');
   const checkFields = () => {
-    const json = healthMode.value === 'json';
+    const homePage = healthEndpoint.value.trim() === '';
+    const json = !homePage && healthMode.value === 'json';
+    healthModeFields.hidden = homePage;
     healthJsonFields.hidden = !json;
     healthJsonPath.required = json;
     versionJsonPath.disabled = versionEndpoint.value.trim() === '';
   };
   healthMode.addEventListener('change', checkFields);
+  healthEndpoint.addEventListener('input', checkFields);
   versionEndpoint.addEventListener('input', checkFields);
   checkFields();
   const repository = form.querySelector('#repository');

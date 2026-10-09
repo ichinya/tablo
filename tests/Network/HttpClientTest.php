@@ -5,6 +5,7 @@ namespace Tablo\Tests\Network;
 
 use RuntimeException;
 use Tablo\HttpClient;
+use Tablo\HttpFailure;
 use Tablo\SiteChecker;
 use Testo\Assert;
 use Testo\Test;
@@ -60,21 +61,40 @@ final class HttpClientTest
     #[Test]
     public function refusesResponsesOverOneMegabyte(): void
     {
-        $this->rejects('/large');
+        $this->rejects('/large', 'size');
     }
 
     #[Test]
     public function boundsStalledEndpointTimeout(): void
     {
         $start = microtime(true);
-        $this->rejects('/slow');
+        $this->rejects('/slow', 'timeout');
         Assert::true(microtime(true) - $start < 8, 'HTTP timeout is bounded');
     }
 
-    private function rejects(string $path): void
+    #[Test]
+    public function distinguishesRefusedTlsAndTruncatedResponses(): void
+    {
+        $socket = stream_socket_server('tcp://127.0.0.1:0', $number, $message);
+        if ($socket === false) { throw new RuntimeException($message); }
+        $address = stream_socket_get_name($socket, false);
+        fclose($socket);
+        foreach ([['http://' . $address, 'refused'], [str_replace('http:', 'https:', $this->server->base), 'tls']] as [$url, $reason]) {
+            $error = null;
+            try { (new HttpClient(true))->get($url); } catch (HttpFailure $caught) { $error = $caught; }
+            Assert::instanceOf($error, HttpFailure::class);
+            Assert::same($error->reason, $reason);
+            Assert::false(str_contains($error->getMessage(), $url));
+        }
+        $this->rejects('/truncated', 'invalid-response');
+    }
+
+    private function rejects(string $path, string $reason): void
     {
         $error = null;
         try { (new HttpClient(true))->get($this->server->base . $path); } catch (RuntimeException $caught) { $error = $caught; }
         Assert::instanceOf($error, RuntimeException::class, 'Unsafe or stalled response refused');
+        Assert::instanceOf($error, HttpFailure::class);
+        Assert::same($error->reason, $reason);
     }
 }
