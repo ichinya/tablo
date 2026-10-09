@@ -16,7 +16,7 @@ final class ClientAddress
     /** @var list<string> */
     private readonly array $proxies;
 
-    public function __construct(string|false $configuration = false)
+    public function __construct(#[\SensitiveParameter] string|false $configuration = false)
     {
         if ($configuration === false || $configuration === '') {
             $this->proxies = [];

@@ -4,13 +4,78 @@ declare(strict_types=1);
 namespace Tablo\Tests\Unit;
 
 use RuntimeException;
+use SensitiveParameterValue;
 use Tablo\ClientAddress;
 use Tablo\ValidationException;
+use Tablo\Web;
+use Tablo\Tests\Support\TemporaryDirectory;
 use Testo\Assert;
 use Testo\Test;
 
 final class ClientAddressTest
 {
+    #[Test]
+    public function actualWebPropagatesRedactedConfigurationBeforeAnyInitialization(): void
+    {
+        $directory = new TemporaryDirectory('tablo-config-trace-');
+        $configuration = getenv('TABLO_TRUSTED_PROXIES');
+        $database = getenv('TABLO_DB');
+        $ignoreArgs = ini_get('zend.exception_ignore_args');
+        $session = [session_status(), session_id(), session_name(), session_save_path(), $_SESSION ?? null];
+        $marker = 'malformed-' . bin2hex(random_bytes(24));
+        $caught = $error = $trace = $frame = $inspect = null;
+        try {
+            ini_set('zend.exception_ignore_args', '0');
+            Assert::same(ini_get('zend.exception_ignore_args'), '0');
+            putenv('TABLO_TRUSTED_PROXIES=' . $marker);
+            putenv('TABLO_DB=' . $directory->path . '/unused.sqlite');
+            try {
+                new Web(runtimeDirectory: $directory->path . '/runtime');
+            } catch (RuntimeException $exception) {
+                $caught = $exception;
+                unset($exception);
+            }
+            Assert::true($caught instanceof RuntimeException, 'Actual Web must reject malformed configuration');
+            Assert::same($caught->getMessage(), ClientAddress::CONFIG_ERROR);
+            // Inspect all propagated/previous traces only in memory. Never unwrap or print their arguments.
+            $inspect = static function (mixed $value) use ($marker, &$inspect): bool {
+                if ($value instanceof SensitiveParameterValue) { return false; }
+                if (is_string($value)) { return str_contains($value, $marker); }
+                if (is_array($value)) {
+                    foreach ($value as $key => $item) {
+                        if ($inspect($key) || $inspect($item)) { return true; }
+                    }
+                }
+                return false;
+            };
+            $redactedConstructor = false;
+            for ($error = $caught; $error !== null; $error = $error->getPrevious()) {
+                $trace = $error->getTrace();
+                Assert::true(!$inspect($trace), 'Raw configuration retained in propagated trace');
+                Assert::true(!str_contains($error->getMessage() . $error->getTraceAsString() . (string) $error, $marker),
+                    'Raw configuration retained in exception string');
+                foreach ($trace as $frame) {
+                    if (($frame['class'] ?? null) === ClientAddress::class && ($frame['function'] ?? null) === '__construct') {
+                        $redactedConstructor = ($frame['args'][0] ?? null) instanceof SensitiveParameterValue;
+                    }
+                }
+            }
+            Assert::true($redactedConstructor, 'Actual constructor argument must be SensitiveParameterValue');
+            Assert::true(!is_dir($directory->path . '/runtime'));
+            Assert::true(!is_file($directory->path . '/unused.sqlite'));
+            Assert::true(!is_file($directory->path . '/github-token.key'));
+            Assert::same(scandir($directory->path), ['.', '..'], 'Preflight must create no fixture files');
+            Assert::same([session_status(), session_id(), session_name(), session_save_path(), $_SESSION ?? null], $session);
+        } finally {
+            // Release retained exception frames before owned Windows directory cleanup, including assertion failures.
+            $caught = $error = $trace = $frame = $inspect = null;
+            ini_set('zend.exception_ignore_args', $ignoreArgs);
+            putenv($configuration === false ? 'TABLO_TRUSTED_PROXIES' : 'TABLO_TRUSTED_PROXIES=' . $configuration);
+            putenv($database === false ? 'TABLO_DB' : 'TABLO_DB=' . $database);
+            $directory->close();
+        }
+    }
+
     #[Test]
     public function ignoresAllForwardingWithoutImmediatePeerAuthority(): void
     {

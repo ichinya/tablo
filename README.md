@@ -322,8 +322,21 @@ zone ID, неопределённые `0.0.0.0`/`::` и пустые элеме�
 и 32 элемента до удаления эквивалентных дублей конфигурации. Частичная настройка
 не принимается: ошибка `Invalid TABLO_TRUSTED_PROXIES configuration.` останавливает
 Web до создания runtime, сессии или открытия БД; значения в диагностике отсутствуют.
+Аргумент конфигурации помечен PHP 8.2 `SensitiveParameter`: при включённом сборе
+аргументов исключения сохраняют `SensitiveParameterValue` вместо исходной строки.
 Unset и ровно пустая строка отключают доверие; строка из пробелов является ошибкой.
 Private/loopback/Docker-сети автоматически не доверяются.
+
+На проверенной native Windows PHP 8.5 сборке пустая переменная окружения при
+запуске дочернего PHP-процесса теряется, после чего Dotenv может снова загрузить
+сохранённое значение из `.env`. Внутри процесса `getenv()` при этом может возвращать
+пустую строку; это не универсальная семантика удаления переменной. Для отключения
+доверия на Windows очистите или измените также сохранённый `TABLO_TRUSTED_PROXIES`
+в `.env` и перезапустите PHP. На проверенных Linux PHP 8.2/8.4 пустая переменная,
+действительно переданная процессу через `env TABLO_TRUSTED_PROXIES= php ...`,
+сохраняется и блокирует загрузку сохранённого доверия. Передача пустой записи
+массивом окружения PHP `proc_open` на этих Linux сборках тоже теряет её: проверяйте
+реальное окружение дочернего процесса, а не только настройки средства запуска.
 
 Пустая настройка или недоверенный непосредственный peer полностью игнорирует
 X-Forwarded-For и использует канонический `REMOTE_ADDR`. Неверные транспортные
@@ -525,14 +538,20 @@ composer verify
 
 ```powershell
 php tools/capture-bindings.php
-# Просмотрите изменения contracts/php-bindings.json.
+# Просмотрите contracts/php-bindings.json и contracts/reviewed-dependencies.json.
 composer verify
 ```
 
 Capture фиксирует канонические контракты, source locations и fingerprints;
 это локальная декларация проекта, а не полноценный Phalcon target adapter
-или анализатор тел PHP. Runtime-семантика подтверждается native tests. Проверка
-никогда сама не пересоздаёт fingerprints. Встроенный PHP/Laravel adapter Lekalo
+или анализатор тел PHP. Runtime-семантика подтверждается native tests.
+Отдельный project-local manifest `contracts/reviewed-dependencies.json` фиксирует
+полные байты `app/client-address.php`, его владельца `Tablo\ClientAddress` и потребителя
+`Tablo\Web::__construct`. Это зависимость Web, а не declaration команды login/setup:
+их фактический владелец остаётся Auth. `composer verify` проверяет этот manifest
+до contract update/attach и тестов; даже изменение комментария требует review и
+явного capture. Проверка не обновляет ни один fingerprint автоматически.
+Встроенный PHP/Laravel adapter Lekalo
 не используется для Phalcon. Грамматика endpoint в текущем Model не принимает
 корневой `/`, поэтому dashboard описан query `dashboard.list_sites`, без
 вымышленного transport endpoint. Остальные POST endpoints есть в модели.
