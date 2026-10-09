@@ -32,8 +32,8 @@
         {
             "id": "dashboard.setup",
             "kind": "command",
-            "version": 1,
-            "description": "Create the sole administrator once; enforce password length and confirmation, hash password, then rotate session and CSRF token.",
+            "version": 2,
+            "description": "Create the sole administrator once using shared exact 12-72-byte confirmation and NUL validation with PASSWORD_DEFAULT/generated salt. Web binds its session to the hash actually inserted by Auth.setupSession, rotates session/CSRF and keeps initialized setup closed; the void Auth.setup wrapper remains compatible.",
             "input": [
                 {
                     "name": "password",
@@ -57,8 +57,8 @@
         {
             "id": "dashboard.login",
             "kind": "command",
-            "version": 1,
-            "description": "Verify administrator password, rate limit failed attempts, regenerate session id and CSRF token.",
+            "version": 2,
+            "description": "Verify under the existing atomic address throttle (five failures/900 seconds). Auth.loginSession returns an internal domain-separated fingerprint of the exact verified hash or its own committed replacement on rehash; Web binds that snapshot without recapture and rotates session/CSRF. Old snapshots fail at the next protected admission after credential change. Auth.login remains bool-compatible; timeout/cookie policy remains unchanged.",
             "input": [
                 {
                     "name": "password",
@@ -282,6 +282,38 @@
             ],
             "effects": [
                 "dashboard.git_token_deleted"
+            ]
+        },
+        {
+            "id": "dashboard.user_password_updated",
+            "kind": "effect",
+            "version": 1,
+            "operation": "update",
+            "entity": "dashboard.user"
+        },
+        {
+            "id": "dashboard.change_admin_password",
+            "kind": "command",
+            "version": 1,
+            "description": "Existing-installation-only local operator command: canonical opened-file/admin/schema preflight, protected bounded two-line UTF-8 stdin, shared password validation/hash, and raw BEGIN IMMEDIATE conditional update of administrator 1 against its before-input credential snapshot. Re-read current schema/admin, reject stale or same password, require one row and committed success. No create/migrate/delete/admin gap, key access, session-file deletion, public endpoint or rate-limit change; precommit owned failures roll back, uncertain postcommit output is never automatically retried.",
+            "input": [
+                {
+                    "name": "password",
+                    "type": {
+                        "ref": "dashboard.text"
+                    },
+                    "required": true
+                },
+                {
+                    "name": "confirmation",
+                    "type": {
+                        "ref": "dashboard.text"
+                    },
+                    "required": true
+                }
+            ],
+            "effects": [
+                "dashboard.user_password_updated"
             ]
         }
     ]

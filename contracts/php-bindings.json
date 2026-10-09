@@ -5,16 +5,16 @@
         "version": "0.1.0"
     },
     "project": "tablo",
-    "revision": "sha256:edaac56af09133f323f40e53bdc5afe6721f1a63cb9efffe2c9f4c12f928d231",
+    "revision": "sha256:67694d6dcd43bab4e825efbdfab2a6843d7a3d8803a6d6a10b30da69a9694907",
     "symbols": [
         {
             "id": "dashboard.setup",
             "kind": "command",
             "source": {
                 "path": "app/auth-service.php",
-                "line": 18
+                "line": 25
             },
-            "fingerprint": "sha256:2957e7608edce24e5724e3c488fa84547efe3f208698abf0d4b8d0e93e460a6a",
+            "fingerprint": "sha256:b5b1ad922d4c925d2267bcebde59272cfcf74f116fb6675365fa05f54299cd4e",
             "signature": {
                 "inputs": [
                     {
@@ -43,9 +43,9 @@
             "kind": "command",
             "source": {
                 "path": "app/auth-service.php",
-                "line": 37
+                "line": 44
             },
-            "fingerprint": "sha256:2957e7608edce24e5724e3c488fa84547efe3f208698abf0d4b8d0e93e460a6a",
+            "fingerprint": "sha256:b5b1ad922d4c925d2267bcebde59272cfcf74f116fb6675365fa05f54299cd4e",
             "signature": {
                 "inputs": [
                     {
@@ -60,13 +60,44 @@
             "effects": []
         },
         {
+            "id": "dashboard.change_admin_password",
+            "kind": "command",
+            "source": {
+                "path": "app/auth-service.php",
+                "line": 97
+            },
+            "fingerprint": "sha256:b5b1ad922d4c925d2267bcebde59272cfcf74f116fb6675365fa05f54299cd4e",
+            "signature": {
+                "inputs": [
+                    {
+                        "name": "password",
+                        "type": "dashboard.text",
+                        "required": true
+                    },
+                    {
+                        "name": "confirmation",
+                        "type": "dashboard.text",
+                        "required": true
+                    }
+                ],
+                "output": null,
+                "reads": []
+            },
+            "effects": [
+                {
+                    "kind": "update",
+                    "subject": "dashboard.user"
+                }
+            ]
+        },
+        {
             "id": "dashboard.logout",
             "kind": "command",
             "source": {
                 "path": "app/web-application.php",
-                "line": 124
+                "line": 130
             },
-            "fingerprint": "sha256:81f66e576344afe4ce710f9dec6d9c56ad8065de7f34b1527da89595d3749b26",
+            "fingerprint": "sha256:63fb56e535cf16b76e137a21a7f1deebe336f45ae588966848be38a4ec5c7f77",
             "signature": {
                 "inputs": [],
                 "output": null,
@@ -79,9 +110,9 @@
             "kind": "command",
             "source": {
                 "path": "app/web-application.php",
-                "line": 212
+                "line": 225
             },
-            "fingerprint": "sha256:81f66e576344afe4ce710f9dec6d9c56ad8065de7f34b1527da89595d3749b26",
+            "fingerprint": "sha256:63fb56e535cf16b76e137a21a7f1deebe336f45ae588966848be38a4ec5c7f77",
             "signature": {
                 "inputs": [
                     {
@@ -105,9 +136,9 @@
             "kind": "command",
             "source": {
                 "path": "app/web-application.php",
-                "line": 212
+                "line": 225
             },
-            "fingerprint": "sha256:81f66e576344afe4ce710f9dec6d9c56ad8065de7f34b1527da89595d3749b26",
+            "fingerprint": "sha256:63fb56e535cf16b76e137a21a7f1deebe336f45ae588966848be38a4ec5c7f77",
             "signature": {
                 "inputs": [
                     {
@@ -276,9 +307,9 @@
             "kind": "entity",
             "source": {
                 "path": "app/sqlite-database.php",
-                "line": 115
+                "line": 199
             },
-            "fingerprint": "sha256:7703bb05374bf98d94da7064f366043cff2527271594470f36ae6264ca32586f",
+            "fingerprint": "sha256:7bb334777829c3691e17ef173c45a0e1080c729af3279b376f9c0b47bf265652",
             "signature": null,
             "effects": [],
             "shape": {

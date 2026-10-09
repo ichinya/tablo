@@ -34,6 +34,8 @@ final class TemporaryDirectory
                 throw new RuntimeException('Cannot remove test fixture: ' . $path);
             }
         }
+        // Release Windows enumeration handles before removing their parent.
+        unset($file, $files);
         if (!rmdir($this->path)) { throw new RuntimeException('Cannot remove test directory: ' . $this->path); }
         $this->closed = true;
     }

@@ -28,11 +28,11 @@ try {
     foreach ($declaration['symbols'] as $symbol) {
         if (in_array($symbol['kind'], ['command', 'query'], true)) {
             $unitTests = match ($symbol['id']) {
-                'dashboard.setup', 'dashboard.login' => 'tests/Unit/AuthTest.php',
+                'dashboard.setup', 'dashboard.login', 'dashboard.change_admin_password' => 'tests/Unit/AuthTest.php,tests/Unit/PasswordServiceTest.php,tests/Unit/PasswordPrivacyTest.php,tests/Unit/AdminPasswordTest.php,tests/Network/AdminPasswordTest.php,tests/Http/AdminPasswordTest.php',
                 'dashboard.list_branches' => 'tests/Unit/GitHubProviderTest.php',
                 'dashboard.check_site' => 'tests/Unit/SiteCheckerTest.php,tests/Unit/HealthChecksTest.php,tests/Unit/HttpClientTest.php,tests/Unit/JsonChecksTest.php,tests/Network/HttpClientTest.php',
                 'dashboard.create_site', 'dashboard.update_site' => 'tests/Unit/SiteRepositoryTest.php,tests/Unit/JsonChecksTest.php',
-                'dashboard.logout' => '',
+                'dashboard.logout' => 'tests/Http/AdminPasswordTest.php',
                 default => 'tests/Unit/SiteRepositoryTest.php',
             };
             $tests = ($unitTests === '' ? '' : $unitTests . ',') . 'tests/Http/DashboardTest.php';

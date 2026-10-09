@@ -314,94 +314,133 @@ proxy и `TABLO_COOKIE_SECURE=1`. DocumentRoot всегда должен ука�
 сайтов и администратора. Исходники, SQLite, .env
 и зависимости не должны быть доступны из web root.
 
-## Сброс пароля администратора
+## Локальная смена пароля администратора
 
-Если пароль забыт, удалите только запись администратора и ограничения попыток
-входа, затем создайте новый пароль через `/setup`. Сайты, результаты проверок и
-Git-токены сохранятся. Старые сессии будут завершены. Удалять всю SQLite или
-`github-token.key` не нужно: потеря ключа сделает сохранённые токены недоступными.
+Существующего администратора меняет локальная команда `bin/admin-password.php`.
+Сервер может работать: строка администратора 1 присутствует непрерывно, а
+GET/POST `/setup` остаются 404 до, во время и после смены или отката.
+Если SQLite не допускает новое чтение (например, PENDING lock при ожидании
+COMMIT), запрос может получить существующий HTTP 500 по ошибке хранения;
+форма setup при этом не открывается. Гарантия 404 предполагает доступное чтение БД.
+Команда обновляет только хеш пароля; ID, created_at, схема, сайты, результаты,
+зашифрованные Git-токены и байты ключа сохраняются. Ключ не читается и не создаётся;
+его отсутствие или недоступность не мешают смене пароля. Файлы сессий не удаляются.
+Не удаляйте администратора, SQLite или ключ для восстановления доступа.
 
-1. Остановите сервер и запланированные проверки `bin/check.php`. Для локального
-   `composer serve` нажмите `Ctrl+C` в его терминале; если PHP запущен в фоне,
-   остановите соответствующий процесс `php -S`. Для Docker используйте команду
-   ниже. Если панель опубликована, временно закройте внешний доступ: после сброса
-   `/setup` доступен до создания нового пароля.
-2. Откройте PowerShell в корне проекта и сохраните следующий скрипт в переменную.
-   Он использует `TABLO_DB` или `storage/tablo.sqlite`, проверяет наличие базы,
-   создаёт её резервную копию вместе с ключом токенов и сбрасывает доступ.
-   Для локального запуска задайте тот же `TABLO_DB`, что использует сервер.
+Сначала проверьте выбранную установку из корня нужного проекта:
 
 ```powershell
-$resetAdminScript = @'
-<?php
-$path = getenv('TABLO_DB') ?: __DIR__ . '/storage/tablo.sqlite';
-$path = realpath($path);
-if ($path === false || !is_file($path)) {
-    throw new RuntimeException('База не найдена. Проверьте TABLO_DB и каталог запуска.');
-}
-$db = new PDO('sqlite:' . $path, null, null, [PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION]);
-$db->exec('PRAGMA foreign_keys = ON; PRAGMA busy_timeout = 5000');
-$backup = dirname($path) . '/backups/password-reset-' . gmdate('Ymd-His') . '-' . bin2hex(random_bytes(4));
-if (!mkdir($backup, 0700, true)) {
-    throw new RuntimeException('Не удалось создать каталог резервной копии.');
-}
-$db->exec('VACUUM INTO ' . $db->quote($backup . '/tablo.sqlite'));
-chmod($backup . '/tablo.sqlite', 0600);
-$key = dirname($path) . '/github-token.key';
-if (is_file($key)) {
-    if (!copy($key, $backup . '/github-token.key')) {
-        throw new RuntimeException('Не удалось сохранить ключ токенов. Сброс отменён.');
-    }
-    chmod($backup . '/github-token.key', 0600);
-}
-$db->exec('BEGIN IMMEDIATE');
-try {
-    $db->exec('DELETE FROM users WHERE id = 1');
-    $db->exec('DELETE FROM login_limits');
-    $db->exec('COMMIT');
-} catch (Throwable $e) {
-    $db->exec('ROLLBACK');
-    throw $e;
-}
-foreach (glob(__DIR__ . '/storage/sessions/sess_*') ?: [] as $session) {
-    if (is_file($session) && !unlink($session)) {
-        throw new RuntimeException('Пароль сброшен, но не удалось удалить старую сессию.');
-    }
-}
-echo "Пароль сброшен. Резервная копия: $backup\n";
-'@
+php bin/admin-password.php --show-installation
 ```
 
-3. Выполните **один** из вариантов, соответствующий вашей установке.
+Вывод содержит канонический путь **фактически открытой** БД, ID администратора и
+версию схемы; управляющие символы пути экранированы. Разрешение пути прежнее:
+явный путь в database API, затем process `TABLO_DB`, корневой `.env` без
+перезаписи process environment, иначе `storage/tablo.sqlite`. Относительный
+TABLO_DB зависит от рабочего каталога. Поддерживаются существующие файловые URI.
+CLI не создаёт БД/каталоги, не выполняет миграцию, chmod или смену journal mode.
+Отсутствующая/временная/повреждённая/непригодная БД, несовместимая схема, неверная
+таблица users или отсутствующий администратор дают отказ. Старую схему обновите
+отдельно обычным поддерживаемым запуском приложения; команда восстановления
+не является способом миграции. Backup/restore и замена файла работающей БД
+требуют отдельной координации оператора.
 
-Локальный PHP, при остановленном сервере:
+Windows PowerShell 5.1 или PowerShell 7: скрытые запросы и прямой UTF-8 stdin.
+Запускайте helper из нужной установки; пароль не передаётся через аргументы,
+переменные окружения, PowerShell pipeline или JSON.
 
 ```powershell
-$resetAdminScript | php
-if ($LASTEXITCODE -ne 0) { throw 'Исправьте ошибку сброса перед запуском сервера.' }
-composer serve
+powershell -NoProfile -File tools/admin-password.ps1
+# PowerShell 7, если установлен:
+pwsh -NoProfile -File tools/admin-password.ps1
 ```
 
-Docker Compose использует базу из тома `tablo-data`, а не локальную `storage/`:
+Helper использует SecureString, UseShellExecute=false и StandardInput.BaseStream.
+Он освобождает BSTR через ZeroFreeBSTR, очищает временные char/byte buffers и
+возвращает exit PHP/Docker. Это не гарантия стирания всех копий в управляемой
+памяти. Ctrl+C на запросе не запускает дочернюю команду; при прерывании уже
+переданных данных сначала проверьте обычный вход: COMMIT мог успеть завершиться.
+
+Linux **Bash** (read -s не является переносимым sh):
+
+```bash
+php bin/admin-password.php --show-installation
+bash tools/admin-password.bash
+```
+
+Bash helper отключает xtrace до ввода, использует IFS= read -r -s из /dev/tty,
+посылает две строки через встроенный printf и возвращает exit команды.
+EXIT/INT/TERM очищают переменные; отмена запроса не запускает CLI. Не включайте
+трассировку или запись секретов в своём producer. У автоматизации пароль должен
+поступать из защищённого источника прямо в stdin, без литералов в командах,
+истории, argv, логах или файлов общего доступа.
+
+Протокол `--password-stdin`: ровно две UTF-8 строки (пароль и подтверждение),
+каждая заканчивается LF или CRLF, затем EOF. Только окончания строк удаляются;
+пробелы сохраняются. TTY, BOM, NUL, лишние/незавершённые строки, неподдерживаемая
+кодировка/framing, несовпадение и переполнение дают отказ. Общая web/CLI проверка:
+12–72 **байта**, точное подтверждение без trim, PASSWORD_DEFAULT и случайная соль.
+Пароли с переводом строки допустимы общей web-проверкой, но не представимы
+в этом отдельном stdin-протоколе. Команда не может проверить безопасность
+стороннего producer.
+
+Docker Compose использует БД подключённого тома установки, а не локальную storage.
+В текущем образе PHP работает как www-data (UID 33); команды выполняйте от того
+же пользователя, без публикации дополнительных портов и без удаления тома.
+Выберите правильный Compose project/конфигурацию до preflight:
+
+```bash
+docker compose exec -T --user www-data tablo php bin/admin-password.php --show-installation
+bash tools/admin-password.bash Docker
+# Если служба уже остановлена:
+docker compose run --rm --no-deps -T --user www-data --entrypoint php tablo bin/admin-password.php --show-installation
+bash tools/admin-password.bash DockerStopped
+```
+
+Для Windows тот же защищённый ввод и фиксированный Docker argv:
 
 ```powershell
-docker compose stop tablo
-if ($LASTEXITCODE -ne 0) { throw 'Не удалось остановить Tablo.' }
-$resetAdminScript | docker compose run --rm --no-deps -T --user www-data --entrypoint php tablo
-if ($LASTEXITCODE -ne 0) { throw 'Исправьте ошибку сброса перед запуском сервера.' }
-docker compose up -d tablo
+powershell -NoProfile -File tools/admin-password.ps1 -Mode Docker
+# Если служба уже остановлена:
+powershell -NoProfile -File tools/admin-password.ps1 -Mode DockerStopped
 ```
 
-Служебный контейнер подключает тот же том с данными и запускает скрипт без
-публикации портов ([документация Compose run](https://github.com/docker/compose/blob/main/docs/reference/compose_run.md)).
-Не используйте `docker compose down -v`: эта команда удалит том с данными.
-Резервная копия находится в `backups/password-reset-.../` рядом с исходной базой;
-для Docker этот каталог остаётся внутри тома `tablo-data`.
+Helper передаёт stdin в `docker compose exec -T --user www-data tablo php
+bin/admin-password.php --password-stdin` либо в `docker compose run --rm
+--no-deps -T --user www-data --entrypoint php tablo bin/admin-password.php
+--password-stdin`. Stopped-service вариант подключает тот же том, не запускает
+зависимости и не публикует service ports. Останавливать работающую службу ради
+смены пароля не требуется. См. [Compose exec](https://github.com/docker/compose/blob/main/docs/reference/compose_exec.md)
+и [Compose run](https://github.com/docker/compose/blob/main/docs/reference/compose_run.md).
 
-4. Откройте <http://127.0.0.1:8087/setup> (или `/setup` на адресе вашей установки),
-   задайте новый пароль дважды: от 12 до 72 байт. После сохранения убедитесь, что
-   прежние сайты и токены отображаются, и восстановите внешний доступ, если
-   закрывали его. `/setup` снова закроется после создания администратора.
+Выбранный хеш фиксируется **до** stdin. Два процесса с одним старым снимком
+не перезаписывают результат друг друга: один завершится успешно, другой получит
+конфликт/занятость. Намеренная последующая смена с новым снимком допустима.
+Тот же текущий пароль и повтор завершённой смены дают отказ без перехеширования.
+Нет автоматического повторного захвата снимка или retry. Валидация/хеширование
+происходят до BEGIN IMMEDIATE; собственная незавершённая транзакция откатывается
+при ошибке. Ошибка rollback, смерть процесса или потеря вывода после COMMIT
+не дают гарантии прежнего состояния: проверьте обычный вход перед новой попыткой.
+
+Прежние пароли перестают проходить проверку, а старые сессии отклоняются перед
+каждым следующим защищённым GET/POST (включая старый CSRF). Сессии содержат только
+доменный производный маркер, не хеш пароля. Legacy-сессии без маркера после
+обновления потребуют входа. Вход, проверивший старый пароль до COMMIT, может
+создать cookie позднее, но оно будет отклонено на следующем защищённом запросе.
+Rehash привязывает вызывающую сессию к её собственному новому хешу и отзывает
+предыдущие снимки. Уже допущенная работа может завершиться; ретроактивная отмена
+не обещается. Cookie, CSRF и срок сессии 12 часов сохраняют прежнюю политику.
+
+CLI не меняет ни одной строки login_limits. Заблокированный адрес остаётся
+заблокированным до конца своего существующего окна 900 секунд даже с новым
+паролем. Незаблокированный клиент может войти; обычный успешный вход очищает
+только собственную корзину (сохраняется обычная очистка истёкших окон).
+
+Коды завершения: 0 — COMMIT/preflight/help; 2 — invocation/input/password;
+3 — непригодная установка/администратор/схема; 4 — busy/stale conflict;
+1 — storage/unexpected error. stdout содержит выбор и статус, stderr — только
+фиксированную безопасную ошибку. Пароли, DSN/query, конфигурация, токены, ключи,
+хеши и маркеры не выводятся. `--help` перечисляет единственные допустимые режимы.
 
 ## Работа через Lekalo
 
