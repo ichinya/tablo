@@ -19,11 +19,13 @@ final class GitHubConnection
             $token = $this->sites->resolveToken($input, $site);
             $revision = $this->sites->credentialRevision($input, $site);
             $scope = $this->sites->credentialScope($input, $site);
+            $equivalentScope = $this->sites->equivalentCredentialScope($token);
+            if ($scope === 'authenticated' && $equivalentScope !== null) { $scope = $equivalentScope; }
         } catch (\RuntimeException $e) {
             throw new ValidationException(['github_token' => $e->getMessage()]);
         }
         // Resolve again against a fresh row before/after every metric, including memo hits.
-        // This rejects same-second rotation and does not persist a credential or digest.
+        // This rejects same-second rotation independently of the private primary-quota identity.
         $current = function () use ($site, $input, $token, $revision): bool {
             $fresh = isset($site['id']) ? $this->sites->find((int) $site['id']) : $site;
             if (isset($site['id']) && ($fresh === null
@@ -34,7 +36,7 @@ final class GitHubConnection
                 && hash_equals($revision, $this->sites->credentialRevision($input, $fresh)); }
             catch (\Throwable) { return false; }
         };
-        return new GitHubProvider($this->http, $token, $this->policy, new GitHubCredential($revision, $scope, $current));
+        return new GitHubProvider($this->http, $token, $this->policy, new GitHubCredential($revision, $scope, $current, $equivalentScope));
     }
 
     public function branches(array $input, ?array $site = null): array

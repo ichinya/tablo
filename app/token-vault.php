@@ -15,7 +15,7 @@ final class TokenVault
         return new self($directory . '/github-token.key');
     }
 
-    public function encrypt(string $token): string
+    public function encrypt(#[\SensitiveParameter] string $token): string
     {
         $iv = random_bytes(12);
         $cipher = openssl_encrypt($token, 'aes-256-gcm', $this->key(true), OPENSSL_RAW_DATA, $iv, $tag);
@@ -37,6 +37,14 @@ final class TokenVault
             throw new \RuntimeException('Не удалось расшифровать токен GitHub. Введите новый токен.');
         }
         return $token;
+    }
+
+    public function credentialScope(#[\SensitiveParameter] string $token): string
+    {
+        // Domain separation: persist neither the token nor an unkeyed digest. The existing
+        // private vault key makes this identity stable across processes and external key paths.
+        $identityKey = hash_hmac('sha256', 'tablo/github-primary-scope/v1', $this->key(!file_exists($this->keyPath)), true);
+        return 'credential:v1:' . hash_hmac('sha256', $token, $identityKey);
     }
 
     private function key(bool $create): string

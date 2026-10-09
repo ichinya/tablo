@@ -51,15 +51,18 @@ final class GitHubRequestPolicy
         return $value;
     }
 
-    public function before(string $resource, int $siteDeadline, string $scope = 'anonymous'): int
+    public function before(string $resource, int $siteDeadline, string $scope = 'anonymous', ?string $equivalentScope = null): int
     {
         $deadline = min($this->deadline, $siteDeadline);
         if ($this->attempts >= $this->maxRequests || $this->now() >= $deadline) {
             throw new GitHubFailure('budget');
         }
         try {
-            $eligible = max($this->cooldowns[$scope . ':' . $resource] ?? 0, $this->cooldowns['shared:secondary'] ?? 0,
-                $this->storage?->eligibleAt($resource, $scope) ?? 0);
+            $primary = $this->eligibility($resource, $scope);
+            if ($equivalentScope !== null) { $primary = max($primary, $this->eligibility($resource, $equivalentScope)); }
+            // Retain observed equivalent-token eligibility on this handle before rotation.
+            if ($primary > $this->clock->epoch()) { $this->defer($resource, $primary, $scope); }
+            $eligible = max($primary, $this->eligibility('secondary', 'shared'));
         } catch (\Throwable) {
             throw new GitHubFailure('unavailable');
         }
@@ -68,40 +71,30 @@ final class GitHubRequestPolicy
         return $deadline;
     }
 
-    private static function integer(mixed $value): ?int
+    private function eligibility(string $resource, string $scope): int
     {
-        // Strings longer than the supported integer range are invalid, never wrapped.
-        if (!is_string($value) || !preg_match('/^[0-9]{1,18}$/D', $value)) { return null; }
-        return (int) $value;
+        return max($this->cooldowns[$scope . ':' . $resource] ?? 0,
+            $this->storage?->eligibleAt($resource, $scope, false) ?? 0);
     }
 
-    public function observe(string $requestedResource, array $response, string $scope = 'anonymous'): void
+    private function defer(string $resource, int $eligible, string $scope): void
     {
-        $headers = is_array($response['headers'] ?? null) ? $response['headers'] : [];
-        $remaining = self::integer($headers['x-ratelimit-remaining'] ?? null);
-        $limitedStatus = in_array($response['status'], [403, 429], true);
-        $primary = $remaining === 0;
-        $secondary = $limitedStatus && (array_key_exists('retry-after', $headers) || ($response['status'] === 429 && !$primary)
-            || (array_key_exists('x-ratelimit-remaining', $headers) && $remaining === null));
-        if ($limitedStatus) {
-            $document = json_decode($response['body'], true, 32);
-            $marker = is_array($document) ? ($document['message'] ?? null) : null;
-            $secondary = $secondary || (is_string($marker) && stripos($marker, 'secondary rate limit') !== false);
+        $key = ($resource === 'secondary' ? 'shared' : $scope) . ':' . $resource;
+        $this->cooldowns[$key] = max($this->cooldowns[$key] ?? 0, $eligible);
+        try { $this->storage?->defer($resource, $eligible, $scope); }
+        catch (\Throwable) { throw new GitHubFailure('unavailable'); }
+    }
+
+    public function observe(string $requestedResource, array $response, string $scope = 'anonymous', ?string $equivalentScope = null): void
+    {
+        $limit = GitHubRateLimit::fromResponse($requestedResource, $response, $this->clock->epoch());
+        if ($limit === null) { return; }
+        foreach ($limit->resources as $resource) {
+            $this->defer($resource, $limit->eligibleAt, $scope);
+            if ($resource !== 'secondary' && $equivalentScope !== null && $equivalentScope !== $scope) {
+                $this->defer($resource, $limit->eligibleAt, $equivalentScope);
+            }
         }
-        if (!$primary && !$secondary) { return; }
-        $now = $this->clock->epoch();
-        $reset = self::integer($headers['x-ratelimit-reset'] ?? null);
-        $retry = self::integer($headers['retry-after'] ?? null);
-        $eligible = max($now + 60, $reset ?? 0, $retry === null ? 0 : $now + $retry);
-        $resource = in_array($headers['x-ratelimit-resource'] ?? null, ['core', 'search'], true)
-            ? $headers['x-ratelimit-resource'] : $requestedResource;
-        $resources = $secondary ? ['secondary'] : array_unique([$resource, $requestedResource]);
-        foreach ($resources as $resource) {
-            $key = ($resource === 'secondary' ? 'shared' : $scope) . ':' . $resource;
-            $this->cooldowns[$key] = max($this->cooldowns[$key] ?? 0, $eligible);
-            try { $this->storage?->defer($resource, $eligible, $scope); }
-            catch (\Throwable) { throw new GitHubFailure('unavailable'); }
-        }
-        if ($limitedStatus) { throw new GitHubFailure('rate-limit', $eligible); }
+        if ($limit->limitedStatus) { throw new GitHubFailure('rate-limit', $limit->eligibleAt); }
     }
 }

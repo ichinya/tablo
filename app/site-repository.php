@@ -214,6 +214,11 @@ final class SiteRepository
         return isset($site['id']) ? 'site:' . (int) $site['id'] : 'authenticated';
     }
 
+    public function equivalentCredentialScope(#[\SensitiveParameter] string $token): ?string
+    {
+        return $token === '' ? null : $this->tokens->credentialScope($token);
+    }
+
     public function save(array $input, ?int $id = null): int
     {
         $data = self::normalize($input);

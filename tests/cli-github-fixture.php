@@ -17,7 +17,8 @@ final class FixtureCliGitHubConnection
     public function provider(array $site): Tablo\GitHubProvider
     {
         return new Tablo\GitHubProvider(new FixtureGitHubHttp(), $this->sites->tokenFor($site), $this->policy,
-            new Tablo\GitHubCredential($this->sites->credentialRevision([], $site), $this->sites->credentialScope([], $site)));
+            new Tablo\GitHubCredential($this->sites->credentialRevision([], $site), $this->sites->credentialScope([], $site),
+                equivalentScope: $this->sites->equivalentCredentialScope($this->sites->tokenFor($site))));
     }
 }
 

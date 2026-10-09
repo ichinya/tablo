@@ -37,8 +37,11 @@ final class GitHubBudgetTest
             Assert::same($manual['open_prs'], null);
             Assert::false(str_contains($manual['last_error'], 'rate-fixture-token'));
             Assert::same(count(file($log)), 3, 'release, branch, issue; PR deferred');
-            Assert::same($web->database()->query('SELECT scope,resource FROM github_cooldowns')->fetchAll(),
-                [['scope' => 'site:1', 'resource' => 'search']]);
+            $rows = $web->database()->query('SELECT scope,resource FROM github_cooldowns ORDER BY scope')->fetchAll();
+            Assert::same(count($rows), 2);
+            Assert::true(str_starts_with($rows[0]['scope'], 'credential:v1:'));
+            Assert::same($rows[0]['resource'], 'search');
+            Assert::same($rows[1], ['scope' => 'site:1', 'resource' => 'search']);
             file_put_contents($log, '');
             Assert::same($web->request('/sites/1/check', ['_csrf' => $csrf])['status'], 303);
             Assert::same(count(file($log)), 2, 'fresh web request respects stored search cooldown');

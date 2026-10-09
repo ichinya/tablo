@@ -67,8 +67,9 @@ final class GitHubBudgetTest
     public function classifiesFailuresAndDoesNotCacheThem(): void
     {
         foreach ([[401, [], 'access'], [403, [], 'access'], [404, [], 'access'], [503, [], 'unavailable'],
-            [304, [], 'unavailable'], [429, [], 'rate-limit'], [403, ['retry-after' => null], 'rate-limit'],
-            [403, ['x-ratelimit-remaining' => null], 'rate-limit']] as [$status, $headers, $reason]) {
+            [304, [], 'unavailable'], [429, [], 'rate-limit'], [403, ['retry-after' => '60'], 'rate-limit'],
+            [403, ['retry-after' => null], 'access'], [403, ['retry-after' => 'invalid'], 'access'],
+            [403, ['x-ratelimit-remaining' => null], 'access']] as [$status, $headers, $reason]) {
             $http = new FakeHttp([self::response($status, '{"message":"synthetic-secret"}', $headers),
                 self::response(200, '{"name":"main","commit":{"sha":"' . str_repeat('b', 40) . '"}}')]);
             $provider = new GitHubProvider($http, 'synthetic-secret');
@@ -81,10 +82,11 @@ final class GitHubBudgetTest
                 Assert::same(count($http->requests), 2);
             }
         }
-        foreach (['broken synthetic-secret', '[]', '{"total_count":2,"incomplete_results":true}'] as $body) {
+        foreach ([['broken synthetic-secret', 'invalid-data'], ['[]', 'incomplete-search'],
+            ['{"total_count":2,"incomplete_results":true}', 'incomplete-search']] as [$body, $reason]) {
             $provider = new GitHubProvider(new FakeHttp([self::response(200, $body),
                 self::response(200, '{"total_count":3,"incomplete_results":false}')]));
-            self::failure(fn () => $provider->getOpenIssuesCount('example/project'), 'unavailable');
+            self::failure(fn () => $provider->getOpenIssuesCount('example/project'), $reason);
             Assert::same($provider->getOpenIssuesCount('example/project'), 3);
         }
         $transport = new GitHubProvider(new FakeHttp([new \RuntimeException('synthetic-secret')]));

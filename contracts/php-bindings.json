@@ -5,7 +5,7 @@
         "version": "0.1.0"
     },
     "project": "tablo",
-    "revision": "sha256:5e010bdcc74dd4b01786e98daafcfec0a4ae594c45a0eafe562913b8e8a4ae99",
+    "revision": "sha256:3a5daca777e7e3e9a73d926aceece3658d681abaebd65b7c081429588262298c",
     "symbols": [
         {
             "id": "dashboard.setup",
@@ -152,9 +152,9 @@
             "kind": "command",
             "source": {
                 "path": "app/site-repository.php",
-                "line": 246
+                "line": 251
             },
-            "fingerprint": "sha256:6aa6501bc32f376d8d456d2cd9c7457aad7635b815028294cad70a963865ef87",
+            "fingerprint": "sha256:13a02af097ab8305cae47c08fd7b8de962733605985ce281c09b89332893d189",
             "signature": {
                 "inputs": [
                     {
@@ -214,7 +214,7 @@
                 "path": "app/site-repository.php",
                 "line": 27
             },
-            "fingerprint": "sha256:6aa6501bc32f376d8d456d2cd9c7457aad7635b815028294cad70a963865ef87",
+            "fingerprint": "sha256:13a02af097ab8305cae47c08fd7b8de962733605985ce281c09b89332893d189",
             "signature": {
                 "inputs": [],
                 "output": "list(dashboard.site)",
@@ -229,9 +229,9 @@
             "kind": "command",
             "source": {
                 "path": "app/github-connection.php",
-                "line": 40
+                "line": 42
             },
-            "fingerprint": "sha256:34cfdf7ffa629f79db78e0ed4e629b7096aa8e635ad8d1e839e87635e2005ffa",
+            "fingerprint": "sha256:23f5e42be002c340c1f00a47ae41da7576607cb00899fc90553a06d925e8b3f0",
             "signature": {
                 "inputs": [
                     {
