@@ -85,7 +85,7 @@ final class GitHubRequestPolicy
         catch (\Throwable) { throw new GitHubFailure('unavailable'); }
     }
 
-    public function observe(string $requestedResource, array $response, string $scope = 'anonymous', ?string $equivalentScope = null): void
+    public function observe(string $requestedResource, #[\SensitiveParameter] array $response, string $scope = 'anonymous', ?string $equivalentScope = null): void
     {
         $limit = GitHubRateLimit::fromResponse($requestedResource, $response, $this->clock->epoch());
         if ($limit === null) { return; }

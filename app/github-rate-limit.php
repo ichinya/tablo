@@ -25,7 +25,7 @@ final class GitHubRateLimit
         return is_string($message) && stripos($message, 'secondary rate limit') !== false;
     }
 
-    public static function fromResponse(string $requestedResource, array $response, int $now): ?self
+    public static function fromResponse(string $requestedResource, #[\SensitiveParameter] array $response, int $now): ?self
     {
         $headers = is_array($response['headers'] ?? null) ? $response['headers'] : [];
         $primary = self::integer($headers['x-ratelimit-remaining'] ?? null) === 0;
