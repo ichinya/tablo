@@ -35,7 +35,8 @@ final class Database
     public static function connect(?string $path = null): PDO
     {
         $path ??= getenv('TABLO_DB') ?: dirname(__DIR__) . '/storage/tablo.sqlite';
-        if ($path !== ':memory:' && !is_dir(dirname($path))) {
+        // SQLite file: URIs are not filesystem paths for PHP's directory functions.
+        if ($path !== ':memory:' && !str_starts_with($path, 'file:') && !is_dir(dirname($path))) {
             mkdir(dirname($path), 0700, true);
         }
         $db = new PDO('sqlite:' . $path, null, null, [
