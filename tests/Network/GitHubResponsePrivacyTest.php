@@ -7,6 +7,7 @@ use Tablo\Database;
 use Tablo\GitHubClock;
 use Tablo\GitHubConnection;
 use Tablo\GitHubFailure;
+use Tablo\GitHubRateLimit;
 use Tablo\GitHubRequestPolicy;
 use Tablo\GitTokenRepository;
 use Tablo\SiteRepository;
@@ -14,12 +15,13 @@ use Tablo\TokenVault;
 use Tablo\Tests\Support\MeasuredGitHubHttp;
 use Tablo\Tests\Support\TemporaryDirectory;
 use Tablo\Tests\Support\TestServer;
+use Tablo\Tests\Support\TraceInspector;
 use Testo\Assert;
 use Testo\Test;
 
 final class GitHubResponsePrivacyTest
 {
-    private static function failure(\Closure $call): GitHubFailure
+    private static function failure(#[\SensitiveParameter] \Closure $call): GitHubFailure
     {
         $failure = null;
         try { $call(); } catch (GitHubFailure $caught) { $failure = $caught; }
@@ -28,29 +30,12 @@ final class GitHubResponsePrivacyTest
         return $failure;
     }
 
-    private static function hasPrivateTrace(#[\SensitiveParameter] \Throwable $error, #[\SensitiveParameter] array $markers): bool
+    private static function assertSupportedProviderTrace(array $result): void
     {
-        $seen = new \SplObjectStorage();
-        do {
-            // Inspect every propagated/previous frame and string form only in memory.
-            $pending = [$error->getTrace(), $error->getTraceAsString(), (string) $error];
-            $visited = 0;
-            while ($pending !== []) {
-                if (++$visited > 10000) { throw new \RuntimeException('Trace inspection bound exceeded'); }
-                $value = array_pop($pending);
-                if (is_string($value)) {
-                    foreach ($markers as $marker) { if (str_contains($value, $marker)) { return true; } }
-                } elseif (is_array($value)) {
-                    foreach ($value as $key => $item) { $pending[] = $key; $pending[] = $item; }
-                } elseif (is_object($value) && !$value instanceof \SensitiveParameterValue && !$seen->contains($value)) {
-                    // Inspect public argument data once; never unwrap a redacted parameter.
-                    $seen->attach($value);
-                    $pending[] = get_object_vars($value);
-                }
-            }
-            $error = $error->getPrevious();
-        } while ($error !== null);
-        return false;
+        Assert::false($result['leaked'], 'response trace must redact every private marker');
+        // Inherited production-bound closures remain opaque: supported state only, not whole-graph privacy.
+        Assert::false($result['complete'], 'provider trace explicitly retains incomplete opaque coverage');
+        Assert::true(($result['opaque']['closure'] ?? 0) > 0);
     }
 
     private static function requests(string $path): array
@@ -59,9 +44,9 @@ final class GitHubResponsePrivacyTest
     }
 
     #[Test]
-    public function realRateResponsesKeepPrivateBodiesOutOfCompleteProviderTraces(): void
+    public function realRateResponsesMaskResponseFramesAndInspectSupportedTraceState(): void
     {
-        $directory = new TemporaryDirectory('tablo-github-response-r3-');
+        $directory = new TemporaryDirectory('tablo-github-response-r4-');
         $server = null;
         $original = ini_get('zend.exception_ignore_args');
         ini_set('zend.exception_ignore_args', '0');
@@ -94,7 +79,7 @@ final class GitHubResponsePrivacyTest
                     Assert::same(self::requests($count), [200], 'successful revision memo avoids a second HTTP request');
                     $error = self::failure(fn () => $provider->getLatestRelease('fixture/' . $case));
                     // Assert privacy first: the exact frozen negative must fail here, not at fixture setup.
-                    Assert::false(self::hasPrivateTrace($error, [$secret, $marker]), 'response trace must redact every private marker');
+                    self::assertSupportedProviderTrace(TraceInspector::inspect($error, [$secret, $marker]));
                     Assert::same($error->eligibleAt, $now + $delay);
                     Assert::same($error->httpStatus, null, 'existing typed rate failure status contract');
                     Assert::same($error->getMessage(), (new GitHubFailure('rate-limit', $now + $delay))->getMessage());
@@ -117,7 +102,7 @@ final class GitHubResponsePrivacyTest
                     $status = str_contains($case, '429') ? 429 : 403;
                     Assert::same(self::requests($count), [200, $status], 'one actual rate response and no retry');
                     $again = self::failure(fn () => $provider->getLatestRelease('fixture/' . $case));
-                    Assert::false(self::hasPrivateTrace($again, [$secret, $marker]));
+                    self::assertSupportedProviderTrace(TraceInspector::inspect($again, [$secret, $marker]));
                     Assert::same(self::requests($count), [200, $status]);
                     unset($frame, $again, $error, $provider, $connection, $policy, $tokens, $sites, $vault, $db);
                     // Fresh PDO/connection sees only persisted safe quota state.
@@ -127,13 +112,13 @@ final class GitHubResponsePrivacyTest
                     $connection = new GitHubConnection($sites, $http, $policy);
                     $provider = $connection->provider(null, $input);
                     $error = self::failure(fn () => $provider->getLatestRelease('fixture/' . $case));
-                    Assert::false(self::hasPrivateTrace($error, [$secret, $marker]));
+                    self::assertSupportedProviderTrace(TraceInspector::inspect($error, [$secret, $marker]));
                     foreach ([bin2hex(random_bytes(24)), ''] as $allowed) {
                         $other = $connection->provider(null, ['github_token' => $allowed]);
                         if ($primary) { Assert::same($other->getLatestRelease('fixture/control'), 'v1'); }
                         else {
                             $blocked = self::failure(fn () => $other->getLatestRelease('fixture/control'));
-                            Assert::false(self::hasPrivateTrace($blocked, [$secret, $marker]));
+                            self::assertSupportedProviderTrace(TraceInspector::inspect($blocked, [$secret, $marker]));
                         }
                     }
                     Assert::same(self::requests($count), $primary ? [200, $status, 200, 200] : [200, $status]);
@@ -151,5 +136,27 @@ final class GitHubResponsePrivacyTest
             $server?->close();
             $directory->close();
         }
+    }
+
+    #[Test]
+    public function classifierBoundaryMasksTheCompleteResponseOnATypeFailure(): void
+    {
+        $original = ini_get('zend.exception_ignore_args');
+        ini_set('zend.exception_ignore_args', '0');
+        try {
+            $marker = bin2hex(random_bytes(24));
+            $error = null;
+            // A deliberate body-contract error captures the otherwise returning classifier frame.
+            try { GitHubRateLimit::fromResponse('core', ['status' => 403, 'body' => [$marker], $marker => 'safe'], time()); }
+            catch (\TypeError $caught) { $error = $caught; }
+            Assert::instanceOf($error, \TypeError::class);
+            $masked = false;
+            foreach ($error->getTrace() as $frame) {
+                if (($frame['class'] ?? '') === GitHubRateLimit::class && ($frame['function'] ?? '') === 'fromResponse') {
+                    $masked = ($frame['args'][1] ?? null) instanceof \SensitiveParameterValue;
+                }
+            }
+            Assert::true($masked, 'actual classifier frame masks the whole response, including keys');
+        } finally { unset($frame, $caught, $error); ini_set('zend.exception_ignore_args', $original); }
     }
 }

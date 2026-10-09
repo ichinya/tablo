@@ -7,6 +7,7 @@ $now = (int) getenv('TABLO_TEST_RESPONSE_NOW');
 $status = str_contains($path, '429') ? 429 : (str_contains($path, 'control') ? 200 : 403);
 file_put_contents(getenv('TABLO_TEST_RESPONSE_COUNT'), $status . "\n", FILE_APPEND | LOCK_EX);
 header('Content-Type: application/json');
+if ($status !== 200) { header('Location: /repos/fixture/control/releases/latest'); }
 http_response_code($status);
 if ($status === 200) { echo '{"tag_name":"v1"}'; return; }
 if (str_contains($path, 'primary')) {
