@@ -125,7 +125,7 @@
         {
             "id": "dashboard.delete_site",
             "kind": "command",
-            "version": 2,
+            "version": 3,
             "description": "Require confirmation page and authenticated CSRF-protected POST. GET does not delete. Deleting a site cascades only its immutable check history.",
             "input": [
                 {
@@ -138,14 +138,16 @@
             ],
             "effects": [
                 "dashboard.site_deleted",
-                "dashboard.check_history_deleted"
+                "dashboard.check_history_deleted",
+                "dashboard.incident_deleted",
+                "dashboard.incident_checkpoint_deleted"
             ]
         },
         {
             "id": "dashboard.check_site",
             "kind": "command",
-            "version": 5,
-            "description": "Manual and one-shot checks keep their default order/output/storage whitelist. Health/version are independent of four GitHub fields and preserve partial/null results. Empty health path checks base URL with HTTP 200; explicit HTTP uses 2xx; JSON health uses validated path/operator and finite values. HTTP/false predicates are offline; transport/DNS/SSRF/TLS/size/invalid data are unknown with typed fixed diagnostics and optional status. Version selector retains root commit aliases. All original configuration/cipher/selected-token predicates plus config_revision reject edits, disable-enable ABA, rotation, deletion and reselection. Saved-token rename-only blank edits remain compatible. GitHub serial REST keeps five requests/24s site and 100 requests/120s aggregate admission budgets, 256-entry validated memo, resource-specific primary plus shared secondary cooldown, exact-token vault HMAC equivalence and current credential checks before/after memo/load. No provider sleep/retry or failure cache. cURL is clamped but synchronous DNS can overrun. Missing established vault key fails before HTTP without replacement; public connection arrays and rate-response boundaries retain SensitiveParameter. Optional worker order returns transient per-field admitted/completed service metadata; result storage whitelists omit it.",
+            "version": 6,
+            "description": "Manual and one-shot checks keep their default order/output/storage whitelist. Health/version are independent of four GitHub fields and preserve partial/null results. Empty health path checks base URL with HTTP 200; explicit HTTP uses 2xx; JSON health uses validated path/operator and finite values. HTTP/false predicates are offline; transport/DNS/SSRF/TLS/size/invalid data are unknown with typed fixed diagnostics and optional status. Version selector retains root commit aliases. All original configuration/cipher/selected-token predicates plus config_revision reject edits, disable-enable ABA, rotation, deletion and reselection. Saved-token rename-only blank edits remain compatible. GitHub serial REST keeps five requests/24s site and 100 requests/120s aggregate admission budgets, 256-entry validated memo, resource-specific primary plus shared secondary cooldown, exact-token vault HMAC equivalence and current credential checks before/after memo/load. No provider sleep/retry or failure cache. cURL is clamped but synchronous DNS can overrun. Missing established vault key fails before HTTP without replacement; public connection arrays and rate-response boundaries retain SensitiveParameter. Optional worker order returns transient per-field admitted/completed service metadata; result storage whitelists omit it. Accepted row alone projects prospective incident/checkpoint inside the real private persistCheck transaction before credit/COMMIT. First Offline opens using actual history ID; repeat preserves opening; Unknown never recovers; same-epoch non-older Online closes, new epoch interrupts without recovery. Older/equal-second clock qualifiers and idempotent consumed IDs survive history retention. No old-history replay/current-state fabrication or public projection reset.",
             "input": [
                 {
                     "name": "id",
@@ -158,7 +160,11 @@
             "effects": [
                 "dashboard.site_updated",
                 "dashboard.github_cooldown_created",
-                "dashboard.github_cooldown_updated"
+                "dashboard.github_cooldown_updated",
+                "dashboard.incident_created",
+                "dashboard.incident_updated",
+                "dashboard.incident_checkpoint_created",
+                "dashboard.incident_checkpoint_updated"
             ]
         },
         {
@@ -366,8 +372,8 @@
         {
             "id": "dashboard.run_worker_pass",
             "kind": "command",
-            "version": 3,
-            "description": "One finite serial pass reloads enabled IDs and each current site. Fresh connection/policy retains bounded aggregate admission and cooldowns. Shared PDO or established-key custody failure propagates to the fixed fatal CLI boundary; per-site network/provider and malformed individual ciphertext continue. One short post-network transaction couples guarded current result and admitted resource service credit. Stale or disabled snapshots earn no credit; store/progress/COMMIT failure rolls back both. Lifetime canonical flock releases even when final state cleanup fails. Actual settlement now commits validated history with result and admitted credit; explicit prune adds no worker scheduling or stop hook.",
+            "version": 4,
+            "description": "One finite serial pass reloads enabled IDs and each current site. Fresh connection/policy retains bounded aggregate admission and cooldowns. Shared PDO or established-key custody failure propagates to the fixed fatal CLI boundary; per-site network/provider and malformed individual ciphertext continue. One short post-network transaction couples guarded current result and admitted resource service credit. Stale or disabled snapshots earn no credit; store/progress/COMMIT failure rolls back both. Lifetime canonical flock releases even when final state cleanup fails. Actual settlement now commits validated history with result and admitted credit; explicit prune adds no worker scheduling or stop hook. Accepted row alone projects prospective incident/checkpoint inside the real private persistCheck transaction before credit/COMMIT. First Offline opens using actual history ID; repeat preserves opening; Unknown never recovers; same-epoch non-older Online closes, new epoch interrupts without recovery. Older/equal-second clock qualifiers and idempotent consumed IDs survive history retention. No old-history replay/current-state fabrication or public projection reset.",
             "input": [
                 {
                     "name": "generation",
@@ -385,7 +391,11 @@
                 "dashboard.worker_runtime_updated",
                 "dashboard.worker_progress_created",
                 "dashboard.worker_progress_updated",
-                "dashboard.check_history_created"
+                "dashboard.check_history_created",
+                "dashboard.incident_created",
+                "dashboard.incident_updated",
+                "dashboard.incident_checkpoint_created",
+                "dashboard.incident_checkpoint_updated"
             ]
         },
         {
@@ -423,8 +433,8 @@
         {
             "id": "dashboard.store_check",
             "kind": "command",
-            "version": 1,
-            "description": "Actual manual/one-shot SiteRepository entry owns short BEGIN IMMEDIATE after network work. Immediately guarded UPDATE rowCount zero rolls back and returns false without history validation; one validates actual id/revision/time then INSERTs immutable history and COMMITs on the same PDO. Failed BEGIN leaves caller transaction untouched; validation/INSERT/COMMIT/cleanup failures preserve first error and roll back paired result/history. No network, sleep, separate connection or public bypass flag.",
+            "version": 2,
+            "description": "Actual manual/one-shot SiteRepository entry owns short BEGIN IMMEDIATE after network work. Immediately guarded UPDATE rowCount zero rolls back and returns false without history validation; one validates actual id/revision/time then INSERTs immutable history and COMMITs on the same PDO. Failed BEGIN leaves caller transaction untouched; validation/INSERT/COMMIT/cleanup failures preserve first error and roll back paired result/history. No network, sleep, separate connection or public bypass flag. Accepted row alone projects prospective incident/checkpoint inside the real private persistCheck transaction before credit/COMMIT. First Offline opens using actual history ID; repeat preserves opening; Unknown never recovers; same-epoch non-older Online closes, new epoch interrupts without recovery. Older/equal-second clock qualifiers and idempotent consumed IDs survive history retention. No old-history replay/current-state fabrication or public projection reset.",
             "input": [
                 {
                     "name": "site",
@@ -443,14 +453,18 @@
             ],
             "effects": [
                 "dashboard.site_updated",
-                "dashboard.check_history_created"
+                "dashboard.check_history_created",
+                "dashboard.incident_created",
+                "dashboard.incident_updated",
+                "dashboard.incident_checkpoint_created",
+                "dashboard.incident_checkpoint_updated"
             ]
         },
         {
             "id": "dashboard.settle_worker_check",
             "kind": "command",
-            "version": 1,
-            "description": "Actual WorkerStateRepository::settle delegates ownership to SiteRepository shared short immediate transaction. Matching result plus validated history and only admitted field service credit/fairness turn commit together on the same PDO; stale/disabled/ABA/rotated/deleted zero appends and credits nothing. INSERT/credit/deferred COMMIT refusal rolls back the pair and original error wins. Caller BEGIN is refused untouched; PHP82 engine state governs implicit-rollback cleanup.",
+            "version": 2,
+            "description": "Actual WorkerStateRepository::settle delegates ownership to SiteRepository shared short immediate transaction. Matching result plus validated history and only admitted field service credit/fairness turn commit together on the same PDO; stale/disabled/ABA/rotated/deleted zero appends and credits nothing. INSERT/credit/deferred COMMIT refusal rolls back the pair and original error wins. Caller BEGIN is refused untouched; PHP82 engine state governs implicit-rollback cleanup. Accepted row alone projects prospective incident/checkpoint inside the real private persistCheck transaction before credit/COMMIT. First Offline opens using actual history ID; repeat preserves opening; Unknown never recovers; same-epoch non-older Online closes, new epoch interrupts without recovery. Older/equal-second clock qualifiers and idempotent consumed IDs survive history retention. No old-history replay/current-state fabrication or public projection reset.",
             "input": [
                 {
                     "name": "site",
@@ -472,7 +486,11 @@
                 "dashboard.check_history_created",
                 "dashboard.worker_progress_created",
                 "dashboard.worker_progress_updated",
-                "dashboard.worker_runtime_updated"
+                "dashboard.worker_runtime_updated",
+                "dashboard.incident_created",
+                "dashboard.incident_updated",
+                "dashboard.incident_checkpoint_created",
+                "dashboard.incident_checkpoint_updated"
             ]
         },
         {
@@ -508,6 +526,48 @@
             "effects": [
                 "dashboard.check_history_deleted"
             ]
+        },
+        {
+            "id": "dashboard.incident_created",
+            "kind": "effect",
+            "version": 1,
+            "operation": "create",
+            "entity": "dashboard.incident"
+        },
+        {
+            "id": "dashboard.incident_updated",
+            "kind": "effect",
+            "version": 1,
+            "operation": "update",
+            "entity": "dashboard.incident"
+        },
+        {
+            "id": "dashboard.incident_deleted",
+            "kind": "effect",
+            "version": 1,
+            "operation": "delete",
+            "entity": "dashboard.incident"
+        },
+        {
+            "id": "dashboard.incident_checkpoint_created",
+            "kind": "effect",
+            "version": 1,
+            "operation": "create",
+            "entity": "dashboard.incident_checkpoint"
+        },
+        {
+            "id": "dashboard.incident_checkpoint_updated",
+            "kind": "effect",
+            "version": 1,
+            "operation": "update",
+            "entity": "dashboard.incident_checkpoint"
+        },
+        {
+            "id": "dashboard.incident_checkpoint_deleted",
+            "kind": "effect",
+            "version": 1,
+            "operation": "delete",
+            "entity": "dashboard.incident_checkpoint"
         }
     ]
 }

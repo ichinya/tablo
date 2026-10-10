@@ -40,6 +40,7 @@ try {
                 'dashboard.request_worker_stop' => 'tests/Network/PeriodicWorkerTest.php,tests/Unit/PeriodicWorkerTest.php',
                 'dashboard.store_check', 'dashboard.settle_worker_check' => 'tests/Unit/CheckHistoryTest.php,tests/Unit/WorkerSettlementTest.php,tests/Network/HistoryConcurrencyTest.php,tests/Network/HistoryDiagnosticsTest.php,tests/Network/PeriodicWorkerTest.php,tests/Http/HealthChecksTest.php',
                 'dashboard.read_history', 'dashboard.prune_history' => 'tests/Unit/HistoryReadRetentionTest.php,tests/Network/HistoryConcurrencyTest.php',
+                'dashboard.read_incidents' => 'tests/Unit/IncidentReadTest.php,tests/Unit/IncidentLifecycleTest.php,tests/Http/IncidentsTest.php,tests/Http/IncidentQualifiersTest.php',
                 default => 'tests/Unit/SiteRepositoryTest.php',
             };
             if (in_array($symbol['id'], ['dashboard.list_branches', 'dashboard.check_site', 'dashboard.create_site', 'dashboard.update_site'], true)) {
@@ -51,12 +52,17 @@ try {
             if (in_array($symbol['id'], ['dashboard.check_site', 'dashboard.run_worker_pass'], true)) {
                 $unitTests .= ',tests/Unit/CheckHistoryTest.php,tests/Network/HistoryConcurrencyTest.php,tests/Network/HistoryDiagnosticsTest.php';
             }
+            if (in_array($symbol['id'], ['dashboard.store_check', 'dashboard.settle_worker_check', 'dashboard.check_site',
+                'dashboard.run_worker_pass', 'dashboard.prune_history', 'dashboard.delete_site'], true)) {
+                $unitTests .= ',tests/Unit/IncidentLifecycleTest.php,tests/Unit/IncidentAtomicityTest.php,tests/Network/IncidentConcurrencyTest.php,tests/Network/IncidentPublicTest.php,tests/Http/IncidentsTest.php,tests/Http/IncidentQualifiersTest.php';
+            }
             $tests = ($unitTests === '' ? '' : $unitTests . ',') . 'tests/Http/DashboardTest.php';
             if (in_array($symbol['id'], ['dashboard.create_site', 'dashboard.update_site', 'dashboard.check_site'], true)) {
                 $tests .= ',tests/Http/JsonChecksTest.php,tests/Http/HealthChecksTest.php';
             }
             // Every HTTP action initializes the database before handling its own command/query.
             $tests .= ',tests/Unit/DatabaseTest.php,tests/Unit/GitHubMigrationTest.php,tests/Unit/WorkerMigrationTest.php,tests/Unit/HistoryMigrationTest.php,tests/Network/DatabaseMigrationTest.php,tests/Network/DatabaseWalTest.php,tests/Network/FixtureCleanupTest.php';
+            $tests .= ',tests/Unit/IncidentMigrationTest.php';
             runGate([$lekalo, 'contract', 'attach', $symbol['id'], '--native-test', $tests, '--gate', 'native-php-tests']);
         }
     }

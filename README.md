@@ -701,3 +701,9 @@ Accepted checks append bounded immutable history without changing the current da
 Use `php bin/history.php SITE FROM TO [LIMIT [CURSOR]]` to read local pages and
 `php bin/prune-history.php [SITE]` to prune with `TABLO_HISTORY_RETENTION_DAYS` (default 30).
 See [atomic persistence, pagination and retention limits](docs/check-history.md).
+
+## Incidents
+
+Authenticated `/incidents` lists first observed Offline, recovery and qualified observation intervals.
+Tracking starts with newly accepted checks after installation; migration and reads never replay old
+history or fabricate incidents from current values. See [lifecycle, activation and paging boundaries](docs/incidents.md).
