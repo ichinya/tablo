@@ -54,6 +54,7 @@ function workerDependencies(): array
         'app/http-client.php' => ['owner' => 'Tablo\HttpClient', 'consumers' => ['dashboard.check_site', 'dashboard.deliver_notification']],
         'bin/webhook-attempt.php' => ['owner' => 'php-script:bin/webhook-attempt.php', 'consumers' => ['Tablo\WebhookSupervisor']],
         'views/settings.volt' => ['owner' => 'volt-template:views/settings.volt', 'consumers' => ['dashboard.get_notifications', 'dashboard.update_notifications', 'dashboard.read_notification_status']],
+        '.github/workflows/verify.yml' => ['owner' => 'github-workflow:Verify', 'consumers' => ['Hosted pinned contract and native PHP gates']],
     ];
 }
 

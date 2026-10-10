@@ -49,5 +49,6 @@ final class NotificationSchema
             PRIMARY KEY (site_id,event)
         )");
         $db->exec('CREATE INDEX notification_due ON notification_slots(status,due_at)');
+        $db->exec('CREATE INDEX notification_eligible ON notification_slots(status,channel_revision,expires_at,due_at)');
     }
 }

@@ -40,7 +40,7 @@ final class IncidentConcurrencyTest
             $b = $second->wait();
             Assert::same($a['code'], 0);
             Assert::same($b['code'], 0);
-            Assert::same(json_decode($a['stdout'], true)['ddl'], 8, 'four actual6 and four additive7 CREATE statements');
+            Assert::same(json_decode($a['stdout'], true)['ddl'], 9, 'four actual6 and five additive7 CREATE statements');
             Assert::same(json_decode($b['stdout'], true)['ddl'], 0);
             $db = Database::connect($path);
             Assert::same((int) $db->query('SELECT COUNT(*) FROM check_history')->fetchColumn(), 1);

@@ -12,6 +12,28 @@ use Testo\Test;
 final class NotificationOutboxTest
 {
     #[Test]
+    public function expiredBacklogCannotStarveFreshRecoveryAndMaintenanceHasFixedCap(): void
+    {
+        $f=new F(); $out=null;
+        try {
+            $f->configure(['unavailable'=>'0','recovery'=>'1','version_lag'=>'0']);
+            for($i=0;$i<80;$i++){
+                $f->id=$f->sites->save(array_replace(\Tablo\Tests\Support\IncidentFixtures::site(),['name'=>'Synthetic old '.$i]));
+                $f->accept(0,0); $f->accept(1,1);
+            }
+            $f->id=$f->sites->save(\Tablo\Tests\Support\IncidentFixtures::site()); $f->accept(0,5999); $f->accept(1,6000);
+            $out=new NotificationOutbox($f->db); $fresh=$out->claim(7000);
+            Assert::same($fresh['slot']['site_id'],$f->id); Assert::same($fresh['attempt'],1);
+            Assert::same((int)$f->db->query("SELECT count(*) FROM notification_slots WHERE status='expired'")->fetchColumn(),32);
+            Assert::true($out->acknowledge($fresh,['code'=>'sent','http_status'=>204],7000));
+            Assert::false($out->claim(7000));
+            Assert::same((int)$f->db->query("SELECT count(*) FROM notification_slots WHERE status='expired'")->fetchColumn(),64);
+            Assert::false($out->claim(7000));
+            Assert::same((int)$f->db->query("SELECT count(*) FROM notification_slots WHERE status='expired'")->fetchColumn(),80);
+        } finally { $out=null; $f->close(); }
+    }
+
+    #[Test]
     public function newerOpeningCoalescesInflightSlotAndFencesItsOldToken(): void
     {
         $f=new F(); $out=null;

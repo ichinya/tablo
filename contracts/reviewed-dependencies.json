@@ -193,7 +193,7 @@
             "consumers": [
                 "dashboard.run_worker_pass"
             ],
-            "fingerprint": "sha256:7cf6abeace94049a8a482b034bbf3dcf160e943e9ef1657351d90874cac15152"
+            "fingerprint": "sha256:abbe5d0e594c7a02a8884cf080ebcdbcc5a45d348d86989a498a26da68a018b2"
         },
         {
             "path": "app/check-history-snapshot.php",
@@ -312,7 +312,7 @@
             "consumers": [
                 "Actual additive schema7 migration"
             ],
-            "fingerprint": "sha256:885d1f105ed2b6b3d8fa1834f12aa95845c5c1cf2ad3e23760e9fff96df9f5a2"
+            "fingerprint": "sha256:33ced819a864132af52dac8d919825f15eb9a34e4746815a0e364811791090bb"
         },
         {
             "path": "app/notification-settings.php",
@@ -339,7 +339,7 @@
                 "dashboard.deliver_notification",
                 "dashboard.read_notification_status"
             ],
-            "fingerprint": "sha256:33779a00433b9545452f88671cee390a6b76ed92a99182508d40772071cd7061"
+            "fingerprint": "sha256:c28c317898fc0cd6c1f7e277076b594a29b5ccb6c4d0cf8e10b3e841d4e0c1d1"
         },
         {
             "path": "app/notification-delivery.php",
@@ -411,6 +411,14 @@
                 "dashboard.read_notification_status"
             ],
             "fingerprint": "sha256:813098f4371012582606aac0b8097163af80811131d9534504dbe0380bf7a849"
+        },
+        {
+            "path": ".github/workflows/verify.yml",
+            "owner": "github-workflow:Verify",
+            "consumers": [
+                "Hosted pinned contract and native PHP gates"
+            ],
+            "fingerprint": "sha256:00be955332966766225e6d93ae08833f6738e266ae5ba5d32da2fed6f291387c"
         }
     ]
 }

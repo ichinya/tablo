@@ -724,8 +724,8 @@
         {
             "id": "dashboard.claim_notification",
             "kind": "command",
-            "version": 1,
-            "description": "Short owned BEGIN IMMEDIATE commits one due candidate claim/token/30s lease and consumes attempt before returning. Stale epoch/channel/deletion/disabled cancels; TTL1h/max3; lost lease reschedules60/300s. Caller BEGIN refusal preserves caller; no network under SQL lock.",
+            "version": 2,
+            "description": "Short owned BEGIN IMMEDIATE performs at most32 due stale/expired/exhausted/lost-lease maintenance updates, then one indexed eligible pending claim/token/30s lease and consumes attempt before returning. Invalid backlog is excluded from eligible selection even at maintenance cap. Remaining maintenance resumes on later invocations. At most38 SQL statements/pass; planner work depends on configured slots. TTL1h/max3, lost lease reschedules60/300s. Caller BEGIN refusal preserves caller; no network under SQL lock.",
             "input": [
                 {
                     "name": "now",

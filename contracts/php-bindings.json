@@ -5,7 +5,7 @@
         "version": "0.1.0"
     },
     "project": "tablo",
-    "revision": "sha256:9ecbb57341a3208aa33c7e8edb6d54cf9ab6a4e2b6f6674f12bf05e3e498e987",
+    "revision": "sha256:07b591af8a4f1a1db177c4839acef891eb05268a8e3ba995cd687cb985c4cad8",
     "symbols": [
         {
             "id": "dashboard.change_admin_password",
@@ -1421,7 +1421,7 @@
                 "path": "app/notification-schema.php",
                 "line": 13
             },
-            "fingerprint": "sha256:885d1f105ed2b6b3d8fa1834f12aa95845c5c1cf2ad3e23760e9fff96df9f5a2",
+            "fingerprint": "sha256:33ced819a864132af52dac8d919825f15eb9a34e4746815a0e364811791090bb",
             "signature": null,
             "effects": [],
             "shape": {
@@ -1501,7 +1501,7 @@
                 "path": "app/notification-schema.php",
                 "line": 28
             },
-            "fingerprint": "sha256:885d1f105ed2b6b3d8fa1834f12aa95845c5c1cf2ad3e23760e9fff96df9f5a2",
+            "fingerprint": "sha256:33ced819a864132af52dac8d919825f15eb9a34e4746815a0e364811791090bb",
             "signature": null,
             "effects": [],
             "shape": {
@@ -1536,7 +1536,7 @@
                 "path": "app/notification-schema.php",
                 "line": 34
             },
-            "fingerprint": "sha256:885d1f105ed2b6b3d8fa1834f12aa95845c5c1cf2ad3e23760e9fff96df9f5a2",
+            "fingerprint": "sha256:33ced819a864132af52dac8d919825f15eb9a34e4746815a0e364811791090bb",
             "signature": null,
             "effects": [],
             "shape": {
@@ -1746,7 +1746,7 @@
                 "path": "app/notification-outbox.php",
                 "line": 12
             },
-            "fingerprint": "sha256:33779a00433b9545452f88671cee390a6b76ed92a99182508d40772071cd7061",
+            "fingerprint": "sha256:c28c317898fc0cd6c1f7e277076b594a29b5ccb6c4d0cf8e10b3e841d4e0c1d1",
             "signature": {
                 "inputs": [],
                 "output": "list(dashboard.notification_status)",
@@ -1763,7 +1763,7 @@
                 "path": "app/notification-outbox.php",
                 "line": 20
             },
-            "fingerprint": "sha256:33779a00433b9545452f88671cee390a6b76ed92a99182508d40772071cd7061",
+            "fingerprint": "sha256:c28c317898fc0cd6c1f7e277076b594a29b5ccb6c4d0cf8e10b3e841d4e0c1d1",
             "signature": {
                 "inputs": [
                     {
@@ -1787,9 +1787,9 @@
             "kind": "command",
             "source": {
                 "path": "app/notification-outbox.php",
-                "line": 60
+                "line": 78
             },
-            "fingerprint": "sha256:33779a00433b9545452f88671cee390a6b76ed92a99182508d40772071cd7061",
+            "fingerprint": "sha256:c28c317898fc0cd6c1f7e277076b594a29b5ccb6c4d0cf8e10b3e841d4e0c1d1",
             "signature": {
                 "inputs": [
                     {

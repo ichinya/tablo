@@ -16,7 +16,7 @@ final class NotificationOutbox
         try { return $statement->fetchAll(); } finally { $statement->closeCursor(); }
     }
 
-    // One candidate/pass, including expiry or stale cancellation. Caller owns channel mutex.
+    // At most32 maintenance updates and one eligible claim/pass. Caller owns channel mutex.
     public function claim(int $now): array|false
     {
         $this->db->exec('BEGIN IMMEDIATE');
@@ -26,26 +26,15 @@ final class NotificationOutbox
                 || !($settings['unavailable'] || $settings['recovery'] || $settings['version_lag'])) {
                 $this->db->exec('COMMIT'); return false;
             }
-            $slot=$this->one("SELECT * FROM notification_slots WHERE
-                (status = 'pending' AND due_at <= ?) OR (status = 'inflight' AND lease_until <= ?)
-                ORDER BY due_at,site_id,event LIMIT 1",[$now,$now]);
+            $this->maintain($settings,$now);
+            // Invalid/expired rows cannot consume the fresh event's entire one-hour TTL.
+            $slot=$this->one("SELECT n.* FROM notification_slots n INDEXED BY notification_eligible
+                JOIN sites s ON s.id=n.site_id WHERE n.status='pending' AND n.channel_revision=? AND n.expires_at>?
+                AND n.attempts<3 AND n.due_at<=? AND s.enabled=1 AND s.config_revision=n.config_revision
+                AND ((n.event='unavailable' AND CAST(? AS INTEGER)=1) OR (n.event='recovery' AND CAST(? AS INTEGER)=1) OR (n.event='version_lag' AND CAST(? AS INTEGER)=1))
+                ORDER BY n.due_at,n.site_id,n.event LIMIT 1",[$settings['revision'],$now,$now,
+                    $settings['unavailable'],$settings['recovery'],$settings['version_lag']]);
             if ($slot === false) { $this->db->exec('COMMIT'); return false; }
-            $site=$this->one('SELECT enabled,config_revision FROM sites WHERE id = ?',[$slot['site_id']]);
-            $status=null;
-            if ($site === false || !$site['enabled'] || $site['config_revision'] !== $slot['config_revision']
-                || $settings['revision'] !== $slot['channel_revision'] || !$settings[$slot['event']]) { $status='cancelled'; }
-            elseif ($now >= $slot['expires_at']) { $status='expired'; }
-            elseif ($slot['attempts'] >= 3) { $status='failed'; }
-            if ($status !== null) {
-                $this->execute('UPDATE notification_slots SET status=?,claim=NULL,lease_until=NULL WHERE site_id=? AND event=?',[$status,$slot['site_id'],$slot['event']]);
-                $this->db->exec('COMMIT'); return false;
-            }
-            // A lost owner consumes its attempt and observes backoff after lease expiry.
-            if ($slot['status'] === 'inflight') {
-                $this->execute("UPDATE notification_slots SET status='pending',claim=NULL,lease_until=NULL,last_code='ambiguous',due_at=?
-                    WHERE site_id=? AND event=?",[$now+($slot['attempts']===1?60:300),$slot['site_id'],$slot['event']]);
-                $this->db->exec('COMMIT'); return false;
-            }
             $claim=bin2hex(random_bytes(16));
             $this->execute("UPDATE notification_slots SET status='inflight',claim=?,lease_until=?,attempts=attempts+1
                 WHERE site_id=? AND event=?",[$claim,$now+30,$slot['site_id'],$slot['event']]);
@@ -54,6 +43,35 @@ final class NotificationOutbox
         } catch (\Throwable $error) {
             try { $this->db->exec('ROLLBACK'); } catch (\Throwable) { }
             throw $error;
+        }
+    }
+
+    private function maintain(#[\SensitiveParameter] array $settings,int $now): void
+    {
+        $query=$this->db->prepare("SELECT n.*,s.enabled AS site_enabled,s.config_revision AS current_revision
+            FROM notification_slots n LEFT JOIN sites s ON s.id=n.site_id WHERE
+            (n.status='pending' AND n.due_at<=? AND (n.expires_at<=? OR n.attempts>=3 OR n.channel_revision<>?
+                OR s.id IS NULL OR s.enabled<>1 OR s.config_revision<>n.config_revision
+                OR (n.event='unavailable' AND CAST(? AS INTEGER)=0) OR (n.event='recovery' AND CAST(? AS INTEGER)=0) OR (n.event='version_lag' AND CAST(? AS INTEGER)=0)))
+            OR (n.status='inflight' AND n.lease_until<=?) ORDER BY n.due_at,n.site_id,n.event LIMIT 32");
+        try {
+            $query->execute([$now,$now,$settings['revision'],$settings['unavailable'],$settings['recovery'],$settings['version_lag'],$now]);
+            $rows=$query->fetchAll();
+        } finally { $query->closeCursor(); }
+        foreach($rows as $slot){
+            $status=null;
+            if (!$slot['site_enabled'] || $slot['current_revision']!==$slot['config_revision']
+                || $settings['revision']!==$slot['channel_revision'] || !$settings[$slot['event']]) { $status='cancelled'; }
+            elseif($now>=$slot['expires_at']){$status='expired';}
+            elseif($slot['attempts']>=3){$status='failed';}
+            if($status!==null){
+                $this->execute('UPDATE notification_slots SET status=?,claim=NULL,lease_until=NULL WHERE site_id=? AND event=?',
+                    [$status,$slot['site_id'],$slot['event']]);
+            } else {
+                // A lost owner consumes its attempt; no free retry after lease expiry.
+                $this->execute("UPDATE notification_slots SET status='pending',claim=NULL,lease_until=NULL,last_code='ambiguous',due_at=?
+                    WHERE site_id=? AND event=?",[$now+($slot['attempts']===1?60:300),$slot['site_id'],$slot['event']]);
+            }
         }
     }
 

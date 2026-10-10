@@ -22,7 +22,7 @@ final class NotificationMigrationTest
     public function eachAdditiveDdlVersionCommitAndConflictingObjectRefusesWithoutPartialWrite(): void
     {
         foreach (['CREATE TABLE notification_settings','CREATE TABLE notification_checkpoints','CREATE TABLE notification_slots',
-            'CREATE INDEX notification_due','PRAGMA main.user_version = 7','COMMIT'] as $failure) {
+            'CREATE INDEX notification_due','CREATE INDEX notification_eligible','PRAGMA main.user_version = 7','COMMIT'] as $failure) {
             $db=self::predecessor(); $before=$db->query('SELECT name,type,sql FROM sqlite_schema ORDER BY name')->fetchAll();
             $db->failBefore=$failure;
             Assert::instanceOf(IncidentFixtures::error(fn()=>Database::migrate($db)),\PDOException::class);
@@ -33,7 +33,7 @@ final class NotificationMigrationTest
         }
         foreach (['CREATE TABLE notification_settings(bad TEXT)','CREATE VIEW notification_settings AS SELECT 1',
             'CREATE TABLE notification_checkpoints(bad TEXT)','CREATE VIEW notification_slots AS SELECT 1',
-            'CREATE INDEX notification_due ON sites(id)'] as $conflict) {
+            'CREATE INDEX notification_due ON sites(id)','CREATE INDEX notification_eligible ON sites(id)'] as $conflict) {
             $db=self::predecessor(); $db->exec($conflict);
             $before=$db->query('SELECT name,type,sql FROM sqlite_schema ORDER BY name')->fetchAll();
             Assert::instanceOf(IncidentFixtures::error(fn()=>Database::migrate($db)),\PDOException::class);

@@ -37,7 +37,11 @@ and fences its old ACK. This is bounded current delivery state, not a complete e
 Each slot expires after one hour and has at most three attempts. Failures retry after
 at least 60 seconds, then 300 seconds. A crash before sending still consumes its claim;
 expired inflight claims are explicitly rescheduled after the lease, retaining the key.
-Each manual action, one-shot CLI sweep or periodic pass processes at most one candidate.
+Each manual action, one-shot CLI sweep or periodic pass updates at most 32 due invalid,
+expired or lost-lease slots, then claims at most one eligible event for delivery. A separate
+indexed eligible selection excludes expired/stale work even when the maintenance cap is
+reached, so an expired backlog cannot consume a fresh recovery's TTL. Remaining maintenance
+resumes on subsequent invocations; expiry/status observations are not a complete event log.
 Due work resumes only on a later invocation; there is no queue daemon or sleeping retry.
 
 Delivery is bounded best effort. A receiver may accept before its response/local ACK is
