@@ -41,6 +41,19 @@
             "returns": {
                 "ref": "dashboard.number"
             }
+        },
+        {
+            "id": "dashboard.read_history",
+            "kind": "query",
+            "version": 1,
+            "description": "Trusted-local read validates positive existing site, calendar-valid canonicalizable half-open [from,to), default50 limit1..100. DESC checked_at,id keyset with integer LIMIT+1, bounded cursor validates scope and retains first-page global MAX(id) ceiling excluding later inserts. Retention/deletion may reduce pages; no durable snapshot/fixed count. No HTTP, Git, key creation, cleanup or transaction between pages.",
+            "reads": [
+                "dashboard.site",
+                "dashboard.check_history"
+            ],
+            "returns": {
+                "ref": "dashboard.history_page"
+            }
         }
     ]
 }

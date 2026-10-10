@@ -125,8 +125,8 @@
         {
             "id": "dashboard.delete_site",
             "kind": "command",
-            "version": 1,
-            "description": "Require confirmation page and authenticated CSRF-protected POST. GET does not delete.",
+            "version": 2,
+            "description": "Require confirmation page and authenticated CSRF-protected POST. GET does not delete. Deleting a site cascades only its immutable check history.",
             "input": [
                 {
                     "name": "id",
@@ -137,7 +137,8 @@
                 }
             ],
             "effects": [
-                "dashboard.site_deleted"
+                "dashboard.site_deleted",
+                "dashboard.check_history_deleted"
             ]
         },
         {
@@ -365,8 +366,8 @@
         {
             "id": "dashboard.run_worker_pass",
             "kind": "command",
-            "version": 2,
-            "description": "One finite serial pass reloads enabled IDs and each current site. Fresh connection/policy retains bounded aggregate admission and cooldowns. Shared PDO or established-key custody failure propagates to the fixed fatal CLI boundary; per-site network/provider and malformed individual ciphertext continue. One short post-network transaction couples guarded current result and admitted resource service credit. Stale or disabled snapshots earn no credit; store/progress/COMMIT failure rolls back both. Lifetime canonical flock releases even when final state cleanup fails.",
+            "version": 3,
+            "description": "One finite serial pass reloads enabled IDs and each current site. Fresh connection/policy retains bounded aggregate admission and cooldowns. Shared PDO or established-key custody failure propagates to the fixed fatal CLI boundary; per-site network/provider and malformed individual ciphertext continue. One short post-network transaction couples guarded current result and admitted resource service credit. Stale or disabled snapshots earn no credit; store/progress/COMMIT failure rolls back both. Lifetime canonical flock releases even when final state cleanup fails. Actual settlement now commits validated history with result and admitted credit; explicit prune adds no worker scheduling or stop hook.",
             "input": [
                 {
                     "name": "generation",
@@ -383,7 +384,8 @@
                 "dashboard.github_cooldown_updated",
                 "dashboard.worker_runtime_updated",
                 "dashboard.worker_progress_created",
-                "dashboard.worker_progress_updated"
+                "dashboard.worker_progress_updated",
+                "dashboard.check_history_created"
             ]
         },
         {
@@ -402,6 +404,109 @@
             ],
             "effects": [
                 "dashboard.worker_runtime_updated"
+            ]
+        },
+        {
+            "id": "dashboard.check_history_created",
+            "kind": "effect",
+            "version": 1,
+            "operation": "create",
+            "entity": "dashboard.check_history"
+        },
+        {
+            "id": "dashboard.check_history_deleted",
+            "kind": "effect",
+            "version": 1,
+            "operation": "delete",
+            "entity": "dashboard.check_history"
+        },
+        {
+            "id": "dashboard.store_check",
+            "kind": "command",
+            "version": 1,
+            "description": "Actual manual/one-shot SiteRepository entry owns short BEGIN IMMEDIATE after network work. Immediately guarded UPDATE rowCount zero rolls back and returns false without history validation; one validates actual id/revision/time then INSERTs immutable history and COMMITs on the same PDO. Failed BEGIN leaves caller transaction untouched; validation/INSERT/COMMIT/cleanup failures preserve first error and roll back paired result/history. No network, sleep, separate connection or public bypass flag.",
+            "input": [
+                {
+                    "name": "site",
+                    "type": {
+                        "ref": "dashboard.site"
+                    },
+                    "required": true
+                },
+                {
+                    "name": "state",
+                    "type": {
+                        "ref": "dashboard.check_result"
+                    },
+                    "required": true
+                }
+            ],
+            "effects": [
+                "dashboard.site_updated",
+                "dashboard.check_history_created"
+            ]
+        },
+        {
+            "id": "dashboard.settle_worker_check",
+            "kind": "command",
+            "version": 1,
+            "description": "Actual WorkerStateRepository::settle delegates ownership to SiteRepository shared short immediate transaction. Matching result plus validated history and only admitted field service credit/fairness turn commit together on the same PDO; stale/disabled/ABA/rotated/deleted zero appends and credits nothing. INSERT/credit/deferred COMMIT refusal rolls back the pair and original error wins. Caller BEGIN is refused untouched; PHP82 engine state governs implicit-rollback cleanup.",
+            "input": [
+                {
+                    "name": "site",
+                    "type": {
+                        "ref": "dashboard.site"
+                    },
+                    "required": true
+                },
+                {
+                    "name": "state",
+                    "type": {
+                        "ref": "dashboard.check_result"
+                    },
+                    "required": true
+                }
+            ],
+            "effects": [
+                "dashboard.site_updated",
+                "dashboard.check_history_created",
+                "dashboard.worker_progress_created",
+                "dashboard.worker_progress_updated",
+                "dashboard.worker_runtime_updated"
+            ]
+        },
+        {
+            "id": "dashboard.prune_history",
+            "kind": "command",
+            "version": 1,
+            "description": "Trusted-local explicit prune captures one UTC cutoff before destructive work; strict checked_at<cutoff, optional exact existing site. Retention 1..3650 canonical decimal days default30; malformed/empty refuses before storage. Up to ten 500-row subquery DELETE batches ordered checked_at,id, each owned immediate transaction. Prior committed batches survive later refusal; cap honestly may leave rows. No COUNT all, network, retry, sleep, read-triggered/worker cleanup, VACUUM or WAL policy change; current site state unchanged.",
+            "input": [
+                {
+                    "name": "days",
+                    "type": {
+                        "ref": "dashboard.number"
+                    },
+                    "required": true
+                },
+                {
+                    "name": "site_id",
+                    "type": {
+                        "optional": {
+                            "ref": "dashboard.number"
+                        }
+                    }
+                },
+                {
+                    "name": "now",
+                    "type": {
+                        "optional": {
+                            "ref": "dashboard.timestamp"
+                        }
+                    }
+                }
+            ],
+            "effects": [
+                "dashboard.check_history_deleted"
             ]
         }
     ]

@@ -38,7 +38,7 @@ final class WorkerMigrationTest
                 $db->failBefore = null;
             }
             Database::migrate($db);
-            Assert::same((int) $db->query('PRAGMA user_version')->fetchColumn(), 4);
+            Assert::same((int) $db->query('PRAGMA user_version')->fetchColumn(), Database::CURRENT_SCHEMA_VERSION);
             $after = $db->query('SELECT * FROM sites')->fetch();
             Assert::same(array_intersect_key($after, $before), $before);
             Assert::same($after['config_revision'], 0);

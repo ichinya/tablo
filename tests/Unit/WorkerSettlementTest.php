@@ -31,6 +31,7 @@ final class WorkerSettlementTest
             $db->exec('CREATE TABLE commit_control (parent INTEGER REFERENCES sites(id) DEFERRABLE INITIALLY DEFERRED)');
             foreach ([
                 "BEFORE UPDATE OF checked_at ON sites BEGIN SELECT RAISE(ABORT, 'store-control'); END",
+                "BEFORE INSERT ON check_history BEGIN SELECT RAISE(ABORT, 'history-control'); END",
                 "BEFORE INSERT ON worker_progress BEGIN SELECT RAISE(ABORT, 'progress-control'); END",
                 "BEFORE UPDATE OF fairness_turn ON worker_runtime BEGIN SELECT RAISE(ABORT, 'turn-control'); END",
                 'AFTER UPDATE OF checked_at ON sites BEGIN INSERT INTO commit_control VALUES (-1); END',
@@ -42,6 +43,7 @@ final class WorkerSettlementTest
                 Assert::false($db->inTransaction());
                 Assert::same($sites->find($id)['checked_at'], null);
                 Assert::same((int) $db->query('SELECT COUNT(*) FROM worker_progress')->fetchColumn(), 0);
+                Assert::same((int) $db->query('SELECT COUNT(*) FROM check_history')->fetchColumn(), 0);
                 Assert::same((int) $db->query('SELECT fairness_turn FROM worker_runtime')->fetchColumn(), 0);
                 Assert::same((int) $db->query('SELECT COUNT(*) FROM commit_control')->fetchColumn(), 0);
                 unset($error, $caught);
@@ -54,6 +56,7 @@ final class WorkerSettlementTest
             Assert::same((int) $db->query('SELECT check_interval_minutes FROM installation_settings')->fetchColumn(), 7);
             $db->rollBack();
             Assert::true($state->settle($snapshot, $result));
+            Assert::same((int) $db->query('SELECT COUNT(*) FROM check_history')->fetchColumn(), 1);
             Assert::same($sites->find($id)['checked_at'], $result['checked_at']);
             Assert::same($state->turns($id, $snapshot['config_revision']),
                 ['latest_release' => 1, 'latest_commit' => 0, 'open_issues' => 2, 'open_prs' => 0]);

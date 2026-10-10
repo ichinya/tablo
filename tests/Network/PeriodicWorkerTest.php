@@ -87,6 +87,8 @@ final class PeriodicWorkerTest
                 if ($mode !== 'stop') { $child->awaitOutput('Worker pass complete.'); $state->requestStop($state->generation()); }
                 Assert::same($child->wait()['exit_code'], 0);
                 Assert::same($sites->find($id)['checked_at'] !== null, in_array($mode, ['rename-only','stop'], true));
+                Assert::same((int) $db->query('SELECT COUNT(*) FROM check_history WHERE site_id=' . $id)->fetchColumn(),
+                    in_array($mode, ['rename-only','stop'], true) ? 1 : 0, 'real worker barrier pairs accepted result and history');
                 Assert::false(str_contains(implode(' ', $child->output()), 'synthetic-private-response'));
             } finally {
                 file_put_contents($directory->path . '/release', 'release');

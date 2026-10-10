@@ -812,6 +812,432 @@
                     "required": true
                 }
             ]
+        },
+        {
+            "id": "dashboard.history_version_status",
+            "kind": "enum",
+            "version": 1,
+            "values": [
+                {
+                    "value": "skipped"
+                },
+                {
+                    "value": "ok"
+                },
+                {
+                    "value": "error"
+                }
+            ]
+        },
+        {
+            "id": "dashboard.check_history",
+            "kind": "entity",
+            "version": 1,
+            "description": "Immutable accepted measurement projection; schema 5 starts empty. AUTOINCREMENT identity, site FK CASCADE, actual guarded nonnegative config_revision, calendar-valid canonical 20-byte UTC time. Nullable online 0/1, response time 0..2147483647, HTTP statuses 100..599, fixed typed codes, UTF-8 version/release strings 1..200 bytes and normalized SHA 7..64 hex. No raw errors, bodies, headers, URLs, credential or quota identities. Older current measurements retain truthful time; upstream strings are application data, not a whole-graph secrecy promise.",
+            "identity": [
+                "id"
+            ],
+            "fields": [
+                {
+                    "name": "id",
+                    "type": {
+                        "ref": "dashboard.number"
+                    },
+                    "required": true
+                },
+                {
+                    "name": "site_id",
+                    "type": {
+                        "ref": "dashboard.number"
+                    },
+                    "required": true
+                },
+                {
+                    "name": "config_revision",
+                    "type": {
+                        "ref": "dashboard.number"
+                    },
+                    "required": true
+                },
+                {
+                    "name": "checked_at",
+                    "type": {
+                        "ref": "dashboard.timestamp"
+                    },
+                    "required": true
+                },
+                {
+                    "name": "online",
+                    "type": {
+                        "optional": {
+                            "ref": "dashboard.number"
+                        }
+                    }
+                },
+                {
+                    "name": "health_error_code",
+                    "type": {
+                        "optional": {
+                            "ref": "dashboard.health_error_code"
+                        }
+                    }
+                },
+                {
+                    "name": "health_http_status",
+                    "type": {
+                        "optional": {
+                            "ref": "dashboard.number"
+                        }
+                    }
+                },
+                {
+                    "name": "response_time_ms",
+                    "type": {
+                        "optional": {
+                            "ref": "dashboard.number"
+                        }
+                    }
+                },
+                {
+                    "name": "deployed_version",
+                    "type": {
+                        "optional": {
+                            "ref": "dashboard.text"
+                        }
+                    }
+                },
+                {
+                    "name": "deployed_commit",
+                    "type": {
+                        "optional": {
+                            "ref": "dashboard.text"
+                        }
+                    }
+                },
+                {
+                    "name": "latest_release",
+                    "type": {
+                        "optional": {
+                            "ref": "dashboard.text"
+                        }
+                    }
+                },
+                {
+                    "name": "latest_commit",
+                    "type": {
+                        "optional": {
+                            "ref": "dashboard.text"
+                        }
+                    }
+                },
+                {
+                    "name": "version_status",
+                    "type": {
+                        "ref": "dashboard.history_version_status"
+                    },
+                    "required": true
+                },
+                {
+                    "name": "version_error_code",
+                    "type": {
+                        "optional": {
+                            "ref": "dashboard.text"
+                        }
+                    }
+                },
+                {
+                    "name": "version_http_status",
+                    "type": {
+                        "optional": {
+                            "ref": "dashboard.number"
+                        }
+                    }
+                },
+                {
+                    "name": "release_error_code",
+                    "type": {
+                        "optional": {
+                            "ref": "dashboard.text"
+                        }
+                    }
+                },
+                {
+                    "name": "release_http_status",
+                    "type": {
+                        "optional": {
+                            "ref": "dashboard.number"
+                        }
+                    }
+                },
+                {
+                    "name": "commit_error_code",
+                    "type": {
+                        "optional": {
+                            "ref": "dashboard.text"
+                        }
+                    }
+                },
+                {
+                    "name": "commit_http_status",
+                    "type": {
+                        "optional": {
+                            "ref": "dashboard.number"
+                        }
+                    }
+                }
+            ]
+        },
+        {
+            "id": "dashboard.check_result",
+            "kind": "value-object",
+            "version": 1,
+            "description": "Actual checker state supplied to guarded persistence. State validation occurs only after one current-site UPDATE; stale zero returns false before validation.",
+            "fields": [
+                {
+                    "name": "checked_at",
+                    "type": {
+                        "ref": "dashboard.timestamp"
+                    },
+                    "required": true
+                },
+                {
+                    "name": "online",
+                    "type": {
+                        "optional": {
+                            "ref": "dashboard.number"
+                        }
+                    }
+                },
+                {
+                    "name": "health_error_code",
+                    "type": {
+                        "optional": {
+                            "ref": "dashboard.health_error_code"
+                        }
+                    }
+                },
+                {
+                    "name": "health_http_status",
+                    "type": {
+                        "optional": {
+                            "ref": "dashboard.number"
+                        }
+                    }
+                },
+                {
+                    "name": "response_time_ms",
+                    "type": {
+                        "optional": {
+                            "ref": "dashboard.number"
+                        }
+                    }
+                },
+                {
+                    "name": "deployed_version",
+                    "type": {
+                        "optional": {
+                            "ref": "dashboard.text"
+                        }
+                    }
+                },
+                {
+                    "name": "deployed_commit",
+                    "type": {
+                        "optional": {
+                            "ref": "dashboard.text"
+                        }
+                    }
+                },
+                {
+                    "name": "latest_release",
+                    "type": {
+                        "optional": {
+                            "ref": "dashboard.text"
+                        }
+                    }
+                },
+                {
+                    "name": "latest_commit",
+                    "type": {
+                        "optional": {
+                            "ref": "dashboard.text"
+                        }
+                    }
+                },
+                {
+                    "name": "version_status",
+                    "type": {
+                        "optional": {
+                            "ref": "dashboard.history_version_status"
+                        }
+                    }
+                },
+                {
+                    "name": "version_error_code",
+                    "type": {
+                        "optional": {
+                            "ref": "dashboard.text"
+                        }
+                    }
+                },
+                {
+                    "name": "version_http_status",
+                    "type": {
+                        "optional": {
+                            "ref": "dashboard.number"
+                        }
+                    }
+                },
+                {
+                    "name": "release_error_code",
+                    "type": {
+                        "optional": {
+                            "ref": "dashboard.text"
+                        }
+                    }
+                },
+                {
+                    "name": "release_http_status",
+                    "type": {
+                        "optional": {
+                            "ref": "dashboard.number"
+                        }
+                    }
+                },
+                {
+                    "name": "commit_error_code",
+                    "type": {
+                        "optional": {
+                            "ref": "dashboard.text"
+                        }
+                    }
+                },
+                {
+                    "name": "commit_http_status",
+                    "type": {
+                        "optional": {
+                            "ref": "dashboard.number"
+                        }
+                    }
+                },
+                {
+                    "name": "open_issues",
+                    "type": {
+                        "optional": {
+                            "ref": "dashboard.number"
+                        }
+                    }
+                },
+                {
+                    "name": "open_prs",
+                    "type": {
+                        "optional": {
+                            "ref": "dashboard.number"
+                        }
+                    }
+                },
+                {
+                    "name": "last_error",
+                    "type": {
+                        "optional": {
+                            "ref": "dashboard.text"
+                        }
+                    }
+                },
+                {
+                    "name": "worker_service",
+                    "type": {
+                        "optional": {
+                            "ref": "dashboard.worker_service"
+                        }
+                    }
+                }
+            ]
+        },
+        {
+            "id": "dashboard.history_page",
+            "kind": "value-object",
+            "version": 1,
+            "fields": [
+                {
+                    "name": "rows",
+                    "type": {
+                        "list": {
+                            "ref": "dashboard.check_history"
+                        }
+                    },
+                    "required": true
+                },
+                {
+                    "name": "next_cursor",
+                    "type": {
+                        "optional": {
+                            "ref": "dashboard.text"
+                        }
+                    }
+                }
+            ]
+        },
+        {
+            "id": "dashboard.history_prune_result",
+            "kind": "value-object",
+            "version": 1,
+            "fields": [
+                {
+                    "name": "deleted",
+                    "type": {
+                        "ref": "dashboard.number"
+                    },
+                    "required": true
+                },
+                {
+                    "name": "capped",
+                    "type": {
+                        "ref": "dashboard.flag"
+                    },
+                    "required": true
+                }
+            ]
+        },
+        {
+            "id": "dashboard.worker_service",
+            "kind": "value-object",
+            "version": 1,
+            "description": "Actual admitted/completed service subset supplied by SiteChecker worker order; only true fields earn turn credit.",
+            "fields": [
+                {
+                    "name": "latest_release",
+                    "type": {
+                        "optional": {
+                            "ref": "dashboard.flag"
+                        }
+                    }
+                },
+                {
+                    "name": "latest_commit",
+                    "type": {
+                        "optional": {
+                            "ref": "dashboard.flag"
+                        }
+                    }
+                },
+                {
+                    "name": "open_issues",
+                    "type": {
+                        "optional": {
+                            "ref": "dashboard.flag"
+                        }
+                    }
+                },
+                {
+                    "name": "open_prs",
+                    "type": {
+                        "optional": {
+                            "ref": "dashboard.flag"
+                        }
+                    }
+                }
+            ]
         }
     ]
 }

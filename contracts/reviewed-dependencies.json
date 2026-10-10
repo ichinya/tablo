@@ -56,7 +56,7 @@
             "consumers": [
                 "dashboard.run_worker_pass"
             ],
-            "fingerprint": "sha256:5fadce678838e864ed34787b59bfb253625d0ced80bf6033e751ca836204ed4c"
+            "fingerprint": "sha256:492f4a11f4509e4a5b537a2fabdefdf01372ea3802e9edbf0002f9c78ca36523"
         },
         {
             "path": "tools/capture-bindings.php",
@@ -64,7 +64,7 @@
             "consumers": [
                 "dashboard.run_worker_pass"
             ],
-            "fingerprint": "sha256:71913d969c0ca478957ef5e69bcb7cc2a513e53f4e3897947db77f0ff14b2e0c"
+            "fingerprint": "sha256:a2f72813e5aa3ae7b17fae2be305ea7a5a92ab2099184a79c5c871ce802d936c"
         },
         {
             "path": "tools/reviewed-dependencies.php",
@@ -72,7 +72,53 @@
             "consumers": [
                 "dashboard.run_worker_pass"
             ],
-            "fingerprint": "sha256:89b3fe9d1b6b7447934c5fef9fb8bc43d7fc3be1ffcf9a52eeab2fefc1fc30a8"
+            "fingerprint": "sha256:c4a8c9ff34e1eb63ab2554166e0e8ec32b06ab98ab10786cd037c84f57b8c3a6"
+        },
+        {
+            "path": "app/check-history-snapshot.php",
+            "owner": "Tablo\\CheckHistorySnapshot",
+            "consumers": [
+                "dashboard.store_check",
+                "dashboard.settle_worker_check",
+                "dashboard.run_worker_pass",
+                "dashboard.check_site"
+            ],
+            "fingerprint": "sha256:966f2230e5ac22b0e1f2e8d12f845f4211bc6ae37bab5926658b8601e12afe4a"
+        },
+        {
+            "path": "app/history-time.php",
+            "owner": "Tablo\\HistoryTime",
+            "consumers": [
+                "dashboard.store_check",
+                "dashboard.settle_worker_check",
+                "dashboard.read_history",
+                "dashboard.prune_history"
+            ],
+            "fingerprint": "sha256:4d1c9de1213eef31c0ea36a57b402b71bf12c537520b775056ffa28caed6f172"
+        },
+        {
+            "path": "app/history-retention.php",
+            "owner": "Tablo\\HistoryRetention",
+            "consumers": [
+                "dashboard.prune_history"
+            ],
+            "fingerprint": "sha256:bafab89b11eec71ed64883a0cb55f0f2540a98e5cfea54542a4055e7b396fa91"
+        },
+        {
+            "path": "bin/history.php",
+            "owner": "php-script:bin/history.php",
+            "consumers": [
+                "dashboard.read_history"
+            ],
+            "fingerprint": "sha256:fe28420b978525ec6c3a6a8951a3ee4ffcc99b59078792a6a7a583b76ebabfa2"
+        },
+        {
+            "path": "bin/prune-history.php",
+            "owner": "php-script:bin/prune-history.php",
+            "consumers": [
+                "dashboard.prune_history"
+            ],
+            "fingerprint": "sha256:008cc7f25b7c36196a0fef1e5c263de74aafe03c10ff38af558e10e989c4b2d4"
         }
     ]
 }

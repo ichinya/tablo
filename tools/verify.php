@@ -38,6 +38,8 @@ try {
                 'dashboard.get_settings', 'dashboard.update_settings' => 'tests/Unit/SettingsRepositoryTest.php,tests/Http/SettingsTest.php,tests/Network/WorkerSettingsTest.php',
                 'dashboard.run_worker_pass' => 'tests/Unit/PeriodicWorkerTest.php,tests/Network/PeriodicWorkerTest.php,tests/Network/WorkerFairnessTest.php,tests/Unit/GitHubBudgetTest.php,tests/Network/GitHubSweepTest.php,tests/Network/GitHubCorrectionsTest.php,tests/Unit/SiteCheckerTest.php,tests/Http/HealthChecksTest.php,tests/Network/HttpFramingTest.php,tests/Http/HttpFramingTest.php',
                 'dashboard.request_worker_stop' => 'tests/Network/PeriodicWorkerTest.php,tests/Unit/PeriodicWorkerTest.php',
+                'dashboard.store_check', 'dashboard.settle_worker_check' => 'tests/Unit/CheckHistoryTest.php,tests/Unit/WorkerSettlementTest.php,tests/Network/HistoryConcurrencyTest.php,tests/Network/HistoryDiagnosticsTest.php,tests/Network/PeriodicWorkerTest.php,tests/Http/HealthChecksTest.php',
+                'dashboard.read_history', 'dashboard.prune_history' => 'tests/Unit/HistoryReadRetentionTest.php,tests/Network/HistoryConcurrencyTest.php',
                 default => 'tests/Unit/SiteRepositoryTest.php',
             };
             if (in_array($symbol['id'], ['dashboard.list_branches', 'dashboard.check_site', 'dashboard.create_site', 'dashboard.update_site'], true)) {
@@ -46,12 +48,15 @@ try {
             if ($symbol['id'] === 'dashboard.run_worker_pass') {
                 $unitTests .= ',tests/Unit/WorkerAdmissionTest.php,tests/Unit/WorkerSettlementTest.php,tests/Network/WorkerSharedFailureTest.php,tests/Http/WorkerDashboardTest.php,tests/Network/WorkerSettingsTest.php';
             }
+            if (in_array($symbol['id'], ['dashboard.check_site', 'dashboard.run_worker_pass'], true)) {
+                $unitTests .= ',tests/Unit/CheckHistoryTest.php,tests/Network/HistoryConcurrencyTest.php,tests/Network/HistoryDiagnosticsTest.php';
+            }
             $tests = ($unitTests === '' ? '' : $unitTests . ',') . 'tests/Http/DashboardTest.php';
             if (in_array($symbol['id'], ['dashboard.create_site', 'dashboard.update_site', 'dashboard.check_site'], true)) {
                 $tests .= ',tests/Http/JsonChecksTest.php,tests/Http/HealthChecksTest.php';
             }
             // Every HTTP action initializes the database before handling its own command/query.
-            $tests .= ',tests/Unit/DatabaseTest.php,tests/Unit/GitHubMigrationTest.php,tests/Unit/WorkerMigrationTest.php,tests/Network/DatabaseMigrationTest.php,tests/Network/DatabaseWalTest.php,tests/Network/FixtureCleanupTest.php';
+            $tests .= ',tests/Unit/DatabaseTest.php,tests/Unit/GitHubMigrationTest.php,tests/Unit/WorkerMigrationTest.php,tests/Unit/HistoryMigrationTest.php,tests/Network/DatabaseMigrationTest.php,tests/Network/DatabaseWalTest.php,tests/Network/FixtureCleanupTest.php';
             runGate([$lekalo, 'contract', 'attach', $symbol['id'], '--native-test', $tests, '--gate', 'native-php-tests']);
         }
     }

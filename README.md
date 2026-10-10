@@ -694,3 +694,10 @@ primary cooldown через HMAC с private vault key; ротация handle с�
 `php bin/worker.php --stop` requests cooperative stop; observe exit before restarting.
 Docker Compose includes `tablo-worker` sharing the web image, local database and token key.
 See [launch, cadence, fairness, stop and storage limits](docs/periodic-worker.md).
+
+## Check history
+
+Accepted checks append bounded immutable history without changing the current dashboard state.
+Use `php bin/history.php SITE FROM TO [LIMIT [CURSOR]]` to read local pages and
+`php bin/prune-history.php [SITE]` to prune with `TABLO_HISTORY_RETENTION_DAYS` (default 30).
+See [atomic persistence, pagination and retention limits](docs/check-history.md).

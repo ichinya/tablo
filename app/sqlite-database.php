@@ -9,7 +9,7 @@ use Throwable;
 
 final class Database
 {
-    public const CURRENT_SCHEMA_VERSION = 4;
+    public const CURRENT_SCHEMA_VERSION = 5;
 
     // Version 0 installations may lack these additive fields and git_tokens.
     private const SITE_ADDITIONS = [
@@ -77,6 +77,7 @@ final class Database
                     1 => self::migrateToVersionTwo($db),
                     2 => self::migrateToVersionThree($db),
                     3 => self::migrateToVersionFour($db),
+                    4 => self::migrateToVersionFive($db),
                     default => throw new RuntimeException('No migration for SQLite schema version ' . $version),
                 };
                 $version++;
@@ -163,6 +164,41 @@ final class Database
             open_issues INTEGER NOT NULL DEFAULT 0 CHECK (open_issues >= 0),
             open_prs INTEGER NOT NULL DEFAULT 0 CHECK (open_prs >= 0)
         )");
+    }
+
+    private static function migrateToVersionFive(PDO $db): void
+    {
+        $db->exec("CREATE TABLE check_history (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            site_id INTEGER NOT NULL REFERENCES sites(id) ON DELETE CASCADE,
+            config_revision INTEGER NOT NULL CHECK (typeof(config_revision) = 'integer' AND config_revision >= 0),
+            checked_at TEXT NOT NULL CHECK (typeof(checked_at) = 'text' AND length(CAST(checked_at AS BLOB)) = 20
+                AND checked_at GLOB '[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]T[0-9][0-9]:[0-9][0-9]:[0-9][0-9]Z'
+                AND substr(checked_at, 1, 4) <> '0000'
+                AND strftime('%Y-%m-%dT%H:%M:%SZ', checked_at, '+0 seconds') IS checked_at),
+            online INTEGER CHECK (online IS NULL OR (typeof(online) = 'integer' AND online IN (0, 1))),
+            health_error_code TEXT CHECK (health_error_code IN ('http', 'timeout', 'refused', 'dns', 'ssrf', 'tls', 'size',
+                'invalid-response', 'invalid-url', 'network', 'check-error', 'json-condition')),
+            health_http_status INTEGER CHECK (health_http_status IS NULL OR (typeof(health_http_status) = 'integer' AND health_http_status BETWEEN 100 AND 599)),
+            response_time_ms INTEGER CHECK (response_time_ms IS NULL OR (typeof(response_time_ms) = 'integer' AND response_time_ms BETWEEN 0 AND 2147483647)),
+            deployed_version TEXT CHECK (deployed_version IS NULL OR (typeof(deployed_version) = 'text' AND length(CAST(deployed_version AS BLOB)) BETWEEN 1 AND 200)),
+            deployed_commit TEXT CHECK (deployed_commit IS NULL OR (typeof(deployed_commit) = 'text' AND length(deployed_commit) BETWEEN 7 AND 64 AND deployed_commit NOT GLOB '*[^a-f0-9]*')),
+            latest_release TEXT CHECK (latest_release IS NULL OR (typeof(latest_release) = 'text' AND length(CAST(latest_release AS BLOB)) BETWEEN 1 AND 200)),
+            latest_commit TEXT CHECK (latest_commit IS NULL OR (typeof(latest_commit) = 'text' AND length(latest_commit) BETWEEN 7 AND 64 AND latest_commit NOT GLOB '*[^a-f0-9]*')),
+            version_status TEXT NOT NULL CHECK (version_status IN ('skipped', 'ok', 'error')),
+            version_error_code TEXT CHECK (version_error_code IN ('http', 'invalid-data', 'timeout', 'refused', 'dns', 'ssrf', 'tls', 'size',
+                'invalid-response', 'invalid-url', 'network', 'check-error', 'json-condition')),
+            version_http_status INTEGER CHECK (version_http_status IS NULL OR (typeof(version_http_status) = 'integer' AND version_http_status BETWEEN 100 AND 599)),
+            release_error_code TEXT CHECK (release_error_code IN ('access', 'rate-limit', 'budget', 'credential-changed', 'renamed',
+                'branch-unconfirmed', 'release-unconfirmed', 'incomplete-search', 'invalid-data', 'unavailable', 'check-error')),
+            release_http_status INTEGER CHECK (release_http_status IS NULL OR (typeof(release_http_status) = 'integer' AND release_http_status BETWEEN 100 AND 599)),
+            commit_error_code TEXT CHECK (commit_error_code IN ('access', 'rate-limit', 'budget', 'credential-changed', 'renamed',
+                'branch-unconfirmed', 'release-unconfirmed', 'incomplete-search', 'invalid-data', 'unavailable', 'check-error')),
+            commit_http_status INTEGER CHECK (commit_http_status IS NULL OR (typeof(commit_http_status) = 'integer' AND commit_http_status BETWEEN 100 AND 599)),
+            CHECK ((version_status = 'error') = (version_error_code IS NOT NULL))
+        )");
+        $db->exec('CREATE INDEX check_history_site_time ON check_history(site_id, checked_at, id)');
+        $db->exec('CREATE INDEX check_history_time ON check_history(checked_at, id)');
     }
 
     private static function validateSchema(PDO $db, bool $complete): void
