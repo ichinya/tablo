@@ -30,8 +30,9 @@ try {
     foreach ($declaration['symbols'] as $symbol) {
         if (in_array($symbol['kind'], ['command', 'query'], true)) {
             $unitTests = match ($symbol['id']) {
-                'dashboard.setup' => 'tests/Unit/AuthTest.php',
-                'dashboard.login' => 'tests/Unit/AuthTest.php,tests/Unit/ClientAddressTest.php,tests/Http/LoginProxyTest.php',
+                'dashboard.change_admin_password' => 'tests/Unit/AdminPasswordTest.php,tests/Network/AdminPasswordTest.php,tests/Network/PasswordHelperTest.php,tests/Http/AdminPasswordTest.php',
+                'dashboard.setup' => 'tests/Unit/AuthTest.php,tests/Unit/PasswordServiceTest.php,tests/Unit/PasswordPrivacyTest.php,tests/Unit/AdminPasswordTest.php,tests/Network/AdminPasswordTest.php,tests/Http/AdminPasswordTest.php',
+                'dashboard.login' => 'tests/Unit/AuthTest.php,tests/Unit/ClientAddressTest.php,tests/Http/LoginProxyTest.php,tests/Http/AdminPasswordTest.php',
                 'dashboard.list_branches' => 'tests/Unit/GitHubProviderTest.php,tests/Unit/GitHubBudgetTest.php,tests/Network/HttpClientTest.php,tests/Network/GitHubSweepTest.php,tests/Http/GitHubBudgetTest.php',
                 'dashboard.check_site' => 'tests/Unit/SiteCheckerTest.php,tests/Unit/HealthChecksTest.php,tests/Unit/HttpClientTest.php,tests/Unit/JsonChecksTest.php,tests/Network/HttpClientTest.php,tests/Unit/GitHubProviderTest.php,tests/Unit/GitHubBudgetTest.php,tests/Network/GitHubSweepTest.php,tests/Http/GitHubBudgetTest.php,tests/Network/HttpFramingTest.php,tests/Http/HttpFramingTest.php',
                 'dashboard.create_site', 'dashboard.update_site' => 'tests/Unit/SiteRepositoryTest.php,tests/Unit/JsonChecksTest.php',

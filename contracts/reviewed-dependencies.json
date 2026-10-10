@@ -2,6 +2,62 @@
     "schema": "tablo/reviewed-dependencies/v1",
     "dependencies": [
         {
+            "path": "app/password-service.php",
+            "owner": "Tablo\\PasswordService",
+            "consumers": [
+                "Tablo\\Auth setup and password change"
+            ],
+            "fingerprint": "sha256:b708f12f8e696bef24b7bfd07837e1969c62df9d424a40ebe6a9af5593d63bbc"
+        },
+        {
+            "path": "app/admin-password-command.php",
+            "owner": "Tablo\\AdminPasswordCommand",
+            "consumers": [
+                "Local administrator password CLI"
+            ],
+            "fingerprint": "sha256:5ec25a9959c8ba528c38c66b23828ed1226406eb8daa7f86648689a710973908"
+        },
+        {
+            "path": "bin/admin-password.php",
+            "owner": "Local CLI bootstrap and safe error boundary",
+            "consumers": [
+                "Local administrator password CLI"
+            ],
+            "fingerprint": "sha256:7479a36e386205a37fcb58f121a4667d3437f63338cd5b1db5cda4083fbc7f7d"
+        },
+        {
+            "path": "app/installation-exception.php",
+            "owner": "Tablo\\InstallationException",
+            "consumers": [
+                "Existing installation refusal and CLI exit"
+            ],
+            "fingerprint": "sha256:68b8b392c1345f94ca247630501631ab693686f9dbc7f2b16dc2ae0441bb9f49"
+        },
+        {
+            "path": "app/password-conflict.php",
+            "owner": "Tablo\\PasswordConflict",
+            "consumers": [
+                "Snapshot conflict and CLI exit"
+            ],
+            "fingerprint": "sha256:b017d69e94c6f5d392a980c2e6a32d67fb4ba3b33502ca5c284cb0f8780a6883"
+        },
+        {
+            "path": "tools/admin-password.bash",
+            "owner": "Bash protected input helper",
+            "consumers": [
+                "Local administrator password CLI stdin"
+            ],
+            "fingerprint": "sha256:86d0dee7d0fa910f55b5204387aaa12b609c587693e3e2047ba1a9273727250a"
+        },
+        {
+            "path": "tools/admin-password.ps1",
+            "owner": "PowerShell protected input helper",
+            "consumers": [
+                "Local or Docker administrator password CLI stdin"
+            ],
+            "fingerprint": "sha256:7a4409d6eb9e6fe10d2c422911a194c4f9c0281208f8fad6e3a11378fba19292"
+        },
+        {
             "path": "app/client-address.php",
             "owner": "Tablo\\ClientAddress",
             "consumers": [
@@ -64,7 +120,7 @@
             "consumers": [
                 "dashboard.run_worker_pass"
             ],
-            "fingerprint": "sha256:1040226065e72be454378f545654fe5773612364080493c271374b4aa4ae62a7"
+            "fingerprint": "sha256:43c504127713469f359a2aca9195099959b086ada5d3cfbf0293dda8c241e55d"
         },
         {
             "path": "tools/capture-bindings.php",
@@ -72,7 +128,7 @@
             "consumers": [
                 "dashboard.run_worker_pass"
             ],
-            "fingerprint": "sha256:71913d969c0ca478957ef5e69bcb7cc2a513e53f4e3897947db77f0ff14b2e0c"
+            "fingerprint": "sha256:5763f47d8c0ddef8306ea4d58d8f076863ebe7f118d27178e1c52c7f4c4faf75"
         },
         {
             "path": "tools/reviewed-dependencies.php",
@@ -80,7 +136,7 @@
             "consumers": [
                 "dashboard.run_worker_pass"
             ],
-            "fingerprint": "sha256:536a520274e7ff4ca84451618dce9cae841bc3e8de3e9d8a919bc3392bbfae2c"
+            "fingerprint": "sha256:466358ea2fdb6ef15730e91ffcd177a11bc534e0e7f10cb02b9d3382d8e4f0fc"
         }
     ]
 }
