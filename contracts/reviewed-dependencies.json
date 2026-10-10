@@ -177,7 +177,7 @@
             "consumers": [
                 "dashboard.run_worker_pass"
             ],
-            "fingerprint": "sha256:98e2dd6566974089d023b476be7e663a48df2c71cf980f80ccd9f7ad7b6749ec"
+            "fingerprint": "sha256:9fe15527852067168c5c5f34d3860608d214c860f860feb1a33c8ac0c2200a63"
         },
         {
             "path": "tools/capture-bindings.php",

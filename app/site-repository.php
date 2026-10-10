@@ -16,6 +16,12 @@ final class SiteRepository
         $this->savedTokens = new GitTokenRepository($db, $this->tokens);
     }
 
+    // Settlement must write on the exact connection that owns its transaction.
+    public function assertConnection(#[\SensitiveParameter] PDO $db): void
+    {
+        if ($this->db !== $db) { throw new \LogicException('Settlement repository connection mismatch.'); }
+    }
+
     public static function defaults(): array
     {
         return ['name' => '', 'url' => '', 'repository' => '', 'branch' => 'main', 'health_path' => '/up',

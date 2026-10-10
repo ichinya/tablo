@@ -183,9 +183,9 @@
             "kind": "command",
             "source": {
                 "path": "app/site-repository.php",
-                "line": 286
+                "line": 292
             },
-            "fingerprint": "sha256:a0dbd7b09bf86ac3f6c9252614e0a22c8bf831c3e2e6adbb95b977abf3316bcc",
+            "fingerprint": "sha256:f508a7810aed509bcbabc6db4394d86038567623d41b124dd4fae58f1c59ca17",
             "signature": {
                 "inputs": [
                     {
@@ -243,9 +243,9 @@
             "kind": "query",
             "source": {
                 "path": "app/site-repository.php",
-                "line": 27
+                "line": 33
             },
-            "fingerprint": "sha256:a0dbd7b09bf86ac3f6c9252614e0a22c8bf831c3e2e6adbb95b977abf3316bcc",
+            "fingerprint": "sha256:f508a7810aed509bcbabc6db4394d86038567623d41b124dd4fae58f1c59ca17",
             "signature": {
                 "inputs": [],
                 "output": "list(dashboard.site)",
@@ -793,9 +793,9 @@
             "kind": "command",
             "source": {
                 "path": "app/worker-state-repository.php",
-                "line": 31
+                "line": 34
             },
-            "fingerprint": "sha256:eb689cbd31c4cb02088c095f47b0c67580a183c7991f9b071ac71e3d1c78db82",
+            "fingerprint": "sha256:0bf85d7a1c92bd6fa8c004ee1ac1de4b97509e2538d340472bdd388595dbab1a",
             "signature": {
                 "inputs": [
                     {

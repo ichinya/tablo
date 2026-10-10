@@ -9,7 +9,10 @@ final class WorkerStateRepository
 {
     public const FIELDS = ['latest_release', 'latest_commit', 'open_issues', 'open_prs'];
 
-    public function __construct(private readonly PDO $db, #[\SensitiveParameter] private ?SiteRepository $sites = null) {}
+    public function __construct(private readonly PDO $db, #[\SensitiveParameter] private ?SiteRepository $sites = null)
+    {
+        $sites?->assertConnection($db); // Refuse before key selection or any transaction/write.
+    }
 
     // Only call after acquiring the real lifetime installation lock.
     public function begin(): string
