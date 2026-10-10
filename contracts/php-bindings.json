@@ -5,16 +5,47 @@
         "version": "0.1.0"
     },
     "project": "tablo",
-    "revision": "sha256:ea29e95d0ff4858ac34b244a28ef38248fcb535a72dcb7c1622ab8a0ab9115cc",
+    "revision": "sha256:66b167554dbb7ba0035e65596ccc2376a083508f096bc097a8ff2dee7af34de2",
     "symbols": [
+        {
+            "id": "dashboard.change_admin_password",
+            "kind": "command",
+            "source": {
+                "path": "app/auth-service.php",
+                "line": 97
+            },
+            "fingerprint": "sha256:b5b1ad922d4c925d2267bcebde59272cfcf74f116fb6675365fa05f54299cd4e",
+            "signature": {
+                "inputs": [
+                    {
+                        "name": "password",
+                        "type": "dashboard.text",
+                        "required": true
+                    },
+                    {
+                        "name": "confirmation",
+                        "type": "dashboard.text",
+                        "required": true
+                    }
+                ],
+                "output": null,
+                "reads": []
+            },
+            "effects": [
+                {
+                    "kind": "update",
+                    "subject": "dashboard.user"
+                }
+            ]
+        },
         {
             "id": "dashboard.setup",
             "kind": "command",
             "source": {
                 "path": "app/auth-service.php",
-                "line": 18
+                "line": 25
             },
-            "fingerprint": "sha256:2957e7608edce24e5724e3c488fa84547efe3f208698abf0d4b8d0e93e460a6a",
+            "fingerprint": "sha256:b5b1ad922d4c925d2267bcebde59272cfcf74f116fb6675365fa05f54299cd4e",
             "signature": {
                 "inputs": [
                     {
@@ -43,9 +74,9 @@
             "kind": "command",
             "source": {
                 "path": "app/auth-service.php",
-                "line": 37
+                "line": 44
             },
-            "fingerprint": "sha256:2957e7608edce24e5724e3c488fa84547efe3f208698abf0d4b8d0e93e460a6a",
+            "fingerprint": "sha256:b5b1ad922d4c925d2267bcebde59272cfcf74f116fb6675365fa05f54299cd4e",
             "signature": {
                 "inputs": [
                     {
@@ -64,9 +95,9 @@
             "kind": "command",
             "source": {
                 "path": "app/web-application.php",
-                "line": 128
+                "line": 138
             },
-            "fingerprint": "sha256:e01c71d81388874cfa16229ba53caf7f622d647ba3086b8b9542f8a79bc1f414",
+            "fingerprint": "sha256:af6241e33543e926b9dcf6bab148a9fb9e5b16ab3c5f355b67a4776378770a1f",
             "signature": {
                 "inputs": [],
                 "output": null,
@@ -79,9 +110,9 @@
             "kind": "command",
             "source": {
                 "path": "app/web-application.php",
-                "line": 218
+                "line": 235
             },
-            "fingerprint": "sha256:e01c71d81388874cfa16229ba53caf7f622d647ba3086b8b9542f8a79bc1f414",
+            "fingerprint": "sha256:af6241e33543e926b9dcf6bab148a9fb9e5b16ab3c5f355b67a4776378770a1f",
             "signature": {
                 "inputs": [
                     {
@@ -113,9 +144,9 @@
             "kind": "command",
             "source": {
                 "path": "app/web-application.php",
-                "line": 218
+                "line": 235
             },
-            "fingerprint": "sha256:e01c71d81388874cfa16229ba53caf7f622d647ba3086b8b9542f8a79bc1f414",
+            "fingerprint": "sha256:af6241e33543e926b9dcf6bab148a9fb9e5b16ab3c5f355b67a4776378770a1f",
             "signature": {
                 "inputs": [
                     {
@@ -152,9 +183,9 @@
             "kind": "command",
             "source": {
                 "path": "app/site-repository.php",
-                "line": 277
+                "line": 292
             },
-            "fingerprint": "sha256:cf4739064e6902f7bed73da68adf5032c90fbb25c10f79ef24c03ffeb516318b",
+            "fingerprint": "sha256:328c7d60ef2e61a337a3a9ab7c967146ce8767f8283d5d1bd2ea4f498fd908b6",
             "signature": {
                 "inputs": [
                     {
@@ -240,9 +271,9 @@
             "kind": "query",
             "source": {
                 "path": "app/site-repository.php",
-                "line": 27
+                "line": 33
             },
-            "fingerprint": "sha256:cf4739064e6902f7bed73da68adf5032c90fbb25c10f79ef24c03ffeb516318b",
+            "fingerprint": "sha256:328c7d60ef2e61a337a3a9ab7c967146ce8767f8283d5d1bd2ea4f498fd908b6",
             "signature": {
                 "inputs": [],
                 "output": "list(dashboard.site)",
@@ -259,7 +290,7 @@
                 "path": "app/github-connection.php",
                 "line": 48
             },
-            "fingerprint": "sha256:a99a5404bfcf75a2e68d803426625b4b1f4c1ba65460b31a663c8437841977f7",
+            "fingerprint": "sha256:c8273ee7f47fffec70d358c60b350853c51efbd294061beb609258a4320728b8",
             "signature": {
                 "inputs": [
                     {
@@ -337,9 +368,9 @@
             "kind": "entity",
             "source": {
                 "path": "app/sqlite-database.php",
-                "line": 179
+                "line": 374
             },
-            "fingerprint": "sha256:4863b3cc4dd4bd6fa87c81c3011f2d0b53721176d8cf923d86cc1c9ddbb9c6c5",
+            "fingerprint": "sha256:444ba3d88f7c162cc67d15c953b7665602d0d67871a86587cc1dc2537edc3cca",
             "signature": null,
             "effects": [],
             "shape": {
@@ -562,9 +593,9 @@
             "kind": "entity",
             "source": {
                 "path": "app/sqlite-database.php",
-                "line": 168
+                "line": 363
             },
-            "fingerprint": "sha256:4863b3cc4dd4bd6fa87c81c3011f2d0b53721176d8cf923d86cc1c9ddbb9c6c5",
+            "fingerprint": "sha256:444ba3d88f7c162cc67d15c953b7665602d0d67871a86587cc1dc2537edc3cca",
             "signature": null,
             "effects": [],
             "shape": {
@@ -594,7 +625,7 @@
                 "path": "app/git-token-repository.php",
                 "line": 17
             },
-            "fingerprint": "sha256:56c4e1cffea2282ac8787d915b06f5b5f965a3b9ea2d6eace3f3ff211a45c441",
+            "fingerprint": "sha256:88d0a82acca3367e115884756e475c9df15cd03523116a3e1173f58d095b157f",
             "signature": {
                 "inputs": [],
                 "output": "list(dashboard.git_token_metadata)",
@@ -612,7 +643,7 @@
                 "path": "app/git-token-repository.php",
                 "line": 43
             },
-            "fingerprint": "sha256:56c4e1cffea2282ac8787d915b06f5b5f965a3b9ea2d6eace3f3ff211a45c441",
+            "fingerprint": "sha256:88d0a82acca3367e115884756e475c9df15cd03523116a3e1173f58d095b157f",
             "signature": {
                 "inputs": [
                     {
@@ -638,7 +669,7 @@
                 "path": "app/git-token-repository.php",
                 "line": 43
             },
-            "fingerprint": "sha256:56c4e1cffea2282ac8787d915b06f5b5f965a3b9ea2d6eace3f3ff211a45c441",
+            "fingerprint": "sha256:88d0a82acca3367e115884756e475c9df15cd03523116a3e1173f58d095b157f",
             "signature": {
                 "inputs": [
                     {
@@ -671,9 +702,9 @@
             "kind": "command",
             "source": {
                 "path": "app/git-token-repository.php",
-                "line": 90
+                "line": 91
             },
-            "fingerprint": "sha256:56c4e1cffea2282ac8787d915b06f5b5f965a3b9ea2d6eace3f3ff211a45c441",
+            "fingerprint": "sha256:88d0a82acca3367e115884756e475c9df15cd03523116a3e1173f58d095b157f",
             "signature": {
                 "inputs": [
                     {
@@ -744,9 +775,9 @@
             "kind": "command",
             "source": {
                 "path": "app/periodic-worker.php",
-                "line": 84
+                "line": 86
             },
-            "fingerprint": "sha256:31149dbc9911de42b55825dd18dbcb7beb0a7775a6416682391d59817adae544",
+            "fingerprint": "sha256:dd52e7fc2676e7a63ecb8343d1edc3ee0119a76332152c512b09463edc8801d6",
             "signature": {
                 "inputs": [
                     {
@@ -810,9 +841,9 @@
             "kind": "command",
             "source": {
                 "path": "app/worker-state-repository.php",
-                "line": 31
+                "line": 34
             },
-            "fingerprint": "sha256:4dd4d772c7c9f8ef0e504bfb2788242b8158857c82f448cd89ac39f85e8d8ea9",
+            "fingerprint": "sha256:09d872358bc056a90c38c2fedc1326c364527c03a72a2a6e12d440e8cec4d714",
             "signature": {
                 "inputs": [
                     {
@@ -836,9 +867,9 @@
             "kind": "entity",
             "source": {
                 "path": "app/sqlite-database.php",
-                "line": 182
+                "line": 377
             },
-            "fingerprint": "sha256:4863b3cc4dd4bd6fa87c81c3011f2d0b53721176d8cf923d86cc1c9ddbb9c6c5",
+            "fingerprint": "sha256:444ba3d88f7c162cc67d15c953b7665602d0d67871a86587cc1dc2537edc3cca",
             "signature": null,
             "effects": [],
             "shape": {
@@ -861,9 +892,9 @@
             "kind": "entity",
             "source": {
                 "path": "app/sqlite-database.php",
-                "line": 187
+                "line": 382
             },
-            "fingerprint": "sha256:4863b3cc4dd4bd6fa87c81c3011f2d0b53721176d8cf923d86cc1c9ddbb9c6c5",
+            "fingerprint": "sha256:444ba3d88f7c162cc67d15c953b7665602d0d67871a86587cc1dc2537edc3cca",
             "signature": null,
             "effects": [],
             "shape": {
@@ -896,9 +927,9 @@
             "kind": "entity",
             "source": {
                 "path": "app/sqlite-database.php",
-                "line": 193
+                "line": 388
             },
-            "fingerprint": "sha256:4863b3cc4dd4bd6fa87c81c3011f2d0b53721176d8cf923d86cc1c9ddbb9c6c5",
+            "fingerprint": "sha256:444ba3d88f7c162cc67d15c953b7665602d0d67871a86587cc1dc2537edc3cca",
             "signature": null,
             "effects": [],
             "shape": {
@@ -941,9 +972,9 @@
             "kind": "entity",
             "source": {
                 "path": "app/sqlite-database.php",
-                "line": 205
+                "line": 400
             },
-            "fingerprint": "sha256:4863b3cc4dd4bd6fa87c81c3011f2d0b53721176d8cf923d86cc1c9ddbb9c6c5",
+            "fingerprint": "sha256:444ba3d88f7c162cc67d15c953b7665602d0d67871a86587cc1dc2537edc3cca",
             "signature": null,
             "effects": [],
             "shape": {
@@ -1051,9 +1082,9 @@
             "kind": "command",
             "source": {
                 "path": "app/site-repository.php",
-                "line": 282
+                "line": 297
             },
-            "fingerprint": "sha256:cf4739064e6902f7bed73da68adf5032c90fbb25c10f79ef24c03ffeb516318b",
+            "fingerprint": "sha256:328c7d60ef2e61a337a3a9ab7c967146ce8767f8283d5d1bd2ea4f498fd908b6",
             "signature": {
                 "inputs": [
                     {
@@ -1102,9 +1133,9 @@
             "kind": "command",
             "source": {
                 "path": "app/worker-state-repository.php",
-                "line": 62
+                "line": 65
             },
-            "fingerprint": "sha256:4dd4d772c7c9f8ef0e504bfb2788242b8158857c82f448cd89ac39f85e8d8ea9",
+            "fingerprint": "sha256:09d872358bc056a90c38c2fedc1326c364527c03a72a2a6e12d440e8cec4d714",
             "signature": {
                 "inputs": [
                     {
@@ -1221,7 +1252,7 @@
                 "path": "app/sqlite-database.php",
                 "line": 16
             },
-            "fingerprint": "sha256:4863b3cc4dd4bd6fa87c81c3011f2d0b53721176d8cf923d86cc1c9ddbb9c6c5",
+            "fingerprint": "sha256:444ba3d88f7c162cc67d15c953b7665602d0d67871a86587cc1dc2537edc3cca",
             "signature": null,
             "effects": [],
             "shape": {
@@ -1296,7 +1327,7 @@
                 "path": "app/sqlite-database.php",
                 "line": 36
             },
-            "fingerprint": "sha256:4863b3cc4dd4bd6fa87c81c3011f2d0b53721176d8cf923d86cc1c9ddbb9c6c5",
+            "fingerprint": "sha256:444ba3d88f7c162cc67d15c953b7665602d0d67871a86587cc1dc2537edc3cca",
             "signature": null,
             "effects": [],
             "shape": {

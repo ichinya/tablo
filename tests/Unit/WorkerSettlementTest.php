@@ -30,16 +30,17 @@ final class WorkerSettlementTest
             // Real deferred foreign-key violation fails COMMIT, after both writes succeed.
             $db->exec('CREATE TABLE commit_control (parent INTEGER REFERENCES sites(id) DEFERRABLE INITIALLY DEFERRED)');
             foreach ([
-                "BEFORE UPDATE OF checked_at ON sites BEGIN SELECT RAISE(ABORT, 'store-control'); END",
-                "BEFORE INSERT ON check_history BEGIN SELECT RAISE(ABORT, 'history-control'); END",
-                "BEFORE INSERT ON worker_progress BEGIN SELECT RAISE(ABORT, 'progress-control'); END",
-                "BEFORE UPDATE OF fairness_turn ON worker_runtime BEGIN SELECT RAISE(ABORT, 'turn-control'); END",
-                'AFTER UPDATE OF checked_at ON sites BEGIN INSERT INTO commit_control VALUES (-1); END',
-            ] as $trigger) {
+                'store-control' => "BEFORE UPDATE OF checked_at ON sites BEGIN SELECT RAISE(ABORT, 'store-control'); END",
+                'history-control' => "BEFORE INSERT ON check_history BEGIN SELECT RAISE(ABORT, 'history-control'); END",
+                'progress-control' => "BEFORE INSERT ON worker_progress BEGIN SELECT RAISE(ABORT, 'progress-control'); END",
+                'turn-control' => "BEFORE UPDATE OF fairness_turn ON worker_runtime BEGIN SELECT RAISE(ABORT, 'turn-control'); END",
+                'FOREIGN KEY constraint failed' => 'AFTER UPDATE OF checked_at ON sites BEGIN INSERT INTO commit_control VALUES (-1); END',
+            ] as $diagnostic => $trigger) {
                 $db->exec('CREATE TRIGGER refusal ' . $trigger);
                 $error = null;
                 try { $state->settle($snapshot, $result); } catch (PDOException $caught) { $error = $caught; }
                 Assert::instanceOf($error, PDOException::class);
+                Assert::true(str_contains($error->getMessage(), $diagnostic), 'original settlement failure: ' . $diagnostic);
                 Assert::false($db->inTransaction());
                 Assert::same($sites->find($id)['checked_at'], null);
                 Assert::same((int) $db->query('SELECT COUNT(*) FROM worker_progress')->fetchColumn(), 0);

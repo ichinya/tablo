@@ -16,11 +16,16 @@ final class Web
     private readonly SettingsRepository $installation;
     private readonly IncidentRepository $incidents;
     private readonly Auth $auth;
+    private readonly ClientAddress $clientAddress;
     private readonly GitHubConnection $github;
     private readonly Simple $view;
 
     public function __construct(?HttpClient $githubHttp = null, ?string $runtimeDirectory = null)
     {
+        $this->clientAddress = new ClientAddress(getenv('TABLO_TRUSTED_PROXIES'));
+        $vault = TokenVault::configured();
+        $db = Database::connect(vault: $vault);
+        $vault ??= TokenVault::forDatabase($db);
         $root = dirname(__DIR__);
         $runtimeDirectory ??= $root . '/storage';
         foreach (['sessions', 'views'] as $dir) {
@@ -38,13 +43,12 @@ final class Web
         ]);
         session_start();
         $_SESSION['csrf'] ??= bin2hex(random_bytes(32));
-        if (isset($_SESSION['authenticated_at']) && time() - $_SESSION['authenticated_at'] > 43200) {
-            unset($_SESSION['authenticated_at']);
-            $_SESSION['csrf'] = bin2hex(random_bytes(32));
+        if (isset($_SESSION['authenticated_at']) && (!is_int($_SESSION['authenticated_at'])
+            || time() - $_SESSION['authenticated_at'] > 43200)) {
+            $this->invalidateAuthentication();
         }
-        $db = Database::connect();
-        $this->sites = new SiteRepository($db);
-        $this->tokens = new GitTokenRepository($db);
+        $this->sites = new SiteRepository($db, $vault);
+        $this->tokens = new GitTokenRepository($db, $vault);
         $this->installation = new SettingsRepository($db);
         $this->incidents = new IncidentRepository($db);
         $this->auth = new Auth($db);
@@ -69,9 +73,14 @@ final class Web
         header('Cache-Control: no-store');
         $path = parse_url($_SERVER['REQUEST_URI'] ?? '/', PHP_URL_PATH) ?: '/';
         $needsSetup = $this->auth->needsSetup();
-        if ($needsSetup && isset($_SESSION['authenticated_at'])) {
-            session_regenerate_id(true);
-            $_SESSION = ['csrf' => bin2hex(random_bytes(32))];
+        if (isset($_SESSION['authenticated_at']) || isset($_SESSION['auth_fingerprint'])) {
+            $marker = $_SESSION['auth_fingerprint'] ?? null;
+            $current = $this->auth->credentialFingerprint();
+            if ($needsSetup || !isset($_SESSION['authenticated_at']) || !is_string($marker)
+                || preg_match('/^[a-f0-9]{64}$/D', $marker) !== 1 || $current === null
+                || !hash_equals($current, $marker)) {
+                $this->invalidateAuthentication();
+            }
         }
         if (!$needsSetup && $path === '/setup') {
             $this->notFound()->send();
@@ -105,8 +114,8 @@ final class Web
                 return $web->notFound();
             }
             try {
-                $web->auth->setup($web->input('password'), $web->input('confirmation'));
-                $web->authenticate();
+                $fingerprint = $web->auth->setupSession($web->input('password'), $web->input('confirmation'));
+                $web->authenticate($fingerprint);
                 return $web->redirect('/');
             } catch (ValidationException $e) {
                 return $web->render('auth', ['setup' => true, 'title' => 'Добро пожаловать', 'errors' => $e->errors], 422);
@@ -116,10 +125,11 @@ final class Web
         $app->post('/login', function () use ($web) {
             try {
                 $password = $web->input('password');
-                if (strlen($password) > 72 || !$web->auth->login($password, $_SERVER['REMOTE_ADDR'] ?? 'unknown')) {
+                $fingerprint = strlen($password) > 72 ? null : $web->auth->loginSession($password, $web->clientAddress->resolve($_SERVER));
+                if ($fingerprint === null) {
                     throw new ValidationException(['password' => 'Неверный пароль.']);
                 }
-                $web->authenticate();
+                $web->authenticate($fingerprint);
                 return $web->redirect('/');
             } catch (ValidationException $e) {
                 return $web->render('auth', ['setup' => false, 'title' => 'С возвращением', 'errors' => $e->errors], 422);
@@ -203,11 +213,18 @@ final class Web
         $app->handle($path);
     }
 
-    private function authenticate(): void
+    private function authenticate(#[\SensitiveParameter] string $fingerprint): void
     {
         session_regenerate_id(true);
         $_SESSION['authenticated_at'] = time();
+        $_SESSION['auth_fingerprint'] = $fingerprint;
         $_SESSION['csrf'] = bin2hex(random_bytes(32));
+    }
+
+    private function invalidateAuthentication(): void
+    {
+        session_regenerate_id(true);
+        $_SESSION = ['csrf' => bin2hex(random_bytes(32))];
     }
 
     private function input(string $name): string

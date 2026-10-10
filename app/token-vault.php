@@ -6,11 +6,45 @@ namespace Tablo;
 final class TokenVault
 {
     private ?string $keyFingerprint = null;
+    private readonly string $keyPath;
+    private readonly bool $external;
 
-    public function __construct(private readonly string $keyPath) {}
+    public function __construct(#[\SensitiveParameter] string $keyPath, bool $external = false)
+    {
+        $configured = getenv('TABLO_TOKEN_KEY_FILE');
+        if ($configured !== false && $configured !== '') { $keyPath = $configured; $external = true; }
+        $this->external = $external;
+        $this->keyPath = $external ? self::externalPath($keyPath) : $keyPath;
+        if ($external) { $this->key(false); }
+    }
+
+    public static function configured(): ?self
+    {
+        $path = getenv('TABLO_TOKEN_KEY_FILE');
+        return $path === false || $path === '' ? null : new self($path, true);
+    }
+
+    // Policy only: never expose the selected path, key bytes or lifetime fingerprint.
+    public function isExternal(): bool { return $this->external; }
+
+    private static function externalPath(#[\SensitiveParameter] string $path): string
+    {
+        // Literal local paths only; drive paths are not stream schemes. Relative paths
+        // always belong to the project root, independently of the invoking directory.
+        if ($path === '' || str_contains($path, "\0") || str_starts_with($path, '//')
+            || str_starts_with($path, '\\\\')
+            || (preg_match('/^[a-zA-Z][a-zA-Z0-9+.-]*:/', $path)
+                && !preg_match('~^[a-zA-Z]:[\\\\/]~', $path))) {
+            throw new SharedKeyFailure('External token key file is unavailable or invalid.');
+        }
+        if (str_starts_with($path, '/') || preg_match('~^[a-zA-Z]:[\\\\/]~', $path)) { return $path; }
+        return dirname(__DIR__) . '/' . $path;
+    }
 
     public static function forDatabase(\PDO $db): self
     {
+        $external = self::configured();
+        if ($external !== null) { return $external; }
         $databasePath = $db->query('PRAGMA database_list')->fetch()['file'] ?? '';
         $directory = $databasePath !== '' ? dirname($databasePath) : dirname(__DIR__) . '/storage';
         // Keep the existing key filename so installed credentials remain readable.
@@ -27,7 +61,7 @@ final class TokenVault
         return 'v1:' . base64_encode($iv . $tag . $cipher);
     }
 
-    public function decrypt(string $encrypted): string
+    public function decrypt(#[\SensitiveParameter] string $encrypted): string
     {
         $bytes = str_starts_with($encrypted, 'v1:') ? base64_decode(substr($encrypted, 3), true) : false;
         if ($bytes === false || strlen($bytes) < 29) {
@@ -55,13 +89,21 @@ final class TokenVault
     public function assertAvailable(bool $established): void
     {
         clearstatcache(true, $this->keyPath);
-        if ($established || $this->keyFingerprint !== null || file_exists($this->keyPath) || is_link($this->keyPath)) {
+        if ($this->external || $established || $this->keyFingerprint !== null || file_exists($this->keyPath) || is_link($this->keyPath)) {
             $this->key(false); // Read only: never initialize, replace or fall back.
         }
     }
 
     private function key(bool $create): string
     {
+        // A known key's disappearance must never create a replacement, including save.
+        $create = $create && !$this->external && $this->keyFingerprint === null;
+        if ($this->external) {
+            clearstatcache(true, $this->keyPath);
+            if (!is_file($this->keyPath) || !is_readable($this->keyPath)) {
+                throw new SharedKeyFailure('External token key file is unavailable or invalid.');
+            }
+        }
         if ($create) {
             if (!is_dir(dirname($this->keyPath))) {
                 mkdir(dirname($this->keyPath), 0700, true);
@@ -90,8 +132,12 @@ final class TokenVault
             throw new SharedKeyFailure('Ключ шифрования токенов недоступен. Восстановите его из резервной копии.');
         }
         try {
+            $stat = fstat($file);
+            if ($this->external && (!is_array($stat) || ($stat['mode'] & 0170000) !== 0100000)) {
+                throw new SharedKeyFailure('External token key file is unavailable or invalid.');
+            }
             if (!flock($file, LOCK_SH)) { throw new SharedKeyFailure('Ключ шифрования токенов недоступен.'); }
-            $key = @stream_get_contents($file);
+            $key = @stream_get_contents($file, 33);
         } finally {
             flock($file, LOCK_UN);
             fclose($file);
