@@ -13,18 +13,18 @@ final class WebFixture
     public readonly TestServer $server;
     private ?PDO $database = null;
 
-    public function __construct(bool $allowPrivateNetwork = false)
+    public function __construct(bool $allowPrivateNetwork = false, ?string $router = null, array $environment = [])
     {
         $this->directory = new TemporaryDirectory('tablo-http-');
         $root = dirname(__DIR__, 2);
         try {
-            $this->server = new TestServer($this->directory, $root . '/tests/web-router.php', $root . '/public', [
+            $this->server = new TestServer($this->directory, $router ?? $root . '/tests/web-router.php', $root . '/public', array_replace([
                 'TABLO_DB' => $this->directory->path . '/test.sqlite',
                 'TABLO_TEST_RUNTIME' => $this->directory->path . '/runtime',
                 'TABLO_ALLOW_PRIVATE_NETWORK' => $allowPrivateNetwork ? '1' : '0', 'TABLO_COOKIE_SECURE' => '0',
                 // Assert that a legacy environment token cannot grant private repository access.
                 'GITHUB_TOKEN' => 'fixture-token',
-            ]);
+            ], $environment));
         } catch (\Throwable $error) {
             $this->directory->close();
             throw $error;
