@@ -9,7 +9,7 @@ use Throwable;
 
 final class Database
 {
-    public const CURRENT_SCHEMA_VERSION = 3;
+    public const CURRENT_SCHEMA_VERSION = 4;
 
     // Version 0 installations may lack these additive fields and git_tokens.
     private const SITE_ADDITIONS = [
@@ -76,6 +76,7 @@ final class Database
                     0 => self::migrateToVersionOne($db),
                     1 => self::migrateToVersionTwo($db),
                     2 => self::migrateToVersionThree($db),
+                    3 => self::migrateToVersionFour($db),
                     default => throw new RuntimeException('No migration for SQLite schema version ' . $version),
                 };
                 $version++;
@@ -137,6 +138,30 @@ final class Database
             resource TEXT NOT NULL CHECK (resource IN ('core', 'search', 'secondary')),
             eligible_at INTEGER NOT NULL CHECK (typeof(eligible_at) = 'integer' AND eligible_at >= 0),
             PRIMARY KEY (scope, resource)
+        )");
+    }
+
+    private static function migrateToVersionFour(PDO $db): void
+    {
+        $db->exec('ALTER TABLE sites ADD COLUMN config_revision INTEGER NOT NULL DEFAULT 0 CHECK (typeof(config_revision) = \'integer\' AND config_revision >= 0)');
+        $db->exec("CREATE TABLE installation_settings (
+            id INTEGER PRIMARY KEY CHECK (id = 1),
+            check_interval_minutes INTEGER NOT NULL DEFAULT 10 CHECK (typeof(check_interval_minutes) = 'integer' AND check_interval_minutes > 0)
+        )");
+        $db->exec('INSERT INTO installation_settings (id) VALUES (1)');
+        $db->exec("CREATE TABLE worker_runtime (
+            id INTEGER PRIMARY KEY CHECK (id = 1), run_id TEXT,
+            stop_requested INTEGER NOT NULL DEFAULT 0 CHECK (stop_requested IN (0, 1)),
+            fairness_turn INTEGER NOT NULL DEFAULT 0 CHECK (typeof(fairness_turn) = 'integer' AND fairness_turn >= 0)
+        )");
+        $db->exec('INSERT INTO worker_runtime (id) VALUES (1)');
+        $db->exec("CREATE TABLE worker_progress (
+            site_id INTEGER PRIMARY KEY REFERENCES sites(id) ON DELETE CASCADE,
+            config_revision INTEGER NOT NULL CHECK (config_revision >= 0),
+            latest_release INTEGER NOT NULL DEFAULT 0 CHECK (latest_release >= 0),
+            latest_commit INTEGER NOT NULL DEFAULT 0 CHECK (latest_commit >= 0),
+            open_issues INTEGER NOT NULL DEFAULT 0 CHECK (open_issues >= 0),
+            open_prs INTEGER NOT NULL DEFAULT 0 CHECK (open_prs >= 0)
         )");
     }
 
