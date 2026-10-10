@@ -103,6 +103,74 @@
                 "dashboard.site",
                 "dashboard.site_input"
             ]
+        },
+        {
+            "id": "dashboard.github_budget",
+            "kind": "scenario",
+            "version": 1,
+            "summary": "Measure 20-site shared/distinct/anonymous and repeated/unique repository matrix through real localhost cURL. Positive rate controls stop relevant requests, preserve successful fields/health and persist maximum eligibility across fresh web/CLI processes. Exact equal tokens share primary eligibility across saved/manual/duplicate handles and previews through private keyed identity; handle eligibility survives rotation. Anonymous and unrelated actual tokens remain isolated; affirmative secondary crosses scopes. 401/plain 403/404 remain access errors even with unusable remaining or Retry-After, which alone never establishes shared secondary; real 429, valid Retry-After, remaining-zero and recognized secondary messages still defer. Redirect 301/302, unconfirmed branch and oversized branch list retain fixed safe operator guidance; malformed/incomplete data remains distinct from permanent configuration advice and transport/5xx. Memo never caches errors; per-handle credential revisions retain load/memo freshness on rotation, removal and reselection; rename retains memo. Schema 2 upgrades atomically to 3 without a WAL dependency. Scheduling deadlines stop new requests and clamp cURL; synchronous DNS can overrun its deadline, then HTTP is not started. No hard resolver or whole-pass wall-clock bound is promised. Authenticated preview initializes a missing private identity key only before reusable/per-site ciphertext or any key-derived cooldown state exists. Established missing keys fail before key creation and HTTP with backup-restoration guidance; corrupt/unreadable keys remain unchanged. Restoring/moving the original key preserves equivalence/decryption. Public connection input/site arrays redact complete key-error trace arguments with PHP 8.2 SensitiveParameter; argument capture stays enabled.",
+            "covers": [
+                "dashboard.check_site",
+                "dashboard.list_branches",
+                "dashboard.create_site",
+                "dashboard.update_site",
+                "dashboard.github_cooldown"
+            ]
+        },
+        {
+            "id": "dashboard.periodic_settings",
+            "kind": "scenario",
+            "version": 1,
+            "summary": "Defaults, malformed/overflow/escaping/auth/CSRF/303 and committed values use actual repository and HTTP settings boundary.",
+            "covers": [
+                "dashboard.get_settings",
+                "dashboard.update_settings",
+                "dashboard.installation_settings"
+            ]
+        },
+        {
+            "id": "dashboard.periodic_execution",
+            "kind": "scenario",
+            "version": 2,
+            "summary": "Real public passes and CLI subprocesses prove finite passes, enabled reload, cadence, shared PDO/key refusal and successor flock after failed finalization. Actual SQLite store/progress/fairness triggers and deferred foreign-key COMMIT failure roll back both result and credit; stale/disabled/deleted/ABA/rotated snapshots earn none.",
+            "covers": [
+                "dashboard.run_worker_pass",
+                "dashboard.site"
+            ]
+        },
+        {
+            "id": "dashboard.worker_singleton_stop",
+            "kind": "scenario",
+            "version": 1,
+            "summary": "Actual CLI child exit and contention across source roots/CWD/canonical DB plus distinct DB control, forced exit and cooperative stop.",
+            "covers": [
+                "dashboard.run_worker_pass",
+                "dashboard.request_worker_stop",
+                "dashboard.worker_runtime"
+            ]
+        },
+        {
+            "id": "dashboard.worker_fairness",
+            "kind": "scenario",
+            "version": 1,
+            "summary": "Actual 21 repositories and one search grant per window pay both search debts with all core work successful; 24 sites under five-request aggregate budget and inverse cooled-core case retain field service across restart.",
+            "covers": [
+                "dashboard.run_worker_pass",
+                "dashboard.worker_progress",
+                "dashboard.github_cooldown"
+            ]
+        },
+        {
+            "id": "dashboard.worker_stale_generation",
+            "kind": "scenario",
+            "version": 1,
+            "summary": "Generation-bound stale stop and old finish cannot affect successor; config revisions reject ABA and token rotations while rename-only token snapshots remain compatible.",
+            "covers": [
+                "dashboard.request_worker_stop",
+                "dashboard.run_worker_pass",
+                "dashboard.update_site",
+                "dashboard.update_git_token"
+            ]
         }
     ]
 }

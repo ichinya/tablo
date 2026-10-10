@@ -7,7 +7,7 @@ final class SiteChecker
 {
     public function __construct(private readonly HttpClient $http, private readonly RepositoryProvider $provider) {}
 
-    public function check(array $site): array
+    public function check(#[\SensitiveParameter] array $site, ?array $fieldOrder = null): array
     {
         $state = ['online' => null, 'deployed_version' => null, 'deployed_commit' => null,
             'latest_release' => null, 'latest_commit' => null, 'open_issues' => null, 'open_prs' => null,
@@ -36,7 +36,8 @@ final class SiteChecker
                     $errors[] = 'Health: ' . HttpFailure::MESSAGES['json-condition'];
                 }
             }
-        } catch (\Throwable $e) {
+        } catch (\PDOException | SharedKeyFailure $error) { throw $error; }
+        catch (\Throwable $e) {
             // A blocked/DNS/transport check does not prove that the site is offline.
             $state['online'] = null;
             $state['health_error_code'] = $e instanceof HttpFailure ? $e->reason
@@ -70,24 +71,36 @@ final class SiteChecker
                     $state['deployed_version'] = $version;
                     $state['deployed_commit'] = $commit === null ? null : strtolower($commit);
                 }
-            } catch (\Throwable $e) {
+            } catch (\PDOException | SharedKeyFailure $error) { throw $error; }
+            catch (\Throwable $e) {
                 $errors[] = 'Version: ' . ($e instanceof HttpFailure ? $e->getMessage() : 'Некорректный ответ проверки версии.');
             }
         }
+        if ($this->provider instanceof GitHubProvider) { $this->provider->beginCheck(); }
         $calls = [
             'latest_release' => fn () => $this->provider->getLatestRelease($site['repository']),
             'latest_commit' => fn () => $this->provider->getLatestCommit($site['repository'], $site['branch']),
             'open_issues' => fn () => $this->provider->getOpenIssuesCount($site['repository']),
             'open_prs' => fn () => $this->provider->getOpenPullRequestsCount($site['repository']),
         ];
-        foreach ($calls as $field => $call) {
+        $service = [];
+        foreach ($fieldOrder ?? array_keys($calls) as $field) {
+            if (!isset($calls[$field])) { throw new \InvalidArgumentException('Invalid check field.'); }
+            $call = $calls[$field];
+            $before = $this->provider instanceof GitHubProvider ? $this->provider->admissions() : 0;
+            $completed = false;
             try {
                 $state[$field] = $call();
-            } catch (\Throwable $e) {
-                $errors[] = $field . ': ' . $e->getMessage();
+                $completed = true;
+            } catch (\PDOException | SharedKeyFailure $error) { throw $error; }
+            catch (\Throwable $e) {
+                $errors[] = $field . ': ' . ($fieldOrder === null || $e instanceof GitHubFailure
+                    ? $e->getMessage() : (new GitHubFailure('unavailable'))->getMessage());
             }
+            $service[$field] = $completed || ($this->provider instanceof GitHubProvider && $this->provider->admissions() > $before);
         }
         $state['last_error'] = $errors ? implode(' ', $errors) : null;
+        if ($fieldOrder !== null) { $state['worker_service'] = $service; }
         return $state;
     }
 }

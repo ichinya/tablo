@@ -29,6 +29,18 @@
                     "ref": "dashboard.git_token_metadata"
                 }
             }
+        },
+        {
+            "id": "dashboard.get_settings",
+            "kind": "query",
+            "version": 1,
+            "description": "Authenticated settings page obtains committed interval; missing singleton reads as 10 without mutation. Token metadata is obtained separately by list_git_tokens.",
+            "reads": [
+                "dashboard.installation_settings"
+            ],
+            "returns": {
+                "ref": "dashboard.number"
+            }
         }
     ]
 }

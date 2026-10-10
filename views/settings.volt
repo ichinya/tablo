@@ -1,5 +1,16 @@
 {% extends "layout.volt" %}
 {% block content %}
+<section class="panel">
+<h2>Автоматические проверки</h2>
+<p>Воркер применяет интервал после завершения текущего прохода.</p>
+<form method="post" action="/settings">
+<input type="hidden" name="_csrf" value="{{ csrf }}">
+<label for="check-interval">Интервал в минутах</label>
+<input id="check-interval" name="check_interval_minutes" type="text" inputmode="numeric" value="{{ check_interval_minutes }}" required>
+{% if errors['check_interval_minutes'] is defined %}<p class="field-error">{{ errors['check_interval_minutes'] }}</p>{% endif %}
+<button class="button primary" type="submit">Сохранить интервал</button>
+</form>
+</section>
 <div class="page-heading"><div><div class="eyebrow">НАСТРОЙКИ</div><h1>Git-токены<span>.</span></h1><p>Сохраните токен один раз и выбирайте его в своих проектах.</p></div><a class="button primary" href="/settings/tokens/new"><svg><use href="/assets/icons.svg#plus"></use></svg>Добавить токен</a></div>
 {% if notice %}<div class="notice" role="status"><svg><use href="/assets/icons.svg#check"></use></svg>{{ notice }}</div>{% endif %}
 <section class="panel token-list" aria-label="Сохранённые Git-токены">

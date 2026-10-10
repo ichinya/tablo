@@ -9,7 +9,7 @@ use Throwable;
 
 final class Database
 {
-    public const CURRENT_SCHEMA_VERSION = 2;
+    public const CURRENT_SCHEMA_VERSION = 4;
 
     // Version 0 installations may lack these additive fields and git_tokens.
     private const SITE_ADDITIONS = [
@@ -35,7 +35,8 @@ final class Database
     public static function connect(?string $path = null): PDO
     {
         $path ??= getenv('TABLO_DB') ?: dirname(__DIR__) . '/storage/tablo.sqlite';
-        if ($path !== ':memory:' && !is_dir(dirname($path))) {
+        // SQLite file: URIs are not filesystem paths for PHP's directory functions.
+        if ($path !== ':memory:' && !str_starts_with($path, 'file:') && !is_dir(dirname($path))) {
             mkdir(dirname($path), 0700, true);
         }
         $db = new PDO('sqlite:' . $path, null, null, [
@@ -45,6 +46,14 @@ final class Database
         $db->exec('PRAGMA foreign_keys = ON; PRAGMA busy_timeout = 5000;');
         self::migrate($db);
         if ($path !== ':memory:') {
+            // Configure only accepted schemas; rejected future databases keep their journal metadata.
+            // busy_timeout is already installed before this potentially contended mode transition.
+            $statement = $db->query('PRAGMA journal_mode = WAL');
+            try { $mode = $statement->fetchColumn(); }
+            finally { $statement->closeCursor(); }
+            if ($mode !== 'wal') {
+                throw new RuntimeException('SQLite WAL is required for file databases; use writable local storage.');
+            }
             @chmod($path, 0600);
         }
         return $db;
@@ -66,6 +75,8 @@ final class Database
                 match ($version) {
                     0 => self::migrateToVersionOne($db),
                     1 => self::migrateToVersionTwo($db),
+                    2 => self::migrateToVersionThree($db),
+                    3 => self::migrateToVersionFour($db),
                     default => throw new RuntimeException('No migration for SQLite schema version ' . $version),
                 };
                 $version++;
@@ -117,6 +128,41 @@ final class Database
         self::validateSchema($db, true);
         $db->exec('ALTER TABLE sites ADD COLUMN health_error_code TEXT');
         $db->exec('ALTER TABLE sites ADD COLUMN health_http_status INTEGER CHECK (health_http_status BETWEEN 100 AND 599)');
+    }
+
+    private static function migrateToVersionThree(PDO $db): void
+    {
+        self::validateSchema($db, true);
+        $db->exec("CREATE TABLE github_cooldowns (
+            scope TEXT NOT NULL,
+            resource TEXT NOT NULL CHECK (resource IN ('core', 'search', 'secondary')),
+            eligible_at INTEGER NOT NULL CHECK (typeof(eligible_at) = 'integer' AND eligible_at >= 0),
+            PRIMARY KEY (scope, resource)
+        )");
+    }
+
+    private static function migrateToVersionFour(PDO $db): void
+    {
+        $db->exec('ALTER TABLE sites ADD COLUMN config_revision INTEGER NOT NULL DEFAULT 0 CHECK (typeof(config_revision) = \'integer\' AND config_revision >= 0)');
+        $db->exec("CREATE TABLE installation_settings (
+            id INTEGER PRIMARY KEY CHECK (id = 1),
+            check_interval_minutes INTEGER NOT NULL DEFAULT 10 CHECK (typeof(check_interval_minutes) = 'integer' AND check_interval_minutes > 0)
+        )");
+        $db->exec('INSERT INTO installation_settings (id) VALUES (1)');
+        $db->exec("CREATE TABLE worker_runtime (
+            id INTEGER PRIMARY KEY CHECK (id = 1), run_id TEXT,
+            stop_requested INTEGER NOT NULL DEFAULT 0 CHECK (stop_requested IN (0, 1)),
+            fairness_turn INTEGER NOT NULL DEFAULT 0 CHECK (typeof(fairness_turn) = 'integer' AND fairness_turn >= 0)
+        )");
+        $db->exec('INSERT INTO worker_runtime (id) VALUES (1)');
+        $db->exec("CREATE TABLE worker_progress (
+            site_id INTEGER PRIMARY KEY REFERENCES sites(id) ON DELETE CASCADE,
+            config_revision INTEGER NOT NULL CHECK (config_revision >= 0),
+            latest_release INTEGER NOT NULL DEFAULT 0 CHECK (latest_release >= 0),
+            latest_commit INTEGER NOT NULL DEFAULT 0 CHECK (latest_commit >= 0),
+            open_issues INTEGER NOT NULL DEFAULT 0 CHECK (open_issues >= 0),
+            open_prs INTEGER NOT NULL DEFAULT 0 CHECK (open_prs >= 0)
+        )");
     }
 
     private static function validateSchema(PDO $db, bool $complete): void

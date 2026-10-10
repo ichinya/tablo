@@ -5,7 +5,7 @@
         "version": "0.1.0"
     },
     "project": "tablo",
-    "revision": "sha256:edaac56af09133f323f40e53bdc5afe6721f1a63cb9efffe2c9f4c12f928d231",
+    "revision": "sha256:cacd94bec32d55b884e8f7b67363da9bde4c44170c6950fd47d80301ac19d0e1",
     "symbols": [
         {
             "id": "dashboard.setup",
@@ -64,9 +64,9 @@
             "kind": "command",
             "source": {
                 "path": "app/web-application.php",
-                "line": 124
+                "line": 126
             },
-            "fingerprint": "sha256:81f66e576344afe4ce710f9dec6d9c56ad8065de7f34b1527da89595d3749b26",
+            "fingerprint": "sha256:758868fd8ebed1f714fe0aec7853d5da59f4597187b3acc1f45ec001765512bd",
             "signature": {
                 "inputs": [],
                 "output": null,
@@ -79,9 +79,9 @@
             "kind": "command",
             "source": {
                 "path": "app/web-application.php",
-                "line": 212
+                "line": 215
             },
-            "fingerprint": "sha256:81f66e576344afe4ce710f9dec6d9c56ad8065de7f34b1527da89595d3749b26",
+            "fingerprint": "sha256:758868fd8ebed1f714fe0aec7853d5da59f4597187b3acc1f45ec001765512bd",
             "signature": {
                 "inputs": [
                     {
@@ -97,6 +97,14 @@
                 {
                     "kind": "create",
                     "subject": "dashboard.site"
+                },
+                {
+                    "kind": "create",
+                    "subject": "dashboard.github_cooldown"
+                },
+                {
+                    "kind": "update",
+                    "subject": "dashboard.github_cooldown"
                 }
             ]
         },
@@ -105,9 +113,9 @@
             "kind": "command",
             "source": {
                 "path": "app/web-application.php",
-                "line": 212
+                "line": 215
             },
-            "fingerprint": "sha256:81f66e576344afe4ce710f9dec6d9c56ad8065de7f34b1527da89595d3749b26",
+            "fingerprint": "sha256:758868fd8ebed1f714fe0aec7853d5da59f4597187b3acc1f45ec001765512bd",
             "signature": {
                 "inputs": [
                     {
@@ -128,6 +136,14 @@
                 {
                     "kind": "update",
                     "subject": "dashboard.site"
+                },
+                {
+                    "kind": "create",
+                    "subject": "dashboard.github_cooldown"
+                },
+                {
+                    "kind": "update",
+                    "subject": "dashboard.github_cooldown"
                 }
             ]
         },
@@ -136,9 +152,9 @@
             "kind": "command",
             "source": {
                 "path": "app/site-repository.php",
-                "line": 217
+                "line": 277
             },
-            "fingerprint": "sha256:95ae9b8808b9e0c284014a67aebd6a92b292efa61f9dbc2f7803f47c7b4147eb",
+            "fingerprint": "sha256:ee906d65f0f371702e57202b70871086bc596093a86f3194695fa540a99830b8",
             "signature": {
                 "inputs": [
                     {
@@ -164,7 +180,7 @@
                 "path": "app/site-checker.php",
                 "line": 10
             },
-            "fingerprint": "sha256:ed1e03d10a1e4d3c09096ffd799278ef0f1c984ee0e4ac381efffca6012a72d9",
+            "fingerprint": "sha256:5a58d8a5f724a8172bd1dd670e870df679c363687ca00f74afd932d64fb24806",
             "signature": {
                 "inputs": [
                     {
@@ -180,6 +196,14 @@
                 {
                     "kind": "update",
                     "subject": "dashboard.site"
+                },
+                {
+                    "kind": "create",
+                    "subject": "dashboard.github_cooldown"
+                },
+                {
+                    "kind": "update",
+                    "subject": "dashboard.github_cooldown"
                 }
             ]
         },
@@ -190,7 +214,7 @@
                 "path": "app/site-repository.php",
                 "line": 27
             },
-            "fingerprint": "sha256:95ae9b8808b9e0c284014a67aebd6a92b292efa61f9dbc2f7803f47c7b4147eb",
+            "fingerprint": "sha256:ee906d65f0f371702e57202b70871086bc596093a86f3194695fa540a99830b8",
             "signature": {
                 "inputs": [],
                 "output": "list(dashboard.site)",
@@ -205,9 +229,9 @@
             "kind": "command",
             "source": {
                 "path": "app/github-connection.php",
-                "line": 21
+                "line": 48
             },
-            "fingerprint": "sha256:c32b17d3912d321813ccf69f7604bde5bd6a717337097369fc8e183c1e5d0321",
+            "fingerprint": "sha256:a99a5404bfcf75a2e68d803426625b4b1f4c1ba65460b31a663c8437841977f7",
             "signature": {
                 "inputs": [
                     {
@@ -239,7 +263,16 @@
                 "output": null,
                 "reads": []
             },
-            "effects": []
+            "effects": [
+                {
+                    "kind": "create",
+                    "subject": "dashboard.github_cooldown"
+                },
+                {
+                    "kind": "update",
+                    "subject": "dashboard.github_cooldown"
+                }
+            ]
         },
         {
             "id": "dashboard.user",
@@ -276,9 +309,9 @@
             "kind": "entity",
             "source": {
                 "path": "app/sqlite-database.php",
-                "line": 115
+                "line": 144
             },
-            "fingerprint": "sha256:7703bb05374bf98d94da7064f366043cff2527271594470f36ae6264ca32586f",
+            "fingerprint": "sha256:da198a6d61a72e5e2aa2dab118b13cebb08fc1ae9b3389027a9e9eb4518e5193",
             "signature": null,
             "effects": [],
             "shape": {
@@ -442,6 +475,11 @@
                         "name": "health_http_status",
                         "type": "optional(dashboard.number)",
                         "required": false
+                    },
+                    {
+                        "name": "config_revision",
+                        "type": "dashboard.number",
+                        "required": true
                     }
                 ]
             }
@@ -492,13 +530,43 @@
             }
         },
         {
+            "id": "dashboard.github_cooldown",
+            "kind": "entity",
+            "source": {
+                "path": "app/sqlite-database.php",
+                "line": 133
+            },
+            "fingerprint": "sha256:da198a6d61a72e5e2aa2dab118b13cebb08fc1ae9b3389027a9e9eb4518e5193",
+            "signature": null,
+            "effects": [],
+            "shape": {
+                "fields": [
+                    {
+                        "name": "scope",
+                        "type": "dashboard.text",
+                        "required": true
+                    },
+                    {
+                        "name": "resource",
+                        "type": "dashboard.text",
+                        "required": true
+                    },
+                    {
+                        "name": "eligible_at",
+                        "type": "dashboard.number",
+                        "required": true
+                    }
+                ]
+            }
+        },
+        {
             "id": "dashboard.list_git_tokens",
             "kind": "query",
             "source": {
                 "path": "app/git-token-repository.php",
                 "line": 17
             },
-            "fingerprint": "sha256:41c5d69fe14374e904299bdcb79e25a2b3e33f982468a2ef2c3c2627a16d0ed1",
+            "fingerprint": "sha256:56c4e1cffea2282ac8787d915b06f5b5f965a3b9ea2d6eace3f3ff211a45c441",
             "signature": {
                 "inputs": [],
                 "output": "list(dashboard.git_token_metadata)",
@@ -516,7 +584,7 @@
                 "path": "app/git-token-repository.php",
                 "line": 43
             },
-            "fingerprint": "sha256:41c5d69fe14374e904299bdcb79e25a2b3e33f982468a2ef2c3c2627a16d0ed1",
+            "fingerprint": "sha256:56c4e1cffea2282ac8787d915b06f5b5f965a3b9ea2d6eace3f3ff211a45c441",
             "signature": {
                 "inputs": [
                     {
@@ -542,7 +610,7 @@
                 "path": "app/git-token-repository.php",
                 "line": 43
             },
-            "fingerprint": "sha256:41c5d69fe14374e904299bdcb79e25a2b3e33f982468a2ef2c3c2627a16d0ed1",
+            "fingerprint": "sha256:56c4e1cffea2282ac8787d915b06f5b5f965a3b9ea2d6eace3f3ff211a45c441",
             "signature": {
                 "inputs": [
                     {
@@ -575,9 +643,9 @@
             "kind": "command",
             "source": {
                 "path": "app/git-token-repository.php",
-                "line": 89
+                "line": 90
             },
-            "fingerprint": "sha256:41c5d69fe14374e904299bdcb79e25a2b3e33f982468a2ef2c3c2627a16d0ed1",
+            "fingerprint": "sha256:56c4e1cffea2282ac8787d915b06f5b5f965a3b9ea2d6eace3f3ff211a45c441",
             "signature": {
                 "inputs": [
                     {
@@ -595,6 +663,230 @@
                     "subject": "dashboard.git_token"
                 }
             ]
+        },
+        {
+            "id": "dashboard.get_settings",
+            "kind": "query",
+            "source": {
+                "path": "app/settings-repository.php",
+                "line": 13
+            },
+            "fingerprint": "sha256:64965808a36c66cf0901abb9c1498a9ac976d94f8154ad68fc181af8c3c92b7d",
+            "signature": {
+                "inputs": [],
+                "output": "dashboard.number",
+                "reads": [
+                    "dashboard.installation_settings"
+                ]
+            },
+            "effects": []
+        },
+        {
+            "id": "dashboard.update_settings",
+            "kind": "command",
+            "source": {
+                "path": "app/settings-repository.php",
+                "line": 25
+            },
+            "fingerprint": "sha256:64965808a36c66cf0901abb9c1498a9ac976d94f8154ad68fc181af8c3c92b7d",
+            "signature": {
+                "inputs": [
+                    {
+                        "name": "check_interval_minutes",
+                        "type": "dashboard.text",
+                        "required": true
+                    }
+                ],
+                "output": null,
+                "reads": []
+            },
+            "effects": [
+                {
+                    "kind": "create",
+                    "subject": "dashboard.installation_settings"
+                },
+                {
+                    "kind": "update",
+                    "subject": "dashboard.installation_settings"
+                }
+            ]
+        },
+        {
+            "id": "dashboard.run_worker_pass",
+            "kind": "command",
+            "source": {
+                "path": "app/periodic-worker.php",
+                "line": 84
+            },
+            "fingerprint": "sha256:31149dbc9911de42b55825dd18dbcb7beb0a7775a6416682391d59817adae544",
+            "signature": {
+                "inputs": [
+                    {
+                        "name": "generation",
+                        "type": "optional(dashboard.text)",
+                        "required": false
+                    }
+                ],
+                "output": null,
+                "reads": []
+            },
+            "effects": [
+                {
+                    "kind": "update",
+                    "subject": "dashboard.site"
+                },
+                {
+                    "kind": "create",
+                    "subject": "dashboard.github_cooldown"
+                },
+                {
+                    "kind": "update",
+                    "subject": "dashboard.github_cooldown"
+                },
+                {
+                    "kind": "update",
+                    "subject": "dashboard.worker_runtime"
+                },
+                {
+                    "kind": "create",
+                    "subject": "dashboard.worker_progress"
+                },
+                {
+                    "kind": "update",
+                    "subject": "dashboard.worker_progress"
+                }
+            ]
+        },
+        {
+            "id": "dashboard.request_worker_stop",
+            "kind": "command",
+            "source": {
+                "path": "app/worker-state-repository.php",
+                "line": 31
+            },
+            "fingerprint": "sha256:2dd574e86d8589a2bf105acbe1d5a16cee25292fbd4a917e8c541c19d4e071ae",
+            "signature": {
+                "inputs": [
+                    {
+                        "name": "observed_generation",
+                        "type": "dashboard.text",
+                        "required": true
+                    }
+                ],
+                "output": null,
+                "reads": []
+            },
+            "effects": [
+                {
+                    "kind": "update",
+                    "subject": "dashboard.worker_runtime"
+                }
+            ]
+        },
+        {
+            "id": "dashboard.installation_settings",
+            "kind": "entity",
+            "source": {
+                "path": "app/sqlite-database.php",
+                "line": 147
+            },
+            "fingerprint": "sha256:da198a6d61a72e5e2aa2dab118b13cebb08fc1ae9b3389027a9e9eb4518e5193",
+            "signature": null,
+            "effects": [],
+            "shape": {
+                "fields": [
+                    {
+                        "name": "id",
+                        "type": "dashboard.number",
+                        "required": true
+                    },
+                    {
+                        "name": "check_interval_minutes",
+                        "type": "dashboard.number",
+                        "required": true
+                    }
+                ]
+            }
+        },
+        {
+            "id": "dashboard.worker_runtime",
+            "kind": "entity",
+            "source": {
+                "path": "app/sqlite-database.php",
+                "line": 152
+            },
+            "fingerprint": "sha256:da198a6d61a72e5e2aa2dab118b13cebb08fc1ae9b3389027a9e9eb4518e5193",
+            "signature": null,
+            "effects": [],
+            "shape": {
+                "fields": [
+                    {
+                        "name": "id",
+                        "type": "dashboard.number",
+                        "required": true
+                    },
+                    {
+                        "name": "run_id",
+                        "type": "optional(dashboard.text)",
+                        "required": false
+                    },
+                    {
+                        "name": "stop_requested",
+                        "type": "dashboard.number",
+                        "required": true
+                    },
+                    {
+                        "name": "fairness_turn",
+                        "type": "dashboard.number",
+                        "required": true
+                    }
+                ]
+            }
+        },
+        {
+            "id": "dashboard.worker_progress",
+            "kind": "entity",
+            "source": {
+                "path": "app/sqlite-database.php",
+                "line": 158
+            },
+            "fingerprint": "sha256:da198a6d61a72e5e2aa2dab118b13cebb08fc1ae9b3389027a9e9eb4518e5193",
+            "signature": null,
+            "effects": [],
+            "shape": {
+                "fields": [
+                    {
+                        "name": "site_id",
+                        "type": "dashboard.number",
+                        "required": true
+                    },
+                    {
+                        "name": "config_revision",
+                        "type": "dashboard.number",
+                        "required": true
+                    },
+                    {
+                        "name": "latest_release",
+                        "type": "dashboard.number",
+                        "required": true
+                    },
+                    {
+                        "name": "latest_commit",
+                        "type": "dashboard.number",
+                        "required": true
+                    },
+                    {
+                        "name": "open_issues",
+                        "type": "dashboard.number",
+                        "required": true
+                    },
+                    {
+                        "name": "open_prs",
+                        "type": "dashboard.number",
+                        "required": true
+                    }
+                ]
+            }
         }
     ]
 }

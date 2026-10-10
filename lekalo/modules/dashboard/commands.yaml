@@ -78,8 +78,8 @@
         {
             "id": "dashboard.create_site",
             "kind": "command",
-            "version": 2,
-            "description": "Authenticated CSRF-protected create; normalize GitHub URLs; reject invalid URL, branch, path, mode and sort order. Validate the actual GitHub branch using a supplied or saved token; encrypt token replacement, preserve blank token or explicitly remove it. Validate active bounded JSON paths, health mode, operator and finite numeric expected values; retain submitted values and report field errors. Persist JSON settings; unchanged legacy inputs default to HTTP and automatic version extraction.",
+            "version": 3,
+            "description": "Authenticated CSRF-protected create; normalize GitHub URLs; reject invalid URL, branch, path, mode and sort order. Validate the actual GitHub branch using a supplied or saved token; encrypt token replacement, preserve blank token or explicitly remove it. Validate active bounded JSON paths, health mode, operator and finite numeric expected values; retain submitted values and report field errors. Persist JSON settings; unchanged legacy inputs default to HTTP and automatic version extraction. GitHub uses serial REST, safe typed access/rate/unavailable/budget/rotation failures and no retry/sleep. Primary core/search eligibility is stable-handle scoped; secondary is installation-shared and persisted across CLI/web. A 256-entry sweep-local semantic memo is isolated by credential revision and metric/branch; no-release requires repository access confirmation. Monitoring: five attempts/24s per site; branches: eleven attempts; connection: 100 attempts/120s scheduling budget. cURL is clamped; synchronous DNS can overrun and is checked before HTTP. Preserve partial metrics; reject credentials changed before/after load or cache hits. Authenticated preview initializes a missing private identity key only before reusable/per-site ciphertext or any key-derived cooldown state exists. Established missing keys fail before key creation and HTTP with backup-restoration guidance; corrupt/unreadable keys remain unchanged. Restoring/moving the original key preserves equivalence/decryption. Public connection input/site arrays redact complete key-error trace arguments with PHP 8.2 SensitiveParameter; argument capture stays enabled.",
             "input": [
                 {
                     "name": "site",
@@ -90,14 +90,16 @@
                 }
             ],
             "effects": [
-                "dashboard.site_created"
+                "dashboard.site_created",
+                "dashboard.github_cooldown_created",
+                "dashboard.github_cooldown_updated"
             ]
         },
         {
             "id": "dashboard.update_site",
             "kind": "command",
-            "version": 2,
-            "description": "Authenticated CSRF-protected update; clear obsolete check state on configuration change. Validate the actual GitHub branch using a supplied or saved token; encrypt token replacement, preserve blank token or explicitly remove it. Validate active bounded JSON paths, health mode, operator and finite numeric expected values; retain submitted values and report field errors. Persist JSON settings; unchanged legacy inputs default to HTTP and automatic version extraction.",
+            "version": 4,
+            "description": "Authenticated CSRF-protected update; clear obsolete check state on configuration change. Validate the actual GitHub branch using a supplied or saved token; encrypt token replacement, preserve blank token or explicitly remove it. Validate active bounded JSON paths, health mode, operator and finite numeric expected values; retain submitted values and report field errors. Persist JSON settings; unchanged legacy inputs default to HTTP and automatic version extraction. GitHub uses serial REST, safe typed access/rate/unavailable/budget/rotation failures and no retry/sleep. Primary core/search eligibility is stable-handle scoped; secondary is installation-shared and persisted across CLI/web. A 256-entry sweep-local semantic memo is isolated by credential revision and metric/branch; no-release requires repository access confirmation. Monitoring: five attempts/24s per site; branches: eleven attempts; connection: 100 attempts/120s scheduling budget. cURL is clamped; synchronous DNS can overrun and is checked before HTTP. Preserve partial metrics; reject credentials changed before/after load or cache hits. Authenticated preview initializes a missing private identity key only before reusable/per-site ciphertext or any key-derived cooldown state exists. Established missing keys fail before key creation and HTTP with backup-restoration guidance; corrupt/unreadable keys remain unchanged. Restoring/moving the original key preserves equivalence/decryption. Public connection input/site arrays redact complete key-error trace arguments with PHP 8.2 SensitiveParameter; argument capture stays enabled. Configuration revision rejects intervening edits and disable-enable ABA; saved-token rotation increments referenced revisions atomically, rename-only blank-token edit preserves snapshots.",
             "input": [
                 {
                     "name": "id",
@@ -115,7 +117,9 @@
                 }
             ],
             "effects": [
-                "dashboard.site_updated"
+                "dashboard.site_updated",
+                "dashboard.github_cooldown_created",
+                "dashboard.github_cooldown_updated"
             ]
         },
         {
@@ -139,8 +143,8 @@
         {
             "id": "dashboard.check_site",
             "kind": "command",
-            "version": 3,
-            "description": "Skip disabled sites. Bounded HTTP health/version requests and GitHub provider metadata; store only against the unchanged configuration. Preserve partial/unknown outcomes instead of inventing successful data. Empty version_path skips version request without error. Reusable token changes invalidate in-flight results. HTTP health keeps 2xx semantics. JSON health requires 2xx plus ==, !=, contains or a finite numeric >, >=, <, <= comparison. Missing/null/composite/invalid JSON is unknown; a false predicate or non-2xx is offline. Optional version selector extracts a string and retains root commit aliases. All five JSON settings participate in the unchanged-configuration guard. Manual and CLI checks share this logic. Empty health_path selects the unchanged base URL and requires HTTP 200, without parsing HTML as JSON. HTTP failures and false JSON conditions are offline; timeout/refused/DNS/SSRF/TLS/size/invalid responses are unknown with health_error_code, and valid HTTP responses retain health_http_status. Transport errors never expose URLs, headers or response bodies. All health paths use the same error policy.",
+            "version": 5,
+            "description": "Manual and one-shot checks keep their default order/output/storage whitelist. Health/version are independent of four GitHub fields and preserve partial/null results. Empty health path checks base URL with HTTP 200; explicit HTTP uses 2xx; JSON health uses validated path/operator and finite values. HTTP/false predicates are offline; transport/DNS/SSRF/TLS/size/invalid data are unknown with typed fixed diagnostics and optional status. Version selector retains root commit aliases. All original configuration/cipher/selected-token predicates plus config_revision reject edits, disable-enable ABA, rotation, deletion and reselection. Saved-token rename-only blank edits remain compatible. GitHub serial REST keeps five requests/24s site and 100 requests/120s aggregate admission budgets, 256-entry validated memo, resource-specific primary plus shared secondary cooldown, exact-token vault HMAC equivalence and current credential checks before/after memo/load. No provider sleep/retry or failure cache. cURL is clamped but synchronous DNS can overrun. Missing established vault key fails before HTTP without replacement; public connection arrays and rate-response boundaries retain SensitiveParameter. Optional worker order returns transient per-field admitted/completed service metadata; result storage whitelists omit it.",
             "input": [
                 {
                     "name": "id",
@@ -151,14 +155,16 @@
                 }
             ],
             "effects": [
-                "dashboard.site_updated"
+                "dashboard.site_updated",
+                "dashboard.github_cooldown_created",
+                "dashboard.github_cooldown_updated"
             ]
         },
         {
             "id": "dashboard.list_branches",
             "kind": "command",
-            "version": 1,
-            "description": "Authenticated CSRF-protected POST previews branches from the fixed GitHub API using new, saved or installation credentials. Paginate without silent truncation, bound requests, handle private access errors; never save or return credentials. HTTP success JSON contains repository, default_branch and branches; failure contains error. Selected shared token must exist and match the Git provider.",
+            "version": 2,
+            "description": "Authenticated CSRF-protected POST previews branches from the fixed GitHub API using new, saved or installation credentials. Paginate without silent truncation, bound requests, handle private access errors; never save or return credentials. HTTP success JSON contains repository, default_branch and branches; failure contains error. Selected shared token must exist and match the Git provider. GitHub uses serial REST, safe typed access/rate/unavailable/budget/rotation failures and no retry/sleep. Primary core/search eligibility is stable-handle scoped; secondary is installation-shared and persisted across CLI/web. A 256-entry sweep-local semantic memo is isolated by credential revision and metric/branch; no-release requires repository access confirmation. Monitoring: five attempts/24s per site; branches: eleven attempts; connection: 100 attempts/120s scheduling budget. cURL is clamped; synchronous DNS can overrun and is checked before HTTP. Preserve partial metrics; reject credentials changed before/after load or cache hits. Authenticated preview initializes a missing private identity key only before reusable/per-site ciphertext or any key-derived cooldown state exists. Established missing keys fail before key creation and HTTP with backup-restoration guidance; corrupt/unreadable keys remain unchanged. Restoring/moving the original key preserves equivalence/decryption. Public connection input/site arrays redact complete key-error trace arguments with PHP 8.2 SensitiveParameter; argument capture stays enabled.",
             "input": [
                 {
                     "name": "repository",
@@ -199,6 +205,10 @@
                         }
                     }
                 }
+            ],
+            "effects": [
+                "dashboard.github_cooldown_created",
+                "dashboard.github_cooldown_updated"
             ]
         },
         {
@@ -243,8 +253,8 @@
         {
             "id": "dashboard.update_git_token",
             "kind": "command",
-            "version": 1,
-            "description": "Authenticated CSRF-protected metadata edit or token replacement. Blank token keeps old ciphertext. Rotation clears associated project checks atomically. Never reflect plaintext.",
+            "version": 2,
+            "description": "Authenticated CSRF-protected metadata edit or token replacement. Blank token keeps old ciphertext. Rotation clears associated project checks atomically. Never reflect plaintext. Configuration revision rejects intervening edits and disable-enable ABA; saved-token rotation increments referenced revisions atomically, rename-only blank-token edit preserves snapshots.",
             "input": [
                 {
                     "name": "id",
@@ -282,6 +292,116 @@
             ],
             "effects": [
                 "dashboard.git_token_deleted"
+            ]
+        },
+        {
+            "id": "dashboard.github_cooldown_created",
+            "kind": "effect",
+            "version": 1,
+            "operation": "create",
+            "entity": "dashboard.github_cooldown"
+        },
+        {
+            "id": "dashboard.github_cooldown_updated",
+            "kind": "effect",
+            "version": 1,
+            "operation": "update",
+            "entity": "dashboard.github_cooldown"
+        },
+        {
+            "id": "dashboard.installation_settings_updated",
+            "kind": "effect",
+            "version": 1,
+            "operation": "update",
+            "entity": "dashboard.installation_settings"
+        },
+        {
+            "id": "dashboard.installation_settings_created",
+            "kind": "effect",
+            "version": 1,
+            "operation": "create",
+            "entity": "dashboard.installation_settings"
+        },
+        {
+            "id": "dashboard.worker_runtime_updated",
+            "kind": "effect",
+            "version": 1,
+            "operation": "update",
+            "entity": "dashboard.worker_runtime"
+        },
+        {
+            "id": "dashboard.worker_progress_created",
+            "kind": "effect",
+            "version": 1,
+            "operation": "create",
+            "entity": "dashboard.worker_progress"
+        },
+        {
+            "id": "dashboard.worker_progress_updated",
+            "kind": "effect",
+            "version": 1,
+            "operation": "update",
+            "entity": "dashboard.worker_progress"
+        },
+        {
+            "id": "dashboard.update_settings",
+            "kind": "command",
+            "version": 1,
+            "description": "Authenticated CSRF POST validates raw positive decimal minutes without overflow, commits one setting, returns escaped 422 on invalid input or 303 on success. Concurrent writes use last committed value.",
+            "input": [
+                {
+                    "name": "check_interval_minutes",
+                    "type": {
+                        "ref": "dashboard.text"
+                    },
+                    "required": true
+                }
+            ],
+            "effects": [
+                "dashboard.installation_settings_created",
+                "dashboard.installation_settings_updated"
+            ]
+        },
+        {
+            "id": "dashboard.run_worker_pass",
+            "kind": "command",
+            "version": 2,
+            "description": "One finite serial pass reloads enabled IDs and each current site. Fresh connection/policy retains bounded aggregate admission and cooldowns. Shared PDO or established-key custody failure propagates to the fixed fatal CLI boundary; per-site network/provider and malformed individual ciphertext continue. One short post-network transaction couples guarded current result and admitted resource service credit. Stale or disabled snapshots earn no credit; store/progress/COMMIT failure rolls back both. Lifetime canonical flock releases even when final state cleanup fails.",
+            "input": [
+                {
+                    "name": "generation",
+                    "type": {
+                        "optional": {
+                            "ref": "dashboard.text"
+                        }
+                    }
+                }
+            ],
+            "effects": [
+                "dashboard.site_updated",
+                "dashboard.github_cooldown_created",
+                "dashboard.github_cooldown_updated",
+                "dashboard.worker_runtime_updated",
+                "dashboard.worker_progress_created",
+                "dashboard.worker_progress_updated"
+            ]
+        },
+        {
+            "id": "dashboard.request_worker_stop",
+            "kind": "command",
+            "version": 1,
+            "description": "Portable CLI records stop only for the observed current run generation. Request is not proof of exit; stale requests cannot stop new runs. Normal finally conditionally clears own generation, OS exit releases persistent lock without unlink.",
+            "input": [
+                {
+                    "name": "observed_generation",
+                    "type": {
+                        "ref": "dashboard.text"
+                    },
+                    "required": true
+                }
+            ],
+            "effects": [
+                "dashboard.worker_runtime_updated"
             ]
         }
     ]

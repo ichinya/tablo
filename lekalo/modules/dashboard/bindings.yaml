@@ -74,10 +74,10 @@
         {
             "id": "dashboard.settings_endpoint",
             "kind": "endpoint",
-            "version": 1,
+            "version": 2,
             "method": "GET",
             "path": "/settings",
-            "invokes": "dashboard.list_git_tokens"
+            "invokes": "dashboard.get_settings"
         },
         {
             "id": "dashboard.create_token_endpoint",
@@ -102,6 +102,14 @@
             "method": "POST",
             "path": "/settings/tokens/{id}/delete",
             "invokes": "dashboard.delete_git_token"
+        },
+        {
+            "id": "dashboard.update_settings_endpoint",
+            "kind": "endpoint",
+            "version": 1,
+            "method": "POST",
+            "path": "/settings",
+            "invokes": "dashboard.update_settings"
         }
     ]
 }

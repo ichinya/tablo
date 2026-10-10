@@ -1,13 +1,31 @@
 services:
   tablo:
     build: .
+    image: tablo-local
     ports:
       - "127.0.0.1:8087:80"
     volumes:
+      # WAL requires the whole writable directory on one host's local volume.
+      # Do not replace this with NFS/SMB/cloud-sync or a shared multi-host driver.
       - tablo-data:/var/www/tablo/storage
     environment:
+      TABLO_DB: /var/www/tablo/storage/tablo.sqlite
       TABLO_ALLOW_PRIVATE_NETWORK: "${TABLO_ALLOW_PRIVATE_NETWORK:-0}"
       TABLO_COOKIE_SECURE: "${TABLO_COOKIE_SECURE:-0}"
     restart: unless-stopped
+  tablo-worker:
+    build: .
+    image: tablo-local
+    command: ["php", "bin/worker.php"]
+    user: www-data
+    init: true
+    stop_signal: SIGTERM
+    stop_grace_period: 30s
+    volumes:
+      - tablo-data:/var/www/tablo/storage
+    environment:
+      TABLO_DB: /var/www/tablo/storage/tablo.sqlite
+      TABLO_ALLOW_PRIVATE_NETWORK: "${TABLO_ALLOW_PRIVATE_NETWORK:-0}"
+    restart: "on-failure:3"
 volumes:
   tablo-data:

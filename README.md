@@ -168,6 +168,11 @@ TLS и ограничения ответа не доказывают выклю�
 одинаково ручной кнопкой и CLI. Причины показываются в ошибке карточки и подсказке
 статуса. Старые записи получают `null` до следующей проверки; прежние ошибки
 сохраняются. В причины не включаются URL, заголовки, тела ответов или текст cURL.
+
+Повреждённый chunked framing относится к `invalid-response`, если нативный
+декодер cURL явно распознал ошибку формата. Сам по себе код cURL 56 или наличие
+chunked encoding этого не доказывает: обычный receive/reset остаётся `network`.
+Незавершённый ответ сохраняет Unknown и null для HTTP-кода и времени ответа.
 Сбой version или GitHub не меняет результат health и его причину.
 
 ### Синтаксис и ограничения JSON path
@@ -223,7 +228,10 @@ wildcard, фильтры и рекурсивный поиск. Ограниче�
 GitHub token — разные учётные данные.
 
 Сохранённые и отдельные токены проектов хранятся в SQLite зашифрованными AES-256-GCM. Ключ
-`github-token.key` создаётся рядом с файлом БД при первом сохранении токена. Поле
+`github-token.key` создаётся рядом с файлом БД при первом сохранении токена или
+первом authenticated preview в пустой установке. Если сохранены зашифрованные
+credentials или private quota identities, preview при утрате ключа требует
+восстановить оригинал из бэкапа, до создания файла и GitHub-запросов. Поле
 на странице редактирования всегда пустое: пустое сохраняет прежний токен, новый
 заменяет его, флажок удаляет. Токен не возвращается в HTML/JSON и отправляется
 только в Authorization к `api.github.com`. Загрузка веток не сохраняет токен или
@@ -295,6 +303,152 @@ GitHub search API. Код выхода `1` означает ошибку, Offlin
 Режим журналирования этой миграцией не меняется. Тесты миграций входят в наборы
 `Unit` и `Network`, включая запуск двух PHP-процессов и ошибки SQL.
 
+## SQLite WAL: размещение и обслуживание
+
+После успешной миграции `Database::connect()` включает и проверяет `journal_mode=wal`
+для файловой базы. `foreign_keys=ON` и `busy_timeout=5000` устанавливаются до миграции
+и переключения журнала; `:memory:` сохраняет режим `memory`. Неподдерживаемый режим
+вызывает ошибку, без перехода на DELETE. WAL сохраняется при повторном открытии.
+Номер версии схемы, DDL и метаданные отвергнутой будущей схемы не меняются этой политикой.
+
+Поддерживается только обычный локальный записываемый том одного хоста. Web и CLI/worker
+должны использовать один `TABLO_DB` и иметь доступ к его каталогу, базе, `-wal`, `-shm`
+и `github-token.key` под совместимыми UID/группой или Windows ACL. Монтируйте весь каталог
+`storage/`, а не один файл базы. NFS, SMB/UNC, сетевые тома, синхронизация облачным диском
+и общий том нескольких хостов не поддерживаются. PHP не определяет надёжно тип тома:
+это условие размещения проверяет оператор. Именованный Docker volume должен использовать
+локальный драйвер; само имя тома не гарантирует локальность.
+
+**Требование runtime для эксплуатации:** каждый процесс, открывающий базу, должен
+использовать SQLite с исправлением [WAL-reset](https://www.sqlite.org/wal.html#walresetbug).
+Подходит SQLite **3.51.3 или новее**, официальные backport-релизы **3.44.6 / 3.50.7**,
+либо пакет поставщика с документально подтверждённым backport этого исправления.
+Проверьте `SELECT sqlite_version(), sqlite_source_id()` через PDO именно в runtime web
+и CLI; версия PHP или внешней команды `sqlite3` этого не доказывает. Для старого номера
+версии сохраните ссылку на changelog/patch поставщика и точную версию пакета.
+Стандартный Dockerfile собирает SQLite **3.53.4** из официального upstream-архива:
+фиксирует SHA256 всего архива, проверяет SHA3-256 `sqlite3.c` по
+[странице релиза](https://sqlite.org/releaselog/3_53_4.html) и связывает PDO с библиотекой
+в `/opt/tablo-sqlite/lib`. Сборка проверяет точные `sqlite_version()` и `sqlite_source_id()`
+через PDO; при несовпадении она завершается ошибкой. Пересоберите образ для установки
+этой библиотеки. Команда `php /usr/local/bin/tablo-sqlite-runtime.php` повторяет проверку
+в CLI контейнера; для изменённого web runtime проверьте те же SQL-функции через Apache/PDO.
+На host-установках обновите пакет/runtime или подтвердите backport поставщика;
+`php:8.4-apache` и версия PHP сами по себе не подтверждают наличие исправления.
+Приложение проверяет режим WAL, но не распознаёт backport и не блокирует старый runtime.
+Обычные тесты конкурентности и восстановления не доказывают безопасность неисправленной
+SQLite: официальный дефект зависит от редкой гонки записи и checkpoint.
+
+WAL позволяет писателю завершить commit при открытом снимке читателя, но писатель
+остаётся один. Второй писатель может получить `SQLITE_BUSY` после ограниченного ожидания;
+5000 мс — ожидание SQLite при блокировке, а не предел всей длительности HTTP-запроса.
+Не держите транзакцию чтения во время сетевых запросов: длинные снимки мешают checkpoint
+и увеличивают WAL. Автоматический checkpoint SQLite остаётся включённым по умолчанию.
+
+`-wal` может содержать уже подтверждённые данные, отсутствующие в основном файле.
+Не удаляйте sidecars вручную и не считайте последовательное копирование живой базы
+и WAL согласованным бэкапом. После crash сохраните базу и sidecars как единый набор;
+дайте SQLite восстановиться при открытии. При ошибке integrity используйте проверенный
+бэкап, не удаление WAL и не новый ключ шифрования. Тест принудительного завершения
+процесса проверяет восстановление commit, но не отключение питания или надёжность диска.
+
+### Checkpoint
+
+Остановите web и все CLI/worker, дождитесь закрытия PDO и PDOStatement. Откройте
+существующую базу отдельным PDO, установите `busy_timeout=5000`, затем выполните:
+
+```php
+$result = $db->query('PRAGMA wal_checkpoint(TRUNCATE)')->fetch(PDO::FETCH_NUM);
+if ($result !== [0, 0, 0]) {
+    throw new RuntimeException('Checkpoint не завершён; проверьте активные подключения.');
+}
+unset($db);
+```
+
+Результат — `(busy, frames_in_wal, checkpointed_frames)`. При активном читателе
+TRUNCATE может вернуть busy и оставить кадры; устраните долгую транзакцию и повторите
+в окно обслуживания. Успех `(0,0,0)` означает завершение TRUNCATE. Нулевой размер WAL
+не означает исчезновение его имени, пока подключения открыты. Последнее нормальное
+закрытие SQLite обычно удаляет `-wal`/`-shm`; после crash они могут остаться.
+
+### Согласованный бэкап
+
+PDO поддерживает `VACUUM INTO` без обязательной команды sqlite3 или `ext-sqlite3`.
+Это снимок, включающий подтверждённые WAL-изменения до начала снимка, без обещания
+включить более поздние commit. Используйте отдельное подключение без транзакции
+и незавершённых statements, новый файл назначения и SQL quoting пути. Для полной пары
+база + ключ предпочтительно окно обслуживания с остановленными web и CLI/worker;
+при online-бэкапе гарантируйте, что существующий ключ не изменяется во время копирования.
+
+В PowerShell из корня проекта, с тем же `TABLO_DB`, что у приложения:
+
+```powershell
+$walBackupScript = @'
+<?php
+$path = realpath(getenv('TABLO_DB') ?: __DIR__ . '/storage/tablo.sqlite');
+if ($path === false || !is_file($path)) { throw new RuntimeException('База не найдена.'); }
+$db = new PDO('sqlite:' . $path, null, null, [PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION]);
+$db->exec('PRAGMA busy_timeout = 5000; PRAGMA foreign_keys = ON');
+$key = dirname($path) . '/github-token.key';
+$hasTokens = (int) $db->query("SELECT (SELECT count(*) FROM git_tokens)
+    + (SELECT count(*) FROM sites WHERE github_token IS NOT NULL AND github_token <> '')")->fetchColumn() > 0;
+// Schema 3 can retain private quota identity after every encrypted credential is removed.
+$hasQuotaTable = (int) $db->query("SELECT count(*) FROM sqlite_schema WHERE type = 'table' AND name = 'github_cooldowns'")->fetchColumn() > 0;
+if ($hasQuotaTable) {
+    $hasTokens = $hasTokens || (bool) $db->query("SELECT EXISTS(SELECT 1 FROM github_cooldowns WHERE scope LIKE 'credential:v1:%')")->fetchColumn();
+}
+if ($hasTokens && !is_file($key)) { throw new RuntimeException('Ключ токенов отсутствует; бэкап неполон.'); }
+$backup = dirname($path) . '/backups/wal-' . gmdate('Ymd-His') . '-' . bin2hex(random_bytes(4));
+if (!mkdir($backup, 0700, true)) { throw new RuntimeException('Не удалось создать каталог бэкапа.'); }
+$snapshot = $backup . '/tablo.sqlite';
+$db->exec('VACUUM INTO ' . $db->quote($snapshot));
+$check = new PDO('sqlite:' . $snapshot, null, null, [PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION]);
+if ($check->query('PRAGMA integrity_check')->fetchColumn() !== 'ok'
+    || $check->query('PRAGMA foreign_key_check')->fetchAll() !== []) {
+    throw new RuntimeException('Бэкап не прошёл проверку; не используйте его для восстановления.');
+}
+unset($check, $db);
+chmod($snapshot, 0600);
+if (is_file($key)) {
+    if (!copy($key, $backup . '/github-token.key')) { throw new RuntimeException('Бэкап ключа не выполнен.'); }
+    chmod($backup . '/github-token.key', 0600);
+}
+echo 'Проверенный снимок: ' . $backup . PHP_EOL;
+?>
+'@
+$walBackupScript | php
+if ($LASTEXITCODE -ne 0) { throw 'Бэкап не завершён.' }
+```
+
+Для Docker передайте тот же скрипт через
+`$walBackupScript | docker compose exec -T --user www-data tablo php`.
+Проверьте код завершения. Если сохранены токены, отсутствие соответствующего
+`github-token.key` делает восстановление неполным; ключ также нужен для сохранённых
+private quota identities, даже после удаления всех зашифрованных токенов. Прерванный `VACUUM INTO` оставляет
+неполный выходной файл: он не считается бэкапом. Перенесите проверенную пару за пределы
+живого каталога/тома и ограничьте доступ (Windows ACL, Unix каталог 0700, файлы 0600);
+бэкап только внутри того же volume не защищает от его потери.
+
+Для сырой файловой копии сначала остановите **все** потребители, закройте подключения,
+завершите и проверьте checkpoint, закройте обслуживающий PDO, затем копируйте базу и ключ.
+Одной паузы записей недостаточно.
+
+### Восстановление
+
+1. Остановите web и все CLI/worker. Сохраните прежнюю базу, ключ и crash-sidecars
+   вместе в отдельном месте для диагностики и отката.
+2. Проверьте integrity и foreign keys снимка, затем поместите его и соответствующий
+   ключ в чистый целевой каталог с рабочими правами. Не совмещайте снимок со старыми
+   `-wal`/`-shm`; не создавайте новый ключ вместо утраченного.
+3. Откройте через `Database::connect()`: проверьте WAL, `user_version`, integrity/FKs,
+   администратора, сайты и расшифровку токена без вывода секрета. При несовместимой
+   будущей версии используйте подходящую версию приложения, не снижайте metadata.
+4. Только после проверки возобновите web и CLI/worker. Сессии можно не переносить.
+
+Коммитированные Testo-регрессии `DatabaseWalTest` проверяют независимые процессы,
+DELETE-контроль, timeout/retry, устаревшую сырую копию, бэкап с ключом, checkpoint,
+crash/recovery и освобождение файлов, включая удерживаемый PDOStatement на Windows.
+
 ## Docker
 
 ```powershell
@@ -307,7 +461,7 @@ docker compose up --build -d
 proxy и `TABLO_COOKIE_SECURE=1`. DocumentRoot всегда должен указывать на `public/`.
 
 Создайте администратора при первоначальной локальной настройке до публикации.
-Резервируйте SQLite в отсутствие активных записей или SQLite backup API; вместе
+Для бэкапа/восстановления следуйте разделу SQLite WAL выше; вместе
 с БД сохраняется хеш пароля. Если используются токены сайтов, обязательно
 сохраняйте также `github-token.key`: без него прежние токены нельзя расшифровать.
 Сессии можно не переносить. Существующая БД обновляется автоматически без сброса
@@ -522,7 +676,21 @@ composer test
 php tests/browser-fixture.php artifacts/screenshots-demo/browser.sqlite
 ```
 
+GitHub-проверки используют последовательный REST без автоматических повторов. Лимиты
+core/search и общий secondary cooldown сохраняются между CLI и web; успешные частичные
+метрики сохраняются. Одинаковый token под разными сохранёнными/ручными handles разделяет
+primary cooldown через HMAC с private vault key; ротация handle сохраняет его cooldown.
+Некорректные remaining/Retry-After сами по себе не блокируют другие credentials; 301/302,
+неподтверждённая ветка и большой список веток дают безопасные указания для исправления.
+[Политика, реальные границы времени и измерения на 20 сайтах](docs/github-polling.md).
+
 Фикстура содержит только вымышленные проекты `example/*` и демонстрационный токен.
 Для визуальной проверки используйте `tests/web-router.php` с `TABLO_DB`, указывающим
 на эту БД, и `TABLO_TEST_RUNTIME`, указывающим на отдельный каталог сессий и кэша Volt.
 Этот router подменяет GitHub API фикстурой; реальный GitHub-токен не нужен.
+## Periodic worker
+
+`php bin/worker.php` runs serial checks using the interval saved at `/settings` (default 10 minutes).
+`php bin/worker.php --stop` requests cooperative stop; observe exit before restarting.
+Docker Compose includes `tablo-worker` sharing the web image, local database and token key.
+See [launch, cadence, fairness, stop and storage limits](docs/periodic-worker.md).

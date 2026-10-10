@@ -72,7 +72,8 @@ final class GitTokenRepository
                     $this->db->prepare('UPDATE sites SET online = NULL, health_error_code = NULL, health_http_status = NULL,
                         deployed_version = NULL, deployed_commit = NULL,
                         latest_release = NULL, latest_commit = NULL, open_issues = NULL, open_prs = NULL,
-                        response_time_ms = NULL, last_error = NULL, checked_at = NULL WHERE git_token_id = ?')->execute([$id]);
+                        response_time_ms = NULL, last_error = NULL, checked_at = NULL,
+                        config_revision = config_revision + 1 WHERE git_token_id = ?')->execute([$id]);
                 }
             }
             $this->db->commit();

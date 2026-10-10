@@ -5,6 +5,8 @@ namespace Tablo;
 
 final class TokenVault
 {
+    private ?string $keyFingerprint = null;
+
     public function __construct(private readonly string $keyPath) {}
 
     public static function forDatabase(\PDO $db): self
@@ -15,7 +17,7 @@ final class TokenVault
         return new self($directory . '/github-token.key');
     }
 
-    public function encrypt(string $token): string
+    public function encrypt(#[\SensitiveParameter] string $token): string
     {
         $iv = random_bytes(12);
         $cipher = openssl_encrypt($token, 'aes-256-gcm', $this->key(true), OPENSSL_RAW_DATA, $iv, $tag);
@@ -37,6 +39,25 @@ final class TokenVault
             throw new \RuntimeException('Не удалось расшифровать токен GitHub. Введите новый токен.');
         }
         return $token;
+    }
+
+    public function credentialScope(#[\SensitiveParameter] string $token, bool $initialize = true): string
+    {
+        // Domain separation: persist neither the token nor an unkeyed digest. The existing
+        // private vault key makes this identity stable across processes and external key paths.
+        // The repository permits initialization only before encrypted/key-derived state exists.
+        // Existing corrupt/unreadable files and dangling links must never become replacement keys.
+        $identityKey = hash_hmac('sha256', 'tablo/github-primary-scope/v1',
+            $this->key($initialize && !file_exists($this->keyPath) && !is_link($this->keyPath)), true);
+        return 'credential:v1:' . hash_hmac('sha256', $token, $identityKey);
+    }
+
+    public function assertAvailable(bool $established): void
+    {
+        clearstatcache(true, $this->keyPath);
+        if ($established || $this->keyFingerprint !== null || file_exists($this->keyPath) || is_link($this->keyPath)) {
+            $this->key(false); // Read only: never initialize, replace or fall back.
+        }
     }
 
     private function key(bool $create): string
@@ -66,18 +87,23 @@ final class TokenVault
         }
         $file = @fopen($this->keyPath, 'rb');
         if ($file === false) {
-            throw new \RuntimeException('Ключ шифрования токенов недоступен. Восстановите его из резервной копии.');
+            throw new SharedKeyFailure('Ключ шифрования токенов недоступен. Восстановите его из резервной копии.');
         }
-        flock($file, LOCK_SH);
         try {
-            $key = stream_get_contents($file);
+            if (!flock($file, LOCK_SH)) { throw new SharedKeyFailure('Ключ шифрования токенов недоступен.'); }
+            $key = @stream_get_contents($file);
         } finally {
             flock($file, LOCK_UN);
             fclose($file);
         }
         if (!is_string($key) || strlen($key) !== 32) {
-            throw new \RuntimeException('Некорректный ключ шифрования токенов.');
+            throw new SharedKeyFailure('Некорректный ключ шифрования токенов.');
         }
+        $fingerprint = hash('sha256', $key);
+        if ($this->keyFingerprint !== null && !hash_equals($this->keyFingerprint, $fingerprint)) {
+            throw new SharedKeyFailure('Token key custody changed.');
+        }
+        $this->keyFingerprint ??= $fingerprint;
         return $key;
     }
 }
