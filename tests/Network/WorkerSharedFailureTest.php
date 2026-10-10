@@ -50,23 +50,24 @@ final class WorkerSharedFailureTest
     #[Test]
     public function realCliRefusesMissingCorruptSharedKeyAndRemovalDuringActualHealthRequest(): void
     {
-        foreach (['missing', 'corrupt', 'empty', 'live'] as $kind) {
+        foreach (['missing', 'corrupt', 'empty', 'live', 'live-replacement'] as $kind) {
             $directory = new TemporaryDirectory('tablo-worker-key-r1-');
             $child = $server = null;
             try {
                 $server = new TestServer($directory, dirname(__DIR__) . '/fixtures/worker-router.php',
                     environment: ['TABLO_WORKER_FIXTURE' => $directory->path]);
                 $db = Database::connect($directory->path . '/db.sqlite');
-                self::sites($db, $directory, $server->base, $kind === 'live' ? '/barrier' : '/up');
+                $live = str_starts_with($kind, 'live');
+                self::sites($db, $directory, $server->base, $live ? '/barrier' : '/up');
                 $key = $directory->path . '/github-token.key';
                 $hash = hash_file('sha256', $key);
-                if ($kind !== 'live') {
+                if (!$live) {
                     rename($key, $key . '.held');
                     if ($kind !== 'missing') { file_put_contents($key, $kind === 'corrupt' ? 'invalid' : ''); }
                 }
                 $child = new WorkerProcess($directory, $kind, [PHP_BINARY, 'bin/worker.php'],
                     ['TABLO_DB' => $directory->path . '/db.sqlite', 'TABLO_ALLOW_PRIVATE_NETWORK' => '1']);
-                if ($kind === 'live') {
+                if ($live) {
                     $deadline = microtime(true) + 5;
                     while (!is_file($directory->path . '/entered') && $child->running() && microtime(true) < $deadline) {
                         clearstatcache(); usleep(20000);
@@ -77,17 +78,21 @@ final class WorkerSharedFailureTest
                     $other->exec('UPDATE installation_settings SET check_interval_minutes = 2');
                     unset($other);
                     rename($key, $key . '.held');
+                    if ($kind === 'live-replacement') { file_put_contents($key, random_bytes(32)); }
                     file_put_contents($directory->path . '/release', 'ready');
                 }
                 $result = $child->wait();
                 Assert::same($result['exit_code'], 1, $kind);
                 Assert::same($result['stderr'], self::FAILURE, $kind);
                 Assert::false(str_contains($result['stdout'], 'Worker pass complete.'));
-                Assert::same(self::requests($directory), $kind === 'live' ? ['/barrier'] : [], $kind);
+                Assert::same(self::requests($directory), $live ? ['/barrier'] : [], $kind);
                 Assert::same((int) $db->query('SELECT COUNT(*) FROM sites WHERE checked_at IS NOT NULL')->fetchColumn(), 0);
                 Assert::same(hash_file('sha256', $key . '.held'), $hash);
                 if (in_array($kind, ['missing', 'live'], true)) { Assert::false(file_exists($key), 'no replacement/fallback key'); }
-                else { Assert::same(file_get_contents($key), $kind === 'corrupt' ? 'invalid' : ''); }
+                elseif ($kind === 'live-replacement') {
+                    Assert::same(filesize($key), 32);
+                    Assert::false(hash_equals(hash_file('sha256', $key), $hash), 'changed valid-length key is never accepted');
+                } else { Assert::same(file_get_contents($key), $kind === 'corrupt' ? 'invalid' : ''); }
                 $lock = new WorkerLock();
                 Assert::true($lock->acquire($db)); $lock->close();
             } finally { $child?->close(); $server?->close(); unset($other, $lock, $child, $server, $db); $directory->close(); }

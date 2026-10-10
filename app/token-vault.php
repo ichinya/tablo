@@ -5,6 +5,8 @@ namespace Tablo;
 
 final class TokenVault
 {
+    private ?string $keyFingerprint = null;
+
     public function __construct(private readonly string $keyPath) {}
 
     public static function forDatabase(\PDO $db): self
@@ -53,7 +55,7 @@ final class TokenVault
     public function assertAvailable(bool $established): void
     {
         clearstatcache(true, $this->keyPath);
-        if ($established || file_exists($this->keyPath) || is_link($this->keyPath)) {
+        if ($established || $this->keyFingerprint !== null || file_exists($this->keyPath) || is_link($this->keyPath)) {
             $this->key(false); // Read only: never initialize, replace or fall back.
         }
     }
@@ -97,6 +99,11 @@ final class TokenVault
         if (!is_string($key) || strlen($key) !== 32) {
             throw new SharedKeyFailure('Некорректный ключ шифрования токенов.');
         }
+        $fingerprint = hash('sha256', $key);
+        if ($this->keyFingerprint !== null && !hash_equals($this->keyFingerprint, $fingerprint)) {
+            throw new SharedKeyFailure('Token key custody changed.');
+        }
+        $this->keyFingerprint ??= $fingerprint;
         return $key;
     }
 }

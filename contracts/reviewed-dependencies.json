@@ -24,7 +24,7 @@
             "consumers": [
                 "dashboard.run_worker_pass"
             ],
-            "fingerprint": "sha256:e394d262317ead3f2a979343ffda64b4a3821ee7be537fef0a697e11773f474d"
+            "fingerprint": "sha256:10ff6fa863c7b77f6ccb4655fc778359be5f088aa6d9065b3260ecbf50906b84"
         },
         {
             "path": "app/shared-key-failure.php",
