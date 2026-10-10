@@ -37,7 +37,7 @@ final class Database
         $vault ??= TokenVault::configured(); // Explicit file failure precedes any database open.
         $vault?->assertAvailable(false);
         $path ??= getenv('TABLO_DB') ?: dirname(__DIR__) . '/storage/tablo.sqlite';
-        if ($vault !== null && getenv('TABLO_TOKEN_KEY_FILE') !== false && getenv('TABLO_TOKEN_KEY_FILE') !== '') {
+        if ($vault?->isExternal()) {
             self::validateExistingUri($path); // Preserve the reviewed literal URI/VFS admission.
         }
         // SQLite file: URIs are not filesystem paths for PHP's directory functions.
@@ -48,7 +48,7 @@ final class Database
             PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION,
             PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC,
         ]);
-        if (getenv('TABLO_TOKEN_KEY_FILE') !== false && getenv('TABLO_TOKEN_KEY_FILE') !== '') {
+        if ($vault?->isExternal()) {
             self::authenticateExternalKey($db, $vault);
         }
         $db->exec('PRAGMA foreign_keys = ON; PRAGMA busy_timeout = 5000;');

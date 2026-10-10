@@ -342,7 +342,7 @@
                 "path": "app/sqlite-database.php",
                 "line": 339
             },
-            "fingerprint": "sha256:e29d4e1af6737340cd7cd51a49fe6ebfdc4b229e9f1d8fbcb02d469c58638bb2",
+            "fingerprint": "sha256:6e460c1e9e64cfe80e4b3aad737daafd47a40d160dfbc7ca1a298ee5493cfdca",
             "signature": null,
             "effects": [],
             "shape": {
@@ -567,7 +567,7 @@
                 "path": "app/sqlite-database.php",
                 "line": 328
             },
-            "fingerprint": "sha256:e29d4e1af6737340cd7cd51a49fe6ebfdc4b229e9f1d8fbcb02d469c58638bb2",
+            "fingerprint": "sha256:6e460c1e9e64cfe80e4b3aad737daafd47a40d160dfbc7ca1a298ee5493cfdca",
             "signature": null,
             "effects": [],
             "shape": {
@@ -749,7 +749,7 @@
                 "path": "app/periodic-worker.php",
                 "line": 86
             },
-            "fingerprint": "sha256:73fdcf32944418e183bdfabb5c99719c8d90731955acb04a572df7bb7c8c5a9f",
+            "fingerprint": "sha256:dd52e7fc2676e7a63ecb8343d1edc3ee0119a76332152c512b09463edc8801d6",
             "signature": {
                 "inputs": [
                     {
@@ -795,7 +795,7 @@
                 "path": "app/worker-state-repository.php",
                 "line": 31
             },
-            "fingerprint": "sha256:2dd574e86d8589a2bf105acbe1d5a16cee25292fbd4a917e8c541c19d4e071ae",
+            "fingerprint": "sha256:eb689cbd31c4cb02088c095f47b0c67580a183c7991f9b071ac71e3d1c78db82",
             "signature": {
                 "inputs": [
                     {
@@ -821,7 +821,7 @@
                 "path": "app/sqlite-database.php",
                 "line": 342
             },
-            "fingerprint": "sha256:e29d4e1af6737340cd7cd51a49fe6ebfdc4b229e9f1d8fbcb02d469c58638bb2",
+            "fingerprint": "sha256:6e460c1e9e64cfe80e4b3aad737daafd47a40d160dfbc7ca1a298ee5493cfdca",
             "signature": null,
             "effects": [],
             "shape": {
@@ -846,7 +846,7 @@
                 "path": "app/sqlite-database.php",
                 "line": 347
             },
-            "fingerprint": "sha256:e29d4e1af6737340cd7cd51a49fe6ebfdc4b229e9f1d8fbcb02d469c58638bb2",
+            "fingerprint": "sha256:6e460c1e9e64cfe80e4b3aad737daafd47a40d160dfbc7ca1a298ee5493cfdca",
             "signature": null,
             "effects": [],
             "shape": {
@@ -881,7 +881,7 @@
                 "path": "app/sqlite-database.php",
                 "line": 353
             },
-            "fingerprint": "sha256:e29d4e1af6737340cd7cd51a49fe6ebfdc4b229e9f1d8fbcb02d469c58638bb2",
+            "fingerprint": "sha256:6e460c1e9e64cfe80e4b3aad737daafd47a40d160dfbc7ca1a298ee5493cfdca",
             "signature": null,
             "effects": [],
             "shape": {

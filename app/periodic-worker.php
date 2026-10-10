@@ -28,7 +28,7 @@ final class PeriodicWorker
     ) {
         $this->sites = new SiteRepository($db, $vault);
         $this->settings = new SettingsRepository($db);
-        $this->state = new WorkerStateRepository($db);
+        $this->state = new WorkerStateRepository($db, $this->sites);
         $sites = $this->sites;
         $this->connection = $connection ?? static fn (): GitHubConnection => new GitHubConnection($sites, $http, worker: true);
         $this->clock = $clock ?? static fn (): float => hrtime(true) / 1e9;

@@ -145,7 +145,7 @@
             "consumers": [
                 "dashboard.run_worker_pass"
             ],
-            "fingerprint": "sha256:b95e5db6d20c48b02c80bbcf1e1302ff3e3014486eade808615f98aeb7b3e924"
+            "fingerprint": "sha256:c692fca6bbdcb2514c376524b7dd79aa172cf9feec3d98a0dc798c64756f6372"
         },
         {
             "path": "app/shared-key-failure.php",
@@ -177,7 +177,7 @@
             "consumers": [
                 "dashboard.run_worker_pass"
             ],
-            "fingerprint": "sha256:8ddbfe4d0fdee7f44f2268d71607903ca18b0fce6fc3ca7d454c928d579a4ab5"
+            "fingerprint": "sha256:98e2dd6566974089d023b476be7e663a48df2c71cf980f80ccd9f7ad7b6749ec"
         },
         {
             "path": "tools/capture-bindings.php",

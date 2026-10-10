@@ -33,6 +33,7 @@ final class ExternalKeyTest
         try {
             $key=$directory->path.'/raw'; $bytes=random_bytes(32); file_put_contents($key,$bytes);
             $web=new WebFixture(environment:['TABLO_TOKEN_KEY_FILE'=>$key]); $csrf=$web->authenticate();
+            // Public fixture protocol: github-fixture.php admits this exact test credential.
             $secret='fixture-token';
             $invalid=$web->request('/settings/tokens/new',['_csrf'=>$csrf,'provider'=>'github','name'=>'','token'=>$secret]);
             Assert::same($invalid['status'],422); Assert::false(str_contains($invalid['body'],$secret));

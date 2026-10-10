@@ -9,7 +9,7 @@ final class WorkerStateRepository
 {
     public const FIELDS = ['latest_release', 'latest_commit', 'open_issues', 'open_prs'];
 
-    public function __construct(private readonly PDO $db) {}
+    public function __construct(private readonly PDO $db, #[\SensitiveParameter] private ?SiteRepository $sites = null) {}
 
     // Only call after acquiring the real lifetime installation lock.
     public function begin(): string
@@ -61,10 +61,13 @@ final class WorkerStateRepository
     // One post-network transaction owns both the guarded current result and service credit.
     public function settle(#[\SensitiveParameter] array $site, array $result): bool
     {
+        // Reuse the pass lifetime; control-only construction must stay key-independent.
+        $this->sites ??= new SiteRepository($this->db);
+        $this->sites->assertWorkerKeyAvailable();
         // BEGIN outside the catch: a failed/nested BEGIN never rolls back caller-owned work.
         $this->db->beginTransaction();
         try {
-            if (!$site['enabled'] || !(new SiteRepository($this->db))->storeCheck($site, $result)) {
+            if (!$site['enabled'] || !$this->sites->storeCheck($site, $result)) {
                 $this->db->rollBack();
                 return false;
             }

@@ -128,7 +128,7 @@ final class ExternalKeyTest
                 $server=new TestServer($directory,dirname(__DIR__).'/fixtures/worker-router.php',environment:['TABLO_WORKER_FIXTURE'=>$directory->path]);
                 $path=$directory->path.'/db.sqlite'; $db=Database::connect($path); $vault=TokenVault::forDatabase($db);
                 $sites=new SiteRepository($db,$vault);
-                $sites->save(array_replace(UnitFixtures::site(),['url'=>$server->base,'health_path'=>'/barrier','version_path'=>'','github_token'=>'synthetic']));
+                $sites->save(array_replace(UnitFixtures::site(),['url'=>$server->base,'health_path'=>'/barrier','version_path'=>'','github_token'=>bin2hex(random_bytes(24))]));
                 $key=$directory->path.'/external'; rename($directory->path.'/github-token.key',$key); $sites=$vault=null;
                 $child=new WorkerProcess($directory,$kind,[PHP_BINARY,'bin/worker.php'],['TABLO_DB'=>$path,'TABLO_TOKEN_KEY_FILE'=>$key,'TABLO_ALLOW_PRIVATE_NETWORK'=>'1']);
                 $deadline=microtime(true)+5;

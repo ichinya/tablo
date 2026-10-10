@@ -24,6 +24,9 @@ final class TokenVault
         return $path === false || $path === '' ? null : new self($path, true);
     }
 
+    // Policy only: never expose the selected path, key bytes or lifetime fingerprint.
+    public function isExternal(): bool { return $this->external; }
+
     private static function externalPath(#[\SensitiveParameter] string $path): string
     {
         // Literal local paths only; drive paths are not stream schemes. Relative paths
