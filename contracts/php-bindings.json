@@ -5,7 +5,7 @@
         "version": "0.1.0"
     },
     "project": "tablo",
-    "revision": "sha256:4b4469003b3b7f710c63ff335d167b04be983fe9e5b76cbf3cf559a95a4ba4a0",
+    "revision": "sha256:ea29e95d0ff4858ac34b244a28ef38248fcb535a72dcb7c1622ab8a0ab9115cc",
     "symbols": [
         {
             "id": "dashboard.setup",
@@ -64,9 +64,9 @@
             "kind": "command",
             "source": {
                 "path": "app/web-application.php",
-                "line": 126
+                "line": 128
             },
-            "fingerprint": "sha256:758868fd8ebed1f714fe0aec7853d5da59f4597187b3acc1f45ec001765512bd",
+            "fingerprint": "sha256:e01c71d81388874cfa16229ba53caf7f622d647ba3086b8b9542f8a79bc1f414",
             "signature": {
                 "inputs": [],
                 "output": null,
@@ -79,9 +79,9 @@
             "kind": "command",
             "source": {
                 "path": "app/web-application.php",
-                "line": 215
+                "line": 218
             },
-            "fingerprint": "sha256:758868fd8ebed1f714fe0aec7853d5da59f4597187b3acc1f45ec001765512bd",
+            "fingerprint": "sha256:e01c71d81388874cfa16229ba53caf7f622d647ba3086b8b9542f8a79bc1f414",
             "signature": {
                 "inputs": [
                     {
@@ -113,9 +113,9 @@
             "kind": "command",
             "source": {
                 "path": "app/web-application.php",
-                "line": 215
+                "line": 218
             },
-            "fingerprint": "sha256:758868fd8ebed1f714fe0aec7853d5da59f4597187b3acc1f45ec001765512bd",
+            "fingerprint": "sha256:e01c71d81388874cfa16229ba53caf7f622d647ba3086b8b9542f8a79bc1f414",
             "signature": {
                 "inputs": [
                     {
@@ -154,7 +154,7 @@
                 "path": "app/site-repository.php",
                 "line": 277
             },
-            "fingerprint": "sha256:aaa48998ab044bc3a57ebfaf164a3d847898c26c5cfec2c41e74a76bfebaa97f",
+            "fingerprint": "sha256:cf4739064e6902f7bed73da68adf5032c90fbb25c10f79ef24c03ffeb516318b",
             "signature": {
                 "inputs": [
                     {
@@ -174,6 +174,14 @@
                 {
                     "kind": "delete",
                     "subject": "dashboard.check_history"
+                },
+                {
+                    "kind": "delete",
+                    "subject": "dashboard.incident"
+                },
+                {
+                    "kind": "delete",
+                    "subject": "dashboard.incident_checkpoint"
                 }
             ]
         },
@@ -208,6 +216,22 @@
                 {
                     "kind": "update",
                     "subject": "dashboard.github_cooldown"
+                },
+                {
+                    "kind": "create",
+                    "subject": "dashboard.incident"
+                },
+                {
+                    "kind": "update",
+                    "subject": "dashboard.incident"
+                },
+                {
+                    "kind": "create",
+                    "subject": "dashboard.incident_checkpoint"
+                },
+                {
+                    "kind": "update",
+                    "subject": "dashboard.incident_checkpoint"
                 }
             ]
         },
@@ -218,7 +242,7 @@
                 "path": "app/site-repository.php",
                 "line": 27
             },
-            "fingerprint": "sha256:aaa48998ab044bc3a57ebfaf164a3d847898c26c5cfec2c41e74a76bfebaa97f",
+            "fingerprint": "sha256:cf4739064e6902f7bed73da68adf5032c90fbb25c10f79ef24c03ffeb516318b",
             "signature": {
                 "inputs": [],
                 "output": "list(dashboard.site)",
@@ -313,9 +337,9 @@
             "kind": "entity",
             "source": {
                 "path": "app/sqlite-database.php",
-                "line": 145
+                "line": 179
             },
-            "fingerprint": "sha256:ead54577e35257b0a3a5aeee1dc843b7144a695fc624fe9ecea1c819984c7736",
+            "fingerprint": "sha256:4863b3cc4dd4bd6fa87c81c3011f2d0b53721176d8cf923d86cc1c9ddbb9c6c5",
             "signature": null,
             "effects": [],
             "shape": {
@@ -538,9 +562,9 @@
             "kind": "entity",
             "source": {
                 "path": "app/sqlite-database.php",
-                "line": 134
+                "line": 168
             },
-            "fingerprint": "sha256:ead54577e35257b0a3a5aeee1dc843b7144a695fc624fe9ecea1c819984c7736",
+            "fingerprint": "sha256:4863b3cc4dd4bd6fa87c81c3011f2d0b53721176d8cf923d86cc1c9ddbb9c6c5",
             "signature": null,
             "effects": [],
             "shape": {
@@ -762,6 +786,22 @@
                 {
                     "kind": "create",
                     "subject": "dashboard.check_history"
+                },
+                {
+                    "kind": "create",
+                    "subject": "dashboard.incident"
+                },
+                {
+                    "kind": "update",
+                    "subject": "dashboard.incident"
+                },
+                {
+                    "kind": "create",
+                    "subject": "dashboard.incident_checkpoint"
+                },
+                {
+                    "kind": "update",
+                    "subject": "dashboard.incident_checkpoint"
                 }
             ]
         },
@@ -796,9 +836,9 @@
             "kind": "entity",
             "source": {
                 "path": "app/sqlite-database.php",
-                "line": 148
+                "line": 182
             },
-            "fingerprint": "sha256:ead54577e35257b0a3a5aeee1dc843b7144a695fc624fe9ecea1c819984c7736",
+            "fingerprint": "sha256:4863b3cc4dd4bd6fa87c81c3011f2d0b53721176d8cf923d86cc1c9ddbb9c6c5",
             "signature": null,
             "effects": [],
             "shape": {
@@ -821,9 +861,9 @@
             "kind": "entity",
             "source": {
                 "path": "app/sqlite-database.php",
-                "line": 153
+                "line": 187
             },
-            "fingerprint": "sha256:ead54577e35257b0a3a5aeee1dc843b7144a695fc624fe9ecea1c819984c7736",
+            "fingerprint": "sha256:4863b3cc4dd4bd6fa87c81c3011f2d0b53721176d8cf923d86cc1c9ddbb9c6c5",
             "signature": null,
             "effects": [],
             "shape": {
@@ -856,9 +896,9 @@
             "kind": "entity",
             "source": {
                 "path": "app/sqlite-database.php",
-                "line": 159
+                "line": 193
             },
-            "fingerprint": "sha256:ead54577e35257b0a3a5aeee1dc843b7144a695fc624fe9ecea1c819984c7736",
+            "fingerprint": "sha256:4863b3cc4dd4bd6fa87c81c3011f2d0b53721176d8cf923d86cc1c9ddbb9c6c5",
             "signature": null,
             "effects": [],
             "shape": {
@@ -901,9 +941,9 @@
             "kind": "entity",
             "source": {
                 "path": "app/sqlite-database.php",
-                "line": 171
+                "line": 205
             },
-            "fingerprint": "sha256:ead54577e35257b0a3a5aeee1dc843b7144a695fc624fe9ecea1c819984c7736",
+            "fingerprint": "sha256:4863b3cc4dd4bd6fa87c81c3011f2d0b53721176d8cf923d86cc1c9ddbb9c6c5",
             "signature": null,
             "effects": [],
             "shape": {
@@ -1013,7 +1053,7 @@
                 "path": "app/site-repository.php",
                 "line": 282
             },
-            "fingerprint": "sha256:aaa48998ab044bc3a57ebfaf164a3d847898c26c5cfec2c41e74a76bfebaa97f",
+            "fingerprint": "sha256:cf4739064e6902f7bed73da68adf5032c90fbb25c10f79ef24c03ffeb516318b",
             "signature": {
                 "inputs": [
                     {
@@ -1038,6 +1078,22 @@
                 {
                     "kind": "create",
                     "subject": "dashboard.check_history"
+                },
+                {
+                    "kind": "create",
+                    "subject": "dashboard.incident"
+                },
+                {
+                    "kind": "update",
+                    "subject": "dashboard.incident"
+                },
+                {
+                    "kind": "create",
+                    "subject": "dashboard.incident_checkpoint"
+                },
+                {
+                    "kind": "update",
+                    "subject": "dashboard.incident_checkpoint"
                 }
             ]
         },
@@ -1085,6 +1141,22 @@
                 {
                     "kind": "update",
                     "subject": "dashboard.worker_runtime"
+                },
+                {
+                    "kind": "create",
+                    "subject": "dashboard.incident"
+                },
+                {
+                    "kind": "update",
+                    "subject": "dashboard.incident"
+                },
+                {
+                    "kind": "create",
+                    "subject": "dashboard.incident_checkpoint"
+                },
+                {
+                    "kind": "update",
+                    "subject": "dashboard.incident_checkpoint"
                 }
             ]
         },
@@ -1141,6 +1213,135 @@
                     "subject": "dashboard.check_history"
                 }
             ]
+        },
+        {
+            "id": "dashboard.incident",
+            "kind": "entity",
+            "source": {
+                "path": "app/sqlite-database.php",
+                "line": 16
+            },
+            "fingerprint": "sha256:4863b3cc4dd4bd6fa87c81c3011f2d0b53721176d8cf923d86cc1c9ddbb9c6c5",
+            "signature": null,
+            "effects": [],
+            "shape": {
+                "fields": [
+                    {
+                        "name": "id",
+                        "type": "dashboard.number",
+                        "required": true
+                    },
+                    {
+                        "name": "site_id",
+                        "type": "dashboard.number",
+                        "required": true
+                    },
+                    {
+                        "name": "config_revision",
+                        "type": "dashboard.number",
+                        "required": true
+                    },
+                    {
+                        "name": "opened_at",
+                        "type": "dashboard.timestamp",
+                        "required": true
+                    },
+                    {
+                        "name": "health_error_code",
+                        "type": "optional(dashboard.text)",
+                        "required": false
+                    },
+                    {
+                        "name": "health_http_status",
+                        "type": "optional(dashboard.number)",
+                        "required": false
+                    },
+                    {
+                        "name": "recovery_history_id",
+                        "type": "optional(dashboard.number)",
+                        "required": false
+                    },
+                    {
+                        "name": "recovered_at",
+                        "type": "optional(dashboard.timestamp)",
+                        "required": false
+                    },
+                    {
+                        "name": "interruption_history_id",
+                        "type": "optional(dashboard.number)",
+                        "required": false
+                    },
+                    {
+                        "name": "end_reason",
+                        "type": "optional(dashboard.incident_end)",
+                        "required": false
+                    },
+                    {
+                        "name": "uncertain",
+                        "type": "dashboard.flag",
+                        "required": true
+                    },
+                    {
+                        "name": "clock_invalid",
+                        "type": "dashboard.flag",
+                        "required": true
+                    }
+                ]
+            }
+        },
+        {
+            "id": "dashboard.incident_checkpoint",
+            "kind": "entity",
+            "source": {
+                "path": "app/sqlite-database.php",
+                "line": 36
+            },
+            "fingerprint": "sha256:4863b3cc4dd4bd6fa87c81c3011f2d0b53721176d8cf923d86cc1c9ddbb9c6c5",
+            "signature": null,
+            "effects": [],
+            "shape": {
+                "fields": [
+                    {
+                        "name": "site_id",
+                        "type": "dashboard.number",
+                        "required": true
+                    },
+                    {
+                        "name": "last_history_id",
+                        "type": "dashboard.number",
+                        "required": true
+                    },
+                    {
+                        "name": "config_revision",
+                        "type": "dashboard.number",
+                        "required": true
+                    },
+                    {
+                        "name": "watermark",
+                        "type": "dashboard.timestamp",
+                        "required": true
+                    }
+                ]
+            }
+        },
+        {
+            "id": "dashboard.read_incidents",
+            "kind": "query",
+            "source": {
+                "path": "app/incident-repository.php",
+                "line": 14
+            },
+            "fingerprint": "sha256:20e51a2c24935984fef094ea84c23f30bf54c00fcb0432fab9c3c5c3258d4f2a",
+            "signature": {
+                "inputs": [],
+                "output": "dashboard.incident_page",
+                "reads": [
+                    "dashboard.incident",
+                    "dashboard.incident_checkpoint",
+                    "dashboard.site"
+                ]
+            },
+            "effects": []
         }
     ]
 }

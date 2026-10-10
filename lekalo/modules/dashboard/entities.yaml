@@ -1238,6 +1238,303 @@
                     }
                 }
             ]
+        },
+        {
+            "id": "dashboard.incident_end",
+            "kind": "scalar",
+            "version": 1,
+            "base": "string",
+            "description": "Native finite SQL end_reason is exactly recovered or config-changed; the pinned identifier-only enum grammar cannot encode its hyphenated wire value. Schema CHECK and native tests enforce these values."
+        },
+        {
+            "id": "dashboard.incident",
+            "kind": "entity",
+            "version": 1,
+            "identity": [
+                "id"
+            ],
+            "description": "Prospective persisted observation incident. Opening accepted history AUTOINCREMENT identity remains stable after history retention; site FK CASCADE. One unresolved/site via partial unique index. No FK to expiring history, private payload or invented recovery/edit time.",
+            "fields": [
+                {
+                    "name": "id",
+                    "type": {
+                        "ref": "dashboard.number"
+                    },
+                    "required": true
+                },
+                {
+                    "name": "site_id",
+                    "type": {
+                        "ref": "dashboard.number"
+                    },
+                    "required": true
+                },
+                {
+                    "name": "config_revision",
+                    "type": {
+                        "ref": "dashboard.number"
+                    },
+                    "required": true
+                },
+                {
+                    "name": "opened_at",
+                    "type": {
+                        "ref": "dashboard.timestamp"
+                    },
+                    "required": true
+                },
+                {
+                    "name": "health_error_code",
+                    "type": {
+                        "optional": {
+                            "ref": "dashboard.text"
+                        }
+                    }
+                },
+                {
+                    "name": "health_http_status",
+                    "type": {
+                        "optional": {
+                            "ref": "dashboard.number"
+                        }
+                    }
+                },
+                {
+                    "name": "recovery_history_id",
+                    "type": {
+                        "optional": {
+                            "ref": "dashboard.number"
+                        }
+                    }
+                },
+                {
+                    "name": "recovered_at",
+                    "type": {
+                        "optional": {
+                            "ref": "dashboard.timestamp"
+                        }
+                    }
+                },
+                {
+                    "name": "interruption_history_id",
+                    "type": {
+                        "optional": {
+                            "ref": "dashboard.number"
+                        }
+                    }
+                },
+                {
+                    "name": "end_reason",
+                    "type": {
+                        "optional": {
+                            "ref": "dashboard.incident_end"
+                        }
+                    }
+                },
+                {
+                    "name": "uncertain",
+                    "type": {
+                        "ref": "dashboard.flag"
+                    },
+                    "required": true
+                },
+                {
+                    "name": "clock_invalid",
+                    "type": {
+                        "ref": "dashboard.flag"
+                    },
+                    "required": true
+                }
+            ]
+        },
+        {
+            "id": "dashboard.incident_checkpoint",
+            "kind": "entity",
+            "version": 1,
+            "identity": [
+                "site_id"
+            ],
+            "description": "One site-FK checkpoint, only newly accepted post-install rows; monotonic accepted history identity with per-epoch observation-time maximum. Never seeded from old history/current values, rebuilt or reset by reads/prune.",
+            "fields": [
+                {
+                    "name": "site_id",
+                    "type": {
+                        "ref": "dashboard.number"
+                    },
+                    "required": true
+                },
+                {
+                    "name": "last_history_id",
+                    "type": {
+                        "ref": "dashboard.number"
+                    },
+                    "required": true
+                },
+                {
+                    "name": "config_revision",
+                    "type": {
+                        "ref": "dashboard.number"
+                    },
+                    "required": true
+                },
+                {
+                    "name": "watermark",
+                    "type": {
+                        "ref": "dashboard.timestamp"
+                    },
+                    "required": true
+                }
+            ]
+        },
+        {
+            "id": "dashboard.incident_page",
+            "kind": "value-object",
+            "version": 1,
+            "fields": [
+                {
+                    "name": "rows",
+                    "type": {
+                        "list": {
+                            "ref": "dashboard.incident_list_row"
+                        }
+                    },
+                    "required": true
+                },
+                {
+                    "name": "next_cursor",
+                    "type": {
+                        "optional": {
+                            "ref": "dashboard.text"
+                        }
+                    }
+                }
+            ]
+        },
+        {
+            "id": "dashboard.incident_list_row",
+            "kind": "value-object",
+            "version": 1,
+            "description": "Actual read projection: persisted incident fields plus only current name/enabled/revision and checkpoint watermark; no URL, errors, credentials or version data.",
+            "fields": [
+                {
+                    "name": "id",
+                    "type": {
+                        "ref": "dashboard.number"
+                    },
+                    "required": true
+                },
+                {
+                    "name": "site_id",
+                    "type": {
+                        "ref": "dashboard.number"
+                    },
+                    "required": true
+                },
+                {
+                    "name": "config_revision",
+                    "type": {
+                        "ref": "dashboard.number"
+                    },
+                    "required": true
+                },
+                {
+                    "name": "opened_at",
+                    "type": {
+                        "ref": "dashboard.timestamp"
+                    },
+                    "required": true
+                },
+                {
+                    "name": "health_error_code",
+                    "type": {
+                        "optional": {
+                            "ref": "dashboard.text"
+                        }
+                    }
+                },
+                {
+                    "name": "health_http_status",
+                    "type": {
+                        "optional": {
+                            "ref": "dashboard.number"
+                        }
+                    }
+                },
+                {
+                    "name": "recovery_history_id",
+                    "type": {
+                        "optional": {
+                            "ref": "dashboard.number"
+                        }
+                    }
+                },
+                {
+                    "name": "recovered_at",
+                    "type": {
+                        "optional": {
+                            "ref": "dashboard.timestamp"
+                        }
+                    }
+                },
+                {
+                    "name": "interruption_history_id",
+                    "type": {
+                        "optional": {
+                            "ref": "dashboard.number"
+                        }
+                    }
+                },
+                {
+                    "name": "end_reason",
+                    "type": {
+                        "optional": {
+                            "ref": "dashboard.incident_end"
+                        }
+                    }
+                },
+                {
+                    "name": "uncertain",
+                    "type": {
+                        "ref": "dashboard.flag"
+                    },
+                    "required": true
+                },
+                {
+                    "name": "clock_invalid",
+                    "type": {
+                        "ref": "dashboard.flag"
+                    },
+                    "required": true
+                },
+                {
+                    "name": "site_name",
+                    "type": {
+                        "ref": "dashboard.text"
+                    },
+                    "required": true
+                },
+                {
+                    "name": "site_enabled",
+                    "type": {
+                        "ref": "dashboard.flag"
+                    },
+                    "required": true
+                },
+                {
+                    "name": "current_revision",
+                    "type": {
+                        "ref": "dashboard.number"
+                    },
+                    "required": true
+                },
+                {
+                    "name": "last_observed_at",
+                    "type": {
+                        "ref": "dashboard.timestamp"
+                    },
+                    "required": true
+                }
+            ]
         }
     ]
 }

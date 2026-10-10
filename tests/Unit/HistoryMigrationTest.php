@@ -15,7 +15,7 @@ final class HistoryMigrationTest
         $db = new MigrationPdo(':memory:');
         Database::migrate($db);
         // Removing precisely v5's additive object gives the genuine predecessor v4 layout.
-        $db->exec('DROP TABLE check_history; PRAGMA user_version=4');
+        $db->exec('DROP TABLE incident_checkpoints; DROP TABLE incidents; DROP TABLE check_history; PRAGMA user_version=4');
         $db->exec("INSERT INTO users(id,password_hash) VALUES(1,'synthetic-preserved-hash');
             INSERT INTO git_tokens(name,provider,encrypted_token) VALUES('Saved','github','synthetic-cipher');
             INSERT INTO sites(name,url,repository,git_token_id,online,health_error_code,health_http_status,response_time_ms,
@@ -58,7 +58,7 @@ final class HistoryMigrationTest
             Database::migrate($db);
             Database::migrate($db);
             Assert::same(self::rows($db), $before);
-            Assert::same((int) $db->query('PRAGMA user_version')->fetchColumn(), 5);
+            Assert::same((int) $db->query('PRAGMA user_version')->fetchColumn(), Database::CURRENT_SCHEMA_VERSION);
             Assert::same((int) $db->query('SELECT COUNT(*) FROM check_history')->fetchColumn(), 0, 'no last-state backfill');
             Assert::same(array_column($db->query('PRAGMA index_list(check_history)')->fetchAll(), 'name'), ['check_history_time', 'check_history_site_time']);
             Assert::same($db->query('PRAGMA foreign_key_check')->fetchAll(), []);
