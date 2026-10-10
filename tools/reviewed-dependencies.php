@@ -5,6 +5,7 @@ declare(strict_types=1);
 function workerDependencies(): array
 {
     return [
+        'app/client-address.php' => ['owner' => 'Tablo\\ClientAddress', 'consumers' => ['Tablo\\Web::__construct']],
         'app/worker-lock.php' => ['owner' => 'Tablo\\WorkerLock', 'consumers' => ['dashboard.run_worker_pass']],
         'bin/worker.php' => ['owner' => 'php-script:bin/worker.php', 'consumers' => ['dashboard.run_worker_pass', 'dashboard.request_worker_stop']],
         'app/token-vault.php' => ['owner' => 'Tablo\\TokenVault', 'consumers' => ['dashboard.run_worker_pass']],

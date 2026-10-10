@@ -57,8 +57,8 @@
         {
             "id": "dashboard.login",
             "kind": "command",
-            "version": 1,
-            "description": "Verify administrator password, rate limit failed attempts, regenerate session id and CSRF token.",
+            "version": 2,
+            "description": "Resolve canonical transport identity at Web login: default/untrusted peers ignore forwarding; exact trusted peers require a fully valid bounded right-to-left XFF chain and fail before Auth on invalid or all-trusted history. Verify administrator password with the persistent atomic five-failure/900-second limiter; regenerate session id and CSRF token on success.",
             "input": [
                 {
                     "name": "password",

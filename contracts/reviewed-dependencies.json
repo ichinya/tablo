@@ -2,6 +2,14 @@
     "schema": "tablo/reviewed-dependencies/v1",
     "dependencies": [
         {
+            "path": "app/client-address.php",
+            "owner": "Tablo\\ClientAddress",
+            "consumers": [
+                "Tablo\\Web::__construct"
+            ],
+            "fingerprint": "sha256:791f0d410b6a37da8e367569060a44a260ca0d8365a1a34b1ad2149369ea5c52"
+        },
+        {
             "path": "app/worker-lock.php",
             "owner": "Tablo\\WorkerLock",
             "consumers": [
@@ -56,7 +64,7 @@
             "consumers": [
                 "dashboard.run_worker_pass"
             ],
-            "fingerprint": "sha256:5fadce678838e864ed34787b59bfb253625d0ced80bf6033e751ca836204ed4c"
+            "fingerprint": "sha256:1040226065e72be454378f545654fe5773612364080493c271374b4aa4ae62a7"
         },
         {
             "path": "tools/capture-bindings.php",
@@ -72,7 +80,7 @@
             "consumers": [
                 "dashboard.run_worker_pass"
             ],
-            "fingerprint": "sha256:89b3fe9d1b6b7447934c5fef9fb8bc43d7fc3be1ffcf9a52eeab2fefc1fc30a8"
+            "fingerprint": "sha256:536a520274e7ff4ca84451618dce9cae841bc3e8de3e9d8a919bc3392bbfae2c"
         }
     ]
 }
