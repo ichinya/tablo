@@ -119,7 +119,7 @@ final class ExternalKeyCustodyTest
             Assert::same((new GitTokenRepository($db))->tokenFor(1, 'github'), $secret);
             Assert::same(file_get_contents($external), $raw);
             Assert::false(is_file($key));
-            Assert::same((int) $db->query('PRAGMA user_version')->fetchColumn(), 4);
+            Assert::same((int) $db->query('PRAGMA user_version')->fetchColumn(), Database::CURRENT_SCHEMA_VERSION);
             Assert::same([$db->query('SELECT github_token FROM sites')->fetchColumn(), $db->query('SELECT encrypted_token FROM git_tokens')->fetchColumn()], $ciphertexts);
         } finally {
             $db = $sites = $saved = $vault = null;

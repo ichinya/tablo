@@ -22,6 +22,9 @@ final class ReviewedDependenciesTest
         mkdir($directory->path . '/tools');
         mkdir($directory->path . '/public');
         foreach (array_keys(\requiredReviewedDependencies()) as $path) {
+            if (!is_dir(dirname($directory->path . '/' . $path))) {
+                mkdir(dirname($directory->path . '/' . $path), 0700, true);
+            }
             copy($root . '/' . $path, $directory->path . '/' . $path);
         }
         foreach (['reviewed-dependencies.php', 'capture-reviewed-dependencies.php'] as $file) {
