@@ -54,12 +54,19 @@ try {
     $resetConfirmation = Read-Host 'Confirm password' -AsSecureString
     $resetProcess = New-Object System.Diagnostics.Process
     $resetProcess.StartInfo = $resetStart
-    if (!$resetProcess.Start()) { throw 'Cannot start local command.' }
-    $resetStarted = $true
-    Write-SecureLine $resetPassword $resetProcess.StandardInput.BaseStream
-    Write-SecureLine $resetConfirmation $resetProcess.StandardInput.BaseStream
-    $resetProcess.StandardInput.BaseStream.Flush()
-    $resetProcess.StandardInput.Close()
+    # .NET Framework creates the redirected writer from Console.InputEncoding.
+    # Disable its preamble before Start, even when writing directly to BaseStream.
+    $resetInputEncoding = [Console]::InputEncoding
+    try {
+        [Console]::InputEncoding = New-Object System.Text.UTF8Encoding($false, $true)
+        if (!$resetProcess.Start()) { throw 'Cannot start local command.' }
+        $resetStarted = $true
+        $resetInput = $resetProcess.StandardInput
+    } finally { [Console]::InputEncoding = $resetInputEncoding }
+    Write-SecureLine $resetPassword $resetInput.BaseStream
+    Write-SecureLine $resetConfirmation $resetInput.BaseStream
+    $resetInput.BaseStream.Flush()
+    $resetInput.Close()
     $resetProcess.WaitForExit()
     $resetExit = $resetProcess.ExitCode
 } catch {

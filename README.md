@@ -368,6 +368,10 @@ pwsh -NoProfile -File tools/admin-password.ps1
 ```
 
 Helper использует SecureString, UseShellExecute=false и StandardInput.BaseStream.
+Он создаёт stdin без UTF-8 BOM, включая Windows PowerShell 5.1 с BOM-кодировкой
+хоста: временная Console.InputEncoding действует только при создании дочернего
+процесса и его writer, затем прежняя кодировка восстанавливается в finally,
+в том числе при ошибке запуска. Настройка кодировки вызывающей стороной не нужна.
 Он освобождает BSTR через ZeroFreeBSTR, очищает временные char/byte buffers и
 возвращает exit PHP/Docker. Это не гарантия стирания всех копий в управляемой
 памяти. Ctrl+C на запросе не запускает дочернюю команду; при прерывании уже

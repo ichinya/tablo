@@ -41,7 +41,7 @@
             "path": "tools/admin-password.ps1",
             "owner": "PowerShell protected input helper",
             "consumer": "Local or Docker administrator password CLI stdin",
-            "fingerprint": "sha256:d4d63a64b8f79ad590ccd74b7c655cb8a00f0d685814dba4f20723c58a5bcb62"
+            "fingerprint": "sha256:7a4409d6eb9e6fe10d2c422911a194c4f9c0281208f8fad6e3a11378fba19292"
         }
     ]
 }
