@@ -688,3 +688,9 @@ primary cooldown через HMAC с private vault key; ротация handle с�
 Для визуальной проверки используйте `tests/web-router.php` с `TABLO_DB`, указывающим
 на эту БД, и `TABLO_TEST_RUNTIME`, указывающим на отдельный каталог сессий и кэша Volt.
 Этот router подменяет GitHub API фикстурой; реальный GitHub-токен не нужен.
+## Periodic worker
+
+`php bin/worker.php` runs serial checks using the interval saved at `/settings` (default 10 minutes).
+`php bin/worker.php --stop` requests cooperative stop; observe exit before restarting.
+Docker Compose includes `tablo-worker` sharing the web image, local database and token key.
+See [launch, cadence, fairness, stop and storage limits](docs/periodic-worker.md).

@@ -29,6 +29,7 @@ final class GitHubConnection
         $current = function () use ($site, $input, $token, $revision): bool {
             $fresh = isset($site['id']) ? $this->sites->find((int) $site['id']) : $site;
             if (isset($site['id']) && ($fresh === null
+                || ($fresh['config_revision'] ?? null) !== ($site['config_revision'] ?? null)
                 || ($fresh['git_token_id'] ?? null) !== ($site['git_token_id'] ?? null)
                 || ($fresh['github_token'] ?? null) !== ($site['github_token'] ?? null)
                 || ($fresh['selected_token_snapshot'] ?? null) !== ($site['selected_token_snapshot'] ?? null))) { return false; }

@@ -35,6 +35,13 @@ final class SiteRepository
         return new GitHubCooldownRepository($this->db);
     }
 
+    public function enabledIds(): array
+    {
+        $statement = $this->db->query('SELECT id FROM sites WHERE enabled = 1 ORDER BY sort_order, id');
+        try { return array_map('intval', $statement->fetchAll(PDO::FETCH_COLUMN)); }
+        finally { $statement->closeCursor(); }
+    }
+
     public function find(int $id): ?array
     {
         $statement = $this->db->prepare('SELECT s.*, t.encrypted_token AS selected_token_snapshot
@@ -250,7 +257,8 @@ final class SiteRepository
             online = NULL, health_error_code = NULL, health_http_status = NULL,
             deployed_version = NULL, deployed_commit = NULL, latest_release = NULL,
             latest_commit = NULL, open_issues = NULL, open_prs = NULL, response_time_ms = NULL,
-            last_error = NULL, checked_at = NULL, updated_at = strftime(\'%Y-%m-%dT%H:%M:%SZ\', \'now\') WHERE id = ?';
+            last_error = NULL, checked_at = NULL, config_revision = config_revision + 1,
+            updated_at = strftime(\'%Y-%m-%dT%H:%M:%SZ\', \'now\') WHERE id = ?';
         $this->db->prepare($sql)->execute([...array_values($data), $id]);
         return $id;
     }
@@ -267,7 +275,7 @@ final class SiteRepository
             'open_issues', 'open_prs', 'response_time_ms', 'last_error', 'checked_at'];
         $config = ['name', 'url', 'repository', 'branch', 'health_path', 'version_path', 'version_json_path',
             'health_check_mode', 'health_json_path', 'health_json_operator', 'health_json_expected_value',
-            'comparison_mode', 'enabled', 'sort_order'];
+            'comparison_mode', 'enabled', 'sort_order', 'config_revision'];
         $sql = 'UPDATE sites SET ' . implode(', ', array_map(fn ($f) => "$f = ?", $fields))
             . ' WHERE id = ? AND ' . implode(' AND ', array_map(fn ($f) => "$f = ?", $config)) . ' AND github_token IS ?
                 AND git_token_id IS ? AND (SELECT encrypted_token FROM git_tokens WHERE id = sites.git_token_id) IS ?';

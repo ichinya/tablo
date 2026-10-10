@@ -116,6 +116,61 @@
                 "dashboard.update_site",
                 "dashboard.github_cooldown"
             ]
+        },
+        {
+            "id": "dashboard.periodic_settings",
+            "kind": "scenario",
+            "version": 1,
+            "summary": "Defaults, malformed/overflow/escaping/auth/CSRF/303 and committed values use actual repository and HTTP settings boundary.",
+            "covers": [
+                "dashboard.get_settings",
+                "dashboard.update_settings",
+                "dashboard.installation_settings"
+            ]
+        },
+        {
+            "id": "dashboard.periodic_execution",
+            "kind": "scenario",
+            "version": 1,
+            "summary": "Real public pass, clock cadence and process HTTP barrier prove finite serial passes, enabled-ID reload, errors, results and revision rejection.",
+            "covers": [
+                "dashboard.run_worker_pass",
+                "dashboard.site"
+            ]
+        },
+        {
+            "id": "dashboard.worker_singleton_stop",
+            "kind": "scenario",
+            "version": 1,
+            "summary": "Actual CLI child exit and contention across source roots/CWD/canonical DB plus distinct DB control, forced exit and cooperative stop.",
+            "covers": [
+                "dashboard.run_worker_pass",
+                "dashboard.request_worker_stop",
+                "dashboard.worker_runtime"
+            ]
+        },
+        {
+            "id": "dashboard.worker_fairness",
+            "kind": "scenario",
+            "version": 1,
+            "summary": "Actual 21 repositories and one search grant per window pay both search debts with all core work successful; 24 sites under five-request aggregate budget and inverse cooled-core case retain field service across restart.",
+            "covers": [
+                "dashboard.run_worker_pass",
+                "dashboard.worker_progress",
+                "dashboard.github_cooldown"
+            ]
+        },
+        {
+            "id": "dashboard.worker_stale_generation",
+            "kind": "scenario",
+            "version": 1,
+            "summary": "Generation-bound stale stop and old finish cannot affect successor; config revisions reject ABA and token rotations while rename-only token snapshots remain compatible.",
+            "covers": [
+                "dashboard.request_worker_stop",
+                "dashboard.run_worker_pass",
+                "dashboard.update_site",
+                "dashboard.update_git_token"
+            ]
         }
     ]
 }

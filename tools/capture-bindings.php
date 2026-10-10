@@ -20,13 +20,20 @@ $mapping = [
     'list_sites' => ['app/site-repository.php', 'public function all'],
     'list_branches' => ['app/github-connection.php', 'public function branches'],
     'user' => ['database/schema.sql', 'CREATE TABLE IF NOT EXISTS users'],
-    'site' => ['app/sqlite-database.php', 'private static function migrateToVersionTwo'],
+    'site' => ['app/sqlite-database.php', 'private static function migrateToVersionFour'],
     'git_token' => ['database/schema.sql', 'CREATE TABLE IF NOT EXISTS git_tokens'],
     'github_cooldown' => ['app/sqlite-database.php', 'private static function migrateToVersionThree'],
     'list_git_tokens' => ['app/git-token-repository.php', 'public function all'],
     'create_git_token' => ['app/git-token-repository.php', 'public function save'],
     'update_git_token' => ['app/git-token-repository.php', 'public function save'],
     'delete_git_token' => ['app/git-token-repository.php', 'public function delete'],
+    'get_settings' => ['app/settings-repository.php', 'public function get'],
+    'update_settings' => ['app/settings-repository.php', 'public function updateInterval'],
+    'run_worker_pass' => ['app/periodic-worker.php', 'public function runPass'],
+    'request_worker_stop' => ['app/worker-state-repository.php', 'public function requestStop'],
+    'installation_settings' => ['app/sqlite-database.php', 'CREATE TABLE installation_settings'],
+    'worker_runtime' => ['app/sqlite-database.php', 'CREATE TABLE worker_runtime'],
+    'worker_progress' => ['app/sqlite-database.php', 'CREATE TABLE worker_progress'],
 ];
 function typeName(array $type): string
 {

@@ -13,6 +13,7 @@ final class Web
 {
     private readonly SiteRepository $sites;
     private readonly GitTokenRepository $tokens;
+    private readonly SettingsRepository $installation;
     private readonly Auth $auth;
     private readonly GitHubConnection $github;
     private readonly Simple $view;
@@ -43,6 +44,7 @@ final class Web
         $db = Database::connect();
         $this->sites = new SiteRepository($db);
         $this->tokens = new GitTokenRepository($db);
+        $this->installation = new SettingsRepository($db);
         $this->auth = new Auth($db);
         $this->github = new GitHubConnection($this->sites, $githubHttp ?? new HttpClient());
         $di = new FactoryDefault();
@@ -129,6 +131,7 @@ final class Web
         });
         $app->get('/', fn () => $web->dashboard());
         $app->get('/settings', fn () => $web->settings());
+        $app->post('/settings', fn () => $web->saveSettings());
         $app->get('/settings/tokens/new', fn () => $web->tokenForm(['name' => '', 'provider' => 'github']));
         $app->post('/settings/tokens/new', fn () => $web->saveToken());
         $app->get('/settings/tokens/{id:[0-9]+}/edit', function ($id) use ($web) {
@@ -246,12 +249,24 @@ final class Web
             'git_tokens' => array_values(array_filter($this->tokens->all(), fn ($token) => $token['provider'] === 'github'))], $status);
     }
 
-    private function settings(): Response
+    private function settings(array $errors = [], mixed $submitted = null, int $status = 200): Response
     {
         $notice = $_SESSION['notice'] ?? '';
         unset($_SESSION['notice']);
         return $this->render('settings', ['title' => 'Настройки', 'tokens' => $this->tokens->all(),
-            'providers' => GitProviders::available(), 'notice' => $notice]);
+            'providers' => GitProviders::available(), 'notice' => $notice, 'errors' => $errors,
+            'check_interval_minutes' => $submitted ?? $this->installation->get()], $status);
+    }
+
+    private function saveSettings(): Response
+    {
+        try {
+            $this->installation->updateInterval($_POST['check_interval_minutes'] ?? null);
+            $_SESSION['notice'] = 'Интервал проверок сохранён.';
+            return $this->redirect('/settings');
+        } catch (ValidationException $error) {
+            return $this->settings($error->errors, $this->input('check_interval_minutes'), 422);
+        }
     }
 
     private function tokenForm(array $token, ?int $id = null, array $errors = [], int $status = 200): Response

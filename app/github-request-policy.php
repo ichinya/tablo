@@ -29,6 +29,18 @@ final class GitHubRequestPolicy
 
     public function now(): int { return $this->clock->monotonic(); }
 
+    public function admissions(): int { return $this->attempts; }
+
+    // Observation only: identical maximum to before(), without admission or storage writes.
+    public function currentEligibility(string $resource, string $scope, ?string $equivalentScope = null): int
+    {
+        return max($this->eligibility($resource, $scope),
+            $equivalentScope === null ? 0 : $this->eligibility($resource, $equivalentScope),
+            $this->eligibility('secondary', 'shared'));
+    }
+
+    public function epoch(): int { return $this->clock->epoch(); }
+
     public function identity(#[\SensitiveParameter] string $token, string $revision = ''): string
     {
         return hash_hmac('sha256', $token . "\0" . $revision, $this->salt);
