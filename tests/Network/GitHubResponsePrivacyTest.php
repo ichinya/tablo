@@ -13,6 +13,7 @@ use Tablo\GitTokenRepository;
 use Tablo\SiteRepository;
 use Tablo\TokenVault;
 use Tablo\Tests\Support\MeasuredGitHubHttp;
+use Tablo\Tests\Support\Subprocess;
 use Tablo\Tests\Support\TemporaryDirectory;
 use Tablo\Tests\Support\TestServer;
 use Tablo\Tests\Support\TraceInspector;
@@ -46,6 +47,20 @@ final class GitHubResponsePrivacyTest
     #[Test]
     public function realRateResponsesMaskResponseFramesAndInspectSupportedTraceState(): void
     {
+        if (getenv('TABLO_TEST_ISOLATED_RESPONSE_PRIVACY') !== '1') {
+            // The runner retains preceding results in trace arguments. Exercise the same
+            // real provider frames in a fresh runner, without raising the inspection bound.
+            $isolated = new TemporaryDirectory('tablo-response-privacy-process-');
+            try {
+                $result = Subprocess::run([PHP_BINARY, 'vendor/bin/testo', 'run', '--path', __FILE__,
+                    '--filter', __FUNCTION__, '--json'], $isolated, ['TABLO_TEST_ISOLATED_RESPONSE_PRIVACY' => '1']);
+                Assert::same($result['exit_code'], 0, $result['stderr']);
+                $report = json_decode($result['stdout'], true, 32, JSON_THROW_ON_ERROR);
+                Assert::same($report['totals']['passed'], 1);
+                Assert::true($report['totals']['assertions'] > 300);
+            } finally { $isolated->close(); }
+            return;
+        }
         $directory = new TemporaryDirectory('tablo-github-response-r4-');
         $server = null;
         $original = ini_get('zend.exception_ignore_args');

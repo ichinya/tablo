@@ -20,6 +20,7 @@ final class ReviewedDependenciesTest
         mkdir($directory->path . '/app');
         mkdir($directory->path . '/bin');
         mkdir($directory->path . '/tools');
+        mkdir($directory->path . '/public');
         foreach (array_keys(\requiredReviewedDependencies()) as $path) {
             copy($root . '/' . $path, $directory->path . '/' . $path);
         }

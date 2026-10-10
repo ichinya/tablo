@@ -227,7 +227,7 @@ wildcard, фильтры и рекурсивный поиск. Ограниче�
 Для публичного репозитория токен необязателен. Поле пароля администратора и поле
 GitHub token — разные учётные данные.
 
-Сохранённые и отдельные токены проектов хранятся в SQLite зашифрованными AES-256-GCM. Ключ
+Сохранённые и отдельные токены проектов хранятся в SQLite зашифрованными AES-256-GCM. В legacy-режиме ключ
 `github-token.key` создаётся рядом с файлом БД при первом сохранении токена или
 первом authenticated preview в пустой установке. Если сохранены зашифрованные
 credentials или private quota identities, preview при утрате ключа требует
@@ -262,6 +262,7 @@ Docker Compose читает `.env` для подстановки значени�
 | Переменная | Значение |
 | --- | --- |
 | `TABLO_DB` | Путь к SQLite; по умолчанию `storage/tablo.sqlite`. |
+| `TABLO_TOKEN_KEY_FILE` | Пусто по умолчанию: legacy-ключ рядом с БД. Непустое значение — существующий read-only файл с оригинальными 32 сырыми байтами; относительный путь от корня проекта. |
 | `TABLO_ALLOW_PRIVATE_NETWORK` | `1` для осознанного мониторинга localhost/private сетей; по умолчанию `0`. |
 | `TABLO_COOKIE_SECURE` | `1` при работе через HTTPS reverse proxy. Прямой HTTPS определяется автоматически. |
 | `TABLO_TRUSTED_PROXIES` | Пусто по умолчанию. Список точных IP доверенных прокси через запятую для режима приложения; правила ниже. |
@@ -285,9 +286,11 @@ GitHub search API. Код выхода `1` означает ошибку, Offlin
 ## Миграции SQLite
 
 Версия схемы хранится в `PRAGMA user_version`. При первом подключении пустая
-или совместимая старая база с версией `0` автоматически обновляется до версии `2`.
-База версии `1` получает только новый переход: nullable `health_error_code` и
-`health_http_status`; существующие сайты, endpoints и результаты сохраняются.
+или совместимая старая база с версией `0` автоматически обновляется до версии `4`.
+Переход `1 → 2` добавляет nullable `health_error_code` и `health_http_status`;
+`2 → 3` добавляет сохранённые GitHub cooldown; `3 → 4` — настройки интервала,
+revision сайта и состояние/прогресс воркера. Применяются только недостающие переходы;
+существующие сайты, endpoints, credentials и результаты сохраняются.
 Создание таблиц, добавление недостающих колонок и запись номера версии выполняются
 в одной транзакции. При ошибке переход откатывается; повторное подключение может
 повторить его. Пароль администратора, сайты, ключ шифрования и сохранённые токены
@@ -765,15 +768,98 @@ Capture фиксирует канонические контракты, source l
 корневой `/`, поэтому dashboard описан query `dashboard.list_sites`, без
 вымышленного transport endpoint. Остальные POST endpoints есть в модели.
 
-Отдельный manifest с `scope=project-local-reviewed-dependencies` содержит
-`files=[{path,owner,consumer,fingerprint}]` только для семи новых зависимостей
-password CLI: PasswordService, AdminPasswordCommand, entrypoint, двух безопасных
-exception-классов и Bash/PowerShell helpers. Это project-local ownership,
+Общий manifest `schema=tablo/reviewed-dependencies/v1` содержит строгий
+`dependencies=[{path,owner,consumers,fingerprint}]`: все девять зависимостей
+worker, ClientAddress, все семь зависимостей password CLI и критические
+entrypoint/bootstrap/Compose зависимости внешнего ключа. Это project-local ownership,
 а не новые declaring owners Lekalo. Отсутствие, неверный состав/ownership,
 повтор пути или drift байтов даёт отказ до contract update, attachments и тестов.
 Capture явный и детерминированный; verify его не вызывает. Каждая ветка проверяет
 свой reviewed набор; будущая композиция требует обычного merge и явного review
 объединённого набора и проверок, без импорта чужих непринятых исходников.
+
+## Внешний read-only ключ токенов
+
+`TABLO_TOKEN_KEY_FILE` задаёт только путь к существующему файлу **ровно 32 сырых
+байта**. Не используйте hex/base64, текстовый редактор, `echo`, trim или перевод
+строки. NUL, пробелы и LF внутри этих 32 байт сохраняются буквально. Отсутствующая
+или точно пустая переменная оставляет прежний `github-token.key` рядом с базой;
+строка `0` выбирает внешний файл. Process env имеет приоритет над проектным `.env`,
+включая явное пустое значение. Относительный путь ключа всегда считается от корня
+проекта, где находятся `composer.json` и `app/`, независимо от CWD. Правила пути
+`TABLO_DB` остаются прежними. Поддерживаются локальные drive-пути Windows, пробелы,
+Unicode и symlink на обычный файл; URI/wrapper, сеть, NUL, каталоги/FIFO/device
+отвергаются. Для установки предпочтителен абсолютный путь и ACL реального пользователя.
+
+Пустое значение должно действительно попасть в PHP. Некоторые Windows launcher и
+массив окружения `proc_open` теряют пустую запись, после чего `.env` может заполнить
+переменную снова (как для trusted proxies выше). Для отключения внешнего режима
+очистите также `TABLO_TOKEN_KEY_FILE` в `.env` и перезапустите consumers; проверьте
+выбранный режим без вывода ключа.
+
+Внешний файл открывается только `rb`, чтение ограничено 33 байтами, принимается
+ровно 32. Приложение никогда не создаёт, не меняет права, не перезаписывает и не
+удаляет этот файл, не генерирует замену и не откатывается к соседнему ключу.
+Один vault используется сайтами, сохранёнными токенами и Git policy/worker.
+Изменившиеся байты, исчезновение или повреждение после первого чтения прекращают
+новую admission/save/pass; замена ключа в работающем процессе не является rotation.
+
+Ошибка файла выявляется до открытия SQLite, session/runtime и worker lock/control.
+Затем существующие известные колонки ciphertext читаются до migration/WAL/chmod
+и application writes. Если хотя бы один сохранённый токен аутентифицируется AES-GCM,
+отдельный повреждённый токен сохраняет обычное per-site поведение. Если ciphertext
+есть, но ни один не аутентифицируется, старт отказывает с фиксированным `unverified`
+diagnostic: неверный ключ и повреждение всех ciphertext неразличимы. Если ciphertext
+вообще нет (включая только ручной HMAC cooldown), историческую подлинность любых
+32 байт проверить невозможно; точный перенос исходных байтов — обязанность оператора.
+Никакой sentinel/hash/verifier в базе не добавляется. Чтение существующей SQLite
+может создавать bookkeeping/sidecars; обещание — отсутствие application/schema writes,
+а не отсутствие всех filesystem effects. Формат AES-256-GCM `v1:` и schema 4 неизменны.
+
+Password CLI и явный `php bin/worker.php --stop` намеренно независимы от token key.
+Stop открывает существующую совместимую control-базу без create/migration, условно
+помечает наблюдаемую generation и не является доказательством фактического выхода.
+Обычный check/worker не обходят key validation.
+
+Для Compose используйте opt-in overlay; обычный `compose.yaml` не требует secret:
+
+```powershell
+$env:TABLO_TOKEN_KEY_SOURCE = 'C:/protected/tablo/original-vault.key'
+docker compose -f compose.yaml -f compose.secret.yaml config
+docker compose -f compose.yaml -f compose.secret.yaml up -d --build
+docker compose -f compose.yaml -f compose.secret.yaml exec -T --user www-data tablo php bin/key-preflight.php
+```
+
+Web и реальный worker получают один read-only файл `/run/secrets/tablo_token_key`;
+CLI внутри service наследует ту же настройку. Проверьте чтение именно UID33/www-data.
+Для [file-backed Compose secrets](https://docs.docker.com/reference/compose-file/services/#secrets)
+`uid/gid/mode` не remap-ят bind mount; доступ задаётся на host. Local Compose не
+обещает encrypted distribution/storage Docker Swarm.
+
+Перенос установленной базы выполняется в окно обслуживания:
+
+1. Остановите Web, все CLI и worker; дождитесь их фактического выхода и закрытия PDO.
+   Запишите deployment revision/configuration. Сделайте согласованный SQLite backup
+   через описанный выше `VACUUM INTO` в **новую** цель и отдельный backup исходного ключа.
+2. Скопируйте исходные 32 байта в защищённый путь вне DB volume и source tree;
+   сравните байты приватно, без вывода содержимого или hash. Не создавайте новый ключ
+   для существующей установки. Не перезаписывайте непроверенную цель.
+3. Настройте одинаковый файл для всех consumers и права фактических пользователей.
+   При остановленных writers выполните `php bin/key-preflight.php` в configured
+   service/native env: команда использует existing-only PDO без migration/WAL/chmod,
+   session или сети, печатает только фиксированный результат и честную границу witness.
+4. Запустите consumers одного revision. Проверьте старые site/saved токены и сохранённые
+   cooldown. Соседняя копия ключа не удаляется автоматически; убрать/архивировать её
+   может только оператор после подтверждённого переноса. До этого компрометация volume
+   всё ещё может открыть пригодный соседний ключ.
+5. Храните matching DB/key backup отдельно с независимым доступом и provenance.
+   Restore выполняйте в изолированную чистую цель с matching key/config, затем preflight
+   и проверка ciphertext/cooldown/integrity. Не стирайте WAL/SHM и не заменяйте live storage.
+6. Rollback — под остановленными consumers, на совместимую predecessor schema 4,
+   с теми же байтами в legacy adjacent location и пустым `TABLO_TOKEN_KEY_FILE`.
+   Проверяйте destination до копирования. Более старый schema2/3 binary не является
+   допустимым rollback. При потере установленного ключа восстановите только оригинал;
+   rotation/re-encryption требуют отдельной атомарной процедуры.
 
 ## Тесты и CI
 

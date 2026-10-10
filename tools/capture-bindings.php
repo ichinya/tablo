@@ -11,8 +11,8 @@ foreach (glob($root . '/lekalo/modules/dashboard/*.yaml') as $file) {
 }
 $mapping = [
     'change_admin_password' => ['app/auth-service.php', 'public function changePassword'],
-    'setup' => ['app/auth-service.php', 'public function setup'],
-    'login' => ['app/auth-service.php', 'public function login'],
+    'setup' => ['app/auth-service.php', 'public function setupSession'],
+    'login' => ['app/auth-service.php', 'public function loginSession'],
     'logout' => ['app/web-application.php', "post('/logout'"],
     'create_site' => ['app/web-application.php', 'private function save'],
     'update_site' => ['app/web-application.php', 'private function save'],

@@ -79,7 +79,7 @@ final class AdminPasswordTest
                 $uri . '?mode=rw&cache=private&psow=0', $uri . '?mode=rw&cache=shared&psow=1'] as $selection) {
                 $result = self::command($directory, $selection, ['--show-installation']);
                 Assert::same($result['exit_code'], 0, $result['stderr']);
-                Assert::true(str_contains($result['stdout'], 'administrator=1; schema=2'));
+                Assert::true(str_contains($result['stdout'], 'administrator=1; schema=' . Database::CURRENT_SCHEMA_VERSION));
                 Assert::true(!str_contains($result['stdout'], '?mode='));
                 Assert::true(str_contains($result['stdout'], 'space ж.sqlite'));
             }
@@ -99,7 +99,7 @@ final class AdminPasswordTest
                 '?private=ignored%00suffix', '?mode=%72%6f', '?immutable=1', '?nolock=1'] as $suffix) {
                 Assert::same(self::command($directory, $uri . $suffix, ['--password-stdin'], "replacement-secret\nreplacement-secret\n")['exit_code'], 3);
             }
-            foreach ([0, 1, 3] as $version) {
+            foreach ([0, 1, Database::CURRENT_SCHEMA_VERSION + 1] as $version) {
                 $db = new PDO('sqlite:' . $path);
                 $db->exec('PRAGMA user_version=' . $version);
                 $db = null;
@@ -108,7 +108,7 @@ final class AdminPasswordTest
                 Assert::same(hash_file('sha256', $path), $before);
             }
             $db = new PDO('sqlite:' . $path);
-            $db->exec('PRAGMA user_version=2; ALTER TABLE users RENAME TO original_users;
+            $db->exec('PRAGMA user_version=' . Database::CURRENT_SCHEMA_VERSION . '; ALTER TABLE users RENAME TO original_users;
                 CREATE TABLE users(id INTEGER PRIMARY KEY,password_hash TEXT NOT NULL,created_at TEXT NOT NULL);
                 INSERT INTO users SELECT * FROM original_users;');
             $db = null;
@@ -199,6 +199,21 @@ final class AdminPasswordTest
     #[Test]
     public function actualUpdateAndCommitBusyFailuresPreserveOldAccess(): void
     {
+        if (getenv('TABLO_TEST_ISOLATED_PASSWORD_BUSY') !== '1') {
+            $isolated = new TemporaryDirectory('tablo-password-busy-process-');
+            try {
+                // Three actual busy phases retain their individual eight-second deadlines.
+                // Bound only the complete child fixture (3 * 8 seconds plus setup/teardown).
+                $result = Subprocess::run([PHP_BINARY, 'vendor/bin/testo', 'run', '--path', __FILE__,
+                    '--filter', __FUNCTION__, '--json'], $isolated,
+                    ['TABLO_TEST_ISOLATED_PASSWORD_BUSY' => '1'], timeout: 30);
+                Assert::same($result['exit_code'], 0, $result['stderr']);
+                $report = json_decode($result['stdout'], true, 32, JSON_THROW_ON_ERROR);
+                Assert::same($report['totals']['passed'], 1);
+                Assert::same($report['totals']['assertions'], 14);
+            } finally { $isolated->close(); }
+            return;
+        }
         $directory = new TemporaryDirectory('tablo-password-storage-');
         $db = null;
         $process = null;
@@ -212,7 +227,9 @@ final class AdminPasswordTest
             Assert::same($result['exit_code'], 1);
             Assert::true(!str_contains($result['stderr'], 'private-trigger-secret'));
             Assert::same($db->query('SELECT * FROM users')->fetchAll(), $old);
-            $db->exec('DROP TRIGGER block_reset; BEGIN IMMEDIATE');
+            $db->exec('DROP TRIGGER block_reset');
+            Assert::same($db->query('PRAGMA journal_mode = DELETE')->fetchColumn(), 'delete', 'explicit rollback-journal COMMIT-busy control');
+            $db->exec('BEGIN IMMEDIATE');
             $process = new PasswordProcess($directory, $path);
             $process->send("replacement-secret\nreplacement-secret\n");
             Assert::same($process->finish()['exit_code'], 4, 'failed BEGIN busy');
@@ -315,13 +332,13 @@ final class AdminPasswordTest
             (new Auth($db))->setup('fixture-password', 'fixture-password');
             $old = $db->query('SELECT * FROM users')->fetchAll();
             $process = new PasswordProcess($directory, $path);
-            $db->exec('PRAGMA user_version=3');
+            $db->exec('PRAGMA user_version=' . (Database::CURRENT_SCHEMA_VERSION + 1));
             $process->send("replacement-secret\nreplacement-secret\n");
             Assert::same($process->finish()['exit_code'], 3, 'schema change after selection refuses as installation error');
             $process->close(); $process = null;
             Assert::same($db->query('SELECT * FROM users')->fetchAll(), $old);
-            Assert::same((int) $db->query('PRAGMA user_version')->fetchColumn(), 3);
-            $db->exec("PRAGMA user_version=2; CREATE TRIGGER ignore_reset BEFORE UPDATE ON users BEGIN SELECT RAISE(IGNORE); END");
+            Assert::same((int) $db->query('PRAGMA user_version')->fetchColumn(), Database::CURRENT_SCHEMA_VERSION + 1);
+            $db->exec('PRAGMA user_version=' . Database::CURRENT_SCHEMA_VERSION . '; CREATE TRIGGER ignore_reset BEFORE UPDATE ON users BEGIN SELECT RAISE(IGNORE); END');
             Assert::same(self::command($directory, $path, ['--password-stdin'], "replacement-secret\nreplacement-secret\n")['exit_code'], 4);
             Assert::same($db->query('SELECT * FROM users')->fetchAll(), $old);
             $db->exec('DROP TRIGGER ignore_reset');

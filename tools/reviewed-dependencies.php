@@ -5,6 +5,13 @@ declare(strict_types=1);
 function workerDependencies(): array
 {
     return [
+        'app/bootstrap.php' => ['owner' => 'php-script:app/bootstrap.php', 'consumers' => ['Application environment selection', 'Local administrator password CLI']],
+        'bin/check.php' => ['owner' => 'php-script:bin/check.php', 'consumers' => ['dashboard.check_site']],
+        'bin/key-preflight.php' => ['owner' => 'php-script:bin/key-preflight.php', 'consumers' => ['External key operator preflight']],
+        'public/index.php' => ['owner' => 'php-script:public/index.php', 'consumers' => ['Application HTTP safe initialization']],
+        'compose.yaml' => ['owner' => 'compose-service:tablo and tablo-worker', 'consumers' => ['Application and worker runtime selection']],
+        'compose.secret.yaml' => ['owner' => 'compose-secret:tablo_token_key', 'consumers' => ['Application and worker external key selection']],
+        'tools/capture-reviewed-dependencies.php' => ['owner' => 'php-script:tools/capture-reviewed-dependencies.php', 'consumers' => ['Explicit reviewed dependency capture']],
         'app/password-service.php' => ['owner' => 'Tablo\\PasswordService', 'consumers' => ['Tablo\Auth setup and password change']],
         'app/admin-password-command.php' => ['owner' => 'Tablo\\AdminPasswordCommand', 'consumers' => ['Local administrator password CLI']],
         'bin/admin-password.php' => ['owner' => 'Local CLI bootstrap and safe error boundary', 'consumers' => ['Local administrator password CLI']],

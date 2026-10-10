@@ -22,6 +22,9 @@ final class Web
     public function __construct(?HttpClient $githubHttp = null, ?string $runtimeDirectory = null)
     {
         $this->clientAddress = new ClientAddress(getenv('TABLO_TRUSTED_PROXIES'));
+        $vault = TokenVault::configured();
+        $db = Database::connect(vault: $vault);
+        $vault ??= TokenVault::forDatabase($db);
         $root = dirname(__DIR__);
         $runtimeDirectory ??= $root . '/storage';
         foreach (['sessions', 'views'] as $dir) {
@@ -43,9 +46,8 @@ final class Web
             || time() - $_SESSION['authenticated_at'] > 43200)) {
             $this->invalidateAuthentication();
         }
-        $db = Database::connect();
-        $this->sites = new SiteRepository($db);
-        $this->tokens = new GitTokenRepository($db);
+        $this->sites = new SiteRepository($db, $vault);
+        $this->tokens = new GitTokenRepository($db, $vault);
         $this->installation = new SettingsRepository($db);
         $this->auth = new Auth($db);
         $this->github = new GitHubConnection($this->sites, $githubHttp ?? new HttpClient());

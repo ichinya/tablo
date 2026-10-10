@@ -218,6 +218,32 @@
                 "dashboard.setup",
                 "dashboard.login"
             ]
+        },
+        {
+            "id": "dashboard.external_key_custody",
+            "kind": "scenario",
+            "version": 1,
+            "summary": "Real raw32 binary/read-only file transfer preserves per-site and shared ciphertext, private primary quota, current schema and clean WAL-consistent paired backup/restore/revert. Missing, invalid, nonregular and wrapper paths refuse before initialization. One authentic credential admits other corrupt credentials; none authentic among retained encrypted rows fails closed before migration; no ciphertext provides no historical authenticity oracle. A single vault lifetime refuses missing/corrupt/replaced bytes without adopting or generating. Actual public HTTP/forms/branches, one-shot CLI, worker admitted/cooldown requests and portable missing-key stop are covered by native tests.",
+            "covers": [
+                "dashboard.create_site",
+                "dashboard.update_site",
+                "dashboard.check_site",
+                "dashboard.list_branches",
+                "dashboard.create_git_token",
+                "dashboard.update_git_token",
+                "dashboard.run_worker_pass",
+                "dashboard.request_worker_stop"
+            ]
+        },
+        {
+            "id": "dashboard.key_independent_operator_control",
+            "kind": "scenario",
+            "version": 1,
+            "summary": "Actual password CLI changes the existing administrator with a missing external token key, without app key or worker; actual worker stop still targets its observed generation after the key disappears. Both operator commands keep existing-only/no-migration/no-create custody and access no credentials or network.",
+            "covers": [
+                "dashboard.change_admin_password",
+                "dashboard.request_worker_stop"
+            ]
         }
     ]
 }

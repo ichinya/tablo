@@ -24,8 +24,9 @@ final class PeriodicWorker
         ?Closure $clock = null,
         ?Closure $sleep = null,
         ?Closure $output = null,
+        #[\SensitiveParameter] ?TokenVault $vault = null,
     ) {
-        $this->sites = new SiteRepository($db);
+        $this->sites = new SiteRepository($db, $vault);
         $this->settings = new SettingsRepository($db);
         $this->state = new WorkerStateRepository($db);
         $sites = $this->sites;
@@ -39,6 +40,7 @@ final class PeriodicWorker
 
     public function run(): int
     {
+        $this->sites->assertWorkerKeyAvailable(); // Refuse before lock/control initialization.
         $lock = new WorkerLock();
         if (!$lock->acquire($this->db)) { ($this->output)('Worker already running.'); return 2; }
         $generation = null;
