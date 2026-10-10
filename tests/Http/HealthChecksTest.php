@@ -116,7 +116,8 @@ final class HealthChecksTest
                 $before = count($this->uris());
                 $this->check($mode, $csrf, $path === '/app' ? 1 : 0);
                 $row = $this->web->database()->query('SELECT * FROM sites WHERE id=1')->fetch();
-                Assert::same($row['online'], $path === '/app' ? 0 : 1, $mode . ' must distinguish /app (404) from /app/ (200)');
+                Assert::same($row['online'], $path === '/app' ? 0 : 1, $mode . ' must distinguish /app (404) from /app/ (200); saved='
+                    . $row['url'] . '; received=' . $row['health_http_status'] . '; raw URI=' . json_encode($this->uris()[$before] ?? null));
                 Assert::same($row['health_http_status'], $path === '/app' ? 404 : 200);
                 Assert::same($row['url'], $this->server->base . $path);
                 Assert::same($row['health_path'], '');
