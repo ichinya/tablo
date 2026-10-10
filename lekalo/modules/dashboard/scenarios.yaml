@@ -4,8 +4,8 @@
         {
             "id": "dashboard.single_owner",
             "kind": "scenario",
-            "version": 1,
-            "summary": "First setup creates id=1 only, duplicate setup is refused; password hash verifies and persistent failed-login rate limit denies the sixth attempt.",
+            "version": 2,
+            "summary": "First setup creates id=1 only, duplicate setup is refused; password hash verifies and persistent failed-login rate limit denies the sixth attempt. Canonical IPv6/mapped identities share persistent keys; independent proxy clients, success reset, expiry and write rollback retain atomic limiter behavior.",
             "covers": [
                 "dashboard.setup",
                 "dashboard.login",
@@ -37,8 +37,8 @@
         {
             "id": "dashboard.web_access",
             "kind": "scenario",
-            "version": 1,
-            "summary": "HTTP smoke: setup, login, session rotation, protected routes, CRUD, CSRF rejection, XSS escaping, deletion confirmation, logout and persistent data. Browser smoke on desktop and mobile.",
+            "version": 2,
+            "summary": "HTTP smoke: setup, login, session rotation, protected routes, CRUD, CSRF rejection, XSS escaping, deletion confirmation, logout and persistent data. Browser smoke on desktop and mobile. Real socket ingress proves direct/untrusted spoof rejection, sanitizing edge client isolation, two-hop and untrusted-middle selection, duplicate-wire handling and trusted malformed-chain refusal; invalid config fails before runtime/DB/session side effects.",
             "covers": [
                 "dashboard.setup",
                 "dashboard.login",
@@ -170,6 +170,79 @@
                 "dashboard.run_worker_pass",
                 "dashboard.update_site",
                 "dashboard.update_git_token"
+            ]
+        },
+        {
+            "id": "dashboard.local_password_change",
+            "kind": "scenario",
+            "version": 1,
+            "summary": "Actual local CLI refuses absent/transient/incompatible installations and unsafe argv/stdin. Shared validation preserves bytes; atomic existing-admin password change keeps identity, created_at, schema, limits, sites/results and encrypted credentials/key unchanged. Missing key is irrelevant.",
+            "covers": [
+                "dashboard.change_admin_password",
+                "dashboard.user",
+                "dashboard.setup"
+            ]
+        },
+        {
+            "id": "dashboard.session_revocation",
+            "kind": "scenario",
+            "version": 1,
+            "summary": "Actual HTTP cookies/routes refuse legacy, missing, malformed and stale credential markers with session/CSRF rotation before protected GET/POST. Setup remains 404; old verified login cookies remain stale if reset commits before cookie creation. New login and rehash bind their own verified/inserted/replaced hash snapshot; logout/12h expiry clear markers. Already admitted work may finish.",
+            "covers": [
+                "dashboard.change_admin_password",
+                "dashboard.setup",
+                "dashboard.login",
+                "dashboard.logout",
+                "dashboard.user"
+            ]
+        },
+        {
+            "id": "dashboard.password_change_concurrency",
+            "kind": "scenario",
+            "version": 1,
+            "summary": "Two actual CLI processes selected before input cannot overwrite the same old snapshot; one commits, the other conflicts/busy without retry. A deliberately later new snapshot succeeds. UPDATE/BEGIN/COMMIT failures, rollback failure and cancellation preserve known rollback state; output/process failure after commit has an uncertain receipt, not promised rollback. Admin stays present and public setup stays closed during the writer.",
+            "covers": [
+                "dashboard.change_admin_password",
+                "dashboard.setup",
+                "dashboard.login",
+                "dashboard.user"
+            ]
+        },
+        {
+            "id": "dashboard.password_change_privacy",
+            "kind": "scenario",
+            "version": 1,
+            "summary": "Actual subprocess framing and complete propagated exception traces with exception_ignore_args=0 reveal no password, confirmation, raw hash, fingerprint, key, token or unknown argv. Protected Windows UTF-8 byte transport and Bash/Docker -T examples retain command exits; physical console checks are separate platform evidence.",
+            "covers": [
+                "dashboard.change_admin_password",
+                "dashboard.setup",
+                "dashboard.login"
+            ]
+        },
+        {
+            "id": "dashboard.external_key_custody",
+            "kind": "scenario",
+            "version": 1,
+            "summary": "Real raw32 binary/read-only file transfer preserves per-site and shared ciphertext, private primary quota, current schema and clean WAL-consistent paired backup/restore/revert. Missing, invalid, nonregular and wrapper paths refuse before initialization. One authentic credential admits other corrupt credentials; none authentic among retained encrypted rows fails closed before migration; no ciphertext provides no historical authenticity oracle. A single vault lifetime refuses missing/corrupt/replaced bytes without adopting or generating. Actual public HTTP/forms/branches, one-shot CLI, worker admitted/cooldown requests and portable missing-key stop are covered by native tests.",
+            "covers": [
+                "dashboard.create_site",
+                "dashboard.update_site",
+                "dashboard.check_site",
+                "dashboard.list_branches",
+                "dashboard.create_git_token",
+                "dashboard.update_git_token",
+                "dashboard.run_worker_pass",
+                "dashboard.request_worker_stop"
+            ]
+        },
+        {
+            "id": "dashboard.key_independent_operator_control",
+            "kind": "scenario",
+            "version": 1,
+            "summary": "Actual password CLI changes the existing administrator with a missing external token key, without app key or worker; actual worker stop still targets its observed generation after the key disappears. Both operator commands keep existing-only/no-migration/no-create custody and access no credentials or network.",
+            "covers": [
+                "dashboard.change_admin_password",
+                "dashboard.request_worker_stop"
             ]
         }
     ]

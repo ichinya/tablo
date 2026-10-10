@@ -9,7 +9,7 @@ final class GitTokenRepository
 {
     private readonly TokenVault $vault;
 
-    public function __construct(private readonly PDO $db, ?TokenVault $vault = null)
+    public function __construct(private readonly PDO $db, #[\SensitiveParameter] ?TokenVault $vault = null)
     {
         $this->vault = $vault ?? TokenVault::forDatabase($db);
     }
@@ -40,8 +40,9 @@ final class GitTokenRepository
         return $this->vault->decrypt($token['encrypted_token']);
     }
 
-    public function save(array $input, ?int $id = null): int
+    public function save(#[\SensitiveParameter] array $input, ?int $id = null): int
     {
+        $this->vault->assertAvailable(SiteRepository::hasEstablishedKeyState($this->db));
         $existing = $id === null ? null : $this->find($id);
         if ($id !== null && !$existing) { throw new \OutOfBoundsException('Токен не найден.'); }
         $name = is_string($input['name'] ?? null) ? trim($input['name']) : '';

@@ -13,31 +13,36 @@ final class WebFixture
     public readonly TestServer $server;
     private ?PDO $database = null;
 
-    public function __construct(bool $allowPrivateNetwork = false)
+    public function __construct(bool $allowPrivateNetwork = false, string $trustedProxies = '', string $host = '127.0.0.1', ?string $router = null, array $environment = [])
     {
         $this->directory = new TemporaryDirectory('tablo-http-');
         $root = dirname(__DIR__, 2);
         try {
-            $this->server = new TestServer($this->directory, $root . '/tests/web-router.php', $root . '/public', [
+            $this->server = new TestServer($this->directory, $router ?? $root . '/tests/web-router.php', $root . '/public', array_replace([
                 'TABLO_DB' => $this->directory->path . '/test.sqlite',
                 'TABLO_TEST_RUNTIME' => $this->directory->path . '/runtime',
                 'TABLO_TEST_GITHUB_LOG' => $this->directory->path . '/github-calls.log',
                 'TABLO_ALLOW_PRIVATE_NETWORK' => $allowPrivateNetwork ? '1' : '0', 'TABLO_COOKIE_SECURE' => '0',
+                'TABLO_TRUSTED_PROXIES' => $trustedProxies,
+                'TABLO_TEST_TRUSTED_PROXIES' => $trustedProxies,
                 // Assert that a legacy environment token cannot grant private repository access.
                 'GITHUB_TOKEN' => 'fixture-token',
-            ]);
+            ], $environment), host: $host);
         } catch (\Throwable $error) {
             $this->directory->close();
             throw $error;
         }
     }
 
-    public function request(string $path, ?array $data = null, bool $cookie = true): array
+    public function request(string $path, ?array $data = null, bool $cookie = true, array $headers = [],
+        ?string $source = null, ?string $base = null, string $jar = 'cookies'): array
     {
-        $curl = curl_init($this->server->base . $path);
-        $cookies = $this->directory->path . '/cookies';
+        $curl = curl_init(($base ?? $this->server->base) . $path);
+        $cookies = $this->directory->path . '/' . $jar;
         curl_setopt_array($curl, [CURLOPT_RETURNTRANSFER => true, CURLOPT_HEADER => true, CURLOPT_TIMEOUT => 8,
             CURLOPT_PROXY => '', CURLOPT_COOKIEFILE => $cookie ? $cookies : '', CURLOPT_COOKIEJAR => $cookie ? $cookies : null]);
+        curl_setopt($curl, CURLOPT_HTTPHEADER, $headers);
+        if ($source !== null) { curl_setopt($curl, CURLOPT_INTERFACE, $source); }
         if ($data !== null) { curl_setopt_array($curl, [CURLOPT_POST => true, CURLOPT_POSTFIELDS => http_build_query($data)]); }
         $raw = curl_exec($curl);
         if ($raw === false) { throw new RuntimeException('HTTP fixture request failed: ' . curl_error($curl) . "\n" . $this->server->diagnostics()); }
@@ -64,6 +69,11 @@ final class WebFixture
     {
         return $this->database ??= new PDO('sqlite:' . $this->directory->path . '/test.sqlite', null, null,
             [PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION, PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC]);
+    }
+
+    public function reopenDatabase(): void
+    {
+        $this->database = null;
     }
 
     public function close(): void
