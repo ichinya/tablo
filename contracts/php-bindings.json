@@ -5,7 +5,7 @@
         "version": "0.1.0"
     },
     "project": "tablo",
-    "revision": "sha256:cacd94bec32d55b884e8f7b67363da9bde4c44170c6950fd47d80301ac19d0e1",
+    "revision": "sha256:bf07668a35c2c35dbdca4a4d38994579a3e12e35c163d5150fff2bcee445c8ce",
     "symbols": [
         {
             "id": "dashboard.setup",
@@ -152,9 +152,9 @@
             "kind": "command",
             "source": {
                 "path": "app/site-repository.php",
-                "line": 277
+                "line": 276
             },
-            "fingerprint": "sha256:ee906d65f0f371702e57202b70871086bc596093a86f3194695fa540a99830b8",
+            "fingerprint": "sha256:7c1f873838584fb0fbd73726306a5470a4779da48fc03f1ee13628147421be71",
             "signature": {
                 "inputs": [
                     {
@@ -180,7 +180,7 @@
                 "path": "app/site-checker.php",
                 "line": 10
             },
-            "fingerprint": "sha256:5a58d8a5f724a8172bd1dd670e870df679c363687ca00f74afd932d64fb24806",
+            "fingerprint": "sha256:b559788d4ad3935a48f74d03dda7b790a38d69233f1e0d114fed54be989335a3",
             "signature": {
                 "inputs": [
                     {
@@ -214,7 +214,7 @@
                 "path": "app/site-repository.php",
                 "line": 27
             },
-            "fingerprint": "sha256:ee906d65f0f371702e57202b70871086bc596093a86f3194695fa540a99830b8",
+            "fingerprint": "sha256:7c1f873838584fb0fbd73726306a5470a4779da48fc03f1ee13628147421be71",
             "signature": {
                 "inputs": [],
                 "output": "list(dashboard.site)",
