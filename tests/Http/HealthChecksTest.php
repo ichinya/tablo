@@ -104,7 +104,9 @@ final class HealthChecksTest
             'version_path' => '', 'health_check_mode' => 'json', 'health_json_path' => 'inactive path',
             'health_json_operator' => '>', 'health_json_expected_value' => 'not a number',
             'comparison_mode' => 'release', 'enabled' => '1', 'sort_order' => '0'];
-        foreach (['/app/', '', '/', '/app', '/app///', '/a//b///', '/%2Fapp/%7e///'] as $index => $path) {
+        // Encoded letters are routable on PHP's Windows CLI server too; encoded
+        // path separators remain covered by the repository/checker unit matrix.
+        foreach (['/app/', '', '/', '/app', '/app///', '/a//b///', '/%61pp/%7e///'] as $index => $path) {
             $input['url'] = '  ' . $this->server->base . $path . '  ';
             // Exercise genuinely missing, whitespace and empty fields through real POST.
             unset($input['health_path']);

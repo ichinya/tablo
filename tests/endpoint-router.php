@@ -14,12 +14,12 @@ if ($fixture) {
         $deadline = microtime(true) + 8;
         while (!is_file($fixture . '/release') && microtime(true) < $deadline) { clearstatcache(); usleep(10000); }
     }
-    if (in_array($path, ['/', '/app/', '/app///', '/a//b///', '/%2Fapp/%7e///', '/barrier/'], true)) {
+    if (in_array($path, ['/', '/app/', '/app///', '/a//b///', '/%61pp/%7e///', '/barrier/'], true)) {
         header('Content-Type: text/html');
         echo '<html>Exact homepage</html>';
         return;
     }
-    if (preg_match('~^(/app|/a//b|/%2Fapp/%7e)/(up|json-health|version)$~D', $path, $joined)) {
+    if (preg_match('~^(/app|/a//b|/%61pp/%7e)/(up|json-health|version)$~D', $path, $joined)) {
         header('Content-Type: application/json');
         if ($joined[2] === 'up') { http_response_code((int) ($_GET['status'] ?? 204)); echo '{}'; }
         elseif ($joined[2] === 'json-health') { echo '{"result":"ok"}'; }
