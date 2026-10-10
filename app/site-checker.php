@@ -36,7 +36,8 @@ final class SiteChecker
                     $errors[] = 'Health: ' . HttpFailure::MESSAGES['json-condition'];
                 }
             }
-        } catch (\Throwable $e) {
+        } catch (\PDOException | SharedKeyFailure $error) { throw $error; }
+        catch (\Throwable $e) {
             // A blocked/DNS/transport check does not prove that the site is offline.
             $state['online'] = null;
             $state['health_error_code'] = $e instanceof HttpFailure ? $e->reason
@@ -70,7 +71,8 @@ final class SiteChecker
                     $state['deployed_version'] = $version;
                     $state['deployed_commit'] = $commit === null ? null : strtolower($commit);
                 }
-            } catch (\Throwable $e) {
+            } catch (\PDOException | SharedKeyFailure $error) { throw $error; }
+            catch (\Throwable $e) {
                 $errors[] = 'Version: ' . ($e instanceof HttpFailure ? $e->getMessage() : 'Некорректный ответ проверки версии.');
             }
         }
@@ -90,7 +92,8 @@ final class SiteChecker
             try {
                 $state[$field] = $call();
                 $completed = true;
-            } catch (\Throwable $e) {
+            } catch (\PDOException | SharedKeyFailure $error) { throw $error; }
+            catch (\Throwable $e) {
                 $errors[] = $field . ': ' . ($fieldOrder === null || $e instanceof GitHubFailure
                     ? $e->getMessage() : (new GitHubFailure('unavailable'))->getMessage());
             }

@@ -1,0 +1,78 @@
+{
+    "schema": "tablo/reviewed-dependencies/v1",
+    "dependencies": [
+        {
+            "path": "app/worker-lock.php",
+            "owner": "Tablo\\WorkerLock",
+            "consumers": [
+                "dashboard.run_worker_pass"
+            ],
+            "fingerprint": "sha256:418d20c77c56fd01b594e116b936d4392559f952fb86819642187a3f092264e5"
+        },
+        {
+            "path": "bin/worker.php",
+            "owner": "php-script:bin/worker.php",
+            "consumers": [
+                "dashboard.run_worker_pass",
+                "dashboard.request_worker_stop"
+            ],
+            "fingerprint": "sha256:75fbb72ae263f01ec002479cf191b55c8fd746181a021d1468e2aac03578eb83"
+        },
+        {
+            "path": "app/token-vault.php",
+            "owner": "Tablo\\TokenVault",
+            "consumers": [
+                "dashboard.run_worker_pass"
+            ],
+            "fingerprint": "sha256:e394d262317ead3f2a979343ffda64b4a3821ee7be537fef0a697e11773f474d"
+        },
+        {
+            "path": "app/shared-key-failure.php",
+            "owner": "Tablo\\SharedKeyFailure",
+            "consumers": [
+                "dashboard.run_worker_pass"
+            ],
+            "fingerprint": "sha256:5c651ae9de88ae274349765ec27cc1661ab30ee49ff1e157d2d54b60dc717e80"
+        },
+        {
+            "path": "app/github-provider.php",
+            "owner": "Tablo\\GitHubProvider",
+            "consumers": [
+                "dashboard.run_worker_pass"
+            ],
+            "fingerprint": "sha256:3b4d5c845947670a84b827843d935fc36e69803b237135ea759556971a726513"
+        },
+        {
+            "path": "app/github-request-policy.php",
+            "owner": "Tablo\\GitHubRequestPolicy",
+            "consumers": [
+                "dashboard.run_worker_pass"
+            ],
+            "fingerprint": "sha256:0a5189670cd274f9089086506e1c1bb33f2a75cc2c74ea2c6e0bf35c626841ed"
+        },
+        {
+            "path": "tools/verify.php",
+            "owner": "php-script:tools/verify.php",
+            "consumers": [
+                "dashboard.run_worker_pass"
+            ],
+            "fingerprint": "sha256:5fadce678838e864ed34787b59bfb253625d0ced80bf6033e751ca836204ed4c"
+        },
+        {
+            "path": "tools/capture-bindings.php",
+            "owner": "php-script:tools/capture-bindings.php",
+            "consumers": [
+                "dashboard.run_worker_pass"
+            ],
+            "fingerprint": "sha256:71913d969c0ca478957ef5e69bcb7cc2a513e53f4e3897947db77f0ff14b2e0c"
+        },
+        {
+            "path": "tools/reviewed-dependencies.php",
+            "owner": "php-script:tools/reviewed-dependencies.php",
+            "consumers": [
+                "dashboard.run_worker_pass"
+            ],
+            "fingerprint": "sha256:89b3fe9d1b6b7447934c5fef9fb8bc43d7fc3be1ffcf9a52eeab2fefc1fc30a8"
+        }
+    ]
+}

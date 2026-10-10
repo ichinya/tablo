@@ -57,7 +57,7 @@ final class GitHubProvider implements RepositoryProvider
             });
             $this->credential->assertCurrent($this->policy, $this->identity);
             return $result;
-        } catch (GitHubFailure $error) { throw $error; }
+        } catch (GitHubFailure | \PDOException | SharedKeyFailure $error) { throw $error; }
         catch (\Throwable) { throw new GitHubFailure('unavailable'); }
     }
 

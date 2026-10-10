@@ -75,7 +75,8 @@ final class GitHubRequestPolicy
             // Retain observed equivalent-token eligibility on this handle before rotation.
             if ($primary > $this->clock->epoch()) { $this->defer($resource, $primary, $scope); }
             $eligible = max($primary, $this->eligibility('secondary', 'shared'));
-        } catch (\Throwable) {
+        } catch (\PDOException | SharedKeyFailure $error) { throw $error; }
+        catch (\Throwable) {
             throw new GitHubFailure('unavailable');
         }
         if ($eligible > $this->clock->epoch()) { throw new GitHubFailure('rate-limit', $eligible); }
@@ -94,6 +95,7 @@ final class GitHubRequestPolicy
         $key = ($resource === 'secondary' ? 'shared' : $scope) . ':' . $resource;
         $this->cooldowns[$key] = max($this->cooldowns[$key] ?? 0, $eligible);
         try { $this->storage?->defer($resource, $eligible, $scope); }
+        catch (\PDOException | SharedKeyFailure $error) { throw $error; }
         catch (\Throwable) { throw new GitHubFailure('unavailable'); }
     }
 

@@ -226,11 +226,22 @@ final class SiteRepository
         if ($token === '') { return null; }
         // Even expired key-derived quota rows retain the original key's custody. A manual
         // read-only preview must not orphan them or either kind of installed ciphertext.
-        $established = (bool) $this->db->query("SELECT
+        return $this->tokens->credentialScope($token, !$this->hasEstablishedKeyState());
+    }
+
+    public function assertWorkerKeyAvailable(): void
+    {
+        $this->tokens->assertAvailable($this->hasEstablishedKeyState());
+    }
+
+    private function hasEstablishedKeyState(): bool
+    {
+        $statement = $this->db->query("SELECT
             EXISTS(SELECT 1 FROM git_tokens WHERE encrypted_token <> '')
             OR EXISTS(SELECT 1 FROM sites WHERE github_token <> '')
-            OR EXISTS(SELECT 1 FROM github_cooldowns WHERE scope LIKE 'credential:v1:%')")->fetchColumn();
-        return $this->tokens->credentialScope($token, !$established);
+            OR EXISTS(SELECT 1 FROM github_cooldowns WHERE scope LIKE 'credential:v1:%')");
+        try { return (bool) $statement->fetchColumn(); }
+        finally { $statement->closeCursor(); }
     }
 
     public function save(array $input, ?int $id = null): int

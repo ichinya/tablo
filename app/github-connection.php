@@ -7,7 +7,8 @@ final class GitHubConnection
 {
     private readonly GitHubRequestPolicy $policy;
 
-    public function __construct(private readonly SiteRepository $sites, private readonly HttpClient $http, ?GitHubRequestPolicy $policy = null)
+    public function __construct(private readonly SiteRepository $sites, private readonly HttpClient $http, ?GitHubRequestPolicy $policy = null,
+        private readonly bool $worker = false)
     {
         $this->policy = $policy ?? new GitHubRequestPolicy($sites->githubCooldowns());
     }
@@ -16,17 +17,20 @@ final class GitHubConnection
     {
         GitProviders::requireSupported($site['provider'] ?? 'github');
         try {
+            if ($this->worker) { $this->sites->assertWorkerKeyAvailable(); }
             $token = $this->sites->resolveToken($input, $site);
             $revision = $this->sites->credentialRevision($input, $site);
             $scope = $this->sites->credentialScope($input, $site);
             $equivalentScope = $this->sites->equivalentCredentialScope($token);
             if ($scope === 'authenticated' && $equivalentScope !== null) { $scope = $equivalentScope; }
         } catch (\RuntimeException $e) {
+            if ($this->worker && ($e instanceof \PDOException || $e instanceof SharedKeyFailure)) { throw $e; }
             throw new ValidationException(['github_token' => $e->getMessage()]);
         }
         // Resolve again against a fresh row before/after every metric, including memo hits.
         // This rejects same-second rotation independently of the private primary-quota identity.
         $current = function () use ($site, $input, $token, $revision): bool {
+            if ($this->worker) { $this->sites->assertWorkerKeyAvailable(); }
             $fresh = isset($site['id']) ? $this->sites->find((int) $site['id']) : $site;
             if (isset($site['id']) && ($fresh === null
                 || ($fresh['config_revision'] ?? null) !== ($site['config_revision'] ?? null)
@@ -35,6 +39,7 @@ final class GitHubConnection
                 || ($fresh['selected_token_snapshot'] ?? null) !== ($site['selected_token_snapshot'] ?? null))) { return false; }
             try { return hash_equals($token, $this->sites->resolveToken($input, $fresh))
                 && hash_equals($revision, $this->sites->credentialRevision($input, $fresh)); }
+            catch (\PDOException | SharedKeyFailure $error) { throw $error; }
             catch (\Throwable) { return false; }
         };
         return new GitHubProvider($this->http, $token, $this->policy, new GitHubCredential($revision, $scope, $current, $equivalentScope));

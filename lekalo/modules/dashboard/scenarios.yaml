@@ -131,8 +131,8 @@
         {
             "id": "dashboard.periodic_execution",
             "kind": "scenario",
-            "version": 1,
-            "summary": "Real public pass, clock cadence and process HTTP barrier prove finite serial passes, enabled-ID reload, errors, results and revision rejection.",
+            "version": 2,
+            "summary": "Real public passes and CLI subprocesses prove finite passes, enabled reload, cadence, shared PDO/key refusal and successor flock after failed finalization. Actual SQLite store/progress/fairness triggers and deferred foreign-key COMMIT failure roll back both result and credit; stale/disabled/deleted/ABA/rotated snapshots earn none.",
             "covers": [
                 "dashboard.run_worker_pass",
                 "dashboard.site"

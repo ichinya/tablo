@@ -5,7 +5,7 @@
         "version": "0.1.0"
     },
     "project": "tablo",
-    "revision": "sha256:0fb5b5f816b6296203d6b0343a87341a46133256477523756df3826527bf0d4b",
+    "revision": "sha256:cacd94bec32d55b884e8f7b67363da9bde4c44170c6950fd47d80301ac19d0e1",
     "symbols": [
         {
             "id": "dashboard.setup",
@@ -152,9 +152,9 @@
             "kind": "command",
             "source": {
                 "path": "app/site-repository.php",
-                "line": 266
+                "line": 277
             },
-            "fingerprint": "sha256:8ab0c88239e12fca62f886dbbc60026ef1eccb0571774bd31addc555ff931127",
+            "fingerprint": "sha256:ee906d65f0f371702e57202b70871086bc596093a86f3194695fa540a99830b8",
             "signature": {
                 "inputs": [
                     {
@@ -180,7 +180,7 @@
                 "path": "app/site-checker.php",
                 "line": 10
             },
-            "fingerprint": "sha256:2572fb9f53fbdbee6edeaa3932fdca3fcdde22097b284d70a01cb8f034cfd608",
+            "fingerprint": "sha256:5a58d8a5f724a8172bd1dd670e870df679c363687ca00f74afd932d64fb24806",
             "signature": {
                 "inputs": [
                     {
@@ -214,7 +214,7 @@
                 "path": "app/site-repository.php",
                 "line": 27
             },
-            "fingerprint": "sha256:8ab0c88239e12fca62f886dbbc60026ef1eccb0571774bd31addc555ff931127",
+            "fingerprint": "sha256:ee906d65f0f371702e57202b70871086bc596093a86f3194695fa540a99830b8",
             "signature": {
                 "inputs": [],
                 "output": "list(dashboard.site)",
@@ -229,9 +229,9 @@
             "kind": "command",
             "source": {
                 "path": "app/github-connection.php",
-                "line": 43
+                "line": 48
             },
-            "fingerprint": "sha256:23eba0edfe45deab2623f03ad32711fbf8a00c97695427ee2b6cecd8ec340eb0",
+            "fingerprint": "sha256:a99a5404bfcf75a2e68d803426625b4b1f4c1ba65460b31a663c8437841977f7",
             "signature": {
                 "inputs": [
                     {
@@ -716,9 +716,9 @@
             "kind": "command",
             "source": {
                 "path": "app/periodic-worker.php",
-                "line": 74
+                "line": 84
             },
-            "fingerprint": "sha256:eb1eec9a538305d4ae116571405ed37adb087f625fcc6e18cd4577797f5cd9c2",
+            "fingerprint": "sha256:31149dbc9911de42b55825dd18dbcb7beb0a7775a6416682391d59817adae544",
             "signature": {
                 "inputs": [
                     {
@@ -764,7 +764,7 @@
                 "path": "app/worker-state-repository.php",
                 "line": 31
             },
-            "fingerprint": "sha256:3df79848b70a98cb1bdc8f241e036906d1b41d7ae828c000340849c041489509",
+            "fingerprint": "sha256:2dd574e86d8589a2bf105acbe1d5a16cee25292fbd4a917e8c541c19d4e071ae",
             "signature": {
                 "inputs": [
                     {

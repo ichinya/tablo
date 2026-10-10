@@ -58,10 +58,28 @@ final class WorkerStateRepository
         return array_intersect_key($row ?: array_fill_keys(self::FIELDS, 0), array_flip(self::FIELDS));
     }
 
-    public function credit(int $id, int $revision, array $service): void
+    // One post-network transaction owns both the guarded current result and service credit.
+    public function settle(#[\SensitiveParameter] array $site, array $result): bool
     {
+        // BEGIN outside the catch: a failed/nested BEGIN never rolls back caller-owned work.
         $this->db->beginTransaction();
         try {
+            if (!$site['enabled'] || !(new SiteRepository($this->db))->storeCheck($site, $result)) {
+                $this->db->rollBack();
+                return false;
+            }
+            $this->credit($site['id'], $site['config_revision'], $result['worker_service']);
+            $this->db->commit();
+            return true;
+        } catch (\Throwable $error) {
+            try { if ($this->db->inTransaction()) { $this->db->rollBack(); } }
+            catch (\Throwable) { /* Preserve the original settlement failure. */ }
+            throw $error;
+        }
+    }
+
+    private function credit(int $id, int $revision, array $service): void
+    {
             $this->db->prepare('INSERT INTO worker_progress (site_id, config_revision)
                 SELECT id, config_revision FROM sites WHERE id = ? AND config_revision = ? AND enabled = 1
                 ON CONFLICT(site_id) DO UPDATE SET config_revision = excluded.config_revision,
@@ -81,10 +99,5 @@ final class WorkerStateRepository
                     WHERE site_id = ? AND config_revision = ? AND EXISTS(SELECT 1 FROM sites
                     WHERE id = ? AND config_revision = ? AND enabled = 1)')->execute([$id, $revision, $id, $revision]);
             }
-            $this->db->commit();
-        } catch (\Throwable $error) {
-            $this->db->rollBack();
-            throw $error;
-        }
     }
 }

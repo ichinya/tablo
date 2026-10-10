@@ -75,4 +75,12 @@ $declaration = ['schemaVersion' => 'lekalo/contracted-declaration/v0.4.0',
     'revision' => 'sha256:' . hash('sha256', json_encode($definitions, JSON_THROW_ON_ERROR)), 'symbols' => $symbols];
 if (!is_dir($root . '/contracts')) { mkdir($root . '/contracts'); }
 file_put_contents($root . '/contracts/php-bindings.json', json_encode($declaration, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES | JSON_THROW_ON_ERROR) . "\n");
+require __DIR__ . '/reviewed-dependencies.php';
+$dependencies = [];
+foreach (workerDependencies() as $path => $metadata) {
+    $dependencies[] = ['path' => $path, ...$metadata, 'fingerprint' => dependencyHash($root, $path)];
+}
+file_put_contents($root . '/contracts/reviewed-dependencies.json', json_encode([
+    'schema' => 'tablo/reviewed-dependencies/v1', 'dependencies' => $dependencies,
+], JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES | JSON_THROW_ON_ERROR) . "\n");
 echo 'Captured ' . count($symbols) . " source bindings; review contracts/php-bindings.json before accepting.\n";

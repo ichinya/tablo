@@ -97,7 +97,7 @@ final class PeriodicWorkerTest
     }
 
     #[Test]
-    public function isolatesProviderCheckAndStoreFailuresWithFixedDiagnosticsAndServiceCredit(): void
+    public function isolatesIndividualCiphertextAndProviderFailuresWithAcceptedPartialCredit(): void
     {
         $directory = new TemporaryDirectory('tablo-worker-errors-');
         try {
@@ -107,9 +107,8 @@ final class PeriodicWorkerTest
                 $id = $sites->save(array_replace(UnitFixtures::site(), ['name' => 'Site ' . $i, 'repository' => 'example/project' . $i,
                     'version_path' => '', 'url' => 'https://example.com/' . $i]));
             }
-            $db->exec("UPDATE sites SET github_token = 'invalid-fixture-ciphertext' WHERE id = 1;
-                CREATE TRIGGER fail_store BEFORE UPDATE OF checked_at ON sites WHEN NEW.id = 3
-                BEGIN SELECT RAISE(ABORT, 'synthetic-private-db'); END");
+            (new \Tablo\TokenVault($directory->path . '/github-token.key'))->encrypt(bin2hex(random_bytes(24)));
+            $db->exec("UPDATE sites SET github_token = 'invalid-fixture-ciphertext' WHERE id = 1");
             $http = new class extends HttpClient {
                 public function get(string $url, array $headers = []): array
                 {
@@ -126,12 +125,12 @@ final class PeriodicWorkerTest
             Assert::same($sites->find(1)['online'], 1, 'unavailable credentials still allow health');
             Assert::same($sites->find(2)['online'], null);
             Assert::false(str_contains($sites->find(2)['last_error'], 'synthetic-private'));
-            Assert::same($sites->find(3)['checked_at'], null);
+            Assert::true($sites->find(3)['checked_at'] !== null);
             Assert::true($sites->find(4)['checked_at'] !== null);
             Assert::false(str_contains(implode(' ', $logs), 'synthetic-private'));
-            Assert::same($logs, ['Worker site checked.', 'Worker site failed.', 'Worker site checked.', 'Worker credentials unavailable.', 'Worker site checked.']);
+            Assert::same($logs, ['Worker site checked.', 'Worker site checked.', 'Worker site checked.', 'Worker credentials unavailable.', 'Worker site checked.']);
             Assert::same((new WorkerStateRepository($db))->turns(1, 0), array_fill_keys(WorkerStateRepository::FIELDS, 0));
-            Assert::true(min((new WorkerStateRepository($db))->turns(3, 0)) > 0, 'admitted service persists despite store failure');
+            Assert::true(min((new WorkerStateRepository($db))->turns(3, 0)) > 0, 'accepted current result and service commit together');
             Assert::true(min((new WorkerStateRepository($db))->turns(2, 0)) > 0, 'admitted upstream failures receive credit');
         } finally { unset($worker, $http, $sites, $db); $directory->close(); }
     }

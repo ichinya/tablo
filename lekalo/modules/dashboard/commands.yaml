@@ -365,8 +365,8 @@
         {
             "id": "dashboard.run_worker_pass",
             "kind": "command",
-            "version": 1,
-            "description": "One finite serial pass reloads enabled IDs and each current site before checking. Fresh connection/policy per pass retains aggregate budget and shared cooldown. Read-only max eligibility ignores cooled resources in per-field debt priority. Health/version run for usable sites even with all GitHub resources cooled; construction/check/store failures isolate sites. Persist admission or validated completion credit before result-store failure, without network transactions. Outer foreground CLI owns canonical DB lock, generation, completion cadence and safe stop/restart.",
+            "version": 2,
+            "description": "One finite serial pass reloads enabled IDs and each current site. Fresh connection/policy retains bounded aggregate admission and cooldowns. Shared PDO or established-key custody failure propagates to the fixed fatal CLI boundary; per-site network/provider and malformed individual ciphertext continue. One short post-network transaction couples guarded current result and admitted resource service credit. Stale or disabled snapshots earn no credit; store/progress/COMMIT failure rolls back both. Lifetime canonical flock releases even when final state cleanup fails.",
             "input": [
                 {
                     "name": "generation",

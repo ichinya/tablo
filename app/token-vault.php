@@ -50,6 +50,14 @@ final class TokenVault
         return 'credential:v1:' . hash_hmac('sha256', $token, $identityKey);
     }
 
+    public function assertAvailable(bool $established): void
+    {
+        clearstatcache(true, $this->keyPath);
+        if ($established || file_exists($this->keyPath) || is_link($this->keyPath)) {
+            $this->key(false); // Read only: never initialize, replace or fall back.
+        }
+    }
+
     private function key(bool $create): string
     {
         if ($create) {
@@ -77,17 +85,17 @@ final class TokenVault
         }
         $file = @fopen($this->keyPath, 'rb');
         if ($file === false) {
-            throw new \RuntimeException('Ключ шифрования токенов недоступен. Восстановите его из резервной копии.');
+            throw new SharedKeyFailure('Ключ шифрования токенов недоступен. Восстановите его из резервной копии.');
         }
-        flock($file, LOCK_SH);
         try {
-            $key = stream_get_contents($file);
+            if (!flock($file, LOCK_SH)) { throw new SharedKeyFailure('Ключ шифрования токенов недоступен.'); }
+            $key = @stream_get_contents($file);
         } finally {
             flock($file, LOCK_UN);
             fclose($file);
         }
         if (!is_string($key) || strlen($key) !== 32) {
-            throw new \RuntimeException('Некорректный ключ шифрования токенов.');
+            throw new SharedKeyFailure('Некорректный ключ шифрования токенов.');
         }
         return $key;
     }
