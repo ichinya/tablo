@@ -12,6 +12,21 @@ use Testo\Test;
 final class NotificationOutboxTest
 {
     #[Test]
+    public function newerOpeningCoalescesInflightSlotAndFencesItsOldToken(): void
+    {
+        $f=new F(); $out=null;
+        try {
+            $f->configure(); $f->accept(0,0); $f->accept(0,60); $out=new NotificationOutbox($f->db);
+            $old=$out->claim(1060); $f->accept(1,61); $f->accept(0,62); $f->accept(0,122);
+            $slots=$f->slots(); Assert::same(count($slots),2);
+            $unavailable=array_values(array_filter($slots,fn(array $s):bool=>$s['event']==='unavailable'))[0];
+            Assert::same($unavailable['coalesced'],1); Assert::same($unavailable['attempts'],0);
+            Assert::true($unavailable['event_id']!==$old['slot']['event_id']);
+            Assert::false($out->acknowledge($old,['code'=>'sent','http_status'=>204],1122));
+        } finally { $out=null; $f->close(); }
+    }
+
+    #[Test]
     public function attemptsBackoffLostAckLeaseExpiryStaleAckAndTerminalDedupe(): void
     {
         $f=new F(); $out=null;

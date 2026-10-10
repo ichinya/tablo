@@ -365,7 +365,7 @@
             "consumers": [
                 "dashboard.deliver_notification"
             ],
-            "fingerprint": "sha256:667da6146a0f3a55d2b671c24bc823a410fb546081381b3ec8e1b535ed0d5d9f"
+            "fingerprint": "sha256:8b14b3e79c82adcc5d4c604bfe3fe36ee54fecd2680c8bb6eff26b0caa969cec"
         },
         {
             "path": "app/webhook-address.php",

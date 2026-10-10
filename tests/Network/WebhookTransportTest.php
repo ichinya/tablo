@@ -6,7 +6,7 @@ use Tablo\HttpClient;
 use Tablo\WebhookAddress;
 use Tablo\WebhookFailure;
 use Tablo\Tests\Support\TemporaryDirectory;
-use Tablo\Tests\Support\TraceInspector;
+use Tablo\Tests\Support\Subprocess;
 use Tablo\Tests\Support\WebhookReceiver;
 use Testo\Assert;
 use Testo\Test;
@@ -24,11 +24,18 @@ final class WebhookTransportTest
         $client=new class extends HttpClient{protected function resolve(string $host):array{return ['8.8.8.8','127.0.0.1'];}};
         $marker=bin2hex(random_bytes(20)); $error=null;
         try{$client->postBefore('https://receiver.example/'.$marker,'{}','fixture:1',$marker,hrtime(true)+1000000000);}catch(WebhookFailure $caught){$error=$caught;}
-        Assert::same($error->reason,'ssrf'); $inspection=TraceInspector::inspect($error,[$marker]); Assert::false($inspection['leaked']);
+        Assert::same($error->reason,'ssrf'); Assert::same($error->getPrevious(),null);
         $client=new class extends HttpClient{protected function resolve(string $host):array{usleep(80000);return ['8.8.8.8'];}};
         $started=hrtime(true);
         try{$client->postBefore('https://receiver.example/'.$marker,'{}','fixture:1',$marker,hrtime(true)+10000000);}catch(WebhookFailure $caught){$error=$caught;}
         Assert::same($error->reason,'timeout'); Assert::true(hrtime(true)-$started>=80000000,'synchronous DNS exceeds curl deadline; parent supervision is required');
+        // Inspect complete actual exception traces outside Testo's unbounded runner object graph.
+        $directory=new TemporaryDirectory('tablo-webhook-trace-');
+        try {
+            $result=Subprocess::run([PHP_BINARY,dirname(__DIR__).'/fixtures/webhook-trace.php'],$directory,[]);
+            Assert::same($result['exit_code'],0); Assert::same($result['stderr'],'');
+            Assert::same($result['stdout'],"webhook complete trace checks=5\n");
+        } finally { $directory->close(); }
     }
 
     #[Test]
@@ -47,7 +54,7 @@ final class WebhookTransportTest
                 $url='https://receiver.example:'.$receiver->port.'/hook'; $failure=null; $status=null;
                 for($i=0;$i<($mode==='lost'?2:1);$i++){
                     try{$status=$client->postBefore($url,$payload,'fixture:unavailable:1',$bearer,hrtime(true)+6000000000);}
-                    catch(WebhookFailure $error){$failure=$error->reason; $trace=TraceInspector::inspect($error,[$bearer=== ''?'unmatchable':$bearer]);Assert::false($trace['leaked']);unset($error);}
+                    catch(WebhookFailure $error){$failure=$error->reason;Assert::same($error->getPrevious(),null);unset($error);}
                 }
                 $result=$receiver->result(); Assert::true($result['exact']); Assert::true($result['authorization']); Assert::true($result['same_key']);
                 Assert::same($result['count'],$mode==='lost'?2:1); Assert::same($result['redirect_targets'],0);

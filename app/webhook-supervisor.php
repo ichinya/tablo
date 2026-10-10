@@ -46,10 +46,7 @@ final class WebhookSupervisor
                 usleep(10000);
             } while (true);
             if ($status['running']) {
-                proc_terminate($process);
-                $grace=hrtime(true)+1000000000;
-                do { $status=proc_get_status($process); if (!$status['running']) { break; } usleep(10000); }
-                while (hrtime(true)<$grace);
+                $status=self::stopOwned($process);
                 if ($status['running']) {
                     self::$unreleased[]=[$process,$pipes]; $process=null; $pipes=[];
                     return ['code'=>'stop-unverified','stopped'=>false,'elapsed_ms'=>(int)((hrtime(true)-$started)/1000000)];
@@ -68,32 +65,40 @@ final class WebhookSupervisor
             return $result+['stopped'=>true,'elapsed_ms'=>(int)((hrtime(true)-$started)/1000000),'child_exit'=>$status['exitcode']];
         } catch (\Throwable) {
             if (is_resource($process)) {
-                $status=proc_get_status($process);
+                $status=self::stopOwned($process);
                 if ($status['running']) {
-                    proc_terminate($process);
-                    $grace=hrtime(true)+1000000000;
-                    do { $status=proc_get_status($process); if (!$status['running']) { break; } usleep(10000); } while(hrtime(true)<$grace);
-                    if ($status['running']) {
-                        self::$unreleased[]=[$process,$pipes]; $process=null; $pipes=[];
-                        return ['code'=>'stop-unverified','stopped'=>false];
-                    }
+                    self::$unreleased[]=[$process,$pipes]; $process=null; $pipes=[];
+                    return ['code'=>'stop-unverified','stopped'=>false];
                 }
             }
             return ['code'=>$code,'stopped'=>true];
         } finally {
             // Exceptional partial startup also must positively stop before reaping.
             if (is_resource($process)) {
-                $status=proc_get_status($process);
-                if ($status['running']) {
-                    proc_terminate($process);
-                    $grace=hrtime(true)+1000000000;
-                    do { $status=proc_get_status($process); if (!$status['running']) { break; } usleep(10000); } while(hrtime(true)<$grace);
-                }
+                $status=self::stopOwned($process);
                 if ($status['running']) { self::$unreleased[]=[$process,$pipes]; }
                 else { foreach($pipes as $pipe){if(is_resource($pipe)){fclose($pipe);}} proc_close($process); }
             }
             self::$active = [];
             restore_error_handler();
+        }
+    }
+
+    private static function stopOwned(#[\SensitiveParameter] mixed $process): array
+    {
+        try {
+            $status=proc_get_status($process);
+            if ($status['running']) {
+                proc_terminate($process);
+                $grace=hrtime(true)+1000000000;
+                while ($status['running'] && hrtime(true)<$grace) {
+                    usleep(10000); $status=proc_get_status($process);
+                }
+            }
+            return $status;
+        } catch (\Throwable) {
+            // Failed observation is uncertainty, never evidence that custody ended.
+            return ['running'=>true,'exitcode'=>-1,'signaled'=>false,'termsig'=>0];
         }
     }
 
@@ -103,13 +108,7 @@ final class WebhookSupervisor
         foreach (self::$active === [] ? self::$unreleased : [self::$active] as [$process,$pipes]) {
             if (!is_resource($process)) { continue; }
             try {
-                $status=proc_get_status($process);
-                if ($status['running']) {
-                    proc_terminate($process);
-                    $grace=hrtime(true)+1000000000;
-                    do { $status=proc_get_status($process); if (!$status['running']) { break; } usleep(10000); }
-                    while (hrtime(true)<$grace);
-                }
+                $status=self::stopOwned($process);
                 if (!$status['running']) {
                     foreach ($pipes as $pipe) { if (is_resource($pipe)) { fclose($pipe); } }
                     proc_close($process);

@@ -5,6 +5,8 @@ namespace Tablo\Tests\Network;
 use Tablo\NotificationDelivery;
 use Tablo\WebhookSupervisor;
 use Tablo\Tests\Support\NotificationFixture as F;
+use Tablo\Tests\Support\TemporaryDirectory;
+use Tablo\Tests\Support\Subprocess;
 use Testo\Assert;
 use Testo\Test;
 
@@ -23,15 +25,37 @@ final class WebhookSupervisorTest
         Assert::true((hrtime(true)-$started)/1e9<2.5,'100ms parent budget plus observed stop grace and OS overhead');
         $partial=(new WebhookSupervisor($root.'webhook-supervisor-partial.php'))->attempt('https://receiver.example/hook','',$payload);
         Assert::same($partial['code'],'child-frame'); Assert::true($partial['stopped']);
-        $started=hrtime(true);
-        $dns=(new WebhookSupervisor($root.'webhook-supervisor-dns.php',100))->attempt('https://receiver.example/hook','',$payload);
-        Assert::same($dns['code'],'timeout'); Assert::true($dns['stopped']);
-        Assert::true((hrtime(true)-$started)/1e9<2.5,'actual child resolver seam is covered by parent deadline');
+        $directory=new TemporaryDirectory('tablo-webhook-dns-');
+        try {
+            $started=hrtime(true); $marker=$directory->path.'/entered';
+            $dns=(new WebhookSupervisor($root.'webhook-supervisor-dns.php',500))->attempt('https://receiver.example/hook','',json_encode(['marker_path'=>$marker]));
+            Assert::same($dns['code'],'timeout'); Assert::true($dns['stopped']);
+            Assert::true(is_file($marker),'child positively entered actual HTTP resolver seam before deadline');
+            Assert::true((hrtime(true)-$started)/1e9<2.5,'actual child resolver seam is covered by parent deadline');
+        } finally { $directory->close(); }
         $count=0;
         $stop=(new WebhookSupervisor($root.'webhook-supervisor-hang.php'))->attempt('https://receiver.example/hook','',$payload,
             static function()use(&$count):bool{return ++$count>=2;});
         Assert::same($stop['code'],'timeout'); Assert::true($stop['stopped']);
         Assert::same((new WebhookSupervisor())->attempt(str_repeat('x',501),'',$payload)['code'],'size');
+    }
+
+    #[Test]
+    public function actualParentShutdownStopsOnlyOwnedChildAndReleasesItsPort(): void
+    {
+        $directory=new TemporaryDirectory('tablo-webhook-shutdown-'); $socket=null;
+        try {
+            $socket=stream_socket_server('tcp://127.0.0.1:0',$errno,$message);
+            $port=(int)substr(strrchr(stream_socket_get_name($socket,false),':'),1); fclose($socket); $socket=null;
+            $started=hrtime(true);
+            $result=Subprocess::run([PHP_BINARY,dirname(__DIR__).'/fixtures/webhook-shutdown-parent.php'],$directory,[],input:json_encode([
+                'port'=>$port,'marker_path'=>$directory->path.'/ready']));
+            Assert::same($result['exit_code'],0); Assert::same($result['stderr'],'');
+            Assert::true(is_file($directory->path.'/ready'),'owned child listened before parent exit');
+            $socket=stream_socket_server('tcp://127.0.0.1:'.$port,$errno,$message);
+            Assert::true(is_resource($socket),'shutdown positively releases child listener');
+            Assert::true((hrtime(true)-$started)/1e9<3.5,'shutdown grace plus measured OS overhead');
+        } finally { if(is_resource($socket)){fclose($socket);} $directory->close(); }
     }
 
     #[Test]
