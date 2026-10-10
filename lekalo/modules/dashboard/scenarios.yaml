@@ -303,6 +303,42 @@
                 "dashboard.change_admin_password",
                 "dashboard.request_worker_stop"
             ]
+        },
+        {
+            "id": "dashboard.notification_settings_privacy",
+            "kind": "scenario",
+            "version": 1,
+            "summary": "Real authenticated CSRF/encrypted blank keep/replace/remove/conflict/type/length safe422. Endpoint-only/Bearer/private-slot established ciphertext witnesses extend actual13 startup/lifetime key policy; key-independent stop/password stays unchanged.",
+            "covers": [
+                "dashboard.update_notifications",
+                "dashboard.get_notifications",
+                "dashboard.notification_settings"
+            ]
+        },
+        {
+            "id": "dashboard.notification_atomicity",
+            "kind": "scenario",
+            "version": 1,
+            "summary": "Actual accepted current/history/incident/credit/checkpoint/slot SAMEPDO rollback including deferred COMMIT. Stale config/shared credential ABA/deletion zero, caller-owned BEGIN safe. OFF/unknown/paused/late/epoch/repeated identities do not fabricate events.",
+            "covers": [
+                "dashboard.project_notifications",
+                "dashboard.store_check",
+                "dashboard.settle_worker_check",
+                "dashboard.notification_checkpoint",
+                "dashboard.notification_slot"
+            ]
+        },
+        {
+            "id": "dashboard.notification_delivery",
+            "kind": "scenario",
+            "version": 1,
+            "summary": "Real child timeout/blocking read/partial exit/observed stop and owned loopback TLS POST/body/auth/key/caps/redirect/lost ACK controls. Claims unlock SQL before network, two workers one owner, stale tokens fenced, retry60/300 max3 TTL1h/coalescing visible; accepted state/next work survives delivery failure. Samehost controls are not external or production evidence.",
+            "covers": [
+                "dashboard.claim_notification",
+                "dashboard.ack_notification",
+                "dashboard.deliver_notification",
+                "dashboard.read_notification_status"
+            ]
         }
     ]
 }

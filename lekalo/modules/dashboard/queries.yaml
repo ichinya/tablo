@@ -68,6 +68,32 @@
             "returns": {
                 "ref": "dashboard.incident_page"
             }
+        },
+        {
+            "id": "dashboard.get_notifications",
+            "kind": "query",
+            "version": 1,
+            "description": "Presence-only authenticated settings query; no decrypt, DNS or sends.",
+            "reads": [
+                "dashboard.notification_settings"
+            ],
+            "returns": {
+                "ref": "dashboard.notification_metadata"
+            }
+        },
+        {
+            "id": "dashboard.read_notification_status",
+            "kind": "query",
+            "version": 1,
+            "description": "Safe status projection LIMIT50; finite codes, counts/coalescing and observed times, never endpoint/token/name/cipher/payload.",
+            "reads": [
+                "dashboard.notification_slot"
+            ],
+            "returns": {
+                "list": {
+                    "ref": "dashboard.notification_status"
+                }
+            }
         }
     ]
 }

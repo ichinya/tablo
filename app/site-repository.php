@@ -10,7 +10,8 @@ final class SiteRepository
     private readonly TokenVault $tokens;
     private readonly GitTokenRepository $savedTokens;
 
-    public function __construct(private readonly PDO $db, #[\SensitiveParameter] ?TokenVault $tokens = null)
+    public function __construct(private readonly PDO $db, #[\SensitiveParameter] ?TokenVault $tokens = null,
+        private readonly ?\Closure $notificationClock = null)
     {
         $this->tokens = $tokens ?? TokenVault::forDatabase($db);
         $this->savedTokens = new GitTokenRepository($db, $this->tokens);
@@ -246,7 +247,9 @@ final class SiteRepository
         // Inspect only known physical columns; a missing table is not a lost key.
         foreach (['git_tokens' => ['encrypted_token', "encrypted_token <> ''"],
             'sites' => ['github_token', "github_token <> ''"],
-            'github_cooldowns' => ['scope', "scope LIKE 'credential:v1:%'"]] as $table => [$column, $predicate]) {
+            'github_cooldowns' => ['scope', "scope LIKE 'credential:v1:%'"],
+            'notification_settings' => ['endpoint_cipher', "endpoint_cipher IS NOT NULL OR bearer_cipher IS NOT NULL"],
+            'notification_slots' => ['private_cipher', 'private_cipher IS NOT NULL']] as $table => [$column, $predicate]) {
             $statement = $db->query('PRAGMA main.table_info(' . $table . ')');
             try { $columns = array_column($statement->fetchAll(), 'name'); }
             finally { $statement->closeCursor(); }
@@ -321,7 +324,10 @@ final class SiteRepository
             try { $statement->execute(array_values($row)); }
             finally { $statement->closeCursor(); }
             // Capture the real AUTOINCREMENT identity before any other INSERT.
-            $this->projectIncident((int) $this->db->lastInsertId(), $row);
+            $historyId = (int) $this->db->lastInsertId();
+            $this->projectIncident($historyId, $row);
+            (new NotificationProjector($this->db, $this->tokens))->accepted($historyId,$row,$site,
+                $this->notificationClock === null ? time() : ($this->notificationClock)());
             if ($worker) {
                 $service = $state['worker_service'] ?? null;
                 if (!is_array($service) || array_diff(array_keys($service), WorkerStateRepository::FIELDS) !== []

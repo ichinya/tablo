@@ -140,14 +140,16 @@
                 "dashboard.site_deleted",
                 "dashboard.check_history_deleted",
                 "dashboard.incident_deleted",
-                "dashboard.incident_checkpoint_deleted"
+                "dashboard.incident_checkpoint_deleted",
+                "dashboard.notification_checkpoint_deleted",
+                "dashboard.notification_slot_deleted"
             ]
         },
         {
             "id": "dashboard.check_site",
             "kind": "command",
-            "version": 6,
-            "description": "Manual and one-shot checks keep their default order/output/storage whitelist. Health/version are independent of four GitHub fields and preserve partial/null results. Empty health path checks base URL with HTTP 200; explicit HTTP uses 2xx; JSON health uses validated path/operator and finite values. HTTP/false predicates are offline; transport/DNS/SSRF/TLS/size/invalid data are unknown with typed fixed diagnostics and optional status. Version selector retains root commit aliases. All original configuration/cipher/selected-token predicates plus config_revision reject edits, disable-enable ABA, rotation, deletion and reselection. Saved-token rename-only blank edits remain compatible. GitHub serial REST keeps five requests/24s site and 100 requests/120s aggregate admission budgets, 256-entry validated memo, resource-specific primary plus shared secondary cooldown, exact-token vault HMAC equivalence and current credential checks before/after memo/load. No provider sleep/retry or failure cache. cURL is clamped but synchronous DNS can overrun. Missing established vault key fails before HTTP without replacement; public connection arrays and rate-response boundaries retain SensitiveParameter. Optional worker order returns transient per-field admitted/completed service metadata; result storage whitelists omit it. Accepted row alone projects prospective incident/checkpoint inside the real private persistCheck transaction before credit/COMMIT. First Offline opens using actual history ID; repeat preserves opening; Unknown never recovers; same-epoch non-older Online closes, new epoch interrupts without recovery. Older/equal-second clock qualifiers and idempotent consumed IDs survive history retention. No old-history replay/current-state fabrication or public projection reset. External raw32 key preflight and lifetime custody are runtime preconditions; see external_key_custody scenario.",
+            "version": 7,
+            "description": "Manual and one-shot checks keep their default order/output/storage whitelist. Health/version are independent of four GitHub fields and preserve partial/null results. Empty health path checks base URL with HTTP 200; explicit HTTP uses 2xx; JSON health uses validated path/operator and finite values. HTTP/false predicates are offline; transport/DNS/SSRF/TLS/size/invalid data are unknown with typed fixed diagnostics and optional status. Version selector retains root commit aliases. All original configuration/cipher/selected-token predicates plus config_revision reject edits, disable-enable ABA, rotation, deletion and reselection. Saved-token rename-only blank edits remain compatible. GitHub serial REST keeps five requests/24s site and 100 requests/120s aggregate admission budgets, 256-entry validated memo, resource-specific primary plus shared secondary cooldown, exact-token vault HMAC equivalence and current credential checks before/after memo/load. No provider sleep/retry or failure cache. cURL is clamped but synchronous DNS can overrun. Missing established vault key fails before HTTP without replacement; public connection arrays and rate-response boundaries retain SensitiveParameter. Optional worker order returns transient per-field admitted/completed service metadata; result storage whitelists omit it. Accepted row alone projects prospective incident/checkpoint inside the real private persistCheck transaction before credit/COMMIT. First Offline opens using actual history ID; repeat preserves opening; Unknown never recovers; same-epoch non-older Online closes, new epoch interrupts without recovery. Older/equal-second clock qualifiers and idempotent consumed IDs survive history retention. No old-history replay/current-state fabrication or public projection reset. External raw32 key preflight and lifetime custody are runtime preconditions; see external_key_custody scenario. After accepted commits, one isolated bounded notification candidate is observed.",
             "input": [
                 {
                     "name": "id",
@@ -372,8 +374,8 @@
         {
             "id": "dashboard.run_worker_pass",
             "kind": "command",
-            "version": 4,
-            "description": "One finite serial pass reloads enabled IDs and each current site. Fresh connection/policy retains bounded aggregate admission and cooldowns. Shared PDO or established-key custody failure propagates to the fixed fatal CLI boundary; per-site network/provider and malformed individual ciphertext continue. One short post-network transaction couples guarded current result and admitted resource service credit. Stale or disabled snapshots earn no credit; store/progress/COMMIT failure rolls back both. Lifetime canonical flock releases even when final state cleanup fails. Actual settlement now commits validated history with result and admitted credit; explicit prune adds no worker scheduling or stop hook. Accepted row alone projects prospective incident/checkpoint inside the real private persistCheck transaction before credit/COMMIT. First Offline opens using actual history ID; repeat preserves opening; Unknown never recovers; same-epoch non-older Online closes, new epoch interrupts without recovery. Older/equal-second clock qualifiers and idempotent consumed IDs survive history retention. No old-history replay/current-state fabrication or public projection reset. Application runtime precondition: optional external raw32 key selection is read-only and preflighted before database/session/control/network effects; retained authenticated ciphertext witnesses key identity before migration, with no-witness and no-cipher bounds. Secret selection is configuration, never model input. Live key loss or replacement refuses admission and save without regeneration.",
+            "version": 5,
+            "description": "One finite serial pass reloads enabled IDs and each current site. Fresh connection/policy retains bounded aggregate admission and cooldowns. Shared PDO or established-key custody failure propagates to the fixed fatal CLI boundary; per-site network/provider and malformed individual ciphertext continue. One short post-network transaction couples guarded current result and admitted resource service credit. Stale or disabled snapshots earn no credit; store/progress/COMMIT failure rolls back both. Lifetime canonical flock releases even when final state cleanup fails. Actual settlement now commits validated history with result and admitted credit; explicit prune adds no worker scheduling or stop hook. Accepted row alone projects prospective incident/checkpoint inside the real private persistCheck transaction before credit/COMMIT. First Offline opens using actual history ID; repeat preserves opening; Unknown never recovers; same-epoch non-older Online closes, new epoch interrupts without recovery. Older/equal-second clock qualifiers and idempotent consumed IDs survive history retention. No old-history replay/current-state fabrication or public projection reset. Application runtime precondition: optional external raw32 key selection is read-only and preflighted before database/session/control/network effects; retained authenticated ciphertext witnesses key identity before migration, with no-witness and no-cipher bounds. Secret selection is configuration, never model input. Live key loss or replacement refuses admission and save without regeneration. After accepted commits, one isolated bounded notification candidate is observed.",
             "input": [
                 {
                     "name": "generation",
@@ -433,8 +435,8 @@
         {
             "id": "dashboard.store_check",
             "kind": "command",
-            "version": 2,
-            "description": "Actual manual/one-shot SiteRepository entry owns short BEGIN IMMEDIATE after network work. Immediately guarded UPDATE rowCount zero rolls back and returns false without history validation; one validates actual id/revision/time then INSERTs immutable history and COMMITs on the same PDO. Failed BEGIN leaves caller transaction untouched; validation/INSERT/COMMIT/cleanup failures preserve first error and roll back paired result/history. No network, sleep, separate connection or public bypass flag. Accepted row alone projects prospective incident/checkpoint inside the real private persistCheck transaction before credit/COMMIT. First Offline opens using actual history ID; repeat preserves opening; Unknown never recovers; same-epoch non-older Online closes, new epoch interrupts without recovery. Older/equal-second clock qualifiers and idempotent consumed IDs survive history retention. No old-history replay/current-state fabrication or public projection reset.",
+            "version": 3,
+            "description": "Actual manual/one-shot SiteRepository entry owns short BEGIN IMMEDIATE after network work. Immediately guarded UPDATE rowCount zero rolls back and returns false without history validation; one validates actual id/revision/time then INSERTs immutable history and COMMITs on the same PDO. Failed BEGIN leaves caller transaction untouched; validation/INSERT/COMMIT/cleanup failures preserve first error and roll back paired result/history. No network, sleep, separate connection or public bypass flag. Accepted row alone projects prospective incident/checkpoint inside the real private persistCheck transaction before credit/COMMIT. First Offline opens using actual history ID; repeat preserves opening; Unknown never recovers; same-epoch non-older Online closes, new epoch interrupts without recovery. Older/equal-second clock qualifiers and idempotent consumed IDs survive history retention. No old-history replay/current-state fabrication or public projection reset. Actual schema7 notification checkpoint and bounded outbox commit in this same owned transaction; delivery follows accepted commit.",
             "input": [
                 {
                     "name": "site",
@@ -457,14 +459,18 @@
                 "dashboard.incident_created",
                 "dashboard.incident_updated",
                 "dashboard.incident_checkpoint_created",
-                "dashboard.incident_checkpoint_updated"
+                "dashboard.incident_checkpoint_updated",
+                "dashboard.notification_checkpoint_created",
+                "dashboard.notification_checkpoint_updated",
+                "dashboard.notification_slot_created",
+                "dashboard.notification_slot_updated"
             ]
         },
         {
             "id": "dashboard.settle_worker_check",
             "kind": "command",
-            "version": 2,
-            "description": "Actual WorkerStateRepository::settle delegates ownership to SiteRepository shared short immediate transaction. Matching result plus validated history and only admitted field service credit/fairness turn commit together on the same PDO; stale/disabled/ABA/rotated/deleted zero appends and credits nothing. INSERT/credit/deferred COMMIT refusal rolls back the pair and original error wins. Caller BEGIN is refused untouched; PHP82 engine state governs implicit-rollback cleanup. Accepted row alone projects prospective incident/checkpoint inside the real private persistCheck transaction before credit/COMMIT. First Offline opens using actual history ID; repeat preserves opening; Unknown never recovers; same-epoch non-older Online closes, new epoch interrupts without recovery. Older/equal-second clock qualifiers and idempotent consumed IDs survive history retention. No old-history replay/current-state fabrication or public projection reset.",
+            "version": 3,
+            "description": "Actual WorkerStateRepository::settle delegates ownership to SiteRepository shared short immediate transaction. Matching result plus validated history and only admitted field service credit/fairness turn commit together on the same PDO; stale/disabled/ABA/rotated/deleted zero appends and credits nothing. INSERT/credit/deferred COMMIT refusal rolls back the pair and original error wins. Caller BEGIN is refused untouched; PHP82 engine state governs implicit-rollback cleanup. Accepted row alone projects prospective incident/checkpoint inside the real private persistCheck transaction before credit/COMMIT. First Offline opens using actual history ID; repeat preserves opening; Unknown never recovers; same-epoch non-older Online closes, new epoch interrupts without recovery. Older/equal-second clock qualifiers and idempotent consumed IDs survive history retention. No old-history replay/current-state fabrication or public projection reset. Actual schema7 notification checkpoint and bounded outbox commit in this same owned transaction; delivery follows accepted commit.",
             "input": [
                 {
                     "name": "site",
@@ -490,7 +496,11 @@
                 "dashboard.incident_created",
                 "dashboard.incident_updated",
                 "dashboard.incident_checkpoint_created",
-                "dashboard.incident_checkpoint_updated"
+                "dashboard.incident_checkpoint_updated",
+                "dashboard.notification_checkpoint_created",
+                "dashboard.notification_checkpoint_updated",
+                "dashboard.notification_slot_created",
+                "dashboard.notification_slot_updated"
             ]
         },
         {
@@ -599,6 +609,186 @@
             ],
             "effects": [
                 "dashboard.user_password_updated"
+            ]
+        },
+        {
+            "id": "dashboard.notification_settings_updated",
+            "kind": "effect",
+            "version": 1,
+            "operation": "update",
+            "entity": "dashboard.notification_settings"
+        },
+        {
+            "id": "dashboard.notification_checkpoint_created",
+            "kind": "effect",
+            "version": 1,
+            "operation": "create",
+            "entity": "dashboard.notification_checkpoint"
+        },
+        {
+            "id": "dashboard.notification_checkpoint_updated",
+            "kind": "effect",
+            "version": 1,
+            "operation": "update",
+            "entity": "dashboard.notification_checkpoint"
+        },
+        {
+            "id": "dashboard.notification_checkpoint_deleted",
+            "kind": "effect",
+            "version": 1,
+            "operation": "delete",
+            "entity": "dashboard.notification_checkpoint"
+        },
+        {
+            "id": "dashboard.notification_slot_created",
+            "kind": "effect",
+            "version": 1,
+            "operation": "create",
+            "entity": "dashboard.notification_slot"
+        },
+        {
+            "id": "dashboard.notification_slot_updated",
+            "kind": "effect",
+            "version": 1,
+            "operation": "update",
+            "entity": "dashboard.notification_slot"
+        },
+        {
+            "id": "dashboard.notification_slot_deleted",
+            "kind": "effect",
+            "version": 1,
+            "operation": "delete",
+            "entity": "dashboard.notification_slot"
+        },
+        {
+            "id": "dashboard.update_notifications",
+            "kind": "command",
+            "version": 1,
+            "description": "Authenticated CSRF-protected settings POST delegates same-PDO encrypted update. Shared nonblocking delivery mutex, revision CAS, blank keep/remove conflict/type/length safe422; established-vault lifetime policy before encryption. Settings revision cancels pending/inflight claims and starts future-only activation. No DNS/send/test button.",
+            "input": [
+                {
+                    "name": "input",
+                    "type": {
+                        "ref": "dashboard.notification_input"
+                    },
+                    "required": true
+                }
+            ],
+            "effects": [
+                "dashboard.notification_settings_updated",
+                "dashboard.notification_slot_updated"
+            ]
+        },
+        {
+            "id": "dashboard.project_notifications",
+            "kind": "command",
+            "version": 1,
+            "description": "Actual accepted transaction callback after immutable history and actual16 incident projection, before admitted credit/COMMIT. Stale0 precedes callback. Prospective actual incident opening/recovery IDs, Unknown/late/epoch/pause qualifiers, two accepted confirmations60s sample+wall for unavailable/version; true recovery immediate with early pair cancellation. At most3 fixed slots/site; same event never recreated, newer kind coalesces visibly. No network.",
+            "input": [
+                {
+                    "name": "history_id",
+                    "type": {
+                        "ref": "dashboard.number"
+                    },
+                    "required": true
+                },
+                {
+                    "name": "row",
+                    "type": {
+                        "ref": "dashboard.check_history"
+                    },
+                    "required": true
+                },
+                {
+                    "name": "site",
+                    "type": {
+                        "ref": "dashboard.site"
+                    },
+                    "required": true
+                },
+                {
+                    "name": "wall",
+                    "type": {
+                        "ref": "dashboard.number"
+                    },
+                    "required": true
+                }
+            ],
+            "effects": [
+                "dashboard.notification_checkpoint_created",
+                "dashboard.notification_checkpoint_updated",
+                "dashboard.notification_slot_created",
+                "dashboard.notification_slot_updated"
+            ]
+        },
+        {
+            "id": "dashboard.claim_notification",
+            "kind": "command",
+            "version": 1,
+            "description": "Short owned BEGIN IMMEDIATE commits one due candidate claim/token/30s lease and consumes attempt before returning. Stale epoch/channel/deletion/disabled cancels; TTL1h/max3; lost lease reschedules60/300s. Caller BEGIN refusal preserves caller; no network under SQL lock.",
+            "input": [
+                {
+                    "name": "now",
+                    "type": {
+                        "ref": "dashboard.number"
+                    },
+                    "required": true
+                }
+            ],
+            "effects": [
+                "dashboard.notification_slot_updated"
+            ]
+        },
+        {
+            "id": "dashboard.ack_notification",
+            "kind": "command",
+            "version": 1,
+            "description": "Finite typed result2xx validation then scoped conditional UPDATE by site/kind/event/token/attempt/channel/current site epoch/lease/expiry. Stale ACK returns false, cannot resurrect replaced/deleted work. Bounded retries60then300, max3, TTL1h.",
+            "input": [
+                {
+                    "name": "claimed",
+                    "type": {
+                        "ref": "dashboard.notification_claim"
+                    },
+                    "required": true
+                },
+                {
+                    "name": "result",
+                    "type": {
+                        "ref": "dashboard.notification_result"
+                    },
+                    "required": true
+                },
+                {
+                    "name": "now",
+                    "type": {
+                        "ref": "dashboard.number"
+                    },
+                    "required": true
+                }
+            ],
+            "effects": [
+                "dashboard.notification_slot_updated"
+            ]
+        },
+        {
+            "id": "dashboard.deliver_notification",
+            "kind": "command",
+            "version": 1,
+            "description": "Actual manual/CLI/periodic hook only after accepted commit. At most one candidate, OFF creates/sends nothing, vault selected explicitly, stable installation mutex. One minimal PHP child private stdin, parent10s monotonic plus1s observed stop grace and OS overhead; all-address public-unicast HTTPS pin/TLS, no proxy/redirect, bounded request/response. Delivery error isolated from accepted check/next site; uncertain stop durably blocks. Lost remote/local ACK can duplicate same receiver key; bounded best effort.",
+            "input": [
+                {
+                    "name": "now",
+                    "type": {
+                        "optional": {
+                            "ref": "dashboard.number"
+                        }
+                    }
+                }
+            ],
+            "effects": [
+                "dashboard.notification_slot_updated",
+                "dashboard.notification_settings_updated"
             ]
         }
     ]

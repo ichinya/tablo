@@ -976,3 +976,10 @@ See [atomic persistence, pagination and retention limits](docs/check-history.md)
 Authenticated `/incidents` lists first observed Offline, recovery and qualified observation intervals.
 Tracking starts with newly accepted checks after installation; migration and reads never replay old
 history or fabricate incidents from current values. See [lifecycle, activation and paging boundaries](docs/incidents.md).
+
+## Notifications
+
+Settings provides one encrypted HTTPS webhook channel, disabled by default, for selected
+unavailable, recovery and version-lag observations. Delivery follows accepted commits and
+is bounded best effort; receivers deduplicate stable event keys. See [settings, privacy,
+confirmation, retries and supervision limits](docs/notifications.md).

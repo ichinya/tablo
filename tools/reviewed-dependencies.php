@@ -42,6 +42,18 @@ function workerDependencies(): array
         'views/incidents.volt' => ['owner' => 'volt-template:views/incidents.volt', 'consumers' => ['dashboard.read_incidents']],
         'views/layout.volt' => ['owner' => 'volt-template:views/layout.volt', 'consumers' => ['dashboard.read_incidents']],
         'public/assets/app.css' => ['owner' => 'asset:public/assets/app.css', 'consumers' => ['dashboard.read_incidents']],
+        'app/notification-schema.php' => ['owner' => 'Tablo\NotificationSchema', 'consumers' => ['Actual additive schema7 migration']],
+        'app/notification-settings.php' => ['owner' => 'Tablo\NotificationSettings', 'consumers' => ['dashboard.get_notifications', 'dashboard.update_notifications']],
+        'app/notification-projector.php' => ['owner' => 'Tablo\NotificationProjector', 'consumers' => ['dashboard.store_check', 'dashboard.settle_worker_check']],
+        'app/notification-outbox.php' => ['owner' => 'Tablo\NotificationOutbox', 'consumers' => ['dashboard.deliver_notification', 'dashboard.read_notification_status']],
+        'app/notification-delivery.php' => ['owner' => 'Tablo\NotificationDelivery', 'consumers' => ['dashboard.check_site', 'dashboard.run_worker_pass']],
+        'app/notification-lock.php' => ['owner' => 'Tablo\NotificationLock', 'consumers' => ['dashboard.deliver_notification', 'dashboard.update_notifications']],
+        'app/webhook-supervisor.php' => ['owner' => 'Tablo\WebhookSupervisor', 'consumers' => ['dashboard.deliver_notification']],
+        'app/webhook-address.php' => ['owner' => 'Tablo\WebhookAddress', 'consumers' => ['Tablo\HttpClient::postBefore', 'dashboard.update_notifications']],
+        'app/webhook-failure.php' => ['owner' => 'Tablo\WebhookFailure', 'consumers' => ['Tablo\HttpClient::postBefore', 'Tablo\WebhookSupervisor']],
+        'app/http-client.php' => ['owner' => 'Tablo\HttpClient', 'consumers' => ['dashboard.check_site', 'dashboard.deliver_notification']],
+        'bin/webhook-attempt.php' => ['owner' => 'php-script:bin/webhook-attempt.php', 'consumers' => ['Tablo\WebhookSupervisor']],
+        'views/settings.volt' => ['owner' => 'volt-template:views/settings.volt', 'consumers' => ['dashboard.get_notifications', 'dashboard.update_notifications', 'dashboard.read_notification_status']],
     ];
 }
 

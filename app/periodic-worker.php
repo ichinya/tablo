@@ -11,6 +11,7 @@ final class PeriodicWorker
     private readonly SiteRepository $sites;
     private readonly SettingsRepository $settings;
     private readonly WorkerStateRepository $state;
+    private readonly NotificationDelivery $notifications;
     private readonly Closure $connection;
     private readonly Closure $clock;
     private readonly Closure $sleep;
@@ -29,6 +30,7 @@ final class PeriodicWorker
         $this->sites = new SiteRepository($db, $vault);
         $this->settings = new SettingsRepository($db);
         $this->state = new WorkerStateRepository($db, $this->sites);
+        $this->notifications = new NotificationDelivery($db,$vault);
         $sites = $this->sites;
         $this->connection = $connection ?? static fn (): GitHubConnection => new GitHubConnection($sites, $http, worker: true);
         $this->clock = $clock ?? static fn (): float => hrtime(true) / 1e9;
@@ -124,6 +126,8 @@ final class PeriodicWorker
             } catch (\PDOException | SharedKeyFailure $error) { throw $error; }
             catch (\Throwable) { ($this->output)('Worker site failed.'); }
         }
+        $delivery=$this->notifications->runOne(fn (): bool => $this->stop || ($generation!==null && $this->state->stopping($generation)));
+        if (!in_array($delivery['code'],['off','idle'],true)) { ($this->output)('Worker notification: '.$delivery['code'].'.'); }
     }
 
     private function fieldOrder(#[\SensitiveParameter] array $site, GitHubProvider $provider): array

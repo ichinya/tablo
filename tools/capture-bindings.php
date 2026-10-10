@@ -43,6 +43,16 @@ $mapping = [
     'incident' => ['app/sqlite-database.php', 'CREATE TABLE incidents'],
     'incident_checkpoint' => ['app/sqlite-database.php', 'CREATE TABLE incident_checkpoints'],
     'read_incidents' => ['app/incident-repository.php', 'public function page'],
+    'notification_settings' => ['app/notification-schema.php', 'CREATE TABLE notification_settings'],
+    'notification_checkpoint' => ['app/notification-schema.php', 'CREATE TABLE notification_checkpoints'],
+    'notification_slot' => ['app/notification-schema.php', 'CREATE TABLE notification_slots'],
+    'get_notifications' => ['app/notification-settings.php', 'public function get'],
+    'update_notifications' => ['app/notification-settings.php', 'public function update'],
+    'project_notifications' => ['app/notification-projector.php', 'public function accepted'],
+    'read_notification_status' => ['app/notification-outbox.php', 'public function status'],
+    'claim_notification' => ['app/notification-outbox.php', 'public function claim'],
+    'ack_notification' => ['app/notification-outbox.php', 'public function acknowledge'],
+    'deliver_notification' => ['app/notification-delivery.php', 'public function runOne'],
 ];
 function typeName(array $type): string
 {

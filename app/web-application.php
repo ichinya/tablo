@@ -15,6 +15,9 @@ final class Web
     private readonly GitTokenRepository $tokens;
     private readonly SettingsRepository $installation;
     private readonly IncidentRepository $incidents;
+    private readonly NotificationSettings $notifications;
+    private readonly NotificationOutbox $notificationOutbox;
+    private readonly NotificationDelivery $notificationDelivery;
     private readonly Auth $auth;
     private readonly ClientAddress $clientAddress;
     private readonly GitHubConnection $github;
@@ -51,6 +54,9 @@ final class Web
         $this->tokens = new GitTokenRepository($db, $vault);
         $this->installation = new SettingsRepository($db);
         $this->incidents = new IncidentRepository($db);
+        $this->notifications = new NotificationSettings($db,$vault);
+        $this->notificationOutbox = new NotificationOutbox($db);
+        $this->notificationDelivery = new NotificationDelivery($db,$vault);
         $this->auth = new Auth($db);
         $this->github = new GitHubConnection($this->sites, $githubHttp ?? new HttpClient());
         $di = new FactoryDefault();
@@ -145,6 +151,7 @@ final class Web
         $app->get('/incidents', fn () => $web->incidentList());
         $app->get('/settings', fn () => $web->settings());
         $app->post('/settings', fn () => $web->saveSettings());
+        $app->post('/settings/notifications', fn () => $web->saveNotifications());
         $app->get('/settings/tokens/new', fn () => $web->tokenForm(['name' => '', 'provider' => 'github']));
         $app->post('/settings/tokens/new', fn () => $web->saveToken());
         $app->get('/settings/tokens/{id:[0-9]+}/edit', function ($id) use ($web) {
@@ -201,6 +208,7 @@ final class Web
                     $checker = new SiteChecker(new HttpClient(getenv('TABLO_ALLOW_PRIVATE_NETWORK') === '1'), $web->github->provider($site));
                     $stored = $web->sites->storeCheck($site, $checker->check($site));
                     $notice = $stored ? 'Проверка завершена. Результаты обновлены.' : 'Настройки изменились во время проверки. Запустите её ещё раз.';
+                    if ($stored) { $web->notificationDelivery->runOne(); }
                 } catch (ValidationException $e) {
                     $notice = implode(' ', $e->errors);
                 }
@@ -275,6 +283,7 @@ final class Web
         unset($_SESSION['notice']);
         return $this->render('settings', ['title' => 'Настройки', 'tokens' => $this->tokens->all(),
             'providers' => GitProviders::available(), 'notice' => $notice, 'errors' => $errors,
+            'notifications' => $this->notifications->get(), 'notification_status' => $this->notificationOutbox->status(),
             'check_interval_minutes' => $submitted ?? $this->installation->get()], $status);
     }
 
@@ -286,6 +295,21 @@ final class Web
             return $this->redirect('/settings');
         } catch (ValidationException $error) {
             return $this->settings($error->errors, $this->input('check_interval_minutes'), 422);
+        }
+    }
+
+    private function saveNotifications(): Response
+    {
+        session_write_close();
+        try {
+            $this->notifications->update($_POST);
+            session_start();
+            $_SESSION['notice']='Настройки уведомлений сохранены.';
+            return $this->redirect('/settings');
+        } catch (\Throwable $error) {
+            session_start();
+            $errors=$error instanceof ValidationException?$error->errors:['notifications'=>'Не удалось сохранить настройки уведомлений.'];
+            return $this->settings($errors,null,422);
         }
     }
 

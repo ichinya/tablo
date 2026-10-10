@@ -4,8 +4,8 @@
         {
             "id": "dashboard",
             "kind": "module",
-            "version": 3,
-            "description": "One local administrator, guarded site checks/foreground worker with immutable accepted history and prospective persisted incidents, bounded authenticated list and independent bounded history pruning. No notifications, metrics, charts or public API."
+            "version": 4,
+            "description": "One local administrator, guarded accepted history/incidents and one default-OFF encrypted webhook channel. Cohesive prospective checkpoint/three slots/site, bounded observed best-effort delivery after actual accepted transaction. No queue daemon or delivery guarantee."
         }
     ]
 }

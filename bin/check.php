@@ -29,6 +29,8 @@ try {
         echo $site['id'] . ': ' . ($failed ? 'attention' : 'ok') . PHP_EOL;
         $failures += (int) $failed;
     }
+    $delivery=(new Tablo\NotificationDelivery($db,$vault))->runOne();
+    if (!in_array($delivery['code'],['off','idle'],true)) { echo 'notification: '.$delivery['code'].PHP_EOL; }
     exit($failures ? 1 : 0);
 } catch (Throwable $error) {
     fwrite(STDERR, "Check failed. Check installation configuration and local storage.\n");

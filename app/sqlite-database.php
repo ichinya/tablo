@@ -9,7 +9,7 @@ use Throwable;
 
 final class Database
 {
-    public const CURRENT_SCHEMA_VERSION = 6;
+    public const CURRENT_SCHEMA_VERSION = 7;
 
     // Prospective activation: these additive DDL statements never read current values or retained history.
     private const INCIDENT_SCHEMA = [
@@ -101,7 +101,8 @@ final class Database
     {
         $present = false;
         $verified = false;
-        foreach (['sites' => 'github_token', 'git_tokens' => 'encrypted_token'] as $table => $column) {
+        foreach ([['sites','github_token'], ['git_tokens','encrypted_token'], ['notification_settings','endpoint_cipher'],
+            ['notification_settings','bearer_cipher'], ['notification_slots','private_cipher']] as [$table,$column]) {
             $statement = $db->prepare("SELECT type FROM main.sqlite_schema WHERE name = ?");
             try { $statement->execute([$table]); $type = $statement->fetchColumn(); }
             finally { $statement->closeCursor(); }
@@ -274,7 +275,13 @@ final class Database
         foreach (['sites' => ['config_revision'], 'github_cooldowns' => ['scope', 'resource', 'eligible_at'],
             'installation_settings' => ['id', 'check_interval_minutes'],
             'worker_runtime' => ['id', 'run_id', 'stop_requested', 'fairness_turn'],
-            'worker_progress' => ['site_id', 'config_revision', 'latest_release', 'latest_commit', 'open_issues', 'open_prs']] as $table => $required) {
+            'worker_progress' => ['site_id', 'config_revision', 'latest_release', 'latest_commit', 'open_issues', 'open_prs'],
+            'check_history' => ['id','site_id','config_revision','checked_at'],
+            'incidents' => ['id','site_id','config_revision','recovery_history_id','end_reason'],
+            'incident_checkpoints' => ['site_id','last_history_id','config_revision','watermark'],
+            'notification_settings' => ['id','revision','installation_id','blocked','endpoint_cipher','bearer_cipher'],
+            'notification_checkpoints' => ['site_id','last_history_id','config_revision','state'],
+            'notification_slots' => ['site_id','event','event_id','source_id','claim','attempts']] as $table => $required) {
             $statement = $db->prepare("SELECT type FROM main.sqlite_schema WHERE name = ?");
             try { $statement->execute([$table]); $type = $statement->fetchColumn(); }
             finally { $statement->closeCursor(); }
@@ -297,7 +304,9 @@ final class Database
             // Another process may have completed the migration while BEGIN waited.
             $version = self::schemaVersion($db);
             while ($version < self::CURRENT_SCHEMA_VERSION) {
-                if ($version === 5) {
+                if ($version === 6) {
+                    NotificationSchema::migrate($db);
+                } elseif ($version === 5) {
                     foreach (self::INCIDENT_SCHEMA as $statement) { $db->exec($statement); }
                 } else {
                     match ($version) {
