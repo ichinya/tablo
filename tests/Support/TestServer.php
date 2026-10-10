@@ -11,16 +11,24 @@ final class TestServer
     public readonly string $base;
     private mixed $process = null;
     private readonly string $log;
+    private readonly string $errorLog;
 
-    public function __construct(TemporaryDirectory $directory, string $router, ?string $documentRoot = null, array $environment = [])
+    public function __construct(TemporaryDirectory $directory, string $router, ?string $documentRoot = null,
+        array $environment = [], string $host = '127.0.0.1')
     {
-        $socket = stream_socket_server('tcp://127.0.0.1:0', $errno, $error);
+        $socketHost = str_contains($host, ':') ? '[' . $host . ']' : $host;
+        $socket = stream_socket_server('tcp://' . $socketHost . ':0', $errno, $error);
         if ($socket === false) { throw new RuntimeException('Cannot allocate test port: ' . $error); }
         $this->port = (int) substr(strrchr(stream_socket_get_name($socket, false), ':'), 1);
         fclose($socket);
-        $this->base = 'http://127.0.0.1:' . $this->port;
+        $this->base = 'http://' . $socketHost . ':' . $this->port;
         $this->log = $directory->path . '/server.log';
-        $command = [PHP_BINARY, '-d', 'display_errors=0', '-S', '127.0.0.1:' . $this->port];
+        // Keep PHP's independent error-log writer separate from proc_open streams.
+        $this->errorLog = $directory->path . '/php-errors.log';
+        // PHP parses -d as INI: runner short paths containing '~' require a quoted value.
+        $errorLogOption = 'error_log="' . str_replace('\\', '/', $this->errorLog) . '"';
+        $command = [PHP_BINARY, '-d', 'display_errors=0', '-d', 'log_errors=1', '-d', $errorLogOption,
+            '-S', $socketHost . ':' . $this->port];
         if ($documentRoot !== null) { array_push($command, '-t', $documentRoot); }
         $command[] = $router;
         try {
@@ -31,7 +39,7 @@ final class TestServer
             $deadline = microtime(true) + 5;
             do {
                 if (!proc_get_status($this->process)['running']) { break; }
-                $connection = @fsockopen('127.0.0.1', $this->port, $errno, $error, .1);
+                $connection = @fsockopen($socketHost, $this->port, $errno, $error, .1);
                 if ($connection !== false) { fclose($connection); return; }
                 usleep(50000);
             } while (microtime(true) < $deadline);
@@ -44,7 +52,8 @@ final class TestServer
 
     public function diagnostics(): string
     {
-        return is_file($this->log) ? file_get_contents($this->log) : '(no server log)';
+        return (is_file($this->log) ? file_get_contents($this->log) : '(no server log)')
+            . (is_file($this->errorLog) ? "\n" . file_get_contents($this->errorLog) : '');
     }
 
     public function close(): void

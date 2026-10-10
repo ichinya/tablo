@@ -9,7 +9,10 @@ final class WorkerStateRepository
 {
     public const FIELDS = ['latest_release', 'latest_commit', 'open_issues', 'open_prs'];
 
-    public function __construct(private readonly PDO $db) {}
+    public function __construct(private readonly PDO $db, #[\SensitiveParameter] private ?SiteRepository $sites = null)
+    {
+        $sites?->assertConnection($db); // Refuse before key selection or any transaction/write.
+    }
 
     // Only call after acquiring the real lifetime installation lock.
     public function begin(): string
@@ -61,6 +64,9 @@ final class WorkerStateRepository
     // SiteRepository owns the shared post-network result/history/credit transaction.
     public function settle(#[\SensitiveParameter] array $site, array $result): bool
     {
-        return (new SiteRepository($this->db))->settleWorkerCheck($site, $result);
+        // Preserve external-key pass lifetime and actual history/incident/credit transaction owner.
+        $this->sites ??= new SiteRepository($this->db);
+        $this->sites->assertWorkerKeyAvailable();
+        return $this->sites->settleWorkerCheck($site, $result);
     }
 }

@@ -30,19 +30,28 @@ try {
     foreach ($declaration['symbols'] as $symbol) {
         if (in_array($symbol['kind'], ['command', 'query'], true)) {
             $unitTests = match ($symbol['id']) {
-                'dashboard.setup', 'dashboard.login' => 'tests/Unit/AuthTest.php',
+                'dashboard.change_admin_password' => 'tests/Unit/AdminPasswordTest.php,tests/Network/AdminPasswordTest.php,tests/Network/PasswordHelperTest.php,tests/Http/AdminPasswordTest.php',
+                'dashboard.setup' => 'tests/Unit/AuthTest.php,tests/Unit/PasswordServiceTest.php,tests/Unit/PasswordPrivacyTest.php,tests/Unit/AdminPasswordTest.php,tests/Network/AdminPasswordTest.php,tests/Http/AdminPasswordTest.php',
+                'dashboard.login' => 'tests/Unit/AuthTest.php,tests/Unit/ClientAddressTest.php,tests/Http/LoginProxyTest.php,tests/Http/AdminPasswordTest.php',
                 'dashboard.list_branches' => 'tests/Unit/GitHubProviderTest.php,tests/Unit/GitHubBudgetTest.php,tests/Network/HttpClientTest.php,tests/Network/GitHubSweepTest.php,tests/Http/GitHubBudgetTest.php',
                 'dashboard.check_site' => 'tests/Unit/SiteCheckerTest.php,tests/Unit/HealthChecksTest.php,tests/Unit/HttpClientTest.php,tests/Unit/JsonChecksTest.php,tests/Network/HttpClientTest.php,tests/Unit/GitHubProviderTest.php,tests/Unit/GitHubBudgetTest.php,tests/Network/GitHubSweepTest.php,tests/Http/GitHubBudgetTest.php,tests/Network/HttpFramingTest.php,tests/Http/HttpFramingTest.php',
                 'dashboard.create_site', 'dashboard.update_site' => 'tests/Unit/SiteRepositoryTest.php,tests/Unit/JsonChecksTest.php',
-                'dashboard.logout' => '',
+                'dashboard.logout' => 'tests/Http/AdminPasswordTest.php',
                 'dashboard.get_settings', 'dashboard.update_settings' => 'tests/Unit/SettingsRepositoryTest.php,tests/Http/SettingsTest.php,tests/Network/WorkerSettingsTest.php',
                 'dashboard.run_worker_pass' => 'tests/Unit/PeriodicWorkerTest.php,tests/Network/PeriodicWorkerTest.php,tests/Network/WorkerFairnessTest.php,tests/Unit/GitHubBudgetTest.php,tests/Network/GitHubSweepTest.php,tests/Network/GitHubCorrectionsTest.php,tests/Unit/SiteCheckerTest.php,tests/Http/HealthChecksTest.php,tests/Network/HttpFramingTest.php,tests/Http/HttpFramingTest.php',
                 'dashboard.request_worker_stop' => 'tests/Network/PeriodicWorkerTest.php,tests/Unit/PeriodicWorkerTest.php',
                 'dashboard.store_check', 'dashboard.settle_worker_check' => 'tests/Unit/CheckHistoryTest.php,tests/Unit/WorkerSettlementTest.php,tests/Network/HistoryConcurrencyTest.php,tests/Network/HistoryDiagnosticsTest.php,tests/Network/PeriodicWorkerTest.php,tests/Http/HealthChecksTest.php',
                 'dashboard.read_history', 'dashboard.prune_history' => 'tests/Unit/HistoryReadRetentionTest.php,tests/Network/HistoryConcurrencyTest.php',
                 'dashboard.read_incidents' => 'tests/Unit/IncidentReadTest.php,tests/Unit/IncidentLifecycleTest.php,tests/Http/IncidentsTest.php,tests/Http/IncidentQualifiersTest.php',
+                'dashboard.get_notifications', 'dashboard.update_notifications' => 'tests/Unit/NotificationSettingsTest.php,tests/Http/NotificationSettingsTest.php',
+                'dashboard.project_notifications' => 'tests/Unit/NotificationSelectionTest.php,tests/Unit/NotificationAtomicityTest.php,tests/Unit/NotificationMigrationTest.php,tests/Network/NotificationPublicTest.php',
+                'dashboard.read_notification_status', 'dashboard.claim_notification', 'dashboard.ack_notification' => 'tests/Unit/NotificationOutboxTest.php,tests/Network/NotificationRaceTest.php',
+                'dashboard.deliver_notification' => 'tests/Unit/NotificationOutboxTest.php,tests/Network/WebhookSupervisorTest.php,tests/Network/WebhookTransportTest.php,tests/Network/NotificationPublicTest.php,tests/Network/NotificationRaceTest.php',
                 default => 'tests/Unit/SiteRepositoryTest.php',
             };
+            if (in_array($symbol['id'], ['dashboard.setup', 'dashboard.login', 'dashboard.change_admin_password'], true)) {
+                $unitTests .= ',tests/Unit/PasswordServiceTest.php,tests/Unit/PasswordPrivacyTest.php,tests/Unit/AdminPasswordTest.php,tests/Network/AdminPasswordTest.php,tests/Network/PasswordHelperTest.php,tests/Http/AdminPasswordTest.php';
+            }
             if (in_array($symbol['id'], ['dashboard.list_branches', 'dashboard.check_site', 'dashboard.create_site', 'dashboard.update_site'], true)) {
                 $unitTests .= ',tests/Unit/GitHubCredentialTest.php,tests/Network/GitHubCorrectionsTest.php,tests/Network/GitHubKeyCustodyTest.php,tests/Network/GitHubResponsePrivacyTest.php,tests/Network/GitHubTraceInspectorTest.php';
             }
@@ -56,6 +65,9 @@ try {
                 'dashboard.run_worker_pass', 'dashboard.prune_history', 'dashboard.delete_site'], true)) {
                 $unitTests .= ',tests/Unit/IncidentLifecycleTest.php,tests/Unit/IncidentAtomicityTest.php,tests/Network/IncidentConcurrencyTest.php,tests/Network/IncidentPublicTest.php,tests/Http/IncidentsTest.php,tests/Http/IncidentQualifiersTest.php';
             }
+            if (in_array($symbol['id'], ['dashboard.store_check', 'dashboard.settle_worker_check', 'dashboard.check_site', 'dashboard.run_worker_pass', 'dashboard.delete_site'], true)) {
+                $unitTests .= ',tests/Unit/NotificationSelectionTest.php,tests/Unit/NotificationAtomicityTest.php,tests/Unit/NotificationOutboxTest.php,tests/Network/NotificationPublicTest.php,tests/Network/NotificationRaceTest.php';
+            }
             $tests = ($unitTests === '' ? '' : $unitTests . ',') . 'tests/Http/DashboardTest.php';
             if (in_array($symbol['id'], ['dashboard.create_site', 'dashboard.update_site', 'dashboard.check_site'], true)) {
                 $tests .= ',tests/Http/JsonChecksTest.php,tests/Http/HealthChecksTest.php';
@@ -63,6 +75,8 @@ try {
             // Every HTTP action initializes the database before handling its own command/query.
             $tests .= ',tests/Unit/DatabaseTest.php,tests/Unit/GitHubMigrationTest.php,tests/Unit/WorkerMigrationTest.php,tests/Unit/HistoryMigrationTest.php,tests/Network/DatabaseMigrationTest.php,tests/Network/DatabaseWalTest.php,tests/Network/FixtureCleanupTest.php';
             $tests .= ',tests/Unit/IncidentMigrationTest.php';
+            $tests .= ',tests/Unit/NotificationMigrationTest.php';
+            $tests .= ',tests/Unit/ExternalKeyTest.php,tests/Unit/ExternalKeyAuthenticationTest.php,tests/Unit/ExternalKeyCustodyTest.php,tests/Unit/WorkerKeySettlementTest.php,tests/Unit/WorkerConnectionOwnershipTest.php,tests/Network/ExternalKeyTest.php,tests/Http/ExternalKeyTest.php';
             runGate([$lekalo, 'contract', 'attach', $symbol['id'], '--native-test', $tests, '--gate', 'native-php-tests']);
         }
     }

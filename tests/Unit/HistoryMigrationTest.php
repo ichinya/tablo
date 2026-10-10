@@ -14,8 +14,9 @@ final class HistoryMigrationTest
     {
         $db = new MigrationPdo(':memory:');
         Database::migrate($db);
-        // Removing precisely v5's additive object gives the genuine predecessor v4 layout.
-        $db->exec('DROP TABLE incident_checkpoints; DROP TABLE incidents; DROP TABLE check_history; PRAGMA user_version=4');
+        // Remove the additive v7, v6 and v5 objects to construct the genuine v4 layout.
+        $db->exec('DROP TABLE notification_slots; DROP TABLE notification_checkpoints; DROP TABLE notification_settings;
+            DROP TABLE incident_checkpoints; DROP TABLE incidents; DROP TABLE check_history; PRAGMA user_version=4');
         $db->exec("INSERT INTO users(id,password_hash) VALUES(1,'synthetic-preserved-hash');
             INSERT INTO git_tokens(name,provider,encrypted_token) VALUES('Saved','github','synthetic-cipher');
             INSERT INTO sites(name,url,repository,git_token_id,online,health_error_code,health_http_status,response_time_ms,

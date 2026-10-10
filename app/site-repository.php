@@ -10,10 +10,17 @@ final class SiteRepository
     private readonly TokenVault $tokens;
     private readonly GitTokenRepository $savedTokens;
 
-    public function __construct(private readonly PDO $db, ?TokenVault $tokens = null)
+    public function __construct(private readonly PDO $db, #[\SensitiveParameter] ?TokenVault $tokens = null,
+        private readonly ?\Closure $notificationClock = null)
     {
         $this->tokens = $tokens ?? TokenVault::forDatabase($db);
         $this->savedTokens = new GitTokenRepository($db, $this->tokens);
+    }
+
+    // Settlement must write on the exact connection that owns its transaction.
+    public function assertConnection(#[\SensitiveParameter] PDO $db): void
+    {
+        if ($this->db !== $db) { throw new \LogicException('Settlement repository connection mismatch.'); }
     }
 
     public static function defaults(): array
@@ -50,7 +57,7 @@ final class SiteRepository
         return $statement->fetch() ?: null;
     }
 
-    public static function normalize(array $input): array
+    public static function normalize(#[\SensitiveParameter] array $input): array
     {
         $data = self::defaults();
         $errors = [];
@@ -149,7 +156,7 @@ final class SiteRepository
         return $repository;
     }
 
-    public static function validateToken(mixed $token): string
+    public static function validateToken(#[\SensitiveParameter] mixed $token): string
     {
         if (!is_string($token) || ($token !== '' && !preg_match('/^[\x21-\x7e]{1,512}$/D', $token))) {
             throw new ValidationException(['github_token' => 'Токен должен содержать до 512 печатных символов без пробелов.']);
@@ -157,7 +164,7 @@ final class SiteRepository
         return $token;
     }
 
-    public function tokenFor(?array $site): string
+    public function tokenFor(#[\SensitiveParameter] ?array $site): string
     {
         if (!empty($site['git_token_id'])) {
             return $this->savedTokens->tokenFor((int) $site['git_token_id'], $site['provider'] ?? 'github');
@@ -165,7 +172,7 @@ final class SiteRepository
         return empty($site['github_token']) ? '' : $this->tokens->decrypt($site['github_token']);
     }
 
-    private function selectedToken(array $input, ?array $site): ?int
+    private function selectedToken(#[\SensitiveParameter] array $input, #[\SensitiveParameter] ?array $site): ?int
     {
         $id = $input['git_token_id'] ?? ($site['git_token_id'] ?? '');
         if (!array_key_exists('git_token_id', $input) && ($input['github_token'] ?? '') !== '') { $id = ''; }
@@ -180,7 +187,7 @@ final class SiteRepository
         return (int) $id;
     }
 
-    public function resolveToken(array $input, ?array $site): string
+    public function resolveToken(#[\SensitiveParameter] array $input, #[\SensitiveParameter] ?array $site): string
     {
         $token = self::validateToken($input['github_token'] ?? '');
         $selected = $this->selectedToken($input, $site);
@@ -197,7 +204,7 @@ final class SiteRepository
         return $token;
     }
 
-    public function credentialRevision(array $input, ?array $site): string
+    public function credentialRevision(#[\SensitiveParameter] array $input, #[\SensitiveParameter] ?array $site): string
     {
         $selected = $this->selectedToken($input, $site);
         if ($selected !== null) {
@@ -213,7 +220,7 @@ final class SiteRepository
         return $site['github_token'] ?? '';
     }
 
-    public function credentialScope(array $input, ?array $site): string
+    public function credentialScope(#[\SensitiveParameter] array $input, #[\SensitiveParameter] ?array $site): string
     {
         $selected = $this->selectedToken($input, $site);
         if ($selected !== null) { return 'saved:' . $selected; }
@@ -226,26 +233,37 @@ final class SiteRepository
         if ($token === '') { return null; }
         // Even expired key-derived quota rows retain the original key's custody. A manual
         // read-only preview must not orphan them or either kind of installed ciphertext.
-        return $this->tokens->credentialScope($token, !$this->hasEstablishedKeyState());
+        return $this->tokens->credentialScope($token, !self::hasEstablishedKeyState($this->db));
     }
 
     public function assertWorkerKeyAvailable(): void
     {
-        $this->tokens->assertAvailable($this->hasEstablishedKeyState());
+        $this->tokens->assertAvailable(self::hasEstablishedKeyState($this->db));
     }
 
-    private function hasEstablishedKeyState(): bool
+    public static function hasEstablishedKeyState(PDO $db): bool
     {
-        $statement = $this->db->query("SELECT
-            EXISTS(SELECT 1 FROM git_tokens WHERE encrypted_token <> '')
-            OR EXISTS(SELECT 1 FROM sites WHERE github_token <> '')
-            OR EXISTS(SELECT 1 FROM github_cooldowns WHERE scope LIKE 'credential:v1:%')");
-        try { return (bool) $statement->fetchColumn(); }
-        finally { $statement->closeCursor(); }
+        // Direct repository construction also supports genuine pre-migration fixtures.
+        // Inspect only known physical columns; a missing table is not a lost key.
+        foreach (['git_tokens' => ['encrypted_token', "encrypted_token <> ''"],
+            'sites' => ['github_token', "github_token <> ''"],
+            'github_cooldowns' => ['scope', "scope LIKE 'credential:v1:%'"],
+            'notification_settings' => ['endpoint_cipher', "endpoint_cipher IS NOT NULL OR bearer_cipher IS NOT NULL"],
+            'notification_slots' => ['private_cipher', 'private_cipher IS NOT NULL']] as $table => [$column, $predicate]) {
+            $statement = $db->query('PRAGMA main.table_info(' . $table . ')');
+            try { $columns = array_column($statement->fetchAll(), 'name'); }
+            finally { $statement->closeCursor(); }
+            if (!in_array($column, $columns, true)) { continue; }
+            $statement = $db->query('SELECT EXISTS(SELECT 1 FROM main.' . $table . ' WHERE ' . $predicate . ')');
+            try { if ((bool) $statement->fetchColumn()) { return true; } }
+            finally { $statement->closeCursor(); }
+        }
+        return false;
     }
 
-    public function save(array $input, ?int $id = null): int
+    public function save(#[\SensitiveParameter] array $input, ?int $id = null): int
     {
+        $this->assertWorkerKeyAvailable();
         $data = self::normalize($input);
         $existing = $id === null ? null : $this->find($id);
         if ($id !== null && $existing === null) {
@@ -306,7 +324,10 @@ final class SiteRepository
             try { $statement->execute(array_values($row)); }
             finally { $statement->closeCursor(); }
             // Capture the real AUTOINCREMENT identity before any other INSERT.
-            $this->projectIncident((int) $this->db->lastInsertId(), $row);
+            $historyId = (int) $this->db->lastInsertId();
+            $this->projectIncident($historyId, $row);
+            (new NotificationProjector($this->db, $this->tokens))->accepted($historyId,$row,$site,
+                $this->notificationClock === null ? time() : ($this->notificationClock)());
             if ($worker) {
                 $service = $state['worker_service'] ?? null;
                 if (!is_array($service) || array_diff(array_keys($service), WorkerStateRepository::FIELDS) !== []

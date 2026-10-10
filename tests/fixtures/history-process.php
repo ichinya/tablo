@@ -6,10 +6,12 @@ require dirname(__DIR__, 2) . '/vendor/autoload.php';
 use Tablo\Database;
 use Tablo\GitTokenRepository;
 use Tablo\SiteRepository;
+use Tablo\TokenVault;
 
 [$script, $path, $id, $action] = $argv;
-$db = Database::connect($path);
-$sites = new SiteRepository($db);
+$vault = new TokenVault(getenv('TABLO_GITHUB_TOKEN_KEY') ?: dirname($path) . '/github-token.key');
+$db = Database::connect($path, $vault);
+$sites = new SiteRepository($db, $vault);
 $site = $sites->find((int) $id);
 $input = array_intersect_key($site, SiteRepository::defaults());
 $input['git_token_id'] = $site['git_token_id'] ?? '';
@@ -24,7 +26,7 @@ if ($action === 'field') {
 } elseif ($action === 'remove') {
     $sites->save(array_replace($input, ['git_token_id' => '', 'remove_github_token' => 1]), (int) $id);
 } elseif ($action === 'shared' || $action === 'rename') {
-    (new GitTokenRepository($db))->save(['name' => 'Shared ' . $id, 'provider' => 'github',
+    (new GitTokenRepository($db, $vault))->save(['name' => 'Shared ' . $id, 'provider' => 'github',
         'token' => $action === 'shared' ? bin2hex(random_bytes(24)) : ''], $site['git_token_id']);
 } elseif ($action === 'delete') {
     $sites->delete((int) $id);

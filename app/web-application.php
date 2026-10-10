@@ -15,12 +15,20 @@ final class Web
     private readonly GitTokenRepository $tokens;
     private readonly SettingsRepository $installation;
     private readonly IncidentRepository $incidents;
+    private readonly NotificationSettings $notifications;
+    private readonly NotificationOutbox $notificationOutbox;
+    private readonly NotificationDelivery $notificationDelivery;
     private readonly Auth $auth;
+    private readonly ClientAddress $clientAddress;
     private readonly GitHubConnection $github;
     private readonly Simple $view;
 
     public function __construct(?HttpClient $githubHttp = null, ?string $runtimeDirectory = null)
     {
+        $this->clientAddress = new ClientAddress(getenv('TABLO_TRUSTED_PROXIES'));
+        $vault = TokenVault::configured();
+        $db = Database::connect(vault: $vault);
+        $vault ??= TokenVault::forDatabase($db);
         $root = dirname(__DIR__);
         $runtimeDirectory ??= $root . '/storage';
         foreach (['sessions', 'views'] as $dir) {
@@ -38,15 +46,17 @@ final class Web
         ]);
         session_start();
         $_SESSION['csrf'] ??= bin2hex(random_bytes(32));
-        if (isset($_SESSION['authenticated_at']) && time() - $_SESSION['authenticated_at'] > 43200) {
-            unset($_SESSION['authenticated_at']);
-            $_SESSION['csrf'] = bin2hex(random_bytes(32));
+        if (isset($_SESSION['authenticated_at']) && (!is_int($_SESSION['authenticated_at'])
+            || time() - $_SESSION['authenticated_at'] > 43200)) {
+            $this->invalidateAuthentication();
         }
-        $db = Database::connect();
-        $this->sites = new SiteRepository($db);
-        $this->tokens = new GitTokenRepository($db);
+        $this->sites = new SiteRepository($db, $vault);
+        $this->tokens = new GitTokenRepository($db, $vault);
         $this->installation = new SettingsRepository($db);
         $this->incidents = new IncidentRepository($db);
+        $this->notifications = new NotificationSettings($db,$vault);
+        $this->notificationOutbox = new NotificationOutbox($db);
+        $this->notificationDelivery = new NotificationDelivery($db,$vault);
         $this->auth = new Auth($db);
         $this->github = new GitHubConnection($this->sites, $githubHttp ?? new HttpClient());
         $di = new FactoryDefault();
@@ -69,9 +79,14 @@ final class Web
         header('Cache-Control: no-store');
         $path = parse_url($_SERVER['REQUEST_URI'] ?? '/', PHP_URL_PATH) ?: '/';
         $needsSetup = $this->auth->needsSetup();
-        if ($needsSetup && isset($_SESSION['authenticated_at'])) {
-            session_regenerate_id(true);
-            $_SESSION = ['csrf' => bin2hex(random_bytes(32))];
+        if (isset($_SESSION['authenticated_at']) || isset($_SESSION['auth_fingerprint'])) {
+            $marker = $_SESSION['auth_fingerprint'] ?? null;
+            $current = $this->auth->credentialFingerprint();
+            if ($needsSetup || !isset($_SESSION['authenticated_at']) || !is_string($marker)
+                || preg_match('/^[a-f0-9]{64}$/D', $marker) !== 1 || $current === null
+                || !hash_equals($current, $marker)) {
+                $this->invalidateAuthentication();
+            }
         }
         if (!$needsSetup && $path === '/setup') {
             $this->notFound()->send();
@@ -105,8 +120,8 @@ final class Web
                 return $web->notFound();
             }
             try {
-                $web->auth->setup($web->input('password'), $web->input('confirmation'));
-                $web->authenticate();
+                $fingerprint = $web->auth->setupSession($web->input('password'), $web->input('confirmation'));
+                $web->authenticate($fingerprint);
                 return $web->redirect('/');
             } catch (ValidationException $e) {
                 return $web->render('auth', ['setup' => true, 'title' => 'Добро пожаловать', 'errors' => $e->errors], 422);
@@ -116,10 +131,11 @@ final class Web
         $app->post('/login', function () use ($web) {
             try {
                 $password = $web->input('password');
-                if (strlen($password) > 72 || !$web->auth->login($password, $_SERVER['REMOTE_ADDR'] ?? 'unknown')) {
+                $fingerprint = strlen($password) > 72 ? null : $web->auth->loginSession($password, $web->clientAddress->resolve($_SERVER));
+                if ($fingerprint === null) {
                     throw new ValidationException(['password' => 'Неверный пароль.']);
                 }
-                $web->authenticate();
+                $web->authenticate($fingerprint);
                 return $web->redirect('/');
             } catch (ValidationException $e) {
                 return $web->render('auth', ['setup' => false, 'title' => 'С возвращением', 'errors' => $e->errors], 422);
@@ -135,6 +151,7 @@ final class Web
         $app->get('/incidents', fn () => $web->incidentList());
         $app->get('/settings', fn () => $web->settings());
         $app->post('/settings', fn () => $web->saveSettings());
+        $app->post('/settings/notifications', fn () => $web->saveNotifications());
         $app->get('/settings/tokens/new', fn () => $web->tokenForm(['name' => '', 'provider' => 'github']));
         $app->post('/settings/tokens/new', fn () => $web->saveToken());
         $app->get('/settings/tokens/{id:[0-9]+}/edit', function ($id) use ($web) {
@@ -191,6 +208,7 @@ final class Web
                     $checker = new SiteChecker(new HttpClient(getenv('TABLO_ALLOW_PRIVATE_NETWORK') === '1'), $web->github->provider($site));
                     $stored = $web->sites->storeCheck($site, $checker->check($site));
                     $notice = $stored ? 'Проверка завершена. Результаты обновлены.' : 'Настройки изменились во время проверки. Запустите её ещё раз.';
+                    if ($stored) { $web->notificationDelivery->runOne(); }
                 } catch (ValidationException $e) {
                     $notice = implode(' ', $e->errors);
                 }
@@ -203,11 +221,18 @@ final class Web
         $app->handle($path);
     }
 
-    private function authenticate(): void
+    private function authenticate(#[\SensitiveParameter] string $fingerprint): void
     {
         session_regenerate_id(true);
         $_SESSION['authenticated_at'] = time();
+        $_SESSION['auth_fingerprint'] = $fingerprint;
         $_SESSION['csrf'] = bin2hex(random_bytes(32));
+    }
+
+    private function invalidateAuthentication(): void
+    {
+        session_regenerate_id(true);
+        $_SESSION = ['csrf' => bin2hex(random_bytes(32))];
     }
 
     private function input(string $name): string
@@ -258,6 +283,7 @@ final class Web
         unset($_SESSION['notice']);
         return $this->render('settings', ['title' => 'Настройки', 'tokens' => $this->tokens->all(),
             'providers' => GitProviders::available(), 'notice' => $notice, 'errors' => $errors,
+            'notifications' => $this->notifications->get(), 'notification_status' => $this->notificationOutbox->status(),
             'check_interval_minutes' => $submitted ?? $this->installation->get()], $status);
     }
 
@@ -269,6 +295,21 @@ final class Web
             return $this->redirect('/settings');
         } catch (ValidationException $error) {
             return $this->settings($error->errors, $this->input('check_interval_minutes'), 422);
+        }
+    }
+
+    private function saveNotifications(): Response
+    {
+        session_write_close();
+        try {
+            $this->notifications->update($_POST);
+            session_start();
+            $_SESSION['notice']='Настройки уведомлений сохранены.';
+            return $this->redirect('/settings');
+        } catch (\Throwable $error) {
+            session_start();
+            $errors=$error instanceof ValidationException?$error->errors:['notifications'=>'Не удалось сохранить настройки уведомлений.'];
+            return $this->settings($errors,null,422);
         }
     }
 

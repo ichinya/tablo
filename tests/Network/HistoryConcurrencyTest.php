@@ -9,6 +9,7 @@ use Tablo\GitTokenRepository;
 use Tablo\SiteRepository;
 use Tablo\TokenVault;
 use Tablo\WorkerStateRepository;
+use Tablo\NotificationSettings;
 use Tablo\Tests\Support\MigrationProcess;
 use Tablo\Tests\Support\Subprocess;
 use Tablo\Tests\Support\TemporaryDirectory;
@@ -38,6 +39,7 @@ final class HistoryConcurrencyTest
             $sites = new SiteRepository($db, $vault);
             $tokens = new GitTokenRepository($db, $vault);
             $token = $tokens->save(['name' => 'Shared', 'provider' => 'github', 'token' => bin2hex(random_bytes(24))]);
+            (new NotificationSettings($db,$vault))->update(['revision'=>'0','enabled'=>'1','endpoint'=>'https://receiver.example/hook','unavailable'=>'1','recovery'=>'1']);
             $input = array_replace(UnitFixtures::site(), ['git_token_id' => $token, 'health_json_path' => '$.status', 'health_json_expected_value' => 'ok']);
             $fields = ['name' => 'Changed', 'url' => 'https://other.example', 'repository' => 'other/project', 'branch' => 'other',
                 'health_path' => '/other', 'version_path' => '/other', 'version_json_path' => '$.other', 'health_check_mode' => 'json',
@@ -51,11 +53,12 @@ final class HistoryConcurrencyTest
                 Assert::true($sites->storeCheck($snapshot, $state));
                 $checkpoint = $db->query('SELECT * FROM incident_checkpoints WHERE site_id=' . $id)->fetch();
                 $incident = $db->query('SELECT * FROM incidents WHERE site_id=' . $id)->fetch();
+                $notification = $db->query('SELECT * FROM notification_checkpoints WHERE site_id=' . $id)->fetch();
                 self::child($directory, $path, $id, array_key_exists($action, $fields) ? 'field' : $action,
                     array_key_exists($action, $fields) ? [$action, json_encode($fields[$action], JSON_THROW_ON_ERROR)] : []);
                 $accepted = $action === 'rename';
                 Assert::same($sites->storeCheck($snapshot, $accepted ? $state : ['checked_at' => 'invalid', 'release_error_code' => 'raw-marker']), $accepted, $action);
-                Assert::same((new WorkerStateRepository($db))->settle($snapshot, $accepted
+                Assert::same((new WorkerStateRepository($db,$sites))->settle($snapshot, $accepted
                     ? $state + ['worker_service' => ['latest_commit' => true]] : ['worker_service' => 'invalid']), $accepted, $action);
                 $statement = $db->prepare('SELECT COUNT(*) FROM check_history WHERE site_id=?');
                 $statement->execute([$id]);
@@ -64,7 +67,9 @@ final class HistoryConcurrencyTest
                 Assert::same($db->query('SELECT * FROM incidents WHERE site_id=' . $id)->fetch(), $action === 'delete' ? false : $incident, $action);
                 if (!$accepted) {
                     Assert::same($db->query('SELECT * FROM incident_checkpoints WHERE site_id=' . $id)->fetch(), $action === 'delete' ? false : $checkpoint, $action);
+                    Assert::same($db->query('SELECT * FROM notification_checkpoints WHERE site_id=' . $id)->fetch(), $action === 'delete' ? false : $notification, $action);
                 }
+                Assert::same($db->query('SELECT * FROM notification_slots WHERE site_id=' . $id)->fetchAll(),[], $action);
                 if (!$accepted) { Assert::same((int) $db->query('SELECT COUNT(*) FROM worker_progress WHERE site_id=' . $id)->fetchColumn(), 0); }
             }
         } finally { unset($statement, $snapshot, $tokens, $sites, $vault, $db); $directory->close(); }

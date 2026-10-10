@@ -118,6 +118,14 @@
             "method": "GET",
             "path": "/incidents",
             "invokes": "dashboard.read_incidents"
+        },
+        {
+            "id": "dashboard.notifications_endpoint",
+            "kind": "endpoint",
+            "version": 1,
+            "method": "POST",
+            "path": "/settings/notifications",
+            "invokes": "dashboard.update_notifications"
         }
     ]
 }
