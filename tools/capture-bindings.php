@@ -34,6 +34,11 @@ $mapping = [
     'installation_settings' => ['app/sqlite-database.php', 'CREATE TABLE installation_settings'],
     'worker_runtime' => ['app/sqlite-database.php', 'CREATE TABLE worker_runtime'],
     'worker_progress' => ['app/sqlite-database.php', 'CREATE TABLE worker_progress'],
+    'check_history' => ['app/sqlite-database.php', 'CREATE TABLE check_history'],
+    'store_check' => ['app/site-repository.php', 'public function storeCheck'],
+    'settle_worker_check' => ['app/worker-state-repository.php', 'public function settle'],
+    'read_history' => ['app/check-history-repository.php', 'public function page'],
+    'prune_history' => ['app/check-history-repository.php', 'public function prune('],
 ];
 function typeName(array $type): string
 {

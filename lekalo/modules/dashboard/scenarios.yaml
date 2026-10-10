@@ -171,6 +171,30 @@
                 "dashboard.update_site",
                 "dashboard.update_git_token"
             ]
+        },
+        {
+            "id": "dashboard.history_atomic_settlement",
+            "kind": "scenario",
+            "version": 1,
+            "summary": "Execute actual manual store, public HTTP and one-shot CLI, real worker HTTP barriers and second-process writers. Every config/credential/revision/ABA/disabled/delete stale path has zero append/credit, rename-only is positive. History INSERT/progress/turn/deferred COMMIT refusal, caller BEGIN, contention, implicit rollback/cleanup first-error and connection reuse preserve result/history/credit pairing. Actual 0/4 upgrades, concurrent migration, conflicts/future version/fast path and failed DDL/version/COMMIT preserve predecessor bytes and empty history. Real local malformed/framed/JSON/version/Git failures preserve unknown/partial health and exclude raw markers.",
+            "covers": [
+                "dashboard.store_check",
+                "dashboard.settle_worker_check",
+                "dashboard.check_site",
+                "dashboard.run_worker_pass",
+                "dashboard.check_history"
+            ]
+        },
+        {
+            "id": "dashboard.history_read_retention",
+            "kind": "scenario",
+            "version": 1,
+            "summary": "Actual read/prune repository and CLIs prove same-second tie/repeated/late time, two sites/cascade, half-open ranges, bounds/cursor mismatch and ceiling excluding concurrent old insertion. EXPLAIN proves exact site/time ordering and cascade index. Prune equality, one cutoff, malformed/empty policy before opening DB, 500x10 cap, same-invocation later-batch refusal/resume and writer/new/old/delete interleavings preserve current state; reads are query-only and no key is recreated. Logical deletion has no shrink/secure erase promise.",
+            "covers": [
+                "dashboard.read_history",
+                "dashboard.prune_history",
+                "dashboard.check_history"
+            ]
         }
     ]
 }

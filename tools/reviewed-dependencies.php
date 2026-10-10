@@ -14,6 +14,11 @@ function workerDependencies(): array
         'tools/verify.php' => ['owner' => 'php-script:tools/verify.php', 'consumers' => ['dashboard.run_worker_pass']],
         'tools/capture-bindings.php' => ['owner' => 'php-script:tools/capture-bindings.php', 'consumers' => ['dashboard.run_worker_pass']],
         'tools/reviewed-dependencies.php' => ['owner' => 'php-script:tools/reviewed-dependencies.php', 'consumers' => ['dashboard.run_worker_pass']],
+        'app/check-history-snapshot.php' => ['owner' => 'Tablo\\CheckHistorySnapshot', 'consumers' => ['dashboard.store_check', 'dashboard.settle_worker_check', 'dashboard.run_worker_pass', 'dashboard.check_site']],
+        'app/history-time.php' => ['owner' => 'Tablo\\HistoryTime', 'consumers' => ['dashboard.store_check', 'dashboard.settle_worker_check', 'dashboard.read_history', 'dashboard.prune_history']],
+        'app/history-retention.php' => ['owner' => 'Tablo\\HistoryRetention', 'consumers' => ['dashboard.prune_history']],
+        'bin/history.php' => ['owner' => 'php-script:bin/history.php', 'consumers' => ['dashboard.read_history']],
+        'bin/prune-history.php' => ['owner' => 'php-script:bin/prune-history.php', 'consumers' => ['dashboard.prune_history']],
     ];
 }
 

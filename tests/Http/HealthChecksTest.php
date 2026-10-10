@@ -59,6 +59,9 @@ final class HealthChecksTest
             $input['url'] = $this->server->base . '/homepage/' . $status;
             Assert::same($this->web->request('/sites/1/edit', $input)['status'], 303);
             Assert::same($this->web->request('/sites/1/check', ['_csrf' => $csrf])['status'], 303);
+            $historyBeforeCli = (int) $this->web->database()->query('SELECT COUNT(*) FROM check_history WHERE site_id=1')->fetchColumn();
+            Assert::same($this->web->database()->query('SELECT online,health_error_code,health_http_status,version_status FROM check_history ORDER BY id DESC LIMIT 1')->fetch(),
+                ['online' => $status === 200 ? 1 : 0, 'health_error_code' => $status === 200 ? null : 'http', 'health_http_status' => $status, 'version_status' => 'skipped']);
             $query = 'SELECT online,health_error_code,health_http_status,deployed_version,latest_commit,open_issues,last_error FROM sites WHERE id=1';
             $manual = $this->web->database()->query($query)->fetch();
             Assert::same($manual['online'], $status === 200 ? 1 : 0);
@@ -73,6 +76,8 @@ final class HealthChecksTest
                 ]);
             Assert::same($result['exit_code'], $status === 200 ? 0 : 1, $result['stderr']);
             Assert::same($result['stderr'], '');
+            Assert::same((int) $this->web->database()->query('SELECT COUNT(*) FROM check_history WHERE site_id=1')->fetchColumn(), $historyBeforeCli + 1,
+                'actual one-shot CLI appends with its accepted result');
             Assert::same($this->web->database()->query($query)->fetch(), $manual, 'manual and CLI use one policy');
         }
         $dashboard = $this->web->request('/');

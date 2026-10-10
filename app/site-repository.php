@@ -279,7 +279,51 @@ final class SiteRepository
         $this->db->prepare('DELETE FROM sites WHERE id = ?')->execute([$id]);
     }
 
-    public function storeCheck(array $site, array $state): bool
+    public function storeCheck(#[\SensitiveParameter] array $site, array $state): bool
+    {
+        return $this->persistCheck($site, $state, false);
+    }
+
+    // Worker settlement delegates here; neither entry point can bypass transaction ownership.
+    public function settleWorkerCheck(#[\SensitiveParameter] array $site, array $state): bool
+    {
+        return $this->persistCheck($site, $state, true);
+    }
+
+    private function persistCheck(#[\SensitiveParameter] array $site, array $state, bool $worker): bool
+    {
+        // A failed BEGIN owns nothing, including a caller's existing transaction.
+        $this->db->exec('BEGIN IMMEDIATE');
+        try {
+            if (!$this->updateCheck($site, $state)) {
+                $this->db->exec('ROLLBACK');
+                return false;
+            }
+            $row = CheckHistorySnapshot::project($site, $state);
+            $fields = array_keys($row);
+            $statement = $this->db->prepare('INSERT INTO check_history (' . implode(', ', $fields)
+                . ') VALUES (' . implode(', ', array_fill(0, count($fields), '?')) . ')');
+            try { $statement->execute(array_values($row)); }
+            finally { $statement->closeCursor(); }
+            if ($worker) {
+                $service = $state['worker_service'] ?? null;
+                if (!is_array($service) || array_diff(array_keys($service), WorkerStateRepository::FIELDS) !== []
+                    || array_filter($service, static fn (mixed $value): bool => !is_bool($value)) !== []) {
+                    throw new \InvalidArgumentException('Invalid worker service.');
+                }
+                $this->creditCheck($site['id'], $site['config_revision'], $service);
+            }
+            $this->db->exec('COMMIT');
+            return true;
+        } catch (\Throwable $error) {
+            // SQL engine ownership, not PHP82's cached inTransaction flag, governs cleanup.
+            try { $this->db->exec('ROLLBACK'); }
+            catch (\Throwable) { /* Preserve the first validation/SQL/COMMIT/cleanup error. */ }
+            throw $error;
+        }
+    }
+
+    private function updateCheck(#[\SensitiveParameter] array $site, array $state): bool
     {
         // A result for an old configuration must not overwrite a concurrent edit.
         $fields = ['online', 'health_error_code', 'health_http_status', 'deployed_version', 'deployed_commit', 'latest_release', 'latest_commit',
@@ -288,11 +332,43 @@ final class SiteRepository
             'health_check_mode', 'health_json_path', 'health_json_operator', 'health_json_expected_value',
             'comparison_mode', 'enabled', 'sort_order', 'config_revision'];
         $sql = 'UPDATE sites SET ' . implode(', ', array_map(fn ($f) => "$f = ?", $fields))
-            . ' WHERE id = ? AND ' . implode(' AND ', array_map(fn ($f) => "$f = ?", $config)) . ' AND github_token IS ?
+            . ' WHERE id = ? AND enabled = 1 AND ' . implode(' AND ', array_map(fn ($f) => "$f = ?", $config)) . ' AND github_token IS ?
                 AND git_token_id IS ? AND (SELECT encrypted_token FROM git_tokens WHERE id = sites.git_token_id) IS ?';
         $statement = $this->db->prepare($sql);
-        $statement->execute([...array_map(fn ($f) => $state[$f] ?? null, $fields), $site['id'], ...array_map(fn ($f) => $site[$f], $config),
-            $site['github_token'] ?? null, $site['git_token_id'] ?? null, $site['selected_token_snapshot'] ?? null]);
-        return $statement->rowCount() > 0;
+        try {
+            $statement->execute([...array_map(fn ($f) => $state[$f] ?? null, $fields), $site['id'], ...array_map(fn ($f) => $site[$f], $config),
+                $site['github_token'] ?? null, $site['git_token_id'] ?? null, $site['selected_token_snapshot'] ?? null]);
+            return $statement->rowCount() === 1;
+        }
+        finally { $statement->closeCursor(); }
+    }
+
+    // Reachable only after the current result and validated history INSERT in our transaction.
+    private function creditCheck(int $id, int $revision, array $service): void
+    {
+        $statement = $this->db->prepare('INSERT INTO worker_progress (site_id, config_revision)
+            SELECT id, config_revision FROM sites WHERE id = ? AND config_revision = ? AND enabled = 1
+            ON CONFLICT(site_id) DO UPDATE SET config_revision = excluded.config_revision,
+            latest_release = 0, latest_commit = 0, open_issues = 0, open_prs = 0
+            WHERE worker_progress.config_revision <> excluded.config_revision');
+        try { $statement->execute([$id, $revision]); }
+        finally { $statement->closeCursor(); }
+        foreach (WorkerStateRepository::FIELDS as $field) {
+            if (!($service[$field] ?? false)) { continue; }
+            $statement = $this->db->query('SELECT fairness_turn FROM worker_runtime WHERE id = 1');
+            try { $turn = (int) $statement->fetchColumn(); }
+            finally { $statement->closeCursor(); }
+            if ($turn >= 1000000000) {
+                $this->db->exec('UPDATE worker_progress SET latest_release = latest_release / 2,
+                    latest_commit = latest_commit / 2, open_issues = open_issues / 2, open_prs = open_prs / 2');
+                $this->db->exec('UPDATE worker_runtime SET fairness_turn = fairness_turn / 2 WHERE id = 1');
+            }
+            $this->db->exec('UPDATE worker_runtime SET fairness_turn = fairness_turn + 1 WHERE id = 1');
+            $statement = $this->db->prepare('UPDATE worker_progress SET ' . $field . ' = (SELECT fairness_turn FROM worker_runtime WHERE id = 1)
+                WHERE site_id = ? AND config_revision = ? AND EXISTS(SELECT 1 FROM sites
+                WHERE id = ? AND config_revision = ? AND enabled = 1)');
+            try { $statement->execute([$id, $revision, $id, $revision]); }
+            finally { $statement->closeCursor(); }
+        }
     }
 }

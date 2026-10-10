@@ -5,7 +5,7 @@
         "version": "0.1.0"
     },
     "project": "tablo",
-    "revision": "sha256:cacd94bec32d55b884e8f7b67363da9bde4c44170c6950fd47d80301ac19d0e1",
+    "revision": "sha256:4b4469003b3b7f710c63ff335d167b04be983fe9e5b76cbf3cf559a95a4ba4a0",
     "symbols": [
         {
             "id": "dashboard.setup",
@@ -154,7 +154,7 @@
                 "path": "app/site-repository.php",
                 "line": 277
             },
-            "fingerprint": "sha256:ee906d65f0f371702e57202b70871086bc596093a86f3194695fa540a99830b8",
+            "fingerprint": "sha256:aaa48998ab044bc3a57ebfaf164a3d847898c26c5cfec2c41e74a76bfebaa97f",
             "signature": {
                 "inputs": [
                     {
@@ -170,6 +170,10 @@
                 {
                     "kind": "delete",
                     "subject": "dashboard.site"
+                },
+                {
+                    "kind": "delete",
+                    "subject": "dashboard.check_history"
                 }
             ]
         },
@@ -180,7 +184,7 @@
                 "path": "app/site-checker.php",
                 "line": 10
             },
-            "fingerprint": "sha256:5a58d8a5f724a8172bd1dd670e870df679c363687ca00f74afd932d64fb24806",
+            "fingerprint": "sha256:b1051cc75867b3c3ad977dca781fb40f68f88fd35d562d5dbef2de1df6ea8625",
             "signature": {
                 "inputs": [
                     {
@@ -214,7 +218,7 @@
                 "path": "app/site-repository.php",
                 "line": 27
             },
-            "fingerprint": "sha256:ee906d65f0f371702e57202b70871086bc596093a86f3194695fa540a99830b8",
+            "fingerprint": "sha256:aaa48998ab044bc3a57ebfaf164a3d847898c26c5cfec2c41e74a76bfebaa97f",
             "signature": {
                 "inputs": [],
                 "output": "list(dashboard.site)",
@@ -309,9 +313,9 @@
             "kind": "entity",
             "source": {
                 "path": "app/sqlite-database.php",
-                "line": 144
+                "line": 145
             },
-            "fingerprint": "sha256:da198a6d61a72e5e2aa2dab118b13cebb08fc1ae9b3389027a9e9eb4518e5193",
+            "fingerprint": "sha256:ead54577e35257b0a3a5aeee1dc843b7144a695fc624fe9ecea1c819984c7736",
             "signature": null,
             "effects": [],
             "shape": {
@@ -534,9 +538,9 @@
             "kind": "entity",
             "source": {
                 "path": "app/sqlite-database.php",
-                "line": 133
+                "line": 134
             },
-            "fingerprint": "sha256:da198a6d61a72e5e2aa2dab118b13cebb08fc1ae9b3389027a9e9eb4518e5193",
+            "fingerprint": "sha256:ead54577e35257b0a3a5aeee1dc843b7144a695fc624fe9ecea1c819984c7736",
             "signature": null,
             "effects": [],
             "shape": {
@@ -754,6 +758,10 @@
                 {
                     "kind": "update",
                     "subject": "dashboard.worker_progress"
+                },
+                {
+                    "kind": "create",
+                    "subject": "dashboard.check_history"
                 }
             ]
         },
@@ -764,7 +772,7 @@
                 "path": "app/worker-state-repository.php",
                 "line": 31
             },
-            "fingerprint": "sha256:2dd574e86d8589a2bf105acbe1d5a16cee25292fbd4a917e8c541c19d4e071ae",
+            "fingerprint": "sha256:4dd4d772c7c9f8ef0e504bfb2788242b8158857c82f448cd89ac39f85e8d8ea9",
             "signature": {
                 "inputs": [
                     {
@@ -788,9 +796,9 @@
             "kind": "entity",
             "source": {
                 "path": "app/sqlite-database.php",
-                "line": 147
+                "line": 148
             },
-            "fingerprint": "sha256:da198a6d61a72e5e2aa2dab118b13cebb08fc1ae9b3389027a9e9eb4518e5193",
+            "fingerprint": "sha256:ead54577e35257b0a3a5aeee1dc843b7144a695fc624fe9ecea1c819984c7736",
             "signature": null,
             "effects": [],
             "shape": {
@@ -813,9 +821,9 @@
             "kind": "entity",
             "source": {
                 "path": "app/sqlite-database.php",
-                "line": 152
+                "line": 153
             },
-            "fingerprint": "sha256:da198a6d61a72e5e2aa2dab118b13cebb08fc1ae9b3389027a9e9eb4518e5193",
+            "fingerprint": "sha256:ead54577e35257b0a3a5aeee1dc843b7144a695fc624fe9ecea1c819984c7736",
             "signature": null,
             "effects": [],
             "shape": {
@@ -848,9 +856,9 @@
             "kind": "entity",
             "source": {
                 "path": "app/sqlite-database.php",
-                "line": 158
+                "line": 159
             },
-            "fingerprint": "sha256:da198a6d61a72e5e2aa2dab118b13cebb08fc1ae9b3389027a9e9eb4518e5193",
+            "fingerprint": "sha256:ead54577e35257b0a3a5aeee1dc843b7144a695fc624fe9ecea1c819984c7736",
             "signature": null,
             "effects": [],
             "shape": {
@@ -887,6 +895,252 @@
                     }
                 ]
             }
+        },
+        {
+            "id": "dashboard.check_history",
+            "kind": "entity",
+            "source": {
+                "path": "app/sqlite-database.php",
+                "line": 171
+            },
+            "fingerprint": "sha256:ead54577e35257b0a3a5aeee1dc843b7144a695fc624fe9ecea1c819984c7736",
+            "signature": null,
+            "effects": [],
+            "shape": {
+                "fields": [
+                    {
+                        "name": "id",
+                        "type": "dashboard.number",
+                        "required": true
+                    },
+                    {
+                        "name": "site_id",
+                        "type": "dashboard.number",
+                        "required": true
+                    },
+                    {
+                        "name": "config_revision",
+                        "type": "dashboard.number",
+                        "required": true
+                    },
+                    {
+                        "name": "checked_at",
+                        "type": "dashboard.timestamp",
+                        "required": true
+                    },
+                    {
+                        "name": "online",
+                        "type": "optional(dashboard.number)",
+                        "required": false
+                    },
+                    {
+                        "name": "health_error_code",
+                        "type": "optional(dashboard.health_error_code)",
+                        "required": false
+                    },
+                    {
+                        "name": "health_http_status",
+                        "type": "optional(dashboard.number)",
+                        "required": false
+                    },
+                    {
+                        "name": "response_time_ms",
+                        "type": "optional(dashboard.number)",
+                        "required": false
+                    },
+                    {
+                        "name": "deployed_version",
+                        "type": "optional(dashboard.text)",
+                        "required": false
+                    },
+                    {
+                        "name": "deployed_commit",
+                        "type": "optional(dashboard.text)",
+                        "required": false
+                    },
+                    {
+                        "name": "latest_release",
+                        "type": "optional(dashboard.text)",
+                        "required": false
+                    },
+                    {
+                        "name": "latest_commit",
+                        "type": "optional(dashboard.text)",
+                        "required": false
+                    },
+                    {
+                        "name": "version_status",
+                        "type": "dashboard.history_version_status",
+                        "required": true
+                    },
+                    {
+                        "name": "version_error_code",
+                        "type": "optional(dashboard.text)",
+                        "required": false
+                    },
+                    {
+                        "name": "version_http_status",
+                        "type": "optional(dashboard.number)",
+                        "required": false
+                    },
+                    {
+                        "name": "release_error_code",
+                        "type": "optional(dashboard.text)",
+                        "required": false
+                    },
+                    {
+                        "name": "release_http_status",
+                        "type": "optional(dashboard.number)",
+                        "required": false
+                    },
+                    {
+                        "name": "commit_error_code",
+                        "type": "optional(dashboard.text)",
+                        "required": false
+                    },
+                    {
+                        "name": "commit_http_status",
+                        "type": "optional(dashboard.number)",
+                        "required": false
+                    }
+                ]
+            }
+        },
+        {
+            "id": "dashboard.store_check",
+            "kind": "command",
+            "source": {
+                "path": "app/site-repository.php",
+                "line": 282
+            },
+            "fingerprint": "sha256:aaa48998ab044bc3a57ebfaf164a3d847898c26c5cfec2c41e74a76bfebaa97f",
+            "signature": {
+                "inputs": [
+                    {
+                        "name": "site",
+                        "type": "dashboard.site",
+                        "required": true
+                    },
+                    {
+                        "name": "state",
+                        "type": "dashboard.check_result",
+                        "required": true
+                    }
+                ],
+                "output": null,
+                "reads": []
+            },
+            "effects": [
+                {
+                    "kind": "update",
+                    "subject": "dashboard.site"
+                },
+                {
+                    "kind": "create",
+                    "subject": "dashboard.check_history"
+                }
+            ]
+        },
+        {
+            "id": "dashboard.settle_worker_check",
+            "kind": "command",
+            "source": {
+                "path": "app/worker-state-repository.php",
+                "line": 62
+            },
+            "fingerprint": "sha256:4dd4d772c7c9f8ef0e504bfb2788242b8158857c82f448cd89ac39f85e8d8ea9",
+            "signature": {
+                "inputs": [
+                    {
+                        "name": "site",
+                        "type": "dashboard.site",
+                        "required": true
+                    },
+                    {
+                        "name": "state",
+                        "type": "dashboard.check_result",
+                        "required": true
+                    }
+                ],
+                "output": null,
+                "reads": []
+            },
+            "effects": [
+                {
+                    "kind": "update",
+                    "subject": "dashboard.site"
+                },
+                {
+                    "kind": "create",
+                    "subject": "dashboard.check_history"
+                },
+                {
+                    "kind": "create",
+                    "subject": "dashboard.worker_progress"
+                },
+                {
+                    "kind": "update",
+                    "subject": "dashboard.worker_progress"
+                },
+                {
+                    "kind": "update",
+                    "subject": "dashboard.worker_runtime"
+                }
+            ]
+        },
+        {
+            "id": "dashboard.read_history",
+            "kind": "query",
+            "source": {
+                "path": "app/check-history-repository.php",
+                "line": 15
+            },
+            "fingerprint": "sha256:9c4d29a059e98f91190b8841b605c7053675f81177f0ab82b045fde41f055630",
+            "signature": {
+                "inputs": [],
+                "output": "dashboard.history_page",
+                "reads": [
+                    "dashboard.site",
+                    "dashboard.check_history"
+                ]
+            },
+            "effects": []
+        },
+        {
+            "id": "dashboard.prune_history",
+            "kind": "command",
+            "source": {
+                "path": "app/check-history-repository.php",
+                "line": 85
+            },
+            "fingerprint": "sha256:9c4d29a059e98f91190b8841b605c7053675f81177f0ab82b045fde41f055630",
+            "signature": {
+                "inputs": [
+                    {
+                        "name": "days",
+                        "type": "dashboard.number",
+                        "required": true
+                    },
+                    {
+                        "name": "site_id",
+                        "type": "optional(dashboard.number)",
+                        "required": false
+                    },
+                    {
+                        "name": "now",
+                        "type": "optional(dashboard.timestamp)",
+                        "required": false
+                    }
+                ],
+                "output": null,
+                "reads": []
+            },
+            "effects": [
+                {
+                    "kind": "delete",
+                    "subject": "dashboard.check_history"
+                }
+            ]
         }
     ]
 }
