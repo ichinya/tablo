@@ -25,7 +25,15 @@ final class WebhookTransportTest
         $marker=bin2hex(random_bytes(20)); $error=null;
         try{$client->postBefore('https://receiver.example/'.$marker,'{}','fixture:1',$marker,hrtime(true)+1000000000);}catch(WebhookFailure $caught){$error=$caught;}
         Assert::same($error->reason,'ssrf'); Assert::same($error->getPrevious(),null);
-        $client=new class extends HttpClient{protected function resolve(string $host):array{usleep(80000);return ['8.8.8.8'];}};
+        $client=new class extends HttpClient{
+            protected function resolve(string $host):array
+            {
+                // A single Windows sleep may return before the requested duration.
+                $until=hrtime(true)+80000000;
+                do {usleep(1000);} while(hrtime(true)<$until);
+                return ['8.8.8.8'];
+            }
+        };
         $started=hrtime(true);
         try{$client->postBefore('https://receiver.example/'.$marker,'{}','fixture:1',$marker,hrtime(true)+10000000);}catch(WebhookFailure $caught){$error=$caught;}
         Assert::same($error->reason,'timeout'); Assert::true(hrtime(true)-$started>=80000000,'synchronous DNS exceeds curl deadline; parent supervision is required');
