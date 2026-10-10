@@ -30,7 +30,7 @@ final class SiteRepositoryTest
         $sites = new SiteRepository($db);
         $id = $sites->save($sample);
         $site = $sites->find($id);
-        Assert::true($site['repository'] === 'ichinya/tempalog' && $site['url'] === 'https://tempalog.example', 'normalization');
+        Assert::true($site['repository'] === 'ichinya/tempalog' && $site['url'] === 'https://tempalog.example/', 'normalization preserves the site URL');
         $state = ['online' => 1, 'deployed_version' => '1.3.1', 'checked_at' => gmdate('c')];
         Assert::true($sites->storeCheck($site, $state), 'check not saved');
         $changed = $sample;

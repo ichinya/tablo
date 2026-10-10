@@ -15,11 +15,11 @@ final class SiteChecker
             'response_time_ms' => null, 'last_error' => null, 'checked_at' => gmdate('Y-m-d\TH:i:s\Z')];
         $errors = [];
         try {
-            $response = $this->http->get($site['url'] . $site['health_path']);
+            $homePage = $site['health_path'] === '';
+            $response = $this->http->get($homePage ? $site['url'] : rtrim($site['url'], '/') . $site['health_path']);
             if (!is_int($response['status'] ?? null) || $response['status'] < 100 || $response['status'] > 599
                 || !is_string($response['body'] ?? null)) { throw new HttpFailure('invalid-response'); }
             $state['health_http_status'] = $response['status'];
-            $homePage = $site['health_path'] === '';
             $state['online'] = (int) ($homePage ? $response['status'] === 200
                 : ($response['status'] >= 200 && $response['status'] < 300));
             $state['response_time_ms'] = $response['time_ms'];
@@ -46,7 +46,7 @@ final class SiteChecker
         }
         if (($site['version_path'] ?? '') !== '') {
             try {
-                $response = $this->http->get($site['url'] . $site['version_path']);
+                $response = $this->http->get(rtrim($site['url'], '/') . $site['version_path']);
                 if ($response['status'] < 200 || $response['status'] >= 300) {
                     $errors[] = 'Version: HTTP ' . $response['status'];
                 } else {
