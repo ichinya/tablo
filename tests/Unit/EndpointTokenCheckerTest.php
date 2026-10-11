@@ -61,16 +61,22 @@ final class EndpointTokenCheckerTest
     #[Test]
     public function reflectionFailureHasProtectedRealArgumentsAndNoPreviousException(): void
     {
-        $token = EndpointFixture::tokenA();
-        $error = null;
-        try { VersionResponse::decode(json_encode(['version' => $token], JSON_THROW_ON_ERROR), '', $token); }
-        catch (HttpFailure $caught) { $error = $caught; }
-        Assert::instanceOf($error, HttpFailure::class);
-        Assert::same($error->reason, 'invalid-response');
-        Assert::same($error->getPrevious(), null);
-        $inspection = TraceInspector::inspect($error, [$token]);
-        Assert::false($inspection['leaked']);
-        Assert::true($inspection['redacted'] >= 3);
+        $previous = (string) ini_get('zend.exception_ignore_args');
+        ini_set('zend.exception_ignore_args', value: '0');
+        try {
+            Assert::same(ini_get('zend.exception_ignore_args'), '0');
+            $token = EndpointFixture::tokenA();
+            $error = null;
+            try { VersionResponse::decode(json_encode(['version' => $token], JSON_THROW_ON_ERROR), '', $token); }
+            catch (HttpFailure $caught) { $error = $caught; }
+            Assert::instanceOf($error, HttpFailure::class);
+            Assert::same($error->reason, 'invalid-response');
+            Assert::same($error->getPrevious(), null);
+            $inspection = TraceInspector::inspect($error, [$token]);
+            Assert::false($inspection['leaked']);
+            Assert::true($inspection['redacted'] >= 3);
+        } finally { ini_set('zend.exception_ignore_args', $previous); }
+        Assert::same(ini_get('zend.exception_ignore_args'), $previous);
     }
 
     #[Test]
