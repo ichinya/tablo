@@ -51,6 +51,9 @@ try {
             if ($symbol['id'] === 'dashboard.run_worker_pass') {
                 $unitTests .= ',tests/Unit/WorkerAdmissionTest.php,tests/Unit/WorkerSettlementTest.php,tests/Network/WorkerSharedFailureTest.php,tests/Http/WorkerDashboardTest.php,tests/Network/WorkerSettingsTest.php';
             }
+            if (in_array($symbol['id'], ['dashboard.check_site', 'dashboard.run_worker_pass', 'dashboard.create_site', 'dashboard.update_site', 'dashboard.list_branches'], true)) {
+                $unitTests .= ',tests/Unit/EndpointRedirectPolicyTest.php,tests/Network/EndpointRedirectTest.php,tests/Network/EndpointRedirectPrivacyTest.php,tests/Http/EndpointRedirectTest.php';
+            }
             $tests = ($unitTests === '' ? '' : $unitTests . ',') . 'tests/Http/DashboardTest.php';
             if (in_array($symbol['id'], ['dashboard.create_site', 'dashboard.update_site', 'dashboard.check_site', 'dashboard.run_worker_pass', 'dashboard.list_branches'], true)) {
                 $tests .= ',tests/Unit/EndpointTokenRepositoryTest.php,tests/Unit/EndpointTokenCheckerTest.php,tests/Unit/EndpointTokenMigrationTest.php,tests/Unit/EndpointTokenIsolationTest.php,tests/Network/EndpointTokenTransportTest.php,tests/Network/EndpointTokenStatusTest.php,tests/Network/EndpointTokenNetworkSafetyTest.php,tests/Network/EndpointTokenPrivacyTest.php,tests/Http/EndpointTokenCrudTest.php,tests/Http/EndpointTokenRunnerTest.php,tests/Http/EndpointTokenInFlightTest.php,tests/Http/EndpointTokenReflectionTest.php';

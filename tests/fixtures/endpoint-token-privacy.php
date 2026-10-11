@@ -52,16 +52,18 @@ namespace {
         throw new \RuntimeException('Expected bounded failure.');
     }
     $mode = $argv[1] ?? 'safe';
+    $method = str_starts_with($mode, 'redirect-') ? 'getEndpoint' : 'get';
+    if ($method === 'getEndpoint') { $mode = substr($mode, 9); }
     $marker = \Tablo\Tests\Support\EndpointFixture::tokenA();
     if ($mode === 'fatal' || $mode === 'fatal-control') {
         if ($mode === 'fatal-control') { unprotectedEndpointControl($marker); }
-        (new \Tablo\HttpClient(true))->get('https://' . $marker . '@example.com/', ['Authorization: Bearer ' . $marker]);
+        (new \Tablo\HttpClient(true))->{$method}('https://' . $marker . '@example.com/', ['Authorization: Bearer ' . $marker]);
         exit(1);
     }
     $records = [];
     if ($mode === 'native') {
         \Tablo\EndpointNativeControl::$fault = 'setopt';
-        $scan = protectedEndpointProbe(static fn () => (new \Tablo\HttpClient(true))->get('http://127.0.0.1/setopt-fault', ['Authorization: Bearer ' . $marker]), [$marker]);
+        $scan = protectedEndpointProbe(static fn () => (new \Tablo\HttpClient(true))->{$method}('http://127.0.0.1/setopt-fault', ['Authorization: Bearer ' . $marker]), [$marker]);
         gc_collect_cycles();
         $records[] = [...$scan, 'original_typeerror' => \Tablo\EndpointNativeControl::$originalTypeerror,
             'original_leaked' => \Tablo\EndpointNativeControl::$originalLeaked, 'handle_released' => \Tablo\EndpointNativeControl::$handle->get() === null,
@@ -77,7 +79,7 @@ namespace {
         try {
             $server = new \Tablo\Tests\Support\TestServer($directory, __DIR__ . '/endpoint-token-router.php', environment: ['TABLO_ENDPOINT_FIXTURE' => $directory->path]);
             \Tablo\EndpointNativeControl::$fault = 'callback';
-            $scan = protectedEndpointProbe(static fn () => (new \Tablo\HttpClient(true))->get($server->base . '/version?bad=1', ['Authorization: Bearer ' . $marker]), [$marker]);
+            $scan = protectedEndpointProbe(static fn () => (new \Tablo\HttpClient(true))->{$method}($server->base . '/version?bad=1', ['Authorization: Bearer ' . $marker]), [$marker]);
             gc_collect_cycles();
             $records[] = [...$scan, 'callback_boundary' => true, 'handle_released' => \Tablo\EndpointNativeControl::$handle->get() === null,
                 'callback_released' => \Tablo\EndpointNativeControl::$callback->get() === null];
@@ -93,7 +95,7 @@ namespace {
     } else {
         // Closures are deliberately opaque to the inspector. The returned trace
         // remains untrimmed and its caller arguments are protected independently.
-        $records[] = protectedEndpointProbe(static fn () => (new \Tablo\HttpClient())->get('https://' . $marker . '@example.com/', ['Authorization: Bearer ' . $marker]), [$marker]);
+        $records[] = protectedEndpointProbe(static fn () => (new \Tablo\HttpClient())->{$method}('https://' . $marker . '@example.com/', ['Authorization: Bearer ' . $marker]), [$marker]);
         $records[] = protectedEndpointProbe(static fn () => (new \Tablo\HttpClient())->getBefore('file:///' . $marker, ['Authorization: Bearer ' . $marker], hrtime(true)+1_000_000_000), [$marker]);
         $records[] = protectedEndpointProbe(static fn () => \Tablo\SiteRepository::validateEndpointToken(['raw' => $marker]), [$marker]);
         $records[] = protectedEndpointProbe(static fn () => \Tablo\SiteRepository::normalize(['url' => 'https://' . $marker . '@example.com/', 'endpoint_token' => $marker]), [$marker]);

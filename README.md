@@ -203,9 +203,10 @@ TLS и ограничения ответа не доказывают выклю�
 | Ошибка DNS | Unknown | `dns` | Не удалось разрешить DNS-имя |
 | Проверка запрещена SSRF-защитой | Unknown | `ssrf` | Проверка адреса запрещена |
 | Ошибка TLS | Unknown | `tls` | Не удалось установить TLS-соединение |
-| Ответ больше 1 МБ | Unknown | `size` | Ответ превышает 1 МБ |
+| Превышен предел response-read bytes | Unknown | `size` | Превышен предел размера ответа проверки |
 | Некорректный/обрезанный HTTP или некорректный JSON/поле | Unknown | `invalid-response` | Некорректный или неполный ответ |
 | Недопустимый URL | Unknown | `invalid-url` | Недопустимый адрес проверки |
+| Не завершена безопасная цепочка endpoint | Unknown | `redirect-location-missing`, `redirect-location-invalid`, `redirect-origin`, `redirect-cycle`, `redirect-limit` | Фиксированная причина отказа перенаправления |
 | Прочий сбой передачи/получения данных | Unknown | `network` | Не удалось передать запрос или получить ответ |
 | Нераспознанный сбой проверки | Unknown | `check-error` | Не удалось выполнить проверку |
 
@@ -314,9 +315,50 @@ Docker Compose читает `.env` для подстановки значени�
 | `TABLO_COOKIE_SECURE` | `1` при работе через HTTPS reverse proxy. Прямой HTTPS определяется автоматически. |
 | `TABLO_TRUSTED_PROXIES` | Пусто по умолчанию. Список точных IP доверенных прокси через запятую для режима приложения; правила ниже. |
 
-По умолчанию health/version запросы запрещают private/reserved IP, фиксируют
-разрешённый DNS-адрес на время запроса, не используют proxy из окружения и не
-выполняют редиректы. Ответ ограничен 1 МБ; connect timeout 3 с, HTTP timeout 6 с.
+Явный непустой Health endpoint и включённый Version endpoint допускают до трёх
+ручных переходов (четыре GET-запроса) для 301/302/303/307/308. GET остаётся GET.
+Другие 3xx являются итоговым HTTP-ответом. Пустой Health проверяет точный сохранённый
+homepage URL без переходов и требует 200; пустой Version не отправляет запрос.
+GitHub-запросы по-прежнему не следуют редиректам.
+
+Каждый переход допускается только внутри исходного origin: одинаковые канонические
+HTTP(S)-схема, hostname/IP и effective port. Регистр имён и явный default port
+не меняют origin; CNAME, другое имя, IP вместо имени, другой порт и смена схемы
+его меняют. Переход на другой origin, включая HTTPS downgrade, отклоняется до
+запроса; весь набор Bearer-заголовков отсоединяется. Cookies и Referer не создаются.
+Относительный Location разрешается по RFC 3986; userinfo, fragments, controls,
+неоднозначные числовые адреса, зоны IPv6, некорректный/пустой/повторный Location
+отклоняются. При наложении причин проверяются синтаксис, origin, цикл, затем лимит.
+Только Location окончательного блока заголовков управляет переходом; interim и
+trailers не являются его источником. Некоторые libcurl (включая native 8.17.0)
+отказывают раньше callback при разных Location в interim 103 и final 302.
+Такой неполный ответ безопасно даёт Unknown/`redirect-location-invalid` без
+запроса цели; успешная обработка этой комбинации на этих версиях не обещается.
+Query bytes допустимого same-origin Location сохраняются и могут поступить этому
+origin; они не считаются свободными от секретов и не включаются в диагностику.
+
+По умолчанию каждый явный endpoint, включая первый запрос, проверяет все A/AAAA
+ответы заново и закрепляет один проверенный адрес на новом cURL handle. Статическая
+консервативная политика исключает специальные блоки из официальных
+[IANA IPv4](https://www.iana.org/assignments/iana-ipv4-special-registry/) и
+[IANA IPv6](https://www.iana.org/assignments/iana-ipv6-special-registry/) реестров
+(проверены 2026-10-11), включая multicast, shared/benchmark/documentation, mapped
+и translation ranges. IPv6 допускается только из global-unicast 2000::/3 с
+исключениями специальных блоков; globally reachable исключения внутри таких
+блоков тоже консервативно запрещены. `TABLO_ALLOW_PRIVATE_NETWORK=1` сохраняет
+явное разрешение private сетей, но не отменяет проверку URI/origin/лимитов.
+Proxy из окружения отключён, автоматические cURL redirects отключены.
+
+Вся endpoint-цепочка имеет один monotonic budget 6 с, ограниченный внешним deadline:
+connect timeout не более 3 с и не более остатка. Синхронный DNS может превысить
+budget; проверки до/после DNS предотвращают следующий HTTP-запрос, но не задают
+жёсткий DNS timeout. Общий предел — 1 MiB полученных header bytes плюс decoded body
+bytes и дополнительно 64 KiB header bytes, включая промежуточные блоки и trailers.
+Это не raw wire/TLS ceiling: chunk framing и TLS overhead не учитываются.
+Generic homepage/Git transport сохраняет прежний decoded-body предел 1 MiB.
+При отказе цепочки Health получает Unknown с фиксированной причиной и без статуса
+промежуточного 3xx; завершённые final 401/403/404/500 дают Offline/http. Неудача
+Version не отменяет корректные Health/Git результаты и наоборот.
 Токен GitHub передаётся только `api.github.com`. Для TLS проверяется сертификат.
 
 Для регулярной проверки всех включённых сайтов:

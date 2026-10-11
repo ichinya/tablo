@@ -44,7 +44,8 @@ final class SiteChecker
         try {
             if ($credentialFailed) { throw new HttpFailure('check-error'); }
             $homePage = $site['health_path'] === '';
-            $response = $this->http->get($homePage ? $site['url'] : rtrim($site['url'], '/') . $site['health_path'], $headers);
+            $response = $homePage ? $this->http->get($site['url'], $headers)
+                : $this->http->getEndpoint(rtrim($site['url'], '/') . $site['health_path'], $headers);
             if (!is_int($response['status'] ?? null) || $response['status'] < 100 || $response['status'] > 599
                 || !is_string($response['body'] ?? null)) { throw new HttpFailure('invalid-response'); }
             $state['health_http_status'] = $response['status'];
@@ -53,7 +54,7 @@ final class SiteChecker
             $state['response_time_ms'] = $response['time_ms'];
             if (!$state['online']) {
                 $state['health_error_code'] = 'http';
-                $errors[] = 'Health: HTTP ' . $response['status'] . ($homePage ? ' (нужен 200, без редиректов).' : ' (нужен 2xx, без редиректов).');
+                $errors[] = 'Health: HTTP ' . $response['status'] . ($homePage ? ' (нужен 200, без редиректов).' : ' (нужен итоговый 2xx).');
                 if (in_array($response['status'], [401, 403], true)) { $errors[] = 'Health: Проверьте разрешение доступа к endpoint.'; }
             } elseif (!$homePage && ($site['health_check_mode'] ?? 'http') === 'json') {
                 // Unknown until both extraction and comparison succeed.
@@ -81,7 +82,7 @@ final class SiteChecker
         if (($site['version_path'] ?? '') !== '') {
             try {
                 if ($credentialFailed) { throw new HttpFailure('check-error'); }
-                $response = $this->http->get(rtrim($site['url'], '/') . $site['version_path'], $headers);
+                $response = $this->http->getEndpoint(rtrim($site['url'], '/') . $site['version_path'], $headers);
                 if ($response['status'] < 200 || $response['status'] >= 300) {
                     $errors[] = 'Version: HTTP ' . $response['status'];
                     if (in_array($response['status'], [401, 403], true)) { $errors[] = 'Version: Проверьте разрешение доступа к endpoint.'; }

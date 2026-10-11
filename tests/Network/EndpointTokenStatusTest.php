@@ -17,7 +17,7 @@ use Testo\Test;
 final class EndpointTokenStatusTest
 {
     #[Test]
-    public function credentialKeepsStrictHomeExplicitJsonAndNoFollowSemantics(): void
+    public function credentialKeepsStrictHomeAndFinalExplicitJsonSemantics(): void
     {
         $directory = new TemporaryDirectory('tablo-endpoint-status-');
         $server = $vault = $checker = null;
@@ -31,14 +31,16 @@ final class EndpointTokenStatusTest
                 Assert::same($home['online'], (int) ($status === 200));
                 Assert::same($home['health_http_status'], $status);
                 $explicit = $checker->check([...$site, 'health_path' => '/up?status=' . $status]);
-                Assert::same($explicit['online'], (int) ($status >= 200 && $status < 300));
-                Assert::same($explicit['health_http_status'], $status);
+                $final = in_array($status, [301, 302], true) ? 200 : $status;
+                Assert::same($explicit['online'], (int) ($final >= 200 && $final < 300));
+                Assert::same($explicit['health_http_status'], $final);
             }
             $home = $checker->check([...$site, 'health_path' => '', 'health_check_mode' => 'json', 'health_json_path' => '$.missing']);
             Assert::same($home['online'], 1);
             $rows = self::rows($directory);
             Assert::same($rows[count($rows)-1]['path'], '/home///');
-            Assert::false(in_array('/destination', array_column($rows, 'path'), true));
+            Assert::same(count(array_filter($rows, static fn (array $row): bool => $row['path'] === '/destination')), 2,
+                'only the two explicit endpoints follow; homepage redirects stay no-follow');
             foreach ([['==', 'ok', '$.result'], ['!=', 'bad', '$.result'], ['contains', 'o', '$.result'],
                 ['>', '2', '$.number'], ['>=', '3', '$.number'], ['<', '4', '$.number'], ['<=', '3', '$.number']] as [$operator, $expected, $path]) {
                 $state = $checker->check([...$site, 'health_path' => '/json', 'health_check_mode' => 'json',

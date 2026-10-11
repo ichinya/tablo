@@ -163,7 +163,32 @@
                 "dashboard.list_branches",
                 "dashboard.run_worker_pass"
             ],
-            "fingerprint": "sha256:e23ef3fff8dd86b92ba2fe1966fc86a3498a4033a6178c27426dbec7df13550a"
+            "fingerprint": "sha256:7760cea8eb0143ebb333a384b3765e0823779e655d97f9d594ef511745e10a2c"
+        },
+        {
+            "path": "app/endpoint-target.php",
+            "owner": "Tablo\\EndpointTarget",
+            "consumers": [
+                "dashboard.check_site",
+                "dashboard.run_worker_pass"
+            ],
+            "fingerprint": "sha256:ee3258a01a26f3c8f7e2c63c8d55c90dd93b15a62087d3985ab104d27944ee43"
+        },
+        {
+            "path": "tests/Support/RedirectServer.php",
+            "owner": "Tablo\\Tests\\Support\\RedirectServer",
+            "consumers": [
+                "Native bounded redirect controls"
+            ],
+            "fingerprint": "sha256:4f02b9f9739855b51ec57e397f23e2bfd4bdcf4ba2a6ea79c36baba698714348"
+        },
+        {
+            "path": "tests/fixtures/redirect-server.php",
+            "owner": "Owned synthetic redirect receiver",
+            "consumers": [
+                "Native bounded redirect controls"
+            ],
+            "fingerprint": "sha256:ea86e6333b80564ac63749f84faa0bb40de6dbfbda700f0d9e25643b6593feb6"
         },
         {
             "path": "app/http-failure.php",
@@ -172,7 +197,7 @@
                 "dashboard.check_site",
                 "dashboard.run_worker_pass"
             ],
-            "fingerprint": "sha256:26527aa926a846b2ae31542625e8c1b294ae81b00786719970a6d0a3b79df9a7"
+            "fingerprint": "sha256:6647465b1c976efb399f1afadba59b7fb4d0c9c8c1a34b8db6a9d05265d73f74"
         },
         {
             "path": "app/deployment-fields.php",
@@ -234,7 +259,7 @@
                 "dashboard.create_site",
                 "dashboard.update_site"
             ],
-            "fingerprint": "sha256:fec59e7b6701968853a5210ab960ae6b3266a1d3b0469abef9156dad5d33274e"
+            "fingerprint": "sha256:1b1572a2fa452d3016cdf66066a79e56c760d651a3f342b2bc450f47d713d23e"
         },
         {
             "path": "tests/Support/EndpointCheckFixture.php",
@@ -274,7 +299,7 @@
             "consumers": [
                 "dashboard.run_worker_pass"
             ],
-            "fingerprint": "sha256:c6f036d657bfec7db1a178da6e4ad6e08b64cb10c10e9b3952e4f851c230e546"
+            "fingerprint": "sha256:52307dab5866fd9a346c1ed7d4e73c77c3a1f35338d1f6d463f438db7d91c8f0"
         },
         {
             "path": "tools/capture-bindings.php",
@@ -290,7 +315,7 @@
             "consumers": [
                 "dashboard.run_worker_pass"
             ],
-            "fingerprint": "sha256:85a02098d653459b37f836453dd9d23817ec15ebbeca35dae748a92bc33b834a"
+            "fingerprint": "sha256:be204bb682d6503e248c9bf986cf025613616b43b6360844823fdf63ec3e60f3"
         }
     ]
 }
