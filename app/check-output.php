@@ -130,9 +130,9 @@ final class CheckOutput
 
     public static function diagnose(\Throwable $error): void
     {
-        fwrite(STDERR, "Check failed. Check installation configuration and local storage.\n");
+        CheckDiagnostics::write("Check failed. Check installation configuration and local storage.\n");
         if ($error instanceof SharedKeyFailure && $error->getCode() === SharedKeyFailure::UNVERIFIED) {
-            fwrite(STDERR, SharedKeyFailure::UNVERIFIED_DIAGNOSTIC . "\n");
+            CheckDiagnostics::write(SharedKeyFailure::UNVERIFIED_DIAGNOSTIC . "\n");
         }
     }
 }

@@ -17,7 +17,16 @@
                 "dashboard.run_checks",
                 "dashboard.check_site"
             ],
-            "fingerprint": "sha256:2944b75deda587b7e1666ce5906a228328ce285a41860b066c85828015d350af"
+            "fingerprint": "sha256:962528271e5ad3967cf24cdedac1acd201b4175f0604948852d6270b60649502"
+        },
+        {
+            "path": "app/check-diagnostics.php",
+            "owner": "Tablo\\CheckDiagnostics",
+            "consumers": [
+                "dashboard.run_checks",
+                "Dependency-free CLI help and fatal diagnostics"
+            ],
+            "fingerprint": "sha256:8fffa8025664a5db3e82c61be3a8c85832960aab62560bf7818412fac20f2eba"
         },
         {
             "path": "app/check-output.php",
@@ -25,7 +34,7 @@
             "consumers": [
                 "dashboard.run_checks"
             ],
-            "fingerprint": "sha256:07817fadfd869dbb759189be2fed870088ffcba60f3a1c008d455cc229823e32"
+            "fingerprint": "sha256:4bf91fd1217ffb62e1d8719ec29d4e04bc7b60ce6a3a837b5c4021677114b241"
         },
         {
             "path": "contracts/check-output-v1.schema.json",
@@ -50,7 +59,7 @@
             "consumers": [
                 "dashboard.run_checks"
             ],
-            "fingerprint": "sha256:2458dc41562cd7ecaec639e8ddad5cf09e73582d94eb3394538a370c94be3031"
+            "fingerprint": "sha256:118e6584e2ed98b01b972f02663a40dd35223ee35bb49d58f0818102071f4667"
         },
         {
             "path": "tests/Unit/CheckCommandTest.php",
@@ -58,7 +67,16 @@
             "consumers": [
                 "dashboard.run_checks"
             ],
-            "fingerprint": "sha256:ae815b773cca6581a30be31491ea6cff9854d92537df5d2538349c86aabec379"
+            "fingerprint": "sha256:eeee71ff8adda1cccad9f820536f4735d3a33799b258692debdb93cda48e0a35"
+        },
+        {
+            "path": "tests/Unit/EnvironmentBootstrapTest.php",
+            "owner": "Native copied-entrypoint dotenv controls",
+            "consumers": [
+                "dashboard.run_checks",
+                "Application environment selection"
+            ],
+            "fingerprint": "sha256:4679539c8818c8bae1168744dadf00e88f330973b177dfff875d051bf56c5bfd"
         },
         {
             "path": "tests/Unit/CurlPlatformTest.php",
@@ -78,6 +96,15 @@
             "fingerprint": "sha256:a7a3c11371ce0627b6a0a53348bb89313fc35e325aebb00e13107059fdfa5f51"
         },
         {
+            "path": "tests/fixtures/check-stderr-barrier.php",
+            "owner": "Owned failed stderr OS sink barrier",
+            "consumers": [
+                "dashboard.run_checks",
+                "Native CLI direct-child receipts"
+            ],
+            "fingerprint": "sha256:f0ba4919b2efbaab0b9ee2984fb393d11d8e941f8c7043930a60d135635def8e"
+        },
+        {
             "path": "tests/fixtures/check-router.php",
             "owner": "Owned synthetic one-shot HTTP peer",
             "consumers": [
@@ -91,7 +118,7 @@
             "consumers": [
                 "Native CLI direct-child receipts"
             ],
-            "fingerprint": "sha256:4f774a6946aafaed286b00cc15342bfdf9e81b1199609a2ae11465bc8142efea"
+            "fingerprint": "sha256:89fd4db3bae1d474162020c1546b9e99399b7852c447915ef6f403be5ebefd7e"
         },
         {
             "path": "tests/Support/TestServer.php",
@@ -423,7 +450,7 @@
             "consumers": [
                 "dashboard.run_worker_pass"
             ],
-            "fingerprint": "sha256:6312696f5c3498bb10044c0cc8ca919a8d363adb3ee09130efd8391b24251fbf"
+            "fingerprint": "sha256:de8bc770208db663e0d4c3050966a2bb8086e8dce42cf0d7e5690bfbbcb8c4d5"
         }
     ]
 }

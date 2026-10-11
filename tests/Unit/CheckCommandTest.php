@@ -72,6 +72,7 @@ final class CheckCommandTest
             $root = dirname(__DIR__, 2); mkdir($directory->path . '/bin'); mkdir($directory->path . '/vendor'); mkdir($directory->path . '/app');
             copy($root . '/bin/check.php', $directory->path . '/bin/check.php');
             copy($root . '/app/bootstrap.php', $directory->path . '/app/bootstrap.php');
+            copy($root . '/app/check-diagnostics.php', $directory->path . '/app/check-diagnostics.php');
             Assert::same(hash_file('sha256', $root . '/bin/check.php'), hash_file('sha256', $directory->path . '/bin/check.php'));
             $environment = ['TABLO_DB' => $directory->path . '/must-not-exist.sqlite', 'TABLO_TOKEN_KEY_FILE' => ''];
             $command = [PHP_BINARY, $directory->path . '/bin/check.php', '--json'];
@@ -86,6 +87,22 @@ final class CheckCommandTest
             $result = Subprocess::run($command, $directory, $environment);
             Assert::same($result['exit_code'], 1); Assert::true(CheckSchema::valid(json_decode($result['stdout'], false, 64, JSON_THROW_ON_ERROR)));
             Assert::false(str_contains($result['stdout'] . $result['stderr'], $secret)); Assert::false(is_file($environment['TABLO_DB']));
+        } catch (\Throwable $error) { $directory->retainFailure($error); throw $error; }
+        finally { $directory->close(); }
+    }
+
+    #[Test]
+    public function diagnosticGuardAlsoCatchesClosedResourceErrors(): void
+    {
+        $directory = new TemporaryDirectory('tablo-check-diagnostic-resource-');
+        try {
+            $code = 'require ' . var_export(dirname(__DIR__, 2) . '/app/check-diagnostics.php', true)
+                . '; fclose(STDERR); set_error_handler(static function (): never { throw new RuntimeException("warning"); });'
+                . ' Tablo\\CheckDiagnostics::write("safe fixed message\n");'
+                . ' try { trigger_error("after", E_USER_WARNING); } catch (RuntimeException) { echo "restored\n"; } echo "survived\n";';
+            $result = Subprocess::run([PHP_BINARY, '-r', $code], $directory, []);
+            Assert::same($result['exit_code'], 0); Assert::same($result['stdout'], "restored\nsurvived\n");
+            Assert::same($result['stderr'], '');
         } catch (\Throwable $error) { $directory->retainFailure($error); throw $error; }
         finally { $directory->close(); }
     }

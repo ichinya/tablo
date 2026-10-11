@@ -1,6 +1,9 @@
 <?php
 declare(strict_types=1);
 
+// This helper has no autoload dependencies, including for early help/refusals.
+require_once dirname(__DIR__) . '/app/check-diagnostics.php';
+
 // Mode detection and the emergency document require no autoloaded code.
 $json = in_array('--json', $argv ?? [], true);
 $earlyJson = static function (string $status, string $reason): void {
@@ -21,12 +24,12 @@ try {
             || count(array_keys($arguments, '--help', true)) > 1
             || array_diff($arguments, ['--json', '--help']) !== []) {
             $earlyJson('fatal', 'invalid-arguments');
-            fwrite(STDERR, "Usage: php bin/check.php [--json [--help]]\n");
+            Tablo\CheckDiagnostics::write("Usage: php bin/check.php [--json [--help]]\n");
             exit(1);
         }
         if (in_array('--help', $arguments, true)) {
             $earlyJson('success', 'help');
-            fwrite(STDERR, "Usage: php bin/check.php [--json [--help]]\n");
+            Tablo\CheckDiagnostics::write("Usage: php bin/check.php [--json [--help]]\n");
             exit(0);
         }
     }
@@ -50,12 +53,12 @@ try {
         };
         $earlyJson('fatal', $reason);
     }
-    fwrite(STDERR, "Check failed. Check installation configuration and local storage.\n");
+    Tablo\CheckDiagnostics::write("Check failed. Check installation configuration and local storage.\n");
     if ($error instanceof Tablo\InstallationException && $error->getCode() === Tablo\InstallationException::UNSUPPORTED_CURL) {
-        fwrite(STDERR, Tablo\InstallationException::CURL_DIAGNOSTIC . "\n");
+        Tablo\CheckDiagnostics::write(Tablo\InstallationException::CURL_DIAGNOSTIC . "\n");
     }
     if ($error instanceof Tablo\SharedKeyFailure && $error->getCode() === Tablo\SharedKeyFailure::UNVERIFIED) {
-        fwrite(STDERR, Tablo\SharedKeyFailure::UNVERIFIED_DIAGNOSTIC . "\n");
+        Tablo\CheckDiagnostics::write(Tablo\SharedKeyFailure::UNVERIFIED_DIAGNOSTIC . "\n");
     }
     exit(1);
 }

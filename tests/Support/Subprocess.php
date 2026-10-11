@@ -20,7 +20,7 @@ final class Subprocess
     private readonly array $files;
 
     public function __construct(array $command, private readonly TemporaryDirectory $directory,
-        array $environment = [], ?string $cwd = null)
+        array $environment = [], ?string $cwd = null, private readonly bool $failedStderr = false)
     {
         $name = $directory->path . '/command-' . bin2hex(random_bytes(12));
         $this->files = ['stdout' => $name . '.out', 'stderr' => $name . '.err', 'receipt' => $name . '.json'];
@@ -34,21 +34,28 @@ final class Subprocess
         try {
             set_error_handler(static function (): never { throw new RuntimeException('Test command spawn failed'); });
             try { $this->process = proc_open($command, [0 => ['pipe', 'r'],
-                1 => ['file', $this->files['stdout'], 'a'], 2 => ['file', $this->files['stderr'], 'a']],
+                1 => ['file', $this->files['stdout'], 'a'],
+                2 => $failedStderr ? ['pipe', 'w'] : ['file', $this->files['stderr'], 'a']],
                 $pipes, $cwd ?? dirname(__DIR__, 2), array_replace(getenv(), $environment), ['bypass_shell' => true]); }
             finally { restore_error_handler(); }
             if (!is_resource($this->process)) { throw new RuntimeException('Cannot start test command'); }
             $this->input = $pipes[0];
             $directory->holdProcess();
             $this->running = true;
+            if ($failedStderr) {
+                // The fixture waits for stdin before any diagnostic write. Closing
+                // this OS pipe reader before send() is deterministic on both hosts.
+                fclose($pipes[2]);
+                $this->event('stderr-reader-closed-before-input');
+            }
             $this->observe();
         } catch (Throwable $error) { $this->fail('spawn', $error); }
     }
 
     public static function run(array $command, TemporaryDirectory $directory, array $environment, float $timeout = 8,
-        #[\SensitiveParameter] string $input = '', ?string $cwd = null): array
+        #[\SensitiveParameter] string $input = '', ?string $cwd = null, bool $failedStderr = false): array
     {
-        $child = new self($command, $directory, $environment, $cwd);
+        $child = new self($command, $directory, $environment, $cwd, $failedStderr);
         try {
             $child->send($input);
             return $child->finish($timeout);
@@ -189,6 +196,10 @@ final class Subprocess
             'events' => $this->events, 'streams' => []];
         foreach (['stdout', 'stderr'] as $stream) {
             $receipt['streams'][$stream] = ['path' => $this->files[$stream], 'sha256' => hash_file('sha256', $this->files[$stream])];
+        }
+        if ($this->failedStderr) {
+            $receipt['streams']['stderr'] += ['capture' => 'unavailable; OS pipe reader deliberately closed',
+                'bytes' => null, 'errno' => null];
         }
         $file = fopen($this->files['receipt'], 'x');
         if ($file === false) { throw new RuntimeException('Cannot reserve test command receipt'); }
