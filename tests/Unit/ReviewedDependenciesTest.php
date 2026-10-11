@@ -21,6 +21,7 @@ final class ReviewedDependenciesTest
         mkdir($directory->path . '/bin');
         mkdir($directory->path . '/tools');
         mkdir($directory->path . '/public');
+        mkdir($directory->path . '/deploy');
         foreach (array_keys(\requiredReviewedDependencies()) as $path) {
             $destination = $directory->path . '/' . $path;
             if (!is_dir(dirname($destination))) { mkdir(dirname($destination), 0700, true); }

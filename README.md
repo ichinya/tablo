@@ -591,6 +591,46 @@ crash/recovery и освобождение файлов, включая удер
 
 ## Docker
 
+Образ проверяет локальное HTTP/PHP serving liveness через точный `GET /_tablo/health`
+с Host `127.0.0.1` (допускается `:80`) и исходным loopback `REMOTE_ADDR`. Успех —
+`200`, `text/plain; charset=utf-8`, `no-store`, `nosniff`, тело `ok\n`, без cookie.
+Проверка загружает production Composer autoload (включая чтение `.env`) и определения
+приложения/Phalcon, проверяет необходимые PHP extensions, но не создаёт Web, БД,
+vault, session или Volt runtime и не запускает проверки сайтов/GitHub. Она работает
+до и после setup. Повреждённая БД, отсутствующий ключ или недоступное хранилище
+могут сосуществовать с `healthy`: это не проверка DB readiness или periodic worker.
+
+Клиент обращается только к `http://127.0.0.1:80/_tablo/health`, игнорирует proxy
+окружения, не следует redirect, не передаёт credentials/cookie; connect timeout
+500 ms, весь transfer 2000 ms, максимум 16 bytes тела и 4096 bytes headers.
+Docker запускает его каждые 30 s с timeout 5 s, start period 20 s и retries 3.
+Прямой exit 0 означает успех, exit 1 — отказ; диагностика содержит только фиксированное
+`healthy` или `unavailable`. После последовательных отказов **работающий** контейнер
+становится `unhealthy` и возвращается в `healthy` при восстановлении HTTP/PHP.
+Остановленный контейнер имеет статус `exited` и больше не выполняет пробы.
+Restart policy не перезапускает контейнер только из-за `unhealthy`.
+У `tablo-worker` унаследованная HTTP-проверка отключена: worker не обслуживает Apache.
+
+```powershell
+docker compose ps
+docker inspect --format '{{json .State.Health}}' $(docker compose ps -q tablo)
+docker compose exec -T --user www-data tablo php /usr/local/bin/tablo-healthcheck.php
+```
+
+Reverse proxy обязан блокировать `/_tablo/health` и его варианты для внешних клиентов.
+Loopback proxy может сделать внешний запрос локальным для Apache; `REMOTE_ADDR`
+не удостоверяет исходного клиента. Forwarded headers и `TABLO_TRUSTED_PROXIES`
+не участвуют в допуске пробы. Неверный Host/peer или query/trailing path получает
+404; неверный метод точного локального URI — 405 с `Allow: GET`; ошибка загрузки
+production кода — фиксированный 503 `unavailable\n` без деталей конфигурации.
+Побочные headers/cookie или вывод при загрузке кода означают отказ; PHP headers
+восстанавливаются, вложенные buffers удаляются без затрагивания внешнего buffer
+(до 32 удалений, при блокировке сохранённый фильтр отдаёт отказ при завершении).
+Это граница обычных ошибок загрузки, не изоляция произвольного PHP: принудительная
+отправка HTTP headers, уничтожение фильтра с дальнейшим выводом, `exit` или
+вредоносные shutdown/output callbacks не дают гарантии фиксированного HTTP-ответа.
+Клиент по-прежнему требует точный успешный статус и тело в пределах своих лимитов.
+
 ```powershell
 docker compose up --build -d
 ```

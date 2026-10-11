@@ -142,7 +142,7 @@
             "consumers": [
                 "tablo/check/v1 local consumers"
             ],
-            "fingerprint": "sha256:55de732f8bdb3700c032966a7a698fc37974f25cd708209d8a98b5ea59e19fa5"
+            "fingerprint": "sha256:4f81f99397f95450819a6ba861f78900e68f2bfdd86a35a03be9df97230bbbc0"
         },
         {
             "path": "bin/key-preflight.php",
@@ -158,7 +158,31 @@
             "consumers": [
                 "Application HTTP safe initialization"
             ],
-            "fingerprint": "sha256:c670c25067d964522896fbaa5a2537c6e03aa077172b112bcf48163d088d6424"
+            "fingerprint": "sha256:eccb27f40b02bcf25e4770324bd365d4427d2e242f828c6444eff5465dd9b9df"
+        },
+        {
+            "path": "app/container-health.php",
+            "owner": "Tablo\\ContainerHealth",
+            "consumers": [
+                "Internal HTTP serving liveness"
+            ],
+            "fingerprint": "sha256:3915ebf987b2d7648093e3cea122f1f1578a5ee0d4623de06d8ec06977da8e04"
+        },
+        {
+            "path": "deploy/healthcheck.php",
+            "owner": "php-script:deploy/healthcheck.php",
+            "consumers": [
+                "Fixed container HTTP client"
+            ],
+            "fingerprint": "sha256:b7e77e4915441031a50d1e6bb1ccd0c1b2de8db0f9d1ae94093b6f74df8e07c4"
+        },
+        {
+            "path": "Dockerfile",
+            "owner": "docker-image:tablo",
+            "consumers": [
+                "Application image and serving liveness"
+            ],
+            "fingerprint": "sha256:1addbfa877a83908ff767f85080f0706b0b8bcd1c9d30c032505a61284928e05"
         },
         {
             "path": "compose.yaml",
@@ -166,7 +190,7 @@
             "consumers": [
                 "Application and worker runtime selection"
             ],
-            "fingerprint": "sha256:584671417cc76091b35a27e10068ea2da0702cccc16fba2f8f0c810967a93a6a"
+            "fingerprint": "sha256:631c1f0c87a2d47b3256cc324a67b3853c70f5c1fc6100f07247a15465df367e"
         },
         {
             "path": "compose.secret.yaml",
@@ -450,7 +474,7 @@
             "consumers": [
                 "dashboard.run_worker_pass"
             ],
-            "fingerprint": "sha256:de8bc770208db663e0d4c3050966a2bb8086e8dce42cf0d7e5690bfbbcb8c4d5"
+            "fingerprint": "sha256:bfc03b245da1f8be0acc8b49677eb7467b4a6df1eac4e7f588b1b0ab5c99757a"
         }
     ]
 }
