@@ -45,7 +45,8 @@ try {
                 'dashboard.read_incidents' => 'tests/Unit/IncidentReadTest.php,tests/Unit/IncidentLifecycleTest.php,tests/Http/IncidentsTest.php,tests/Http/IncidentQualifiersTest.php',
                 'dashboard.get_notifications', 'dashboard.update_notifications' => 'tests/Unit/NotificationSettingsTest.php,tests/Http/NotificationSettingsTest.php',
                 'dashboard.project_notifications' => 'tests/Unit/NotificationSelectionTest.php,tests/Unit/NotificationAtomicityTest.php,tests/Unit/NotificationMigrationTest.php,tests/Network/NotificationPublicTest.php',
-                'dashboard.read_notification_status', 'dashboard.claim_notification', 'dashboard.ack_notification' => 'tests/Unit/NotificationOutboxTest.php,tests/Network/NotificationRaceTest.php',
+                'dashboard.read_notification_status' => 'tests/Unit/NotificationOutboxTest.php,tests/Network/NotificationRaceTest.php,tests/Http/NotificationSettingsTest.php',
+                'dashboard.claim_notification', 'dashboard.ack_notification' => 'tests/Unit/NotificationOutboxTest.php,tests/Network/NotificationRaceTest.php',
                 'dashboard.deliver_notification' => 'tests/Unit/NotificationOutboxTest.php,tests/Network/WebhookSupervisorTest.php,tests/Network/WebhookTransportTest.php,tests/Network/NotificationPublicTest.php,tests/Network/NotificationRaceTest.php',
                 default => 'tests/Unit/SiteRepositoryTest.php',
             };

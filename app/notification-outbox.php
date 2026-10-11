@@ -11,9 +11,26 @@ final class NotificationOutbox
 
     public function status(): array
     {
-        $statement=$this->db->query('SELECT site_id,event,status,attempts,due_at,expires_at,last_code,http_status,acknowledged_at,coalesced
-            FROM notification_slots ORDER BY site_id,event LIMIT 50');
-        try { return $statement->fetchAll(); } finally { $statement->closeCursor(); }
+        return $this->readStatus(null);
+    }
+
+    public function statusForSite(int $siteId): array
+    {
+        if ($siteId<1) { throw new \InvalidArgumentException('Invalid notification site.'); }
+        return $this->readStatus($siteId);
+    }
+
+    public function statusTruncated(): bool
+    {
+        $statement=$this->db->query('SELECT 1 FROM notification_slots ORDER BY site_id,event LIMIT 1 OFFSET 50');
+        try { return $statement->fetchColumn()!==false; } finally { $statement->closeCursor(); }
+    }
+
+    private function readStatus(?int $siteId): array
+    {
+        $statement=$this->db->prepare('SELECT site_id,event,status,attempts,due_at,expires_at,last_code,http_status,acknowledged_at,coalesced
+            FROM notification_slots'.($siteId===null?'':' WHERE site_id=?').' ORDER BY site_id,event LIMIT 50');
+        try { $statement->execute($siteId===null?[]:[$siteId]); return $statement->fetchAll(); } finally { $statement->closeCursor(); }
     }
 
     // At most32 maintenance updates and one eligible claim/pass. Caller owns channel mutex.

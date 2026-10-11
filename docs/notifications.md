@@ -7,6 +7,26 @@ removal clears them. A revision conflict or active delivery returns a safe retry
 Endpoints, Bearer values and opted-in payload fields use the existing vault and original key.
 The external-key startup witness and lifetime policy covers all these ciphertexts.
 
+A successful save with unchanged flags and blank credential fields is a no-op: encrypted
+bytes, revision, activation, queued deliveries and checkpoints remain unchanged. Conflict,
+key, transaction and delivery-mutex validation still apply. Metadata-only include_name /
+include_url edits preserve activation, debounce and logical transition identities, while
+incrementing revision. Pending slots retain their public event identity, attempts, due time
+and expiry; their encrypted optional fields are regenerated from the current same-epoch
+site using the new privacy choices, in batches of at most 32 rows in the settings transaction.
+Old private payload bytes are discarded. Old inflight slots are cancelled and cleared,
+never relabelled for sending; their stale ACKs fail. An already attempted unavailable still
+qualifies its actual eventual recovery, using the new privacy choices. A never-attempted
+unavailable still suppresses its recovery pair.
+
+Endpoint/Bearer replacement or removal, any subscription change, and disable/re-enable
+start a new future-only activation and cancel queued/inflight work. Explicit nonblank
+credential entry is replacement even when the value is the same. Existing incidents and
+lag runs are not replayed to that activation. Its watermark is the committed AUTOINCREMENT
+allocation in sqlite_sequence for the real check_history table, bounded below by the prior
+activation. Retention cannot rewind it; a fresh installation starts at zero. Incident IDs
+remain the actual accepted-history opening IDs, without timestamp identities or replay.
+
 Only accepted current checks produce events. Their current row, history, actual incident,
 notification checkpoint/slot and admitted worker credit commit on the same PDO. Stale,
 disabled, edited, rotated or deleted snapshots cannot enqueue. Network delivery follows the
@@ -43,6 +63,10 @@ indexed eligible selection excludes expired/stale work even when the maintenance
 reached, so an expired backlog cannot consume a fresh recovery's TTL. Remaining maintenance
 resumes on subsequent invocations; expiry/status observations are not a complete event log.
 Due work resumes only on a later invocation; there is no queue daemon or sleeping retry.
+Authenticated Settings shows at most 50 status rows with an explicit truncation notice.
+The GET-only ID-site filter reaches every site's at most three slots, including later-site
+failures behind retained terminal rows. It performs no delivery, claim or outbox mutation
+and returns only the existing safe status fields. Unknown sites show an empty result.
 
 Delivery is bounded best effort. A receiver may accept before its response/local ACK is
 lost, so duplicates are possible. `Idempotency-Key` is the installation namespace, event

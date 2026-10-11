@@ -279,11 +279,19 @@ final class Web
 
     private function settings(array $errors = [], mixed $submitted = null, int $status = 200): Response
     {
+        $notificationSite=null;
+        if (isset($_GET['notification_site_id']) && $_GET['notification_site_id']!=='') {
+            try { $notificationSite=self::incidentInteger($_GET['notification_site_id'],PHP_INT_MAX); }
+            catch (\InvalidArgumentException) { return $this->render('error',['title'=>'Некорректный запрос','message'=>'Проверьте ID сайта.'],400); }
+        }
         $notice = $_SESSION['notice'] ?? '';
         unset($_SESSION['notice']);
         return $this->render('settings', ['title' => 'Настройки', 'tokens' => $this->tokens->all(),
             'providers' => GitProviders::available(), 'notice' => $notice, 'errors' => $errors,
-            'notifications' => $this->notifications->get(), 'notification_status' => $this->notificationOutbox->status(),
+            'notifications' => $this->notifications->get(),
+            'notification_status' => $notificationSite===null?$this->notificationOutbox->status():$this->notificationOutbox->statusForSite($notificationSite),
+            'notification_site_id' => $notificationSite,
+            'notification_status_truncated' => $notificationSite===null && $this->notificationOutbox->statusTruncated(),
             'check_interval_minutes' => $submitted ?? $this->installation->get()], $status);
     }
 

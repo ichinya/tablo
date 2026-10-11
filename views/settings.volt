@@ -3,7 +3,7 @@
 <section class="panel">
 <h2>Уведомления webhook</h2>
 {% if notifications['blocked'] %}<p class="field-error">Остановка дочернего процесса не подтверждена. Доставка заблокирована; требуется проверка процесса оператором.</p>{% endif %}
-<p>По умолчанию выключены. Отправляются только новые подтверждённые события после сохранения настроек.</p>
+<p>По умолчанию выключены. Включение, смена адреса, Bearer или событий действуют для будущих переходов. Сохранение без изменений и выбор приватных полей сохраняют текущие события.</p>
 {% if errors['notifications'] is defined %}<p class="field-error">{{ errors['notifications'] }}</p>{% endif %}
 <form method="post" action="/settings/notifications" autocomplete="off">
 <input type="hidden" name="_csrf" value="{{ csrf }}">
@@ -25,7 +25,15 @@
 <p>Недоступность и версия: две принятые проверки за не менее 60 секунд. Восстановление: реальный переход инцидента. До трёх попыток; повторы через 60 и 300 секунд, срок один час. Повторы требуют следующего запуска проверок. При потерянном ответе доставка может повториться; получатель использует Idempotency-Key.</p>
 <button class="button primary" type="submit">Сохранить уведомления</button>
 </form>
+<form method="get" action="/settings">
+<label for="notification-site-id">Статус доставки для ID сайта (пустое поле — первые 50 записей)</label>
+<input id="notification-site-id" type="number" name="notification_site_id" min="1" value="{{ notification_site_id }}">
+<button class="button secondary" type="submit">Показать статус</button>
+<a href="/settings">Сбросить фильтр</a>
+</form>
+{% if notification_status_truncated %}<p>Показаны первые 50 записей. Для остальных сайтов введите ID сайта в фильтр.</p>{% endif %}
 {% for item in notification_status %}<p>Сайт {{ item['site_id'] }} · {{ item['event'] }} · {{ item['status'] }} · попытки {{ item['attempts'] }} · объединено {{ item['coalesced'] }}{% if item['last_code'] %} · {{ item['last_code'] }}{% endif %}</p>{% endfor %}
+{% if notification_site_id and not notification_status %}<p>Для сайта {{ notification_site_id }} нет записей доставки.</p>{% endif %}
 </section>
 <section class="panel">
 <h2>Автоматические проверки</h2>
