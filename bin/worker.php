@@ -35,6 +35,9 @@ try {
     exit($worker->run());
 } catch (Throwable $error) {
     fwrite(STDERR, "Worker failed. Check installation configuration and local storage.\n");
+    if ($error instanceof Tablo\InstallationException && $error->getCode() === Tablo\InstallationException::UNSUPPORTED_CURL) {
+        fwrite(STDERR, Tablo\InstallationException::CURL_DIAGNOSTIC . "\n");
+    }
     if ($error instanceof Tablo\SharedKeyFailure && $error->getCode() === Tablo\SharedKeyFailure::UNVERIFIED) {
         fwrite(STDERR, Tablo\SharedKeyFailure::UNVERIFIED_DIAGNOSTIC . "\n");
     }

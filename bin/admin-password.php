@@ -22,8 +22,11 @@ try {
 } catch (\Tablo\ValidationException) {
     fwrite(STDERR, "Invalid password or protected input. No change committed.\n");
     exit(2);
-} catch (\Tablo\InstallationException) {
+} catch (\Tablo\InstallationException $error) {
     fwrite(STDERR, "Existing installation unavailable or incompatible. No change committed.\n");
+    if ($error->getCode() === \Tablo\InstallationException::UNSUPPORTED_CURL) {
+        fwrite(STDERR, \Tablo\InstallationException::CURL_DIAGNOSTIC . "\n");
+    }
     exit(3);
 } catch (\Tablo\PasswordConflict) {
     fwrite(STDERR, "Credential changed. Select the installation again; no automatic retry.\n");

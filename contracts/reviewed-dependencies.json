@@ -8,7 +8,7 @@
                 "Application environment selection",
                 "Local administrator password CLI"
             ],
-            "fingerprint": "sha256:9cd4feb1013c6605e7acfb9036d117da9d6cd27602f004903696ed1e8f7ce187"
+            "fingerprint": "sha256:0290bcca73be4a3a30ff9baa6de64d49fc69425dc60a55f481cc8a0ab804e717"
         },
         {
             "path": "bin/check.php",
@@ -16,7 +16,7 @@
             "consumers": [
                 "dashboard.check_site"
             ],
-            "fingerprint": "sha256:062093d421bb7da8fcd8a242bb1f92b1404aa8ef22d5471990f894cda33e0118"
+            "fingerprint": "sha256:3579d395de225263bd5926e51c11e7e23ed00addfe6056f61d3d8e15ed8351dd"
         },
         {
             "path": "bin/key-preflight.php",
@@ -24,7 +24,7 @@
             "consumers": [
                 "External key operator preflight"
             ],
-            "fingerprint": "sha256:f1d95b53185a34f2e9c6620c6fe15bcc1565e3cbf65ba22f2942914f72eca1a6"
+            "fingerprint": "sha256:bb3a521a0ce8a5406b1f3ceaab74e48a8593a0b776b0ca22690c60d6bd89f6b7"
         },
         {
             "path": "public/index.php",
@@ -32,7 +32,7 @@
             "consumers": [
                 "Application HTTP safe initialization"
             ],
-            "fingerprint": "sha256:400adf44e0a4576b952b6a54326f8de4f75556c2c344f968b62dd9304498afcd"
+            "fingerprint": "sha256:c670c25067d964522896fbaa5a2537c6e03aa077172b112bcf48163d088d6424"
         },
         {
             "path": "compose.yaml",
@@ -80,15 +80,24 @@
             "consumers": [
                 "Local administrator password CLI"
             ],
-            "fingerprint": "sha256:7479a36e386205a37fcb58f121a4667d3437f63338cd5b1db5cda4083fbc7f7d"
+            "fingerprint": "sha256:30449f9a402613c092e1d40b37791b38f53f5ba2556ab7b38c6339d31aed11b2"
         },
         {
             "path": "app/installation-exception.php",
             "owner": "Tablo\\InstallationException",
             "consumers": [
-                "Existing installation refusal and CLI exit"
+                "Existing installation refusal and CLI exit",
+                "Application cURL platform preflight"
             ],
-            "fingerprint": "sha256:68b8b392c1345f94ca247630501631ab693686f9dbc7f2b16dc2ae0441bb9f49"
+            "fingerprint": "sha256:1bcc67f50a94093d59ef3bcb61565dafbe16afbaccc6010bab1b363874b4e8c6"
+        },
+        {
+            "path": "tests/fixtures/curl-platform-simulation.php",
+            "owner": "Owned simulated cURL capability control",
+            "consumers": [
+                "Application cURL platform preflight"
+            ],
+            "fingerprint": "sha256:7a1e8ab87aa4a8712e6598c5dda74ce52861ea664134446a922976373506c0e9"
         },
         {
             "path": "app/password-conflict.php",
@@ -137,7 +146,7 @@
                 "dashboard.run_worker_pass",
                 "dashboard.request_worker_stop"
             ],
-            "fingerprint": "sha256:286f3f2dbbf4a829bdae1db39c7ddc9ed8d28a02cbc8272937c12081d2453bf8"
+            "fingerprint": "sha256:cca81b55b611b31e837bd319a05dd6e7e94d2d670f55833b24a004692c6bb4e3"
         },
         {
             "path": "app/token-vault.php",
@@ -299,7 +308,7 @@
             "consumers": [
                 "dashboard.run_worker_pass"
             ],
-            "fingerprint": "sha256:52307dab5866fd9a346c1ed7d4e73c77c3a1f35338d1f6d463f438db7d91c8f0"
+            "fingerprint": "sha256:3b9af6045975339a81a81928e04363b09478ac48fb31e4abfaa5aaf6104bcff3"
         },
         {
             "path": "tools/capture-bindings.php",
@@ -315,7 +324,7 @@
             "consumers": [
                 "dashboard.run_worker_pass"
             ],
-            "fingerprint": "sha256:be204bb682d6503e248c9bf986cf025613616b43b6360844823fdf63ec3e60f3"
+            "fingerprint": "sha256:ebec6e0ed140340f3a0e10560df143bb018a3d42dc1aadd8b7298ef37611f199"
         }
     ]
 }
