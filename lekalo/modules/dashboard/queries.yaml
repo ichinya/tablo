@@ -85,7 +85,7 @@
             "id": "dashboard.read_notification_status",
             "kind": "query",
             "version": 1,
-            "description": "Safe status projection LIMIT50; finite codes, counts/coalescing and observed times, never endpoint/token/name/cipher/payload.",
+            "description": "Safe status projection LIMIT50 with an explicit bounded truncation probe; authenticated settings GET can filter an integer site ID to reach every site's at most3 retained slots. Finite codes, counts/coalescing and observed times, never endpoint/token/name/cipher/payload. GET performs no outbox/settings mutation or delivery.",
             "reads": [
                 "dashboard.notification_slot"
             ],

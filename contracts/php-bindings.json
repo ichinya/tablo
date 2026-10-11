@@ -5,7 +5,7 @@
         "version": "0.1.0"
     },
     "project": "tablo",
-    "revision": "sha256:07b591af8a4f1a1db177c4839acef891eb05268a8e3ba995cd687cb985c4cad8",
+    "revision": "sha256:d7251c7ebcb4157434babcec0c60c9626200613a8d2f0a01c21e96a304586de1",
     "symbols": [
         {
             "id": "dashboard.change_admin_password",
@@ -1679,6 +1679,10 @@
                 {
                     "kind": "update",
                     "subject": "dashboard.notification_settings"
+                },
+                {
+                    "kind": "update",
+                    "subject": "dashboard.notification_checkpoint"
                 },
                 {
                     "kind": "update",

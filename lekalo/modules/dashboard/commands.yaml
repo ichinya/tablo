@@ -664,7 +664,7 @@
             "id": "dashboard.update_notifications",
             "kind": "command",
             "version": 1,
-            "description": "Authenticated CSRF-protected settings POST delegates same-PDO encrypted update. Shared nonblocking delivery mutex, revision CAS, blank keep/remove conflict/type/length safe422; established-vault lifetime policy before encryption. Settings revision cancels pending/inflight claims and starts future-only activation. No DNS/send/test button.",
+            "description": "Authenticated CSRF-protected settings POST delegates same-PDO encrypted update. Shared delivery mutex, revision CAS, blank keep/remove conflict/type/length safe422 and established-vault policy still apply to unchanged saves, which preserve revision, activation, checkpoint and queued bytes. Metadata-only privacy edits increment revision, preserve activation/debounce/handled identity, regenerate pending optional ciphertext in batches32 without extending due/expiry/attempts, update matching checkpoint channel revision and cancel old inflight claims with stale ACK fencing. Endpoint/Bearer replacement/removal, subscriptions and disable/re-enable cancel queued/inflight work and activate prospectively using durable committed check_history AUTOINCREMENT allocation; pruning cannot replay old incidents. No DNS/send/test button.",
             "input": [
                 {
                     "name": "input",
@@ -676,6 +676,7 @@
             ],
             "effects": [
                 "dashboard.notification_settings_updated",
+                "dashboard.notification_checkpoint_updated",
                 "dashboard.notification_slot_updated"
             ]
         },
