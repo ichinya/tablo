@@ -346,7 +346,9 @@ origin; они не считаются свободными от секрето�
 и translation ranges. IPv6 допускается только из global-unicast 2000::/3 с
 исключениями специальных блоков; globally reachable исключения внутри таких
 блоков тоже консервативно запрещены. `TABLO_ALLOW_PRIVATE_NETWORK=1` сохраняет
-явное разрешение private сетей, но не отменяет проверку URI/origin/лимитов.
+явное разрешение private сетей: каждый новый cURL handle использует системное
+разрешение имён, включая hosts/localhost, без публичного DNS preflight/pin.
+Проверки URI/origin/лимитов и TLS остаются обязательными.
 Proxy из окружения отключён, автоматические cURL redirects отключены.
 
 Вся endpoint-цепочка имеет один monotonic budget 6 с, ограниченный внешним deadline:

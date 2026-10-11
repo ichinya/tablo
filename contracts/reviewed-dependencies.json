@@ -163,7 +163,7 @@
                 "dashboard.list_branches",
                 "dashboard.run_worker_pass"
             ],
-            "fingerprint": "sha256:7760cea8eb0143ebb333a384b3765e0823779e655d97f9d594ef511745e10a2c"
+            "fingerprint": "sha256:0baab25a797649cdce8b3ac98ab3a651442cf33d5b8234c2148a8849f145c019"
         },
         {
             "path": "app/endpoint-target.php",
@@ -188,7 +188,7 @@
             "consumers": [
                 "Native bounded redirect controls"
             ],
-            "fingerprint": "sha256:ea86e6333b80564ac63749f84faa0bb40de6dbfbda700f0d9e25643b6593feb6"
+            "fingerprint": "sha256:5ab12fa94ce2fae4aa5f80e2fdbf321948904467c709a36d0352cf9881729a78"
         },
         {
             "path": "app/http-failure.php",

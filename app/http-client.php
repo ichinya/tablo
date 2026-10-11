@@ -110,15 +110,18 @@ class HttpClient
         }
         $host = trim($parts['host'], '[]');
         $resolve = [];
-        if (!$this->allowPrivate || $chain !== null) {
+        // Explicit private-network permission retains native OS/cURL hostname
+        // resolution (including hosts/localhost), on a fresh handle each hop.
+        // Default public requests still validate every answer and pin one.
+        if (!$this->allowPrivate) {
             $addresses = filter_var($host, FILTER_VALIDATE_IP) ? [$host] : $this->resolve($host);
             if (!$addresses) {
                 throw new HttpFailure('dns');
             }
             foreach ($addresses as $address) {
-                if (!$this->allowPrivate && ($chain !== null ? !EndpointTarget::isPublicAddress($address)
+                if ($chain !== null ? !EndpointTarget::isPublicAddress($address)
                     : (!filter_var($address, FILTER_VALIDATE_IP, FILTER_FLAG_NO_PRIV_RANGE | FILTER_FLAG_NO_RES_RANGE)
-                    || str_starts_with(strtolower($address), '::ffff:')))) {
+                    || str_starts_with(strtolower($address), '::ffff:'))) {
                     throw new HttpFailure('ssrf');
                 }
             }

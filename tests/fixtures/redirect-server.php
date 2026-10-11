@@ -53,7 +53,7 @@ try {
                     case 'empty': $location = ''; break;
                     case 'duplicate': $location = '/final'; $extra = "Location: /final\r\n"; break;
                     case 'conflicting': $location = '/final'; $extra = "Location: /elsewhere\r\n"; break;
-                    case 'folded': $location = '/final'; $extra = " more\r\n"; break;
+                    case 'folded': $extra = "Location: /final\r\n more\r\n"; break;
                     case 'control': $location = "/final\x01"; break;
                     case 'userinfo': $location = 'http://synthetic-redirect-token@' . $address . '/final'; break;
                     case 'fragment': $location = '/final#synthetic-redirect-token'; break;

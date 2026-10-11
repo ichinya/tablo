@@ -17,6 +17,26 @@ use Testo\Test;
 final class EndpointRedirectTest
 {
     #[Test]
+    public function explicitPrivatePermissionRetainsNativeLocalhostResolutionAndPublicRefusal(): void
+    {
+        $server = new RedirectServer();
+        try {
+            $url = 'http://localhost:' . parse_url($server->base, PHP_URL_PORT) . '/chain/3';
+            $http = new HttpClient(true);
+            Assert::same($http->get($url, self::headers())['status'], 302, 'existing generic boundary resolves localhost natively');
+            Assert::same(count($server->rows()), 1);
+            Assert::same($http->getEndpoint($url, self::headers())['status'], 200);
+            Assert::same(count($server->rows()), 5, 'four real endpoint requests use native resolution without resolver doubles');
+            foreach ($server->rows() as $row) { Assert::true($row['bearer']); }
+            $reason = null;
+            try { (new HttpClient())->getEndpoint($url, self::headers()); }
+            catch (HttpFailure $error) { $reason = $error->reason; }
+            Assert::true(in_array($reason, ['dns', 'ssrf'], true), 'public mode refuses OS-only or private localhost answers');
+            Assert::same(count($server->rows()), 5, 'public mode never sends credentials to localhost');
+        } finally { $server->close(); }
+    }
+
+    #[Test]
     public function actualGetFollowsOnlyFiveStatusesAndRfcRelativeReferences(): void
     {
         $server = new RedirectServer();
