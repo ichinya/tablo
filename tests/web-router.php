@@ -6,6 +6,9 @@ if ($path !== '/' && is_file(dirname(__DIR__) . '/public' . $path)) {
     return false;
 }
 require dirname(__DIR__) . '/vendor/autoload.php';
+// Windows drops empty proc_open environment entries. Fixture policy is explicit,
+// including empty, and cannot inherit installation forwarding trust.
+putenv('TABLO_TRUSTED_PROXIES=' . (getenv('TABLO_TEST_TRUSTED_PROXIES') ?: ''));
 require __DIR__ . '/github-fixture.php';
 $runtime = getenv('TABLO_TEST_RUNTIME');
 if (!$runtime) { throw new RuntimeException('HTTP fixture requires an isolated runtime directory'); }

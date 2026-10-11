@@ -31,6 +31,8 @@ final class TemporaryDirectory
                 throw new RuntimeException('Cannot remove test fixture: ' . $path);
             }
         }
+        unset($file, $files);
+        gc_collect_cycles();
         if (!self::remove($this->path, directory: true)) {
             throw new RuntimeException('Cannot remove test directory: ' . $this->path);
         }
