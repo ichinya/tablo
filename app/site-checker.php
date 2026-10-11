@@ -13,7 +13,9 @@ final class SiteChecker
         $state = ['online' => null, 'deployed_version' => null, 'deployed_commit' => null,
             'latest_release' => null, 'latest_commit' => null, 'open_issues' => null, 'open_prs' => null,
             'health_error_code' => null, 'health_http_status' => null,
-            'response_time_ms' => null, 'last_error' => null, 'checked_at' => gmdate('Y-m-d\TH:i:s\Z')];
+            'response_time_ms' => null, 'last_error' => null, 'checked_at' => gmdate('Y-m-d\TH:i:s\Z'),
+            'version_outcome' => ['status' => 'skipped', 'reason' => 'not-configured', 'http_status' => null],
+            'git_outcomes' => []];
         $errors = [];
         $headers = [];
         $credentialFailed = false;
@@ -80,18 +82,26 @@ final class SiteChecker
         #[\SensitiveParameter] array &$state, #[\SensitiveParameter] array &$errors): void
     {
         if (($site['version_path'] ?? '') !== '') {
+            $state['version_outcome'] = ['status' => 'failed', 'reason' => 'invalid-data', 'http_status' => null];
             try {
                 if ($credentialFailed) { throw new HttpFailure('check-error'); }
                 $response = $this->http->getEndpoint(rtrim($site['url'], '/') . $site['version_path'], $headers);
+                if (!is_int($response['status'] ?? null) || $response['status'] < 100 || $response['status'] > 599
+                    || !is_string($response['body'] ?? null)) { throw new HttpFailure('invalid-response'); }
+                $state['version_outcome']['http_status'] = $response['status'];
                 if ($response['status'] < 200 || $response['status'] >= 300) {
+                    $state['version_outcome']['reason'] = 'http';
                     $errors[] = 'Version: HTTP ' . $response['status'];
                     if (in_array($response['status'], [401, 403], true)) { $errors[] = 'Version: Проверьте разрешение доступа к endpoint.'; }
                 } else {
                     $state = array_replace($state, VersionResponse::decode($response['body'], $site['version_json_path'] ?? '',
                         $headers === [] ? null : substr($headers[0], strlen('Authorization: Bearer '))));
+                    $state['version_outcome']['status'] = 'ok';
+                    $state['version_outcome']['reason'] = 'ok';
                 }
             } catch (\PDOException | SharedKeyFailure $error) { throw $error; }
             catch (\Throwable $e) {
+                $state['version_outcome']['reason'] = $e instanceof HttpFailure ? $e->reason : 'invalid-data';
                 $errors[] = 'Version: ' . ($e instanceof HttpFailure ? $e->getMessage() : 'Некорректный ответ проверки версии.');
             }
         }
@@ -116,8 +126,15 @@ final class SiteChecker
             try {
                 $state[$field] = $call();
                 $completed = true;
+                $absent = $field === 'latest_release' && $state[$field] === null;
+                $state['git_outcomes'][$field] = ['status' => $absent ? 'absent' : 'ok',
+                    'reason' => $absent ? 'no-release' : 'ok', 'http_status' => null, 'eligible_at' => null];
             } catch (\PDOException | SharedKeyFailure $error) { throw $error; }
             catch (\Throwable $e) {
+                $state['git_outcomes'][$field] = ['status' => 'failed',
+                    'reason' => $e instanceof GitHubFailure ? $e->reason : 'unavailable',
+                    'http_status' => $e instanceof GitHubFailure ? $e->httpStatus : null,
+                    'eligible_at' => $e instanceof GitHubFailure ? $e->eligibleAt : null];
                 $errors[] = $field . ': ' . ($fieldOrder === null || $e instanceof GitHubFailure
                     ? $e->getMessage() : (new GitHubFailure('unavailable'))->getMessage());
             }

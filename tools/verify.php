@@ -7,9 +7,42 @@ $lekalo = getenv('LEKALO_BIN') ?: 'lekalo';
 
 function runGate(array $command): void
 {
-    echo '> ' . implode(' ', $command) . PHP_EOL;
-    $process = proc_open($command, [0 => STDIN, 1 => STDOUT, 2 => STDERR], $pipes);
-    if (!is_resource($process) || proc_close($process) !== 0) {
+    fwrite(STDOUT, '> ' . implode(' ', $command) . PHP_EOL);
+    fflush(STDOUT);
+    // Independent file streams capture both channels without pipe backpressure
+    // or unsupported Windows nonblocking APIs. Read only after direct closure.
+    $stdout = tmpfile(); $stderr = tmpfile();
+    if (!is_resource($stdout) || !is_resource($stderr)) {
+        if (is_resource($stdout)) { fclose($stdout); }
+        if (is_resource($stderr)) { fclose($stderr); }
+        throw new RuntimeException('Cannot reserve gate capture streams');
+    }
+    $process = null;
+    $exit = null;
+    try {
+        $process = proc_open($command, [0 => STDIN, 1 => $stdout, 2 => $stderr], $pipes,
+            options: ['bypass_shell' => true]);
+        if (is_resource($process)) {
+            $initial = proc_get_status($process);
+            $closed = proc_close($process);
+            $process = null;
+            $exit = !$initial['running'] && $initial['exitcode'] !== -1 ? $initial['exitcode']
+                : ($closed !== -1 ? $closed : null);
+            foreach ([[$stdout, STDOUT], [$stderr, STDERR]] as [$capture, $output]) {
+                if (!rewind($capture) || stream_copy_to_stream($capture, $output) === false) {
+                    throw new RuntimeException('Gate stream capture failed');
+                }
+                fflush($output);
+            }
+            fwrite(STDOUT, 'Gate pid: ' . $initial['pid'] . '; initial exit: ' . $initial['exitcode'] . '; proc_close: ' . $closed . PHP_EOL);
+        }
+    } finally {
+        if (is_resource($process)) { proc_terminate($process); proc_close($process); }
+        fclose($stdout); fclose($stderr);
+    }
+    fwrite(STDOUT, 'Gate exit: ' . ($exit === null ? 'not-started' : $exit) . PHP_EOL);
+    fflush(STDOUT);
+    if ($exit !== 0) {
         throw new RuntimeException('Gate failed: ' . implode(' ', $command));
     }
 }
@@ -35,6 +68,7 @@ try {
                 'dashboard.login' => 'tests/Unit/AuthTest.php,tests/Unit/ClientAddressTest.php,tests/Http/LoginProxyTest.php,tests/Http/AdminPasswordTest.php',
                 'dashboard.list_branches' => 'tests/Unit/GitHubProviderTest.php,tests/Unit/GitHubBudgetTest.php,tests/Network/HttpClientTest.php,tests/Network/GitHubSweepTest.php,tests/Http/GitHubBudgetTest.php',
                 'dashboard.check_site' => 'tests/Unit/SiteCheckerTest.php,tests/Unit/HealthChecksTest.php,tests/Unit/HealthUrlTest.php,tests/Unit/HealthFailurePolicyTest.php,tests/Unit/ExplicitHealthChecksTest.php,tests/Unit/HealthPersistenceTest.php,tests/Unit/HttpClientTest.php,tests/Unit/JsonChecksTest.php,tests/Network/HttpClientTest.php,tests/Unit/GitHubProviderTest.php,tests/Unit/GitHubBudgetTest.php,tests/Network/GitHubSweepTest.php,tests/Http/GitHubBudgetTest.php,tests/Network/HttpFramingTest.php,tests/Http/HttpFramingTest.php',
+                'dashboard.run_checks' => 'tests/Unit/CheckCommandTest.php,tests/Network/CheckCommandTest.php,tests/Unit/SiteCheckerTest.php,tests/Unit/SiteRepositoryTest.php,tests/Unit/GitHubBudgetTest.php,tests/Network/GitHubCorrectionsTest.php,tests/Network/ExternalKeyTest.php,tests/Unit/EnvironmentBootstrapTest.php,tests/Unit/ReviewedDependenciesTest.php,tests/Unit/CurlPlatformTest.php,tests/Network/EndpointTokenTransportTest.php,tests/Network/EndpointRedirectTest.php,tests/Network/EndpointRedirectPrivacyTest.php',
                 'dashboard.create_site', 'dashboard.update_site' => 'tests/Unit/SiteRepositoryTest.php,tests/Unit/JsonChecksTest.php,tests/Unit/HealthChecksTest.php,tests/Unit/HealthUrlTest.php,tests/Unit/HealthFailurePolicyTest.php,tests/Unit/ExplicitHealthChecksTest.php,tests/Unit/HealthPersistenceTest.php',
                 'dashboard.logout' => 'tests/Http/AdminPasswordTest.php',
                 'dashboard.get_settings', 'dashboard.update_settings' => 'tests/Unit/SettingsRepositoryTest.php,tests/Http/SettingsTest.php,tests/Network/WorkerSettingsTest.php',

@@ -113,8 +113,10 @@ final class Subprocess
         $this->running = $status['running'];
         // PHP 8.2 exposes the actual exit only on the first stopped observation.
         if (!$this->running) {
-            if ($status['exitcode'] >= 0) { $this->exitCode ??= $status['exitcode']; }
-            $this->event('root-exit', ['exit_code' => $this->exitCode, 'signal' => $status['termsig']]);
+            // Windows native crash statuses can be negative signed integers. Only -1
+            // means unavailable; preserve actual OS statuses instead of losing them.
+            if ($status['exitcode'] !== -1) { $this->exitCode ??= $status['exitcode']; }
+            $this->event('root-exit', ['exit_code' => $this->exitCode, 'native_exit_code' => $status['exitcode'], 'signal' => $status['termsig']]);
         }
         return $this->running;
     }
@@ -135,7 +137,8 @@ final class Subprocess
                 }
                 if ($this->observe()) { throw new RuntimeException('Direct test child closure unconfirmed'); }
                 $exit = proc_close($this->process);
-                if ($exit >= 0) { $this->exitCode ??= $exit; }
+                $this->event('proc-close', ['native_exit_code' => $exit]);
+                if ($exit !== -1) { $this->exitCode ??= $exit; }
                 $this->process = null;
                 $this->directory->releaseProcess();
             }

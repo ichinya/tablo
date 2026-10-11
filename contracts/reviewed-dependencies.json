@@ -14,9 +14,108 @@
             "path": "bin/check.php",
             "owner": "php-script:bin/check.php",
             "consumers": [
+                "dashboard.run_checks",
                 "dashboard.check_site"
             ],
-            "fingerprint": "sha256:3579d395de225263bd5926e51c11e7e23ed00addfe6056f61d3d8e15ed8351dd"
+            "fingerprint": "sha256:2944b75deda587b7e1666ce5906a228328ce285a41860b066c85828015d350af"
+        },
+        {
+            "path": "app/check-output.php",
+            "owner": "Tablo\\CheckOutput",
+            "consumers": [
+                "dashboard.run_checks"
+            ],
+            "fingerprint": "sha256:07817fadfd869dbb759189be2fed870088ffcba60f3a1c008d455cc229823e32"
+        },
+        {
+            "path": "contracts/check-output-v1.schema.json",
+            "owner": "tablo/check/v1 public schema",
+            "consumers": [
+                "dashboard.run_checks",
+                "Native CLI schema validation"
+            ],
+            "fingerprint": "sha256:cd2962a575c71c69fe5fa9d0dc0aba03052b8445deed2f094bb5666a5d44e4a1"
+        },
+        {
+            "path": "tests/Support/CheckSchema.php",
+            "owner": "Tablo\\Tests\\Support\\CheckSchema",
+            "consumers": [
+                "Native CLI schema validation"
+            ],
+            "fingerprint": "sha256:2ad238b38dfcaea3827c7df374c612f9ae6a8cdfc5ffca0e4cc9ad51983ecad8"
+        },
+        {
+            "path": "tests/Network/CheckCommandTest.php",
+            "owner": "Native one-shot CLI acceptance",
+            "consumers": [
+                "dashboard.run_checks"
+            ],
+            "fingerprint": "sha256:2458dc41562cd7ecaec639e8ddad5cf09e73582d94eb3394538a370c94be3031"
+        },
+        {
+            "path": "tests/Unit/CheckCommandTest.php",
+            "owner": "Native scalar projection and bootstrap controls",
+            "consumers": [
+                "dashboard.run_checks"
+            ],
+            "fingerprint": "sha256:ae815b773cca6581a30be31491ea6cff9854d92537df5d2538349c86aabec379"
+        },
+        {
+            "path": "tests/Unit/CurlPlatformTest.php",
+            "owner": "Native disabled-capability bootstrap controls",
+            "consumers": [
+                "dashboard.run_checks",
+                "Application cURL platform preflight"
+            ],
+            "fingerprint": "sha256:e84a569d9483df241039e93dfeb91983f9a6746dc67c710a92f2d04e709234ac"
+        },
+        {
+            "path": "tests/fixtures/check-transport.php",
+            "owner": "Synthetic CLI Git transport and encoding controls",
+            "consumers": [
+                "dashboard.run_checks"
+            ],
+            "fingerprint": "sha256:a7a3c11371ce0627b6a0a53348bb89313fc35e325aebb00e13107059fdfa5f51"
+        },
+        {
+            "path": "tests/fixtures/check-router.php",
+            "owner": "Owned synthetic one-shot HTTP peer",
+            "consumers": [
+                "dashboard.run_checks"
+            ],
+            "fingerprint": "sha256:3050ccb49f792d5c953ab2a0e0bc51014cdb7806c46ebfef886443a3be638b5a"
+        },
+        {
+            "path": "tests/Support/Subprocess.php",
+            "owner": "Tablo\\Tests\\Support\\Subprocess",
+            "consumers": [
+                "Native CLI direct-child receipts"
+            ],
+            "fingerprint": "sha256:4f774a6946aafaed286b00cc15342bfdf9e81b1199609a2ae11465bc8142efea"
+        },
+        {
+            "path": "tests/Support/TestServer.php",
+            "owner": "Tablo\\Tests\\Support\\TestServer",
+            "consumers": [
+                "Native CLI HTTP peer lifecycle"
+            ],
+            "fingerprint": "sha256:f009d512dfbf3c78d36d9ce5ab9482ff37f7447afd5510c1ac9e2ce965564b4b"
+        },
+        {
+            "path": "tests/Support/TemporaryDirectory.php",
+            "owner": "Tablo\\Tests\\Support\\TemporaryDirectory",
+            "consumers": [
+                "Native CLI fixture custody"
+            ],
+            "fingerprint": "sha256:888eaf660d9e903d31aeebb0455fb4ab06734d51037f9089650437a536453bce"
+        },
+        {
+            "path": "README.md",
+            "owner": "One-shot CLI documentation",
+            "consumers": [
+                "tablo/check/v1 local consumers"
+            ],
+            "fingerprint": "sha256:55de732f8bdb3700c032966a7a698fc37974f25cd708209d8a98b5ea59e19fa5"
         },
         {
             "path": "bin/key-preflight.php",
@@ -308,7 +407,7 @@
             "consumers": [
                 "dashboard.run_worker_pass"
             ],
-            "fingerprint": "sha256:3b9af6045975339a81a81928e04363b09478ac48fb31e4abfaa5aaf6104bcff3"
+            "fingerprint": "sha256:85892c6e99bedd7de9e58412454340e2d4b0f62fb3478afe7ad3caec93966a76"
         },
         {
             "path": "tools/capture-bindings.php",
@@ -316,7 +415,7 @@
             "consumers": [
                 "dashboard.run_worker_pass"
             ],
-            "fingerprint": "sha256:281a1e39183c1433164e0f135437273ef297189cac1c05d37edd6b1509b0fe92"
+            "fingerprint": "sha256:f81b42c24f117d49317b3b841394e0bef7b30f8f2efa6397afc857d02cf35c28"
         },
         {
             "path": "tools/reviewed-dependencies.php",
@@ -324,7 +423,7 @@
             "consumers": [
                 "dashboard.run_worker_pass"
             ],
-            "fingerprint": "sha256:ebec6e0ed140340f3a0e10560df143bb018a3d42dc1aadd8b7298ef37611f199"
+            "fingerprint": "sha256:6312696f5c3498bb10044c0cc8ca919a8d363adb3ee09130efd8391b24251fbf"
         }
     ]
 }

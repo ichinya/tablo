@@ -435,6 +435,27 @@
             "effects": [
                 "dashboard.user_password_updated"
             ]
+        },
+        {
+            "id": "dashboard.run_checks",
+            "kind": "command",
+            "version": 1,
+            "description": "One finite ordered snapshot pass owned by CheckCommand::run uses the existing SiteChecker, GitHubConnection/policy and guarded storeCheck. Explicit JSON emits tablo/check/v1 scalar outcomes, actual store acceptance and before-check freshness; disabled rows make no requests/writes, stale results retain observations, fatal failure preserves prior safe fragments. Independent transient Version/Git reasons are captured at existing calls. Legacy text and exits remain compatible; JSON has early dependency-free argv/bootstrap refusal and safe diagnostics. No scheduler/fairness mutation, extra provider requests, secret/display-string serialization, database schema, notification or HTTP API.",
+            "input": [
+                {
+                    "name": "json",
+                    "type": {
+                        "optional": {
+                            "ref": "dashboard.flag"
+                        }
+                    }
+                }
+            ],
+            "effects": [
+                "dashboard.site_updated",
+                "dashboard.github_cooldown_created",
+                "dashboard.github_cooldown_updated"
+            ]
         }
     ]
 }

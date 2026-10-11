@@ -8,7 +8,7 @@ final class GitHubConnection
     private readonly GitHubRequestPolicy $policy;
 
     public function __construct(#[\SensitiveParameter] private readonly SiteRepository $sites, private readonly HttpClient $http, ?GitHubRequestPolicy $policy = null,
-        private readonly bool $worker = false)
+        private readonly bool $worker = false, private readonly bool $propagateSharedFailures = false)
     {
         $this->policy = $policy ?? new GitHubRequestPolicy($sites->githubCooldowns());
     }
@@ -26,7 +26,7 @@ final class GitHubConnection
             $equivalentScope = $this->sites->equivalentCredentialScope($token);
             if ($scope === 'authenticated' && $equivalentScope !== null) { $scope = $equivalentScope; }
         } catch (\RuntimeException $e) {
-            if ($this->worker && ($e instanceof \PDOException || $e instanceof SharedKeyFailure)) { throw $e; }
+            if (($this->worker || $this->propagateSharedFailures) && ($e instanceof \PDOException || $e instanceof SharedKeyFailure)) { throw $e; }
             throw new ValidationException(['github_token' => $e->getMessage()]);
         }
         // Resolve again against a fresh row before/after every metric, including memo hits.
