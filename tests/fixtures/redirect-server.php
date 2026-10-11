@@ -18,6 +18,7 @@ try {
         try {
             stream_set_timeout($connection, 3);
             $line = fgets($connection, 8192);
+            $requestLine = rtrim($line ?: '', "\r\n");
             $methodGet = str_starts_with($line ?: '', 'GET ');
             $uri = explode(' ', $line ?: '')[1] ?? '/';
             $path = parse_url($uri, PHP_URL_PATH) ?: '/';
@@ -30,10 +31,32 @@ try {
             $route = explode('/', trim($path, '/'))[0] ?: 'root';
             file_put_contents($directory . '/requests.jsonl', json_encode(['route' => $route,
                 'bearer' => $authorization === 'Bearer synthetic-redirect-token', 'authorized' => $authorization !== '',
-                'unexpected_headers' => $unexpected, 'method_get' => $methodGet]) . "\n", FILE_APPEND);
+                'unexpected_headers' => $unexpected, 'method_get' => $methodGet,
+                ...($route === 'query' ? ['request_line' => $requestLine] : [])]) . "\n", FILE_APPEND);
             $status = 200; $location = null; $body = '{"ok":true,"version":"v-safe","commit":"a61de82"}';
             $extra = ''; $prefix = ''; $chunked = false;
-            if (preg_match('~^/status/(301|302|303|307|308|300|304|305)$~D', $path, $m)) { $status = (int) $m[1]; $location = '/final'; }
+            if ($route === 'query') {
+                $location = match ($uri) {
+                    '/query/start-empty' => '/query/resource?',
+                    '/query/start-nonempty' => '/query/resource?x=',
+                    '/query/start-absent?inherited=1' => '/query/resource',
+                    '/query/query-only?old=1' => '?',
+                    '/query/query-nonempty?old=1' => '?x=',
+                    '/query/later?inherited=1' => '/query/step?replace=1',
+                    '/query/step?replace=1' => '?',
+                    '/query/step?' => '/query/resource?',
+                    '/query/encoded-start' => '/query/%2E%2e/%2F%3F%23%25?value=%2f%3F%23%25&literal=+',
+                    default => null,
+                };
+                $status = $location !== null ? 302 : match ($uri) {
+                    '/query/resource?', '/query/query-only?' => 200,
+                    '/query/resource?x=', '/query/query-nonempty?x=' => 201,
+                    '/query/%2E%2e/%2F%3F%23%25?value=%2f%3F%23%25&literal=+' => 202,
+                    default => 404,
+                };
+                $body = json_encode(['query_resource' => $status]);
+            }
+            elseif (preg_match('~^/status/(301|302|303|307|308|300|304|305)$~D', $path, $m)) { $status = (int) $m[1]; $location = '/final'; }
             elseif (preg_match('~^/chain/([0-9]+)$~D', $path, $m) && (int) $m[1] > 0) { $status = 302; $location = '/chain/' . ((int) $m[1] - 1); }
             elseif (str_starts_with($path, '/cycle/')) { $status = 302; $location = $path === '/cycle/a' ? '/cycle/b' : '/cycle/a'; }
             elseif ($path === '/relative/start' && !isset($query['done'])) {

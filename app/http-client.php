@@ -208,6 +208,12 @@ class HttpClient
                     return strlen($chunk);
                 },
                 ];
+            if ($chain !== null) {
+                // EndpointTarget already validated and canonicalized this URL.
+                // libcurl otherwise drops an explicitly empty query delimiter.
+                $options[CURLOPT_REQUEST_TARGET] = $parts['path']
+                    . (array_key_exists('query', $parts) ? '?' . $parts['query'] : '');
+            }
             if (!curl_setopt_array($curl, $options)) { throw new HttpFailure('check-error'); }
             $ok = curl_exec($curl);
             if ($ok === false) {
