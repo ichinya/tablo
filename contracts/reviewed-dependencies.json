@@ -32,7 +32,31 @@
             "consumers": [
                 "Application HTTP safe initialization"
             ],
-            "fingerprint": "sha256:400adf44e0a4576b952b6a54326f8de4f75556c2c344f968b62dd9304498afcd"
+            "fingerprint": "sha256:f08b55c8bf7b4b11d0e20e8e545ce52dc6e5ed4c86b071657e1e4db8bb3c0c0e"
+        },
+        {
+            "path": "app/container-health.php",
+            "owner": "Tablo\\ContainerHealth",
+            "consumers": [
+                "Internal HTTP serving liveness"
+            ],
+            "fingerprint": "sha256:3915ebf987b2d7648093e3cea122f1f1578a5ee0d4623de06d8ec06977da8e04"
+        },
+        {
+            "path": "deploy/healthcheck.php",
+            "owner": "php-script:deploy/healthcheck.php",
+            "consumers": [
+                "Fixed container HTTP client"
+            ],
+            "fingerprint": "sha256:b7e77e4915441031a50d1e6bb1ccd0c1b2de8db0f9d1ae94093b6f74df8e07c4"
+        },
+        {
+            "path": "Dockerfile",
+            "owner": "docker-image:tablo",
+            "consumers": [
+                "Application image and serving liveness"
+            ],
+            "fingerprint": "sha256:1addbfa877a83908ff767f85080f0706b0b8bcd1c9d30c032505a61284928e05"
         },
         {
             "path": "compose.yaml",
@@ -40,7 +64,7 @@
             "consumers": [
                 "Application and worker runtime selection"
             ],
-            "fingerprint": "sha256:584671417cc76091b35a27e10068ea2da0702cccc16fba2f8f0c810967a93a6a"
+            "fingerprint": "sha256:631c1f0c87a2d47b3256cc324a67b3853c70f5c1fc6100f07247a15465df367e"
         },
         {
             "path": "compose.secret.yaml",
@@ -193,7 +217,7 @@
             "consumers": [
                 "dashboard.run_worker_pass"
             ],
-            "fingerprint": "sha256:1e28f9fc345bae4706cd0f657c334f7681367f4587e1a1ec8b587701dcc7e296"
+            "fingerprint": "sha256:2b625583165df2b8c319fb67176df28d4c40169f85963107b54d012d78d72251"
         }
     ]
 }
