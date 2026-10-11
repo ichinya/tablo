@@ -8,7 +8,8 @@ final class DeploymentFields
 {
     public static function validated(#[\SensitiveParameter] mixed $version, #[\SensitiveParameter] mixed $commit): array
     {
-        if ($version !== null && (!is_string($version) || $version === '' || strlen($version) > 200)) {
+        if ($version !== null && (!is_string($version) || $version === '' || strlen($version) > 200
+            || preg_match('//u', $version) !== 1 || str_contains($version, "\0"))) {
             throw new \RuntimeException('Некорректное поле version.');
         }
         if ($commit !== null && (!is_string($commit) || !preg_match('/^[a-f0-9]{7,64}$/iD', $commit))) {

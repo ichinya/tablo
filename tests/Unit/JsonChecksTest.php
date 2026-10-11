@@ -168,7 +168,7 @@ final class JsonChecksTest
                 $snapshot = $sites->find($id);
                 $sites->save(array_replace($input, [$field => $value]), $id);
                 Assert::same($sites->storeCheck($snapshot, ['online' => 1]), false, 'stale ' . $field);
-                Assert::same($sites->storeCheck($sites->find($id), ['online' => 1]), true, 'fresh ' . $field);
+                Assert::same($sites->storeCheck($sites->find($id), ['online' => 1, 'checked_at' => '2026-01-01T00:00:00Z']), true, 'fresh ' . $field);
             }
         } finally {
             unset($sites, $db);

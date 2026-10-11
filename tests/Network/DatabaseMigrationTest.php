@@ -21,11 +21,12 @@ final class DatabaseMigrationTest
             $directory = new TemporaryDirectory('tablo-connect-wal-race-');
             try {
                 $path = $directory->path . '/test.sqlite';
-                if ($schema !== 'fresh') { self::legacy($path, $schema === 'version-one'); }
+                if ($schema !== 'fresh' && $schema !== 'version-four') { self::legacy($path, $schema === 'version-one'); }
                 if ($schema === 'version-four') {
                     $db = new MigrationPdo($path);
-                    Database::migrate($db);
-                    $db->exec('ALTER TABLE sites DROP COLUMN endpoint_token; PRAGMA user_version = 4');
+                    $db->exec(file_get_contents(dirname(__DIR__) . '/fixtures/historical-schema/common4.sql'));
+                    $db->exec("INSERT INTO users(id,password_hash) VALUES(1,'synthetic-hash');
+                        INSERT INTO sites(name,url,repository,github_token) VALUES('Historical','https://example.test/','fixture/public','synthetic-ciphertext')");
                     $before = $db->query('SELECT * FROM sites')->fetch();
                     $columns = $db->query('PRAGMA table_info(sites)')->fetchAll();
                     unset($db);
@@ -225,7 +226,7 @@ final class DatabaseMigrationTest
             try { Database::migrate($db); } catch (\Throwable $error) { $message = $error->getMessage(); }
             unset($error);
             Assert::true(str_contains($message ?? '', 'database is locked'));
-            Assert::same($db->statements, ['PRAGMA main.user_version', 'BEGIN IMMEDIATE']);
+            Assert::same(array_values(array_filter($db->statements, static fn (string $sql): bool => str_starts_with($sql, 'BEGIN') || str_starts_with($sql, 'ROLLBACK') || str_starts_with($sql, 'COMMIT'))), ['BEGIN IMMEDIATE']);
             Assert::false($db->inTransaction());
             Assert::same((int) $db->query('PRAGMA user_version')->fetchColumn(), 0);
             file_put_contents($directory->path . '/writer.release', 'release');

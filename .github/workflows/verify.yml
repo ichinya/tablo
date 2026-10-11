@@ -27,6 +27,7 @@ jobs:
         shell: pwsh
     env:
       LEKALO_REF: 9510dd0767a56c0ab34b8d3c8ceb2a14db8de825
+      COMPOSER_PROCESS_TIMEOUT: '1800'
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
       - uses: shivammathur/setup-php@b604ade2a87db23f8871b7182e69ec5e75effb45 # v2

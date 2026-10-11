@@ -13,6 +13,10 @@ final class SiteChecker
         $state = ['online' => null, 'deployed_version' => null, 'deployed_commit' => null,
             'latest_release' => null, 'latest_commit' => null, 'open_issues' => null, 'open_prs' => null,
             'health_error_code' => null, 'health_http_status' => null,
+            'version_status' => ($site['version_path'] ?? '') === '' ? 'skipped' : 'error',
+            'version_error_code' => null, 'version_http_status' => null,
+            'release_error_code' => 'check-error', 'release_http_status' => null,
+            'commit_error_code' => 'check-error', 'commit_http_status' => null,
             'response_time_ms' => null, 'last_error' => null, 'checked_at' => gmdate('Y-m-d\TH:i:s\Z'),
             'version_outcome' => ['status' => 'skipped', 'reason' => 'not-configured', 'http_status' => null],
             'git_outcomes' => []];
@@ -24,6 +28,9 @@ final class SiteChecker
         catch (\Throwable) { $credentialFailed = true; }
         $this->health($site, $headers, $credentialFailed, $state, $errors);
         $this->version($site, $headers, $credentialFailed, $state, $errors);
+        $state['version_status'] = match ($state['version_outcome']['status']) { 'ok' => 'ok', 'skipped' => 'skipped', default => 'error' };
+        $state['version_error_code'] = $state['version_status'] === 'error' ? $state['version_outcome']['reason'] : null;
+        $state['version_http_status'] = $state['version_outcome']['http_status'];
         unset($headers);
         $this->git($site['repository'], $site['branch'], $fieldOrder, $state, $errors);
         $state['last_error'] = $errors ? implode(' ', $errors) : null;
@@ -125,6 +132,17 @@ final class SiteChecker
             $completed = false;
             try {
                 $state[$field] = $call();
+                // Preserve partial successes while classifying invalid values at their boundary.
+                if (($field === 'latest_release' && $state[$field] !== null
+                    && (!is_string($state[$field]) || $state[$field] === '' || strlen($state[$field]) > 200
+                        || preg_match('//u', $state[$field]) !== 1 || str_contains($state[$field], "\0")))
+                    || ($field === 'latest_commit' && (!is_string($state[$field]) || !preg_match('/^[a-f0-9]{7,64}$/iD', $state[$field])))) {
+                    $state[$field] = null;
+                    throw new GitHubFailure('invalid-data');
+                }
+                if (in_array($field, ['latest_release', 'latest_commit'], true)) {
+                    $state[($field === 'latest_release' ? 'release' : 'commit') . '_error_code'] = null;
+                }
                 $completed = true;
                 $absent = $field === 'latest_release' && $state[$field] === null;
                 $state['git_outcomes'][$field] = ['status' => $absent ? 'absent' : 'ok',
@@ -135,6 +153,13 @@ final class SiteChecker
                     'reason' => $e instanceof GitHubFailure ? $e->reason : 'unavailable',
                     'http_status' => $e instanceof GitHubFailure ? $e->httpStatus : null,
                     'eligible_at' => $e instanceof GitHubFailure ? $e->eligibleAt : null];
+                if (in_array($field, ['latest_release', 'latest_commit'], true)) {
+                    $prefix = $field === 'latest_release' ? 'release' : 'commit';
+                    $state[$prefix . '_error_code'] = $e instanceof GitHubFailure && in_array($e->reason, CheckHistorySnapshot::GIT_CODES, true)
+                        ? $e->reason : 'check-error';
+                    $status = $e instanceof GitHubFailure ? $e->httpStatus : null;
+                    $state[$prefix . '_http_status'] = is_int($status) && $status >= 100 && $status <= 599 ? $status : null;
+                }
                 $errors[] = $field . ': ' . ($fieldOrder === null || $e instanceof GitHubFailure
                     ? $e->getMessage() : (new GitHubFailure('unavailable'))->getMessage());
             }

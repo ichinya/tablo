@@ -2,6 +2,126 @@
     "schema": "tablo/reviewed-dependencies/v1",
     "dependencies": [
         {
+            "path": "app/schema-shape.php",
+            "owner": "Tablo\\SchemaShape",
+            "consumers": [
+                "Installation lineage validation"
+            ],
+            "fingerprint": "sha256:23e6961f026c56266d1577c3972d2a6172ae1c4b1184163de9ac23bb03e44102"
+        },
+        {
+            "path": "tests/Unit/CompositionKeyTest.php",
+            "owner": "Native composed-key custody controls",
+            "consumers": [
+                "Installation key authentication"
+            ],
+            "fingerprint": "sha256:9819621589e2326601d6e074b13869aeed8a62b0a4764c07bd327db697a7cd68"
+        },
+        {
+            "path": "tests/Support/CompositionMigrationPdo.php",
+            "owner": "Native sequence and deferred-commit control",
+            "consumers": [
+                "Independent native migration acceptance"
+            ],
+            "fingerprint": "sha256:5d54ba3d9e0eecc1f3ca94c476efc1ad01552f955221d90ab277f070839e24d0"
+        },
+        {
+            "path": "tests/Unit/CompositionSchemaTest.php",
+            "owner": "Native composed-schema controls",
+            "consumers": [
+                "Installation migration"
+            ],
+            "fingerprint": "sha256:2eab77fb31fe41661bb69ebd8886d0146613b507ca85ae406a33fefe03c1d0e9"
+        },
+        {
+            "path": "tests/Unit/CompositionSettlementTest.php",
+            "owner": "Native endpoint-history composition controls",
+            "consumers": [
+                "Atomic accepted-result settlement"
+            ],
+            "fingerprint": "sha256:53be6db65f869a61d28cceb0edba4575de527ab94555071f6ca5dfe5475c0d1b"
+        },
+        {
+            "path": "tests/fixtures/historical-schema/common0.sql",
+            "owner": "Frozen historical schema fixture",
+            "consumers": [
+                "Independent native migration acceptance"
+            ],
+            "fingerprint": "sha256:84b522bd8b196e57974459795b4e176a6d20135940d1a99d57a163a0d8e2aed2"
+        },
+        {
+            "path": "tests/fixtures/historical-schema/common1.sql",
+            "owner": "Frozen historical schema fixture",
+            "consumers": [
+                "Independent native migration acceptance"
+            ],
+            "fingerprint": "sha256:4cbb20205107167e44b32622ddfbef81a06227e117b6b51b25d161e99d52f3dd"
+        },
+        {
+            "path": "tests/fixtures/historical-schema/common2.sql",
+            "owner": "Frozen historical schema fixture",
+            "consumers": [
+                "Independent native migration acceptance"
+            ],
+            "fingerprint": "sha256:b51596103fb70d11a1343c8380a852be57c35ec7d6d56f8b677de47dfd9856fd"
+        },
+        {
+            "path": "tests/fixtures/historical-schema/common3.sql",
+            "owner": "Frozen historical schema fixture",
+            "consumers": [
+                "Independent native migration acceptance"
+            ],
+            "fingerprint": "sha256:51906b3faaafb541129bf514f0023f3de5ca1a8a5b399ff07eb232251cef7f66"
+        },
+        {
+            "path": "tests/fixtures/historical-schema/common4.sql",
+            "owner": "Frozen historical schema fixture",
+            "consumers": [
+                "Independent native migration acceptance"
+            ],
+            "fingerprint": "sha256:e5bdcd873771bd3521234342f37fcb0be319bc5de695620f906ac95c94d99d8b"
+        },
+        {
+            "path": "tests/fixtures/historical-schema/endpoint5.sql",
+            "owner": "Frozen historical schema fixture",
+            "consumers": [
+                "Independent native migration acceptance"
+            ],
+            "fingerprint": "sha256:a9ce4f4d133aa30df3e586f3092c5d8a285e4d51d2281356fc08244c94544ba6"
+        },
+        {
+            "path": "tests/fixtures/historical-schema/history5.sql",
+            "owner": "Frozen historical schema fixture",
+            "consumers": [
+                "Independent native migration acceptance"
+            ],
+            "fingerprint": "sha256:b704b5c43ee7d6dacec7ab3b32b0642615d9493c8257e0f944cf42a15eef8e6a"
+        },
+        {
+            "path": "tests/fixtures/historical-schema/incident6.sql",
+            "owner": "Frozen historical schema fixture",
+            "consumers": [
+                "Independent native migration acceptance"
+            ],
+            "fingerprint": "sha256:2f81a3ae835ca1865dd3ac2cd2dca9f342e827a7959ba6471d061a23c15d34d9"
+        },
+        {
+            "path": "tests/fixtures/historical-schema/notification7.sql",
+            "owner": "Frozen historical schema fixture",
+            "consumers": [
+                "Independent native migration acceptance"
+            ],
+            "fingerprint": "sha256:4e9ac0d4b9767783929374b552ea6ccfe37aab59d64d237492e270ef63876e24"
+        },
+        {
+            "path": "tests/fixtures/historical-schema/provenance.json",
+            "owner": "Frozen historical schema fixture",
+            "consumers": [
+                "Independent native migration acceptance"
+            ],
+            "fingerprint": "sha256:f65104e7757d36745ec2fe2f0b6bfbd145b1c9466d95182de62e35c2e121b9cb"
+        },
+        {
             "path": "app/bootstrap.php",
             "owner": "php-script:app/bootstrap.php",
             "consumers": [
@@ -17,7 +137,7 @@
                 "dashboard.run_checks",
                 "dashboard.check_site"
             ],
-            "fingerprint": "sha256:962528271e5ad3967cf24cdedac1acd201b4175f0604948852d6270b60649502"
+            "fingerprint": "sha256:73dd2ea47c9ab05b6b555097dcf17d9d467a03df95de0c9afae3eeeb27882b35"
         },
         {
             "path": "app/check-diagnostics.php",
@@ -142,7 +262,7 @@
             "consumers": [
                 "tablo/check/v1 local consumers"
             ],
-            "fingerprint": "sha256:4f81f99397f95450819a6ba861f78900e68f2bfdd86a35a03be9df97230bbbc0"
+            "fingerprint": "sha256:ffcbd188d59f2fcd2c407d4f3680a7f6d6c717410fc2a19b1ae909b5d54bee63"
         },
         {
             "path": "bin/key-preflight.php",
@@ -319,10 +439,9 @@
             "owner": "Tablo\\HttpClient",
             "consumers": [
                 "dashboard.check_site",
-                "dashboard.list_branches",
-                "dashboard.run_worker_pass"
+                "dashboard.deliver_notification"
             ],
-            "fingerprint": "sha256:f8148d5920b07b30ea62224248e35998542b8cb494f7f268a59a90f19c9cbf51"
+            "fingerprint": "sha256:8eee8f8c91cacf8e5ffa9947f3d7484641d41384362a85fcfc7a58692c505ef9"
         },
         {
             "path": "app/endpoint-target.php",
@@ -365,7 +484,7 @@
                 "dashboard.check_site",
                 "dashboard.run_worker_pass"
             ],
-            "fingerprint": "sha256:46fea23bda6c1cffc10a401b38bce44172dcc83051deedba9a758403ad87da38"
+            "fingerprint": "sha256:e7e01af463368379e6521682c8a4871c2199a3e64637768bff44d809b519ed8d"
         },
         {
             "path": "app/version-response.php",
@@ -458,7 +577,7 @@
             "consumers": [
                 "dashboard.run_worker_pass"
             ],
-            "fingerprint": "sha256:85892c6e99bedd7de9e58412454340e2d4b0f62fb3478afe7ad3caec93966a76"
+            "fingerprint": "sha256:3971dd07656559001bfbe18c8dcf67799c53a5fb5b3e707705de7b950405adec"
         },
         {
             "path": "tools/capture-bindings.php",
@@ -466,7 +585,7 @@
             "consumers": [
                 "dashboard.run_worker_pass"
             ],
-            "fingerprint": "sha256:f81b42c24f117d49317b3b841394e0bef7b30f8f2efa6397afc857d02cf35c28"
+            "fingerprint": "sha256:2c043241c83d5c91e6095dcca505816372ab88329f6f51c08c7c4a2f420dffaf"
         },
         {
             "path": "tools/reviewed-dependencies.php",
@@ -474,7 +593,223 @@
             "consumers": [
                 "dashboard.run_worker_pass"
             ],
-            "fingerprint": "sha256:bfc03b245da1f8be0acc8b49677eb7467b4a6df1eac4e7f588b1b0ab5c99757a"
+            "fingerprint": "sha256:b80b1c7fd9dd525e53d9f02c9aea116ae453d49226f1dd50579480b051a46702"
+        },
+        {
+            "path": "app/check-history-snapshot.php",
+            "owner": "Tablo\\CheckHistorySnapshot",
+            "consumers": [
+                "dashboard.store_check",
+                "dashboard.settle_worker_check",
+                "dashboard.run_worker_pass",
+                "dashboard.check_site"
+            ],
+            "fingerprint": "sha256:966f2230e5ac22b0e1f2e8d12f845f4211bc6ae37bab5926658b8601e12afe4a"
+        },
+        {
+            "path": "app/history-time.php",
+            "owner": "Tablo\\HistoryTime",
+            "consumers": [
+                "dashboard.store_check",
+                "dashboard.settle_worker_check",
+                "dashboard.read_history",
+                "dashboard.prune_history"
+            ],
+            "fingerprint": "sha256:4d1c9de1213eef31c0ea36a57b402b71bf12c537520b775056ffa28caed6f172"
+        },
+        {
+            "path": "app/history-retention.php",
+            "owner": "Tablo\\HistoryRetention",
+            "consumers": [
+                "dashboard.prune_history"
+            ],
+            "fingerprint": "sha256:bafab89b11eec71ed64883a0cb55f0f2540a98e5cfea54542a4055e7b396fa91"
+        },
+        {
+            "path": "bin/history.php",
+            "owner": "php-script:bin/history.php",
+            "consumers": [
+                "dashboard.read_history"
+            ],
+            "fingerprint": "sha256:fe28420b978525ec6c3a6a8951a3ee4ffcc99b59078792a6a7a583b76ebabfa2"
+        },
+        {
+            "path": "bin/prune-history.php",
+            "owner": "php-script:bin/prune-history.php",
+            "consumers": [
+                "dashboard.prune_history"
+            ],
+            "fingerprint": "sha256:008cc7f25b7c36196a0fef1e5c263de74aafe03c10ff38af558e10e989c4b2d4"
+        },
+        {
+            "path": "app/incident-presenter.php",
+            "owner": "Tablo\\IncidentPresenter",
+            "consumers": [
+                "dashboard.read_incidents"
+            ],
+            "fingerprint": "sha256:0fb0087a9224287beef2c5bf717713bd5bb6a3fd01a20fab5c509d87f93ac4da"
+        },
+        {
+            "path": "app/incident-repository.php",
+            "owner": "Tablo\\IncidentRepository",
+            "consumers": [
+                "dashboard.read_incidents"
+            ],
+            "fingerprint": "sha256:20e51a2c24935984fef094ea84c23f30bf54c00fcb0432fab9c3c5c3258d4f2a"
+        },
+        {
+            "path": "app/incident-cursor.php",
+            "owner": "Tablo\\IncidentCursor",
+            "consumers": [
+                "dashboard.read_incidents"
+            ],
+            "fingerprint": "sha256:c4b3e18f25e09f6286f6f19cc5037c62094ddebd546cbea177f9940058bf6f17"
+        },
+        {
+            "path": "app/site-repository.php",
+            "owner": "Tablo\\SiteRepository",
+            "consumers": [
+                "dashboard.store_check",
+                "dashboard.settle_worker_check"
+            ],
+            "fingerprint": "sha256:fa62ab1c54fbce1c9d7bc55239a02f41bc34f0834a9206162007d73824e0779f"
+        },
+        {
+            "path": "app/web-application.php",
+            "owner": "Tablo\\Web",
+            "consumers": [
+                "dashboard.read_incidents"
+            ],
+            "fingerprint": "sha256:16c28a48feebf74fb51006a1ba22789a92414ed2a57d4bd9827c89e18fab0648"
+        },
+        {
+            "path": "views/incidents.volt",
+            "owner": "volt-template:views/incidents.volt",
+            "consumers": [
+                "dashboard.read_incidents"
+            ],
+            "fingerprint": "sha256:5f31c898f5d626a51c659d4ff608e1d2baf08d08650b01cca96a24c99d111d50"
+        },
+        {
+            "path": "views/layout.volt",
+            "owner": "volt-template:views/layout.volt",
+            "consumers": [
+                "dashboard.read_incidents"
+            ],
+            "fingerprint": "sha256:94241ebfb6d67e017d4bda3da04b8efa46e82c38bbcd897f2dcd95b6323a6be6"
+        },
+        {
+            "path": "public/assets/app.css",
+            "owner": "asset:public/assets/app.css",
+            "consumers": [
+                "dashboard.read_incidents"
+            ],
+            "fingerprint": "sha256:ade5a2c7fa8c388fd677a2b16c94336cbd066dfe661299a72b00c28768a5de53"
+        },
+        {
+            "path": "app/notification-schema.php",
+            "owner": "Tablo\\NotificationSchema",
+            "consumers": [
+                "Actual additive schema7 migration"
+            ],
+            "fingerprint": "sha256:33ced819a864132af52dac8d919825f15eb9a34e4746815a0e364811791090bb"
+        },
+        {
+            "path": "app/notification-settings.php",
+            "owner": "Tablo\\NotificationSettings",
+            "consumers": [
+                "dashboard.get_notifications",
+                "dashboard.update_notifications"
+            ],
+            "fingerprint": "sha256:8d3d61b3952748cdc37162fd02c422b8a492b33f056c31159e217ad970695d3a"
+        },
+        {
+            "path": "app/notification-projector.php",
+            "owner": "Tablo\\NotificationProjector",
+            "consumers": [
+                "dashboard.store_check",
+                "dashboard.settle_worker_check"
+            ],
+            "fingerprint": "sha256:efd446a2889a58a63a100adb12e00a96c811d1ee8e4640f19b795b02ab67ee35"
+        },
+        {
+            "path": "app/notification-outbox.php",
+            "owner": "Tablo\\NotificationOutbox",
+            "consumers": [
+                "dashboard.deliver_notification",
+                "dashboard.read_notification_status"
+            ],
+            "fingerprint": "sha256:4fa1e27059c6e96db4f4c5aa3ca18fde5f9976d3b3fdf2388dfbca6b8956cf9a"
+        },
+        {
+            "path": "app/notification-delivery.php",
+            "owner": "Tablo\\NotificationDelivery",
+            "consumers": [
+                "dashboard.check_site",
+                "dashboard.run_worker_pass"
+            ],
+            "fingerprint": "sha256:626f10589fbdb162a6afe41af2484ef826d0dbad32606aed9f021c90a1e45762"
+        },
+        {
+            "path": "app/notification-lock.php",
+            "owner": "Tablo\\NotificationLock",
+            "consumers": [
+                "dashboard.deliver_notification",
+                "dashboard.update_notifications"
+            ],
+            "fingerprint": "sha256:ab423957fe23f204f832506fe9dd2e5b12b9500be93bff897a19fc499ddcd1d7"
+        },
+        {
+            "path": "app/webhook-supervisor.php",
+            "owner": "Tablo\\WebhookSupervisor",
+            "consumers": [
+                "dashboard.deliver_notification"
+            ],
+            "fingerprint": "sha256:8b14b3e79c82adcc5d4c604bfe3fe36ee54fecd2680c8bb6eff26b0caa969cec"
+        },
+        {
+            "path": "app/webhook-address.php",
+            "owner": "Tablo\\WebhookAddress",
+            "consumers": [
+                "Tablo\\HttpClient::postBefore",
+                "dashboard.update_notifications"
+            ],
+            "fingerprint": "sha256:c60f34475a0b89763938cfe4ecf57edb3f7f7718be4f1ede09727879e23558e6"
+        },
+        {
+            "path": "app/webhook-failure.php",
+            "owner": "Tablo\\WebhookFailure",
+            "consumers": [
+                "Tablo\\HttpClient::postBefore",
+                "Tablo\\WebhookSupervisor"
+            ],
+            "fingerprint": "sha256:11594d99c1a74d6b9861b1b0a462719b2a3eceaf1e24089936a124180f0acc6e"
+        },
+        {
+            "path": "bin/webhook-attempt.php",
+            "owner": "php-script:bin/webhook-attempt.php",
+            "consumers": [
+                "Tablo\\WebhookSupervisor"
+            ],
+            "fingerprint": "sha256:e609c131b5b31e88a499f4a2aa58700dbc8145fde9791a983000af887744ac0d"
+        },
+        {
+            "path": "views/settings.volt",
+            "owner": "volt-template:views/settings.volt",
+            "consumers": [
+                "dashboard.get_notifications",
+                "dashboard.update_notifications",
+                "dashboard.read_notification_status"
+            ],
+            "fingerprint": "sha256:29bb0e152ee29b48fff9136013634b2317069d634c13d2147de4371be5ee171b"
+        },
+        {
+            "path": ".github/workflows/verify.yml",
+            "owner": "github-workflow:Verify",
+            "consumers": [
+                "Hosted pinned contract and native PHP gates"
+            ],
+            "fingerprint": "sha256:00be955332966766225e6d93ae08833f6738e266ae5ba5d32da2fed6f291387c"
         }
     ]
 }

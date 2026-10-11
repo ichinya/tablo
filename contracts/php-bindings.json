@@ -5,7 +5,7 @@
         "version": "0.1.0"
     },
     "project": "tablo",
-    "revision": "sha256:a3fa8469b3f1b800712f8e4f159de1a659753676f34411d85a030e80372c7431",
+    "revision": "sha256:499c97fe317edefbc9a0777b3a7f280c336d6ddd2769486870fd72c696227c0a",
     "symbols": [
         {
             "id": "dashboard.change_admin_password",
@@ -95,9 +95,9 @@
             "kind": "command",
             "source": {
                 "path": "app/web-application.php",
-                "line": 138
+                "line": 146
             },
-            "fingerprint": "sha256:d3028f691376803c7df01e170e147450d74ba6a3ffe6f45415341c219efbe9a7",
+            "fingerprint": "sha256:16c28a48feebf74fb51006a1ba22789a92414ed2a57d4bd9827c89e18fab0648",
             "signature": {
                 "inputs": [],
                 "output": null,
@@ -110,9 +110,9 @@
             "kind": "command",
             "source": {
                 "path": "app/web-application.php",
-                "line": 235
+                "line": 246
             },
-            "fingerprint": "sha256:d3028f691376803c7df01e170e147450d74ba6a3ffe6f45415341c219efbe9a7",
+            "fingerprint": "sha256:16c28a48feebf74fb51006a1ba22789a92414ed2a57d4bd9827c89e18fab0648",
             "signature": {
                 "inputs": [
                     {
@@ -144,9 +144,9 @@
             "kind": "command",
             "source": {
                 "path": "app/web-application.php",
-                "line": 235
+                "line": 246
             },
-            "fingerprint": "sha256:d3028f691376803c7df01e170e147450d74ba6a3ffe6f45415341c219efbe9a7",
+            "fingerprint": "sha256:16c28a48feebf74fb51006a1ba22789a92414ed2a57d4bd9827c89e18fab0648",
             "signature": {
                 "inputs": [
                     {
@@ -183,9 +183,9 @@
             "kind": "command",
             "source": {
                 "path": "app/site-repository.php",
-                "line": 335
+                "line": 338
             },
-            "fingerprint": "sha256:6e8e000df5f60b0a96ea10c775ebf4e5009f293e2a8fccf82e6480b0f071810e",
+            "fingerprint": "sha256:fa62ab1c54fbce1c9d7bc55239a02f41bc34f0834a9206162007d73824e0779f",
             "signature": {
                 "inputs": [
                     {
@@ -201,6 +201,26 @@
                 {
                     "kind": "delete",
                     "subject": "dashboard.site"
+                },
+                {
+                    "kind": "delete",
+                    "subject": "dashboard.check_history"
+                },
+                {
+                    "kind": "delete",
+                    "subject": "dashboard.incident"
+                },
+                {
+                    "kind": "delete",
+                    "subject": "dashboard.incident_checkpoint"
+                },
+                {
+                    "kind": "delete",
+                    "subject": "dashboard.notification_checkpoint"
+                },
+                {
+                    "kind": "delete",
+                    "subject": "dashboard.notification_slot"
                 }
             ]
         },
@@ -211,7 +231,7 @@
                 "path": "app/site-checker.php",
                 "line": 11
             },
-            "fingerprint": "sha256:87a8336e6824645f8f9c610f783afbfa69be7e96695632e7554e9bf55c12d091",
+            "fingerprint": "sha256:5bafd4a914b691b063ff81c8a90f1c4bf1fb4043ae66d79f44b171321716598c",
             "signature": {
                 "inputs": [
                     {
@@ -235,6 +255,22 @@
                 {
                     "kind": "update",
                     "subject": "dashboard.github_cooldown"
+                },
+                {
+                    "kind": "create",
+                    "subject": "dashboard.incident"
+                },
+                {
+                    "kind": "update",
+                    "subject": "dashboard.incident"
+                },
+                {
+                    "kind": "create",
+                    "subject": "dashboard.incident_checkpoint"
+                },
+                {
+                    "kind": "update",
+                    "subject": "dashboard.incident_checkpoint"
                 }
             ]
         },
@@ -243,9 +279,9 @@
             "kind": "command",
             "source": {
                 "path": "app/check-command.php",
-                "line": 12
+                "line": 13
             },
-            "fingerprint": "sha256:fb1c6fe9b6123f1998eb6dd68c595bf467379a8cbaaa78b7c186ddebf7ba34bc",
+            "fingerprint": "sha256:1dc667a910f87020057fa97383df39c8d6952ebe6e6bc959883f32b07e9b375e",
             "signature": {
                 "inputs": [
                     {
@@ -277,9 +313,9 @@
             "kind": "query",
             "source": {
                 "path": "app/site-repository.php",
-                "line": 33
+                "line": 34
             },
-            "fingerprint": "sha256:6e8e000df5f60b0a96ea10c775ebf4e5009f293e2a8fccf82e6480b0f071810e",
+            "fingerprint": "sha256:fa62ab1c54fbce1c9d7bc55239a02f41bc34f0834a9206162007d73824e0779f",
             "signature": {
                 "inputs": [],
                 "output": "list(dashboard.site)",
@@ -374,9 +410,9 @@
             "kind": "entity",
             "source": {
                 "path": "app/sqlite-database.php",
-                "line": 428
+                "line": 378
             },
-            "fingerprint": "sha256:fcc09323801a05b15e13c38bb52c936a390d9ffc8e94f1887187e717354a2877",
+            "fingerprint": "sha256:437621d986e973e98307f0b06a57fe88a648ec16898212d9e9bb05ac0ed8a377",
             "signature": null,
             "effects": [],
             "shape": {
@@ -609,9 +645,9 @@
             "kind": "entity",
             "source": {
                 "path": "app/sqlite-database.php",
-                "line": 393
+                "line": 518
             },
-            "fingerprint": "sha256:fcc09323801a05b15e13c38bb52c936a390d9ffc8e94f1887187e717354a2877",
+            "fingerprint": "sha256:437621d986e973e98307f0b06a57fe88a648ec16898212d9e9bb05ac0ed8a377",
             "signature": null,
             "effects": [],
             "shape": {
@@ -791,9 +827,9 @@
             "kind": "command",
             "source": {
                 "path": "app/periodic-worker.php",
-                "line": 88
+                "line": 90
             },
-            "fingerprint": "sha256:f1462cd1c7f01a9a52c3b5ea94cdeab3b9a91b4faaae2e15f798791cd85980bb",
+            "fingerprint": "sha256:164411abf9da1a20333752a32542a88f88329b82f3404dfe314cd889119b3a93",
             "signature": {
                 "inputs": [
                     {
@@ -829,6 +865,26 @@
                 {
                     "kind": "update",
                     "subject": "dashboard.worker_progress"
+                },
+                {
+                    "kind": "create",
+                    "subject": "dashboard.check_history"
+                },
+                {
+                    "kind": "create",
+                    "subject": "dashboard.incident"
+                },
+                {
+                    "kind": "update",
+                    "subject": "dashboard.incident"
+                },
+                {
+                    "kind": "create",
+                    "subject": "dashboard.incident_checkpoint"
+                },
+                {
+                    "kind": "update",
+                    "subject": "dashboard.incident_checkpoint"
                 }
             ]
         },
@@ -839,7 +895,7 @@
                 "path": "app/worker-state-repository.php",
                 "line": 34
             },
-            "fingerprint": "sha256:0bf85d7a1c92bd6fa8c004ee1ac1de4b97509e2538d340472bdd388595dbab1a",
+            "fingerprint": "sha256:09d872358bc056a90c38c2fedc1326c364527c03a72a2a6e12d440e8cec4d714",
             "signature": {
                 "inputs": [
                     {
@@ -863,9 +919,9 @@
             "kind": "entity",
             "source": {
                 "path": "app/sqlite-database.php",
-                "line": 407
+                "line": 532
             },
-            "fingerprint": "sha256:fcc09323801a05b15e13c38bb52c936a390d9ffc8e94f1887187e717354a2877",
+            "fingerprint": "sha256:437621d986e973e98307f0b06a57fe88a648ec16898212d9e9bb05ac0ed8a377",
             "signature": null,
             "effects": [],
             "shape": {
@@ -888,9 +944,9 @@
             "kind": "entity",
             "source": {
                 "path": "app/sqlite-database.php",
-                "line": 412
+                "line": 537
             },
-            "fingerprint": "sha256:fcc09323801a05b15e13c38bb52c936a390d9ffc8e94f1887187e717354a2877",
+            "fingerprint": "sha256:437621d986e973e98307f0b06a57fe88a648ec16898212d9e9bb05ac0ed8a377",
             "signature": null,
             "effects": [],
             "shape": {
@@ -923,9 +979,9 @@
             "kind": "entity",
             "source": {
                 "path": "app/sqlite-database.php",
-                "line": 418
+                "line": 543
             },
-            "fingerprint": "sha256:fcc09323801a05b15e13c38bb52c936a390d9ffc8e94f1887187e717354a2877",
+            "fingerprint": "sha256:437621d986e973e98307f0b06a57fe88a648ec16898212d9e9bb05ac0ed8a377",
             "signature": null,
             "effects": [],
             "shape": {
@@ -962,6 +1018,883 @@
                     }
                 ]
             }
+        },
+        {
+            "id": "dashboard.check_history",
+            "kind": "entity",
+            "source": {
+                "path": "app/sqlite-database.php",
+                "line": 463
+            },
+            "fingerprint": "sha256:437621d986e973e98307f0b06a57fe88a648ec16898212d9e9bb05ac0ed8a377",
+            "signature": null,
+            "effects": [],
+            "shape": {
+                "fields": [
+                    {
+                        "name": "id",
+                        "type": "dashboard.number",
+                        "required": true
+                    },
+                    {
+                        "name": "site_id",
+                        "type": "dashboard.number",
+                        "required": true
+                    },
+                    {
+                        "name": "config_revision",
+                        "type": "dashboard.number",
+                        "required": true
+                    },
+                    {
+                        "name": "checked_at",
+                        "type": "dashboard.timestamp",
+                        "required": true
+                    },
+                    {
+                        "name": "online",
+                        "type": "optional(dashboard.number)",
+                        "required": false
+                    },
+                    {
+                        "name": "health_error_code",
+                        "type": "optional(dashboard.health_error_code)",
+                        "required": false
+                    },
+                    {
+                        "name": "health_http_status",
+                        "type": "optional(dashboard.number)",
+                        "required": false
+                    },
+                    {
+                        "name": "response_time_ms",
+                        "type": "optional(dashboard.number)",
+                        "required": false
+                    },
+                    {
+                        "name": "deployed_version",
+                        "type": "optional(dashboard.text)",
+                        "required": false
+                    },
+                    {
+                        "name": "deployed_commit",
+                        "type": "optional(dashboard.text)",
+                        "required": false
+                    },
+                    {
+                        "name": "latest_release",
+                        "type": "optional(dashboard.text)",
+                        "required": false
+                    },
+                    {
+                        "name": "latest_commit",
+                        "type": "optional(dashboard.text)",
+                        "required": false
+                    },
+                    {
+                        "name": "version_status",
+                        "type": "dashboard.history_version_status",
+                        "required": true
+                    },
+                    {
+                        "name": "version_error_code",
+                        "type": "optional(dashboard.text)",
+                        "required": false
+                    },
+                    {
+                        "name": "version_http_status",
+                        "type": "optional(dashboard.number)",
+                        "required": false
+                    },
+                    {
+                        "name": "release_error_code",
+                        "type": "optional(dashboard.text)",
+                        "required": false
+                    },
+                    {
+                        "name": "release_http_status",
+                        "type": "optional(dashboard.number)",
+                        "required": false
+                    },
+                    {
+                        "name": "commit_error_code",
+                        "type": "optional(dashboard.text)",
+                        "required": false
+                    },
+                    {
+                        "name": "commit_http_status",
+                        "type": "optional(dashboard.number)",
+                        "required": false
+                    }
+                ]
+            }
+        },
+        {
+            "id": "dashboard.store_check",
+            "kind": "command",
+            "source": {
+                "path": "app/site-repository.php",
+                "line": 343
+            },
+            "fingerprint": "sha256:fa62ab1c54fbce1c9d7bc55239a02f41bc34f0834a9206162007d73824e0779f",
+            "signature": {
+                "inputs": [
+                    {
+                        "name": "site",
+                        "type": "dashboard.site",
+                        "required": true
+                    },
+                    {
+                        "name": "state",
+                        "type": "dashboard.check_result",
+                        "required": true
+                    }
+                ],
+                "output": null,
+                "reads": []
+            },
+            "effects": [
+                {
+                    "kind": "update",
+                    "subject": "dashboard.site"
+                },
+                {
+                    "kind": "create",
+                    "subject": "dashboard.check_history"
+                },
+                {
+                    "kind": "create",
+                    "subject": "dashboard.incident"
+                },
+                {
+                    "kind": "update",
+                    "subject": "dashboard.incident"
+                },
+                {
+                    "kind": "create",
+                    "subject": "dashboard.incident_checkpoint"
+                },
+                {
+                    "kind": "update",
+                    "subject": "dashboard.incident_checkpoint"
+                },
+                {
+                    "kind": "create",
+                    "subject": "dashboard.notification_checkpoint"
+                },
+                {
+                    "kind": "update",
+                    "subject": "dashboard.notification_checkpoint"
+                },
+                {
+                    "kind": "create",
+                    "subject": "dashboard.notification_slot"
+                },
+                {
+                    "kind": "update",
+                    "subject": "dashboard.notification_slot"
+                }
+            ]
+        },
+        {
+            "id": "dashboard.settle_worker_check",
+            "kind": "command",
+            "source": {
+                "path": "app/worker-state-repository.php",
+                "line": 65
+            },
+            "fingerprint": "sha256:09d872358bc056a90c38c2fedc1326c364527c03a72a2a6e12d440e8cec4d714",
+            "signature": {
+                "inputs": [
+                    {
+                        "name": "site",
+                        "type": "dashboard.site",
+                        "required": true
+                    },
+                    {
+                        "name": "state",
+                        "type": "dashboard.check_result",
+                        "required": true
+                    }
+                ],
+                "output": null,
+                "reads": []
+            },
+            "effects": [
+                {
+                    "kind": "update",
+                    "subject": "dashboard.site"
+                },
+                {
+                    "kind": "create",
+                    "subject": "dashboard.check_history"
+                },
+                {
+                    "kind": "create",
+                    "subject": "dashboard.worker_progress"
+                },
+                {
+                    "kind": "update",
+                    "subject": "dashboard.worker_progress"
+                },
+                {
+                    "kind": "update",
+                    "subject": "dashboard.worker_runtime"
+                },
+                {
+                    "kind": "create",
+                    "subject": "dashboard.incident"
+                },
+                {
+                    "kind": "update",
+                    "subject": "dashboard.incident"
+                },
+                {
+                    "kind": "create",
+                    "subject": "dashboard.incident_checkpoint"
+                },
+                {
+                    "kind": "update",
+                    "subject": "dashboard.incident_checkpoint"
+                },
+                {
+                    "kind": "create",
+                    "subject": "dashboard.notification_checkpoint"
+                },
+                {
+                    "kind": "update",
+                    "subject": "dashboard.notification_checkpoint"
+                },
+                {
+                    "kind": "create",
+                    "subject": "dashboard.notification_slot"
+                },
+                {
+                    "kind": "update",
+                    "subject": "dashboard.notification_slot"
+                }
+            ]
+        },
+        {
+            "id": "dashboard.read_history",
+            "kind": "query",
+            "source": {
+                "path": "app/check-history-repository.php",
+                "line": 15
+            },
+            "fingerprint": "sha256:9c4d29a059e98f91190b8841b605c7053675f81177f0ab82b045fde41f055630",
+            "signature": {
+                "inputs": [],
+                "output": "dashboard.history_page",
+                "reads": [
+                    "dashboard.site",
+                    "dashboard.check_history"
+                ]
+            },
+            "effects": []
+        },
+        {
+            "id": "dashboard.prune_history",
+            "kind": "command",
+            "source": {
+                "path": "app/check-history-repository.php",
+                "line": 85
+            },
+            "fingerprint": "sha256:9c4d29a059e98f91190b8841b605c7053675f81177f0ab82b045fde41f055630",
+            "signature": {
+                "inputs": [
+                    {
+                        "name": "days",
+                        "type": "dashboard.number",
+                        "required": true
+                    },
+                    {
+                        "name": "site_id",
+                        "type": "optional(dashboard.number)",
+                        "required": false
+                    },
+                    {
+                        "name": "now",
+                        "type": "optional(dashboard.timestamp)",
+                        "required": false
+                    }
+                ],
+                "output": null,
+                "reads": []
+            },
+            "effects": [
+                {
+                    "kind": "delete",
+                    "subject": "dashboard.check_history"
+                }
+            ]
+        },
+        {
+            "id": "dashboard.incident",
+            "kind": "entity",
+            "source": {
+                "path": "app/sqlite-database.php",
+                "line": 16
+            },
+            "fingerprint": "sha256:437621d986e973e98307f0b06a57fe88a648ec16898212d9e9bb05ac0ed8a377",
+            "signature": null,
+            "effects": [],
+            "shape": {
+                "fields": [
+                    {
+                        "name": "id",
+                        "type": "dashboard.number",
+                        "required": true
+                    },
+                    {
+                        "name": "site_id",
+                        "type": "dashboard.number",
+                        "required": true
+                    },
+                    {
+                        "name": "config_revision",
+                        "type": "dashboard.number",
+                        "required": true
+                    },
+                    {
+                        "name": "opened_at",
+                        "type": "dashboard.timestamp",
+                        "required": true
+                    },
+                    {
+                        "name": "health_error_code",
+                        "type": "optional(dashboard.text)",
+                        "required": false
+                    },
+                    {
+                        "name": "health_http_status",
+                        "type": "optional(dashboard.number)",
+                        "required": false
+                    },
+                    {
+                        "name": "recovery_history_id",
+                        "type": "optional(dashboard.number)",
+                        "required": false
+                    },
+                    {
+                        "name": "recovered_at",
+                        "type": "optional(dashboard.timestamp)",
+                        "required": false
+                    },
+                    {
+                        "name": "interruption_history_id",
+                        "type": "optional(dashboard.number)",
+                        "required": false
+                    },
+                    {
+                        "name": "end_reason",
+                        "type": "optional(dashboard.incident_end)",
+                        "required": false
+                    },
+                    {
+                        "name": "uncertain",
+                        "type": "dashboard.flag",
+                        "required": true
+                    },
+                    {
+                        "name": "clock_invalid",
+                        "type": "dashboard.flag",
+                        "required": true
+                    }
+                ]
+            }
+        },
+        {
+            "id": "dashboard.incident_checkpoint",
+            "kind": "entity",
+            "source": {
+                "path": "app/sqlite-database.php",
+                "line": 36
+            },
+            "fingerprint": "sha256:437621d986e973e98307f0b06a57fe88a648ec16898212d9e9bb05ac0ed8a377",
+            "signature": null,
+            "effects": [],
+            "shape": {
+                "fields": [
+                    {
+                        "name": "site_id",
+                        "type": "dashboard.number",
+                        "required": true
+                    },
+                    {
+                        "name": "last_history_id",
+                        "type": "dashboard.number",
+                        "required": true
+                    },
+                    {
+                        "name": "config_revision",
+                        "type": "dashboard.number",
+                        "required": true
+                    },
+                    {
+                        "name": "watermark",
+                        "type": "dashboard.timestamp",
+                        "required": true
+                    }
+                ]
+            }
+        },
+        {
+            "id": "dashboard.read_incidents",
+            "kind": "query",
+            "source": {
+                "path": "app/incident-repository.php",
+                "line": 14
+            },
+            "fingerprint": "sha256:20e51a2c24935984fef094ea84c23f30bf54c00fcb0432fab9c3c5c3258d4f2a",
+            "signature": {
+                "inputs": [],
+                "output": "dashboard.incident_page",
+                "reads": [
+                    "dashboard.incident",
+                    "dashboard.incident_checkpoint",
+                    "dashboard.site"
+                ]
+            },
+            "effects": []
+        },
+        {
+            "id": "dashboard.notification_settings",
+            "kind": "entity",
+            "source": {
+                "path": "app/notification-schema.php",
+                "line": 13
+            },
+            "fingerprint": "sha256:33ced819a864132af52dac8d919825f15eb9a34e4746815a0e364811791090bb",
+            "signature": null,
+            "effects": [],
+            "shape": {
+                "fields": [
+                    {
+                        "name": "id",
+                        "type": "dashboard.number",
+                        "required": true
+                    },
+                    {
+                        "name": "installation_id",
+                        "type": "dashboard.text",
+                        "required": true
+                    },
+                    {
+                        "name": "revision",
+                        "type": "dashboard.number",
+                        "required": true
+                    },
+                    {
+                        "name": "activation_id",
+                        "type": "dashboard.number",
+                        "required": true
+                    },
+                    {
+                        "name": "enabled",
+                        "type": "dashboard.flag",
+                        "required": true
+                    },
+                    {
+                        "name": "blocked",
+                        "type": "dashboard.flag",
+                        "required": true
+                    },
+                    {
+                        "name": "endpoint_cipher",
+                        "type": "optional(dashboard.text)",
+                        "required": false
+                    },
+                    {
+                        "name": "bearer_cipher",
+                        "type": "optional(dashboard.text)",
+                        "required": false
+                    },
+                    {
+                        "name": "unavailable",
+                        "type": "dashboard.flag",
+                        "required": true
+                    },
+                    {
+                        "name": "recovery",
+                        "type": "dashboard.flag",
+                        "required": true
+                    },
+                    {
+                        "name": "version_lag",
+                        "type": "dashboard.flag",
+                        "required": true
+                    },
+                    {
+                        "name": "include_name",
+                        "type": "dashboard.flag",
+                        "required": true
+                    },
+                    {
+                        "name": "include_url",
+                        "type": "dashboard.flag",
+                        "required": true
+                    }
+                ]
+            }
+        },
+        {
+            "id": "dashboard.notification_checkpoint",
+            "kind": "entity",
+            "source": {
+                "path": "app/notification-schema.php",
+                "line": 28
+            },
+            "fingerprint": "sha256:33ced819a864132af52dac8d919825f15eb9a34e4746815a0e364811791090bb",
+            "signature": null,
+            "effects": [],
+            "shape": {
+                "fields": [
+                    {
+                        "name": "site_id",
+                        "type": "dashboard.number",
+                        "required": true
+                    },
+                    {
+                        "name": "last_history_id",
+                        "type": "dashboard.number",
+                        "required": true
+                    },
+                    {
+                        "name": "config_revision",
+                        "type": "dashboard.number",
+                        "required": true
+                    },
+                    {
+                        "name": "state",
+                        "type": "dashboard.text",
+                        "required": true
+                    }
+                ]
+            }
+        },
+        {
+            "id": "dashboard.notification_slot",
+            "kind": "entity",
+            "source": {
+                "path": "app/notification-schema.php",
+                "line": 34
+            },
+            "fingerprint": "sha256:33ced819a864132af52dac8d919825f15eb9a34e4746815a0e364811791090bb",
+            "signature": null,
+            "effects": [],
+            "shape": {
+                "fields": [
+                    {
+                        "name": "site_id",
+                        "type": "dashboard.number",
+                        "required": true
+                    },
+                    {
+                        "name": "event",
+                        "type": "dashboard.text",
+                        "required": true
+                    },
+                    {
+                        "name": "event_id",
+                        "type": "dashboard.text",
+                        "required": true
+                    },
+                    {
+                        "name": "source_id",
+                        "type": "dashboard.number",
+                        "required": true
+                    },
+                    {
+                        "name": "config_revision",
+                        "type": "dashboard.number",
+                        "required": true
+                    },
+                    {
+                        "name": "channel_revision",
+                        "type": "dashboard.number",
+                        "required": true
+                    },
+                    {
+                        "name": "payload",
+                        "type": "dashboard.text",
+                        "required": true
+                    },
+                    {
+                        "name": "private_cipher",
+                        "type": "optional(dashboard.text)",
+                        "required": false
+                    },
+                    {
+                        "name": "created_at",
+                        "type": "dashboard.number",
+                        "required": true
+                    },
+                    {
+                        "name": "expires_at",
+                        "type": "dashboard.number",
+                        "required": true
+                    },
+                    {
+                        "name": "due_at",
+                        "type": "dashboard.number",
+                        "required": true
+                    },
+                    {
+                        "name": "status",
+                        "type": "dashboard.text",
+                        "required": true
+                    },
+                    {
+                        "name": "attempts",
+                        "type": "dashboard.number",
+                        "required": true
+                    },
+                    {
+                        "name": "claim",
+                        "type": "optional(dashboard.text)",
+                        "required": false
+                    },
+                    {
+                        "name": "lease_until",
+                        "type": "optional(dashboard.number)",
+                        "required": false
+                    },
+                    {
+                        "name": "last_code",
+                        "type": "optional(dashboard.text)",
+                        "required": false
+                    },
+                    {
+                        "name": "http_status",
+                        "type": "optional(dashboard.number)",
+                        "required": false
+                    },
+                    {
+                        "name": "acknowledged_at",
+                        "type": "optional(dashboard.number)",
+                        "required": false
+                    },
+                    {
+                        "name": "coalesced",
+                        "type": "dashboard.number",
+                        "required": true
+                    }
+                ]
+            }
+        },
+        {
+            "id": "dashboard.get_notifications",
+            "kind": "query",
+            "source": {
+                "path": "app/notification-settings.php",
+                "line": 17
+            },
+            "fingerprint": "sha256:8d3d61b3952748cdc37162fd02c422b8a492b33f056c31159e217ad970695d3a",
+            "signature": {
+                "inputs": [],
+                "output": "dashboard.notification_metadata",
+                "reads": [
+                    "dashboard.notification_settings"
+                ]
+            },
+            "effects": []
+        },
+        {
+            "id": "dashboard.update_notifications",
+            "kind": "command",
+            "source": {
+                "path": "app/notification-settings.php",
+                "line": 24
+            },
+            "fingerprint": "sha256:8d3d61b3952748cdc37162fd02c422b8a492b33f056c31159e217ad970695d3a",
+            "signature": {
+                "inputs": [
+                    {
+                        "name": "input",
+                        "type": "dashboard.notification_input",
+                        "required": true
+                    }
+                ],
+                "output": null,
+                "reads": []
+            },
+            "effects": [
+                {
+                    "kind": "update",
+                    "subject": "dashboard.notification_settings"
+                },
+                {
+                    "kind": "update",
+                    "subject": "dashboard.notification_checkpoint"
+                },
+                {
+                    "kind": "update",
+                    "subject": "dashboard.notification_slot"
+                }
+            ]
+        },
+        {
+            "id": "dashboard.project_notifications",
+            "kind": "command",
+            "source": {
+                "path": "app/notification-projector.php",
+                "line": 13
+            },
+            "fingerprint": "sha256:efd446a2889a58a63a100adb12e00a96c811d1ee8e4640f19b795b02ab67ee35",
+            "signature": {
+                "inputs": [
+                    {
+                        "name": "history_id",
+                        "type": "dashboard.number",
+                        "required": true
+                    },
+                    {
+                        "name": "row",
+                        "type": "dashboard.check_history",
+                        "required": true
+                    },
+                    {
+                        "name": "site",
+                        "type": "dashboard.site",
+                        "required": true
+                    },
+                    {
+                        "name": "wall",
+                        "type": "dashboard.number",
+                        "required": true
+                    }
+                ],
+                "output": null,
+                "reads": []
+            },
+            "effects": [
+                {
+                    "kind": "create",
+                    "subject": "dashboard.notification_checkpoint"
+                },
+                {
+                    "kind": "update",
+                    "subject": "dashboard.notification_checkpoint"
+                },
+                {
+                    "kind": "create",
+                    "subject": "dashboard.notification_slot"
+                },
+                {
+                    "kind": "update",
+                    "subject": "dashboard.notification_slot"
+                }
+            ]
+        },
+        {
+            "id": "dashboard.read_notification_status",
+            "kind": "query",
+            "source": {
+                "path": "app/notification-outbox.php",
+                "line": 12
+            },
+            "fingerprint": "sha256:4fa1e27059c6e96db4f4c5aa3ca18fde5f9976d3b3fdf2388dfbca6b8956cf9a",
+            "signature": {
+                "inputs": [],
+                "output": "list(dashboard.notification_status)",
+                "reads": [
+                    "dashboard.notification_slot"
+                ]
+            },
+            "effects": []
+        },
+        {
+            "id": "dashboard.claim_notification",
+            "kind": "command",
+            "source": {
+                "path": "app/notification-outbox.php",
+                "line": 37
+            },
+            "fingerprint": "sha256:4fa1e27059c6e96db4f4c5aa3ca18fde5f9976d3b3fdf2388dfbca6b8956cf9a",
+            "signature": {
+                "inputs": [
+                    {
+                        "name": "now",
+                        "type": "dashboard.number",
+                        "required": true
+                    }
+                ],
+                "output": null,
+                "reads": []
+            },
+            "effects": [
+                {
+                    "kind": "update",
+                    "subject": "dashboard.notification_slot"
+                }
+            ]
+        },
+        {
+            "id": "dashboard.ack_notification",
+            "kind": "command",
+            "source": {
+                "path": "app/notification-outbox.php",
+                "line": 95
+            },
+            "fingerprint": "sha256:4fa1e27059c6e96db4f4c5aa3ca18fde5f9976d3b3fdf2388dfbca6b8956cf9a",
+            "signature": {
+                "inputs": [
+                    {
+                        "name": "claimed",
+                        "type": "dashboard.notification_claim",
+                        "required": true
+                    },
+                    {
+                        "name": "result",
+                        "type": "dashboard.notification_result",
+                        "required": true
+                    },
+                    {
+                        "name": "now",
+                        "type": "dashboard.number",
+                        "required": true
+                    }
+                ],
+                "output": null,
+                "reads": []
+            },
+            "effects": [
+                {
+                    "kind": "update",
+                    "subject": "dashboard.notification_slot"
+                }
+            ]
+        },
+        {
+            "id": "dashboard.deliver_notification",
+            "kind": "command",
+            "source": {
+                "path": "app/notification-delivery.php",
+                "line": 15
+            },
+            "fingerprint": "sha256:626f10589fbdb162a6afe41af2484ef826d0dbad32606aed9f021c90a1e45762",
+            "signature": {
+                "inputs": [
+                    {
+                        "name": "now",
+                        "type": "optional(dashboard.number)",
+                        "required": false
+                    }
+                ],
+                "output": null,
+                "reads": []
+            },
+            "effects": [
+                {
+                    "kind": "update",
+                    "subject": "dashboard.notification_slot"
+                },
+                {
+                    "kind": "update",
+                    "subject": "dashboard.notification_settings"
+                }
+            ]
         }
     ]
 }

@@ -1,0 +1,65 @@
+[
+  {
+    "label": "common0",
+    "version": 0,
+    "source": "f57c03a4e36edbc1f9a703170c82bc5a0dbad3ff",
+    "sourceSha256": "fcc09323801a05b15e13c38bb52c936a390d9ffc8e94f1887187e717354a2877",
+    "fixtureSha256": "84b522bd8b196e57974459795b4e176a6d20135940d1a99d57a163a0d8e2aed2"
+  },
+  {
+    "label": "common1",
+    "version": 1,
+    "source": "f57c03a4e36edbc1f9a703170c82bc5a0dbad3ff",
+    "sourceSha256": "fcc09323801a05b15e13c38bb52c936a390d9ffc8e94f1887187e717354a2877",
+    "fixtureSha256": "4cbb20205107167e44b32622ddfbef81a06227e117b6b51b25d161e99d52f3dd"
+  },
+  {
+    "label": "common2",
+    "version": 2,
+    "source": "f57c03a4e36edbc1f9a703170c82bc5a0dbad3ff",
+    "sourceSha256": "fcc09323801a05b15e13c38bb52c936a390d9ffc8e94f1887187e717354a2877",
+    "fixtureSha256": "b51596103fb70d11a1343c8380a852be57c35ec7d6d56f8b677de47dfd9856fd"
+  },
+  {
+    "label": "common3",
+    "version": 3,
+    "source": "f57c03a4e36edbc1f9a703170c82bc5a0dbad3ff",
+    "sourceSha256": "fcc09323801a05b15e13c38bb52c936a390d9ffc8e94f1887187e717354a2877",
+    "fixtureSha256": "51906b3faaafb541129bf514f0023f3de5ca1a8a5b399ff07eb232251cef7f66"
+  },
+  {
+    "label": "common4",
+    "version": 4,
+    "source": "f57c03a4e36edbc1f9a703170c82bc5a0dbad3ff",
+    "sourceSha256": "fcc09323801a05b15e13c38bb52c936a390d9ffc8e94f1887187e717354a2877",
+    "fixtureSha256": "e5bdcd873771bd3521234342f37fcb0be319bc5de695620f906ac95c94d99d8b"
+  },
+  {
+    "label": "endpoint5",
+    "version": 5,
+    "source": "f57c03a4e36edbc1f9a703170c82bc5a0dbad3ff",
+    "sourceSha256": "fcc09323801a05b15e13c38bb52c936a390d9ffc8e94f1887187e717354a2877",
+    "fixtureSha256": "a9ce4f4d133aa30df3e586f3092c5d8a285e4d51d2281356fc08244c94544ba6"
+  },
+  {
+    "label": "history5",
+    "version": 5,
+    "source": "c809053280e793649797624cdcf3845bb0235a07",
+    "sourceSha256": "bd3976d36d733901ea3899b8a0e157c3fd21701dbe93de453cf46dea7d6d4c2e",
+    "fixtureSha256": "b704b5c43ee7d6dacec7ab3b32b0642615d9493c8257e0f944cf42a15eef8e6a"
+  },
+  {
+    "label": "incident6",
+    "version": 6,
+    "source": "c809053280e793649797624cdcf3845bb0235a07",
+    "sourceSha256": "bd3976d36d733901ea3899b8a0e157c3fd21701dbe93de453cf46dea7d6d4c2e",
+    "fixtureSha256": "2f81a3ae835ca1865dd3ac2cd2dca9f342e827a7959ba6471d061a23c15d34d9"
+  },
+  {
+    "label": "notification7",
+    "version": 7,
+    "source": "c809053280e793649797624cdcf3845bb0235a07",
+    "sourceSha256": "bd3976d36d733901ea3899b8a0e157c3fd21701dbe93de453cf46dea7d6d4c2e",
+    "fixtureSha256": "4e9ac0d4b9767783929374b552ea6ccfe37aab59d64d237492e270ef63876e24"
+  }
+]

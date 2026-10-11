@@ -7,7 +7,8 @@ namespace Tablo;
 final class CheckCommand
 {
     public function __construct(private readonly SiteRepository $sites, private readonly GitHubConnection $github,
-        private readonly HttpClient $http, #[\SensitiveParameter] private readonly TokenVault $vault) {}
+        private readonly HttpClient $http, #[\SensitiveParameter] private readonly TokenVault $vault,
+        private readonly ?NotificationDelivery $notifications = null) {}
 
     public function run(bool $json = false): int
     {
@@ -63,6 +64,12 @@ final class CheckCommand
                 if (!$json) { echo $site['id'] . ': ' . ($failed ? 'attention' : 'ok') . PHP_EOL; }
                 $failures += (int) $failed;
                 $active = null;
+            }
+            if ($this->notifications !== null) {
+                $delivery = $this->notifications->runOne();
+                if (!$json && !in_array($delivery['code'], ['off', 'idle'], true)) {
+                    echo 'notification: ' . $delivery['code'] . PHP_EOL;
+                }
             }
         } catch (\Throwable $error) {
             if (!$json) { throw $error; }

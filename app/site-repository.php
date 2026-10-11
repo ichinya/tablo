@@ -10,7 +10,8 @@ final class SiteRepository
     private readonly TokenVault $tokens;
     private readonly GitTokenRepository $savedTokens;
 
-    public function __construct(private readonly PDO $db, #[\SensitiveParameter] ?TokenVault $tokens = null)
+    public function __construct(private readonly PDO $db, #[\SensitiveParameter] ?TokenVault $tokens = null,
+        private readonly ?\Closure $notificationClock = null)
     {
         $this->tokens = $tokens ?? TokenVault::forDatabase($db);
         $this->savedTokens = new GitTokenRepository($db, $this->tokens);
@@ -286,6 +287,8 @@ final class SiteRepository
         foreach ([['git_tokens', 'encrypted_token', "encrypted_token <> ''"],
             ['sites', 'github_token', "github_token <> ''"],
             ['sites', 'endpoint_token', "endpoint_token <> ''"],
+            ['notification_settings', 'endpoint_cipher', 'endpoint_cipher IS NOT NULL OR bearer_cipher IS NOT NULL'],
+            ['notification_slots', 'private_cipher', 'private_cipher IS NOT NULL'],
             ['github_cooldowns', 'scope', "scope LIKE 'credential:v1:%'"]] as [$table, $column, $predicate]) {
             $statement = $db->query('PRAGMA main.table_info(' . $table . ')');
             try { $columns = array_column($statement->fetchAll(), 'name'); }
@@ -337,7 +340,102 @@ final class SiteRepository
         $this->db->prepare('DELETE FROM sites WHERE id = ?')->execute([$id]);
     }
 
-    public function storeCheck(#[\SensitiveParameter] array $site, #[\SensitiveParameter] array $state): bool
+    public function storeCheck(#[\SensitiveParameter] array $site, array $state): bool
+    {
+        return $this->persistCheck($site, $state, false);
+    }
+
+    // Worker settlement delegates here; neither entry point can bypass transaction ownership.
+    public function settleWorkerCheck(#[\SensitiveParameter] array $site, array $state): bool
+    {
+        return $this->persistCheck($site, $state, true);
+    }
+
+    private function persistCheck(#[\SensitiveParameter] array $site, array $state, bool $worker): bool
+    {
+        // A failed BEGIN owns nothing, including a caller's existing transaction.
+        $this->db->exec('BEGIN IMMEDIATE');
+        try {
+            if (!$this->updateCheck($site, $state)) {
+                $this->db->exec('ROLLBACK');
+                return false;
+            }
+            $row = CheckHistorySnapshot::project($site, $state);
+            $fields = array_keys($row);
+            $statement = $this->db->prepare('INSERT INTO check_history (' . implode(', ', $fields)
+                . ') VALUES (' . implode(', ', array_fill(0, count($fields), '?')) . ')');
+            try { $statement->execute(array_values($row)); }
+            finally { $statement->closeCursor(); }
+            // Capture the real AUTOINCREMENT identity before any other INSERT.
+            $historyId = (int) $this->db->lastInsertId();
+            $this->projectIncident($historyId, $row);
+            (new NotificationProjector($this->db, $this->tokens))->accepted($historyId,$row,$site,
+                $this->notificationClock === null ? time() : ($this->notificationClock)());
+            if ($worker) {
+                $service = $state['worker_service'] ?? null;
+                if (!is_array($service) || array_diff(array_keys($service), WorkerStateRepository::FIELDS) !== []
+                    || array_filter($service, static fn (mixed $value): bool => !is_bool($value)) !== []) {
+                    throw new \InvalidArgumentException('Invalid worker service.');
+                }
+                $this->creditCheck($site['id'], $site['config_revision'], $service);
+            }
+            $this->db->exec('COMMIT');
+            return true;
+        } catch (\Throwable $error) {
+            // SQL engine ownership, not PHP82's cached inTransaction flag, governs cleanup.
+            try { $this->db->exec('ROLLBACK'); }
+            catch (\Throwable) { /* Preserve the first validation/SQL/COMMIT/cleanup error. */ }
+            throw $error;
+        }
+    }
+
+    // Private, constant-size projection of the just-accepted row in persistCheck's transaction.
+    // No replay/import/reset entry point; consumed IDs are idempotent even after retention.
+    private function projectIncident(int $historyId, array $row): void
+    {
+        $siteId = $row['site_id'];
+        $checkpoint = $this->db->prepare('SELECT * FROM incident_checkpoints WHERE site_id = ?');
+        try { $checkpoint->execute([$siteId]); $previous = $checkpoint->fetch(); }
+        finally { $checkpoint->closeCursor(); }
+        if ($previous !== false && $historyId <= $previous['last_history_id']) { return; }
+        $epochChanged = $previous !== false && $previous['config_revision'] !== $row['config_revision'];
+        if ($epochChanged) {
+            $statement = $this->db->prepare("UPDATE incidents SET end_reason = 'config-changed', interruption_history_id = ?
+                WHERE site_id = ? AND end_reason IS NULL");
+            try { $statement->execute([$historyId, $siteId]); }
+            finally { $statement->closeCursor(); }
+        }
+        $watermark = $previous === false || $epochChanged ? $row['checked_at'] : $previous['watermark'];
+        $older = $row['checked_at'] < $watermark;
+        $statement = $this->db->prepare('SELECT id FROM incidents WHERE site_id = ? AND end_reason IS NULL');
+        try { $statement->execute([$siteId]); $openId = $statement->fetchColumn(); }
+        finally { $statement->closeCursor(); }
+        if ($openId === false && $row['online'] === 0) {
+            $statement = $this->db->prepare('INSERT INTO incidents
+                (id, site_id, config_revision, opened_at, health_error_code, health_http_status, uncertain, clock_invalid)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?)');
+            try { $statement->execute([$historyId, $siteId, $row['config_revision'], $row['checked_at'],
+                $row['health_error_code'], $row['health_http_status'], (int) $older, (int) $older]); }
+            finally { $statement->closeCursor(); }
+        } elseif ($openId !== false) {
+            if ($row['online'] === 1 && !$older) {
+                $statement = $this->db->prepare("UPDATE incidents SET end_reason = 'recovered', recovery_history_id = ?, recovered_at = ? WHERE id = ?");
+                $values = [$historyId, $row['checked_at'], $openId];
+            } else {
+                $statement = $this->db->prepare('UPDATE incidents SET uncertain = MAX(uncertain, ?), clock_invalid = MAX(clock_invalid, ?) WHERE id = ?');
+                $values = [(int) ($row['online'] === null || $older), (int) $older, $openId];
+            }
+            try { $statement->execute($values); }
+            finally { $statement->closeCursor(); }
+        }
+        $statement = $this->db->prepare('INSERT INTO incident_checkpoints (site_id, last_history_id, config_revision, watermark)
+            VALUES (?, ?, ?, ?) ON CONFLICT(site_id) DO UPDATE SET last_history_id = excluded.last_history_id,
+            config_revision = excluded.config_revision, watermark = excluded.watermark');
+        try { $statement->execute([$siteId, $historyId, $row['config_revision'], max($watermark, $row['checked_at'])]); }
+        finally { $statement->closeCursor(); }
+    }
+
+    private function updateCheck(#[\SensitiveParameter] array $site, array $state): bool
     {
         // A result for an old configuration must not overwrite a concurrent edit.
         $fields = ['online', 'health_error_code', 'health_http_status', 'deployed_version', 'deployed_commit', 'latest_release', 'latest_commit',
@@ -346,10 +444,10 @@ final class SiteRepository
             'health_check_mode', 'health_json_path', 'health_json_operator', 'health_json_expected_value',
             'comparison_mode', 'enabled', 'sort_order', 'config_revision'];
         $sql = 'UPDATE sites SET ' . implode(', ', array_map(fn ($f) => "$f = ?", $fields))
-            . ' WHERE id = ? AND ' . implode(' AND ', array_map(fn ($f) => "$f = ?", $config)) . ' AND github_token IS ?
+            . ' WHERE id = ? AND enabled = 1 AND ' . implode(' AND ', array_map(fn ($f) => "$f = ?", $config)) . ' AND github_token IS ?
                 AND endpoint_token IS ? AND git_token_id IS ? AND (SELECT encrypted_token FROM git_tokens WHERE id = sites.git_token_id) IS ?';
         return $this->executeBound($sql, [...array_map(fn ($f) => $state[$f] ?? null, $fields), $site['id'], ...array_map(fn ($f) => $site[$f], $config),
-            $site['github_token'] ?? null, $site['endpoint_token'] ?? null, $site['git_token_id'] ?? null, $site['selected_token_snapshot'] ?? null]) > 0;
+            $site['github_token'] ?? null, $site['endpoint_token'] ?? null, $site['git_token_id'] ?? null, $site['selected_token_snapshot'] ?? null]) === 1;
     }
 
     private function executeBound(string $sql, #[\SensitiveParameter] array $values): int
@@ -368,5 +466,33 @@ final class SiteRepository
         // Preserve the first real SQL/commit failure and the authoritative transaction.
         $statement->execute();
         return $statement->rowCount();
+    }
+
+    private function creditCheck(int $id, int $revision, array $service): void
+    {
+        $statement = $this->db->prepare('INSERT INTO worker_progress (site_id, config_revision)
+            SELECT id, config_revision FROM sites WHERE id = ? AND config_revision = ? AND enabled = 1
+            ON CONFLICT(site_id) DO UPDATE SET config_revision = excluded.config_revision,
+            latest_release = 0, latest_commit = 0, open_issues = 0, open_prs = 0
+            WHERE worker_progress.config_revision <> excluded.config_revision');
+        try { $statement->execute([$id, $revision]); }
+        finally { $statement->closeCursor(); }
+        foreach (WorkerStateRepository::FIELDS as $field) {
+            if (!($service[$field] ?? false)) { continue; }
+            $statement = $this->db->query('SELECT fairness_turn FROM worker_runtime WHERE id = 1');
+            try { $turn = (int) $statement->fetchColumn(); }
+            finally { $statement->closeCursor(); }
+            if ($turn >= 1000000000) {
+                $this->db->exec('UPDATE worker_progress SET latest_release = latest_release / 2,
+                    latest_commit = latest_commit / 2, open_issues = open_issues / 2, open_prs = open_prs / 2');
+                $this->db->exec('UPDATE worker_runtime SET fairness_turn = fairness_turn / 2 WHERE id = 1');
+            }
+            $this->db->exec('UPDATE worker_runtime SET fairness_turn = fairness_turn + 1 WHERE id = 1');
+            $statement = $this->db->prepare('UPDATE worker_progress SET ' . $field . ' = (SELECT fairness_turn FROM worker_runtime WHERE id = 1)
+                WHERE site_id = ? AND config_revision = ? AND EXISTS(SELECT 1 FROM sites
+                WHERE id = ? AND config_revision = ? AND enabled = 1)');
+            try { $statement->execute([$id, $revision, $id, $revision]); }
+            finally { $statement->closeCursor(); }
+        }
     }
 }

@@ -42,7 +42,8 @@ try {
     $github = $json ? new Tablo\GitHubConnection($sites, new Tablo\HttpClient(), propagateSharedFailures: true)
         : new Tablo\GitHubConnection($sites, new Tablo\HttpClient());
     exit((new Tablo\CheckCommand($sites, $github,
-        new Tablo\HttpClient(getenv('TABLO_ALLOW_PRIVATE_NETWORK') === '1'), $vault))->run($json));
+        new Tablo\HttpClient(getenv('TABLO_ALLOW_PRIVATE_NETWORK') === '1'), $vault,
+        new Tablo\NotificationDelivery($db, $vault)))->run($json));
 } catch (Throwable $error) {
     if ($json) {
         $reason = match (true) {

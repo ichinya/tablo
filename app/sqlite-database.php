@@ -9,7 +9,37 @@ use Throwable;
 
 final class Database
 {
-    public const CURRENT_SCHEMA_VERSION = 5;
+    public const CURRENT_SCHEMA_VERSION = 8;
+
+    // Prospective activation: these additive DDL statements never read current values or retained history.
+    private const INCIDENT_SCHEMA = [
+        "CREATE TABLE incidents (
+            id INTEGER PRIMARY KEY CHECK (id > 0),
+            site_id INTEGER NOT NULL REFERENCES sites(id) ON DELETE CASCADE,
+            config_revision INTEGER NOT NULL CHECK (config_revision >= 0),
+            opened_at TEXT NOT NULL,
+            health_error_code TEXT CHECK (health_error_code IN ('http', 'timeout', 'refused', 'dns', 'ssrf', 'tls', 'size',
+                'invalid-response', 'invalid-url', 'network', 'check-error', 'json-condition')),
+            health_http_status INTEGER CHECK (health_http_status BETWEEN 100 AND 599),
+            recovery_history_id INTEGER CHECK (recovery_history_id > id),
+            recovered_at TEXT,
+            interruption_history_id INTEGER CHECK (interruption_history_id > id),
+            end_reason TEXT CHECK (end_reason IN ('recovered', 'config-changed')),
+            uncertain INTEGER NOT NULL DEFAULT 0 CHECK (uncertain IN (0, 1)),
+            clock_invalid INTEGER NOT NULL DEFAULT 0 CHECK (clock_invalid IN (0, 1)),
+            CHECK ((end_reason IS 'recovered') = (recovery_history_id IS NOT NULL AND recovered_at IS NOT NULL)),
+            CHECK ((end_reason IS 'config-changed') = (interruption_history_id IS NOT NULL)),
+            CHECK (end_reason IS 'recovered' OR (recovery_history_id IS NULL AND recovered_at IS NULL))
+        )",
+        'CREATE UNIQUE INDEX incidents_unresolved ON incidents(site_id) WHERE end_reason IS NULL',
+        'CREATE INDEX incidents_site_id ON incidents(site_id, id)',
+        "CREATE TABLE incident_checkpoints (
+            site_id INTEGER PRIMARY KEY REFERENCES sites(id) ON DELETE CASCADE,
+            last_history_id INTEGER NOT NULL CHECK (last_history_id > 0),
+            config_revision INTEGER NOT NULL CHECK (config_revision >= 0),
+            watermark TEXT NOT NULL
+        )",
+    ];
 
     // Version 0 installations may lack these additive fields and git_tokens.
     private const SITE_ADDITIONS = [
@@ -135,7 +165,8 @@ final class Database
     {
         $present = false;
         $verified = false;
-        foreach ([['sites', 'github_token'], ['sites', 'endpoint_token'], ['git_tokens', 'encrypted_token']] as [$table, $column]) {
+        foreach ([['sites', 'github_token'], ['sites', 'endpoint_token'], ['git_tokens', 'encrypted_token'], ['notification_settings', 'endpoint_cipher'],
+            ['notification_settings', 'bearer_cipher'], ['notification_slots', 'private_cipher']] as [$table, $column]) {
             $statement = $db->prepare("SELECT type FROM main.sqlite_schema WHERE name = ?");
             try { $statement->execute([$table]); $type = $statement->fetchColumn(); }
             finally { $statement->closeCursor(); }
@@ -271,6 +302,7 @@ final class Database
         try {
             $version = self::schemaVersion($db);
             self::validateSchema($db, true);
+            self::classify($db);
         } catch (RuntimeException $error) {
             self::refuseExistingFailure($error, 'Installation schema incompatible.');
         }
@@ -308,7 +340,13 @@ final class Database
         foreach (['sites' => ['config_revision', 'endpoint_token'], 'github_cooldowns' => ['scope', 'resource', 'eligible_at'],
             'installation_settings' => ['id', 'check_interval_minutes'],
             'worker_runtime' => ['id', 'run_id', 'stop_requested', 'fairness_turn'],
-            'worker_progress' => ['site_id', 'config_revision', 'latest_release', 'latest_commit', 'open_issues', 'open_prs']] as $table => $required) {
+            'worker_progress' => ['site_id', 'config_revision', 'latest_release', 'latest_commit', 'open_issues', 'open_prs'],
+            'check_history' => ['id','site_id','config_revision','checked_at'],
+            'incidents' => ['id','site_id','config_revision','recovery_history_id','end_reason'],
+            'incident_checkpoints' => ['site_id','last_history_id','config_revision','watermark'],
+            'notification_settings' => ['id','revision','installation_id','blocked','endpoint_cipher','bearer_cipher'],
+            'notification_checkpoints' => ['site_id','last_history_id','config_revision','state'],
+            'notification_slots' => ['site_id','event','event_id','source_id','claim','attempts']] as $table => $required) {
             $statement = $db->prepare("SELECT type FROM main.sqlite_schema WHERE name = ?");
             try { $statement->execute([$table]); $type = $statement->fetchColumn(); }
             finally { $statement->closeCursor(); }
@@ -320,38 +358,125 @@ final class Database
 
     public static function migrate(PDO $db): void
     {
-        if (self::schemaVersion($db) === self::CURRENT_SCHEMA_VERSION) { return; }
-        if ($db->inTransaction()) {
-            throw new RuntimeException('Cannot migrate SQLite inside an existing transaction.');
-        }
-
-        // Acquire before inspecting/changing the legacy schema. A failed BEGIN owns no transaction.
+        $layout = self::classify($db);
+        if ($layout['version'] === self::CURRENT_SCHEMA_VERSION) { return; }
+        if ($db->inTransaction()) { throw new RuntimeException('Cannot migrate SQLite inside an existing transaction.'); }
+        // BEGIN remains outside cleanup: a failed/nested BEGIN owns no transaction.
         $db->exec('BEGIN IMMEDIATE');
         try {
-            // Another process may have completed the migration while BEGIN waited.
-            $version = self::schemaVersion($db);
-            while ($version < self::CURRENT_SCHEMA_VERSION) {
+            $layout = self::classify($db);
+            $version = $layout['version'];
+            while ($version < 4) {
                 match ($version) {
                     0 => self::migrateToVersionOne($db),
                     1 => self::migrateToVersionTwo($db),
                     2 => self::migrateToVersionThree($db),
                     3 => self::migrateToVersionFour($db),
-                    4 => self::migrateToVersionFive($db),
-                    default => throw new RuntimeException('No migration for SQLite schema version ' . $version),
                 };
-                $version++;
-                $db->exec('PRAGMA main.user_version = ' . $version);
+                ++$version;
             }
+            if (!$layout['endpoint']) { $db->exec('ALTER TABLE sites ADD COLUMN endpoint_token TEXT'); }
+            if (!$layout['history']) { self::migrateToVersionFive($db, true); }
+            elseif ($layout['version'] !== self::CURRENT_SCHEMA_VERSION) { self::widenHistory($db); }
+            if (!$layout['incidents']) { foreach (self::INCIDENT_SCHEMA as $statement) { $db->exec($statement); } }
+            if (!$layout['notifications']) { NotificationSchema::migrate($db); }
+            SchemaShape::assert($db, self::reference(self::CURRENT_SCHEMA_VERSION, true));
+            if (SchemaShape::rows($db, 'PRAGMA main.foreign_key_check') !== []) { SchemaShape::refuse(); }
+            $db->exec('PRAGMA main.user_version = ' . self::CURRENT_SCHEMA_VERSION);
             $db->exec('COMMIT');
         } catch (Throwable $error) {
-            try {
-                // BEGIN succeeded above, so this is our transaction. PHP 8.2 may not report
-                // SQL-started transactions in inTransaction(); always attempt the rollback.
-                $db->exec('ROLLBACK');
-            } catch (Throwable) {
-                // Preserve the migration error if SQLite already rolled back or the rollback fails.
-            }
+            try { $db->exec('ROLLBACK'); }
+            catch (Throwable) { /* Preserve the first error even when raw SQL transaction state is invisible to PDO. */ }
             throw $error;
+        }
+    }
+
+    private static function classify(PDO $db): array
+    {
+        $version = self::schemaVersion($db);
+        $objects = SchemaShape::objects($db);
+        $endpoint = in_array('endpoint_token', array_column(self::columns($db, 'sites'), 'name'), true);
+        $groups = [
+            'history' => ['check_history', 'check_history_site_time', 'check_history_time'],
+            'incidents' => ['incidents', 'incidents_unresolved', 'incidents_site_id', 'incident_checkpoints'],
+            'notifications' => ['notification_settings', 'notification_checkpoints', 'notification_slots', 'notification_due', 'notification_eligible'],
+        ];
+        $present = [];
+        foreach ($groups as $group => $names) {
+            $count = count(array_intersect($names, array_keys($objects)));
+            if ($count !== 0 && $count !== count($names)) { SchemaShape::refuse(); }
+            $present[$group] = $count !== 0;
+        }
+        if (isset($objects['_tablo_history_upgrade'])) { SchemaShape::refuse(); }
+        $valid = match ($version) {
+            0, 1, 2, 3, 4 => !$endpoint && !$present['history'] && !$present['incidents'] && !$present['notifications'],
+            5 => $endpoint !== $present['history'] && !$present['incidents'] && !$present['notifications'],
+            6 => !$endpoint && $present['history'] && $present['incidents'] && !$present['notifications'],
+            7 => !$endpoint && $present['history'] && $present['incidents'] && $present['notifications'],
+            8 => $endpoint && $present['history'] && $present['incidents'] && $present['notifications'],
+            default => false,
+        };
+        if (!$valid) { SchemaShape::refuse(); }
+        SchemaShape::assert($db, self::reference($version, $endpoint), $version === 0);
+        if ($present['history'] && $version !== self::CURRENT_SCHEMA_VERSION) { self::validateHistoryDependencies($db, $objects); }
+        if (SchemaShape::rows($db, 'PRAGMA main.foreign_key_check') !== []) { SchemaShape::refuse(); }
+        return ['version' => $version, 'endpoint' => $endpoint, ...$present];
+    }
+
+    private static function reference(int $version, bool $endpoint): PDO
+    {
+        $db = new PDO('sqlite::memory:', null, null, [PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION]);
+        self::migrateToVersionOne($db);
+        if ($version >= 2) { self::migrateToVersionTwo($db); }
+        if ($version >= 3) { self::migrateToVersionThree($db); }
+        if ($version >= 4) { self::migrateToVersionFour($db); }
+        if ($endpoint) { $db->exec('ALTER TABLE sites ADD COLUMN endpoint_token TEXT'); }
+        if ($version >= 5 && (!$endpoint || $version === self::CURRENT_SCHEMA_VERSION)) {
+            self::migrateToVersionFive($db, $version === self::CURRENT_SCHEMA_VERSION);
+        }
+        if ($version >= 6) { foreach (self::INCIDENT_SCHEMA as $statement) { $db->exec($statement); } }
+        if ($version >= 7) { NotificationSchema::migrate($db); }
+        return $db;
+    }
+
+    private static function validateHistoryDependencies(PDO $db, array $objects): void
+    {
+        foreach ($objects as $name => $object) {
+            if ($object['tbl_name'] === 'check_history' && !in_array($name,
+                ['check_history', 'check_history_site_time', 'check_history_time'], true)) { SchemaShape::refuse(); }
+            if ($object['type'] !== 'table') { continue; }
+            // Names are quoted from actual SQLite metadata, never interpolated as SQL syntax.
+            $quoted = '"' . str_replace('"', '""', $object['name']) . '"';
+            foreach (SchemaShape::rows($db, 'PRAGMA main.foreign_key_list(' . $quoted . ')') as $foreign) {
+                if (strtolower($foreign['table']) === 'check_history') { SchemaShape::refuse(); }
+            }
+        }
+    }
+
+    private static function widenHistory(PDO $db): void
+    {
+        self::validateHistoryDependencies($db, SchemaShape::objects($db));
+        $sequence = SchemaShape::rows($db, "SELECT seq FROM main.sqlite_sequence WHERE name = 'check_history'");
+        $oldSequence = $sequence[0]['seq'] ?? 0;
+        $expected = self::reference(self::CURRENT_SCHEMA_VERSION, true);
+        $sql = SchemaShape::objects($expected)['check_history']['sql'];
+        $db->exec(str_replace('CREATE TABLE check_history', 'CREATE TABLE _tablo_history_upgrade', $sql));
+        $columns = implode(', ', array_map(static fn (array $column): string => '"' . $column['name'] . '"', self::columns($db, 'check_history')));
+        $db->exec('INSERT INTO _tablo_history_upgrade (' . $columns . ') SELECT ' . $columns . ' FROM check_history');
+        $missing = SchemaShape::rows($db, 'SELECT ' . $columns . ' FROM check_history EXCEPT SELECT ' . $columns . ' FROM _tablo_history_upgrade');
+        $extra = SchemaShape::rows($db, 'SELECT ' . $columns . ' FROM _tablo_history_upgrade EXCEPT SELECT ' . $columns . ' FROM check_history');
+        if ($missing !== [] || $extra !== []) { SchemaShape::refuse(); }
+        $db->exec('DROP TABLE check_history');
+        $db->exec('ALTER TABLE _tablo_history_upgrade RENAME TO check_history');
+        $db->exec('CREATE INDEX check_history_site_time ON check_history(site_id, checked_at, id)');
+        $db->exec('CREATE INDEX check_history_time ON check_history(checked_at, id)');
+        $statement = $db->prepare("UPDATE main.sqlite_sequence SET seq = MAX(seq, ?) WHERE name = 'check_history'");
+        try { $statement->bindValue(1, $oldSequence, PDO::PARAM_INT); $statement->execute(); }
+        finally { $statement->closeCursor(); }
+        if ($sequence !== [] && SchemaShape::rows($db, "SELECT seq FROM main.sqlite_sequence WHERE name = 'check_history'") === []) {
+            $statement = $db->prepare("INSERT INTO main.sqlite_sequence (name, seq) VALUES ('check_history', ?)");
+            try { $statement->bindValue(1, $oldSequence, PDO::PARAM_INT); $statement->execute(); }
+            finally { $statement->closeCursor(); }
         }
     }
 
@@ -425,10 +550,43 @@ final class Database
         )");
     }
 
-    private static function migrateToVersionFive(PDO $db): void
+    private static function migrateToVersionFive(PDO $db, bool $wide = false): void
     {
-        self::validateSchema($db, true);
-        $db->exec('ALTER TABLE sites ADD COLUMN endpoint_token TEXT');
+        $sql = "CREATE TABLE check_history (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            site_id INTEGER NOT NULL REFERENCES sites(id) ON DELETE CASCADE,
+            config_revision INTEGER NOT NULL CHECK (typeof(config_revision) = 'integer' AND config_revision >= 0),
+            checked_at TEXT NOT NULL CHECK (typeof(checked_at) = 'text' AND length(CAST(checked_at AS BLOB)) = 20
+                AND checked_at GLOB '[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]T[0-9][0-9]:[0-9][0-9]:[0-9][0-9]Z'
+                AND substr(checked_at, 1, 4) <> '0000'
+                AND strftime('%Y-%m-%dT%H:%M:%SZ', checked_at, '+0 seconds') IS checked_at),
+            online INTEGER CHECK (online IS NULL OR (typeof(online) = 'integer' AND online IN (0, 1))),
+            health_error_code TEXT CHECK (health_error_code IN ('http', 'timeout', 'refused', 'dns', 'ssrf', 'tls', 'size',
+                'invalid-response', 'invalid-url', 'network', 'check-error', 'json-condition')),
+            health_http_status INTEGER CHECK (health_http_status IS NULL OR (typeof(health_http_status) = 'integer' AND health_http_status BETWEEN 100 AND 599)),
+            response_time_ms INTEGER CHECK (response_time_ms IS NULL OR (typeof(response_time_ms) = 'integer' AND response_time_ms BETWEEN 0 AND 2147483647)),
+            deployed_version TEXT CHECK (deployed_version IS NULL OR (typeof(deployed_version) = 'text' AND length(CAST(deployed_version AS BLOB)) BETWEEN 1 AND 200)),
+            deployed_commit TEXT CHECK (deployed_commit IS NULL OR (typeof(deployed_commit) = 'text' AND length(deployed_commit) BETWEEN 7 AND 64 AND deployed_commit NOT GLOB '*[^a-f0-9]*')),
+            latest_release TEXT CHECK (latest_release IS NULL OR (typeof(latest_release) = 'text' AND length(CAST(latest_release AS BLOB)) BETWEEN 1 AND 200)),
+            latest_commit TEXT CHECK (latest_commit IS NULL OR (typeof(latest_commit) = 'text' AND length(latest_commit) BETWEEN 7 AND 64 AND latest_commit NOT GLOB '*[^a-f0-9]*')),
+            version_status TEXT NOT NULL CHECK (version_status IN ('skipped', 'ok', 'error')),
+            version_error_code TEXT CHECK (version_error_code IN ('http', 'invalid-data', 'timeout', 'refused', 'dns', 'ssrf', 'tls', 'size',
+                'invalid-response', 'invalid-url', 'network', 'check-error', 'json-condition')),
+            version_http_status INTEGER CHECK (version_http_status IS NULL OR (typeof(version_http_status) = 'integer' AND version_http_status BETWEEN 100 AND 599)),
+            release_error_code TEXT CHECK (release_error_code IN ('access', 'rate-limit', 'budget', 'credential-changed', 'renamed',
+                'branch-unconfirmed', 'release-unconfirmed', 'incomplete-search', 'invalid-data', 'unavailable', 'check-error')),
+            release_http_status INTEGER CHECK (release_http_status IS NULL OR (typeof(release_http_status) = 'integer' AND release_http_status BETWEEN 100 AND 599)),
+            commit_error_code TEXT CHECK (commit_error_code IN ('access', 'rate-limit', 'budget', 'credential-changed', 'renamed',
+                'branch-unconfirmed', 'release-unconfirmed', 'incomplete-search', 'invalid-data', 'unavailable', 'check-error')),
+            commit_http_status INTEGER CHECK (commit_http_status IS NULL OR (typeof(commit_http_status) = 'integer' AND commit_http_status BETWEEN 100 AND 599)),
+            CHECK ((version_status = 'error') = (version_error_code IS NOT NULL))
+        )";
+        if ($wide) {
+            $sql = str_replace("'json-condition'", "'json-condition', 'redirect-location-missing', 'redirect-location-invalid', 'redirect-origin', 'redirect-cycle', 'redirect-limit'", $sql);
+        }
+        $db->exec($sql);
+        $db->exec('CREATE INDEX check_history_site_time ON check_history(site_id, checked_at, id)');
+        $db->exec('CREATE INDEX check_history_time ON check_history(checked_at, id)');
     }
 
     private static function validateSchema(PDO $db, bool $complete): void

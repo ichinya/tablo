@@ -13,12 +13,10 @@ final class GitHubMigrationTest
     #[Test]
     public function upgradesVersionTwoAtomicallyAndPreservesRowsOnFailure(): void
     {
-        foreach (['CREATE TABLE github_cooldowns', 'PRAGMA main.user_version = 3', 'COMMIT', null] as $failure) {
+        foreach (['CREATE TABLE github_cooldowns', 'PRAGMA main.user_version = 8', 'COMMIT', null] as $failure) {
             $db = new MigrationPdo(':memory:');
-            $db->exec(file_get_contents(dirname(__DIR__, 2) . '/database/schema.sql'));
-            $db->exec("ALTER TABLE sites ADD COLUMN health_error_code TEXT;
-                ALTER TABLE sites ADD COLUMN health_http_status INTEGER;
-                PRAGMA user_version = 2;
+            $db->exec(file_get_contents(dirname(__DIR__) . '/fixtures/historical-schema/common2.sql'));
+            $db->exec("
                 INSERT INTO sites (name,url,repository,github_token,online,latest_release,health_error_code)
                 VALUES ('Synthetic','https://example.com','example/project','encrypted-fixture',1,'v1','http')");
             $before = $db->query('SELECT * FROM sites')->fetchAll();

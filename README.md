@@ -1163,3 +1163,23 @@ primary cooldown через HMAC с private vault key; ротация handle с�
 `php bin/worker.php --stop` requests cooperative stop; observe exit before restarting.
 Docker Compose includes `tablo-worker` sharing the web image, local database and token key.
 See [launch, cadence, fairness, stop and storage limits](docs/periodic-worker.md).
+
+## Check history
+
+Accepted checks append bounded immutable history without changing the current dashboard state.
+Use `php bin/history.php SITE FROM TO [LIMIT [CURSOR]]` to read local pages and
+`php bin/prune-history.php [SITE]` to prune with `TABLO_HISTORY_RETENTION_DAYS` (default 30).
+See [atomic persistence, pagination and retention limits](docs/check-history.md).
+
+## Incidents
+
+Authenticated `/incidents` lists first observed Offline, recovery and qualified observation intervals.
+Tracking starts with newly accepted checks after installation; migration and reads never replay old
+history or fabricate incidents from current values. See [lifecycle, activation and paging boundaries](docs/incidents.md).
+
+## Notifications
+
+Settings provides one encrypted HTTPS webhook channel, disabled by default, for selected
+unavailable, recovery and version-lag observations. Delivery follows accepted commits and
+is bounded best effort; receivers deduplicate stable event keys. See [settings, privacy,
+confirmation, retries and supervision limits](docs/notifications.md).

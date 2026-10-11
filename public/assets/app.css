@@ -11,3 +11,14 @@
 @media(max-width:380px){.sidebar{flex-wrap:wrap}.sidebar nav{width:100%;justify-content:space-between}}
 .health-mode-fields{margin-top:21px}
 .json-check-fields{margin-top:20px}.json-condition-row{display:grid;grid-template-columns:110px minmax(0,1fr);gap:18px;margin-top:18px}.version-check-fields{border-top:1px solid var(--line);margin-top:25px;padding-top:25px}.field-error{font-size:11px;line-height:1.6;color:#a75454;margin-top:7px}[aria-invalid="true"]{border-color:#c57a7a!important}@media(max-width:680px){.json-condition-row{grid-template-columns:90px minmax(0,1fr);gap:12px}}
+/* Incident observations share the existing authenticated layout. */
+.incident-filter{display:flex;gap:12px;align-items:center;flex-wrap:wrap;margin:24px 0}
+.incident-filter input{max-width:160px;padding:10px;border:1px solid #dce2e9;border-radius:8px}
+.incident-list{display:grid;gap:16px;margin:20px 0}
+.incident-card{background:#fff;border:1px solid #e2e7ed;border-radius:12px;padding:20px;overflow-wrap:anywhere}
+.incident-card a{color:inherit}.incident-id{color:#718096;margin-left:12px}
+.incident-status{font-weight:600}.incident-qualifier,.incident-note{color:#667085;font-size:14px}
+.incident-card dl{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:16px;margin-bottom:0}
+.incident-card dt{font-size:13px;color:#667085;margin-bottom:5px}.incident-card dd{margin:0}
+@media(max-width:600px){.incident-card dl{grid-template-columns:1fr}.incident-card{padding:16px}}
+@media(max-width:480px){.sidebar{flex-wrap:wrap}.sidebar nav{width:100%;justify-content:space-between}}

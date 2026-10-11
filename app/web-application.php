@@ -14,6 +14,10 @@ final class Web
     private readonly SiteRepository $sites;
     private readonly GitTokenRepository $tokens;
     private readonly SettingsRepository $installation;
+    private readonly IncidentRepository $incidents;
+    private readonly NotificationSettings $notifications;
+    private readonly NotificationOutbox $notificationOutbox;
+    private readonly NotificationDelivery $notificationDelivery;
     private readonly Auth $auth;
     private readonly ClientAddress $clientAddress;
     private readonly GitHubConnection $github;
@@ -51,6 +55,10 @@ final class Web
         $this->sites = new SiteRepository($db, $vault);
         $this->tokens = new GitTokenRepository($db, $vault);
         $this->installation = new SettingsRepository($db);
+        $this->incidents = new IncidentRepository($db);
+        $this->notifications = new NotificationSettings($db,$vault);
+        $this->notificationOutbox = new NotificationOutbox($db);
+        $this->notificationDelivery = new NotificationDelivery($db,$vault);
         $this->auth = new Auth($db);
         $this->github = new GitHubConnection($this->sites, $githubHttp ?? new HttpClient());
         $di = new FactoryDefault();
@@ -142,8 +150,10 @@ final class Web
             return $web->redirect('/login');
         });
         $app->get('/', fn () => $web->dashboard());
+        $app->get('/incidents', fn () => $web->incidentList());
         $app->get('/settings', fn () => $web->settings());
         $app->post('/settings', fn () => $web->saveSettings());
+        $app->post('/settings/notifications', fn () => $web->saveNotifications());
         $app->get('/settings/tokens/new', fn () => $web->tokenForm(['name' => '', 'provider' => 'github']));
         $app->post('/settings/tokens/new', fn () => $web->saveToken());
         $app->get('/settings/tokens/{id:[0-9]+}/edit', function ($id) use ($web) {
@@ -201,6 +211,7 @@ final class Web
                         $web->github->provider(SiteRepository::withoutEndpointCredential($site)), $web->vault);
                     $stored = $web->sites->storeCheck($site, $checker->check($site));
                     $notice = $stored ? 'Проверка завершена. Результаты обновлены.' : 'Настройки изменились во время проверки. Запустите её ещё раз.';
+                    if ($stored) { $web->notificationDelivery->runOne(); }
                 } catch (ValidationException $e) {
                     $notice = implode(' ', $e->errors);
                 }
@@ -281,10 +292,19 @@ final class Web
 
     private function settings(array $errors = [], mixed $submitted = null, int $status = 200): Response
     {
+        $notificationSite=null;
+        if (isset($_GET['notification_site_id']) && $_GET['notification_site_id']!=='') {
+            try { $notificationSite=self::incidentInteger($_GET['notification_site_id'],PHP_INT_MAX); }
+            catch (\InvalidArgumentException) { return $this->render('error',['title'=>'Некорректный запрос','message'=>'Проверьте ID сайта.'],400); }
+        }
         $notice = $_SESSION['notice'] ?? '';
         unset($_SESSION['notice']);
         return $this->render('settings', ['title' => 'Настройки', 'tokens' => $this->tokens->all(),
             'providers' => GitProviders::available(), 'notice' => $notice, 'errors' => $errors,
+            'notifications' => $this->notifications->get(),
+            'notification_status' => $notificationSite===null?$this->notificationOutbox->status():$this->notificationOutbox->statusForSite($notificationSite),
+            'notification_site_id' => $notificationSite,
+            'notification_status_truncated' => $notificationSite===null && $this->notificationOutbox->statusTruncated(),
             'check_interval_minutes' => $submitted ?? $this->installation->get()], $status);
     }
 
@@ -296,6 +316,21 @@ final class Web
             return $this->redirect('/settings');
         } catch (ValidationException $error) {
             return $this->settings($error->errors, $this->input('check_interval_minutes'), 422);
+        }
+    }
+
+    private function saveNotifications(): Response
+    {
+        session_write_close();
+        try {
+            $this->notifications->update($_POST);
+            session_start();
+            $_SESSION['notice']='Настройки уведомлений сохранены.';
+            return $this->redirect('/settings');
+        } catch (\Throwable $error) {
+            session_start();
+            $errors=$error instanceof ValidationException?$error->errors:['notifications'=>'Не удалось сохранить настройки уведомлений.'];
+            return $this->settings($errors,null,422);
         }
     }
 
@@ -359,6 +394,34 @@ final class Web
         $notice = $_SESSION['notice'] ?? '';
         unset($_SESSION['notice']);
         return $this->render('dashboard', ['title' => 'Обзор сайтов', 'sites' => $sites, 'stats' => $stats, 'notice' => $notice]);
+    }
+
+    private function incidentList(): Response
+    {
+        try {
+            $siteId = array_key_exists('site_id', $_GET) ? self::incidentInteger($_GET['site_id'], PHP_INT_MAX) : null;
+            $limit = array_key_exists('limit', $_GET) ? self::incidentInteger($_GET['limit'], 100) : 50;
+            $cursor = $_GET['cursor'] ?? null;
+            if ($cursor !== null && !is_string($cursor)) { throw new \InvalidArgumentException('Invalid incident query.'); }
+            $page = $this->incidents->page($siteId, $limit, $cursor);
+            $next = $page['next_cursor'] === null ? null : '/incidents?' . http_build_query(
+                array_filter(['site_id' => $siteId, 'limit' => $limit, 'cursor' => $page['next_cursor']], static fn ($value) => $value !== null));
+            return $this->render('incidents', ['title' => 'Инциденты', 'incidents' => array_map([IncidentPresenter::class, 'row'], $page['rows']),
+                'site_filter' => $siteId ?? '', 'next_page' => $next]);
+        } catch (\OutOfBoundsException) { return $this->notFound(); }
+        catch (\InvalidArgumentException) {
+            return $this->render('error', ['title' => 'Некорректный запрос', 'message' => 'Проверьте фильтр и ссылку на страницу инцидентов.'], 422);
+        }
+    }
+
+    private static function incidentInteger(mixed $value, int $maximum): int
+    {
+        if (!is_string($value) || !preg_match('/^[1-9][0-9]*$/D', $value)
+            || strlen($value) > strlen((string) $maximum)
+            || (strlen($value) === strlen((string) $maximum) && strcmp($value, (string) $maximum) > 0)) {
+            throw new \InvalidArgumentException('Invalid incident query.');
+        }
+        return (int) $value;
     }
 
     private function notFound(): Response

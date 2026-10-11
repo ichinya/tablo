@@ -165,7 +165,7 @@ final class DatabaseTest
                 Assert::same((int) $db->query('PRAGMA busy_timeout')->fetchColumn(), 5000);
                 Assert::same($db->query('PRAGMA integrity_check')->fetchColumn(), 'ok');
                 Assert::same($db->query('SELECT name FROM sqlite_schema WHERE type = \'table\' AND name NOT LIKE \'sqlite_%\' ORDER BY name')
-                    ->fetchAll(PDO::FETCH_COLUMN), ['git_tokens', 'github_cooldowns', 'installation_settings', 'login_limits', 'sites', 'users', 'worker_progress', 'worker_runtime']);
+                    ->fetchAll(PDO::FETCH_COLUMN), ['check_history', 'git_tokens', 'github_cooldowns', 'incident_checkpoints', 'incidents', 'installation_settings', 'login_limits', 'notification_checkpoints', 'notification_settings', 'notification_slots', 'sites', 'users', 'worker_progress', 'worker_runtime']);
                 Assert::same($db->query('PRAGMA foreign_key_check')->fetchAll(), []);
                 Assert::same($db->query('PRAGMA journal_mode')->fetchColumn(), $path === ':memory:' ? 'memory' : 'wal');
                 unset($db);
@@ -216,19 +216,19 @@ final class DatabaseTest
     }
 
     #[Test]
-    public function currentSchemaOnlyReadsVersionEvenInsideCallerTransaction(): void
+    public function currentSchemaValidatesPhysicalLayoutWithoutWritesInsideCallerTransaction(): void
     {
         $db = new MigrationPdo(':memory:');
         Database::migrate($db);
         $before = self::snapshot($db);
         $db->statements = [];
         Database::migrate($db);
-        Assert::same($db->statements, ['PRAGMA main.user_version']);
+        Assert::same(array_values(array_filter($db->statements, static fn (string $sql): bool => preg_match('/^(BEGIN|CREATE|ALTER|DROP|INSERT|UPDATE|COMMIT|ROLLBACK)/', $sql) === 1)), []);
         Assert::same(self::snapshot($db), $before);
         $db->beginTransaction();
         $db->statements = [];
         Database::migrate($db);
-        Assert::same($db->statements, ['PRAGMA main.user_version']);
+        Assert::same(array_values(array_filter($db->statements, static fn (string $sql): bool => preg_match('/^(BEGIN|CREATE|ALTER|DROP|INSERT|UPDATE|COMMIT|ROLLBACK)/', $sql) === 1)), []);
         Assert::true($db->inTransaction());
         $db->rollBack();
     }
@@ -302,7 +302,7 @@ final class DatabaseTest
     #[Test]
     public function upgradesVersionOneDiagnosticsAtomicallyWithoutChangingExistingRows(): void
     {
-        foreach ([null, 'ALTER TABLE sites ADD COLUMN health_http_status', 'PRAGMA main.user_version = 2', 'COMMIT'] as $failure) {
+        foreach ([null, 'ALTER TABLE sites ADD COLUMN health_http_status', 'PRAGMA main.user_version = 8', 'COMMIT'] as $failure) {
             $db = new MigrationPdo(':memory:');
             $db->exec(self::schema());
             $db->exec("PRAGMA user_version = 1;
@@ -328,7 +328,7 @@ final class DatabaseTest
             Assert::same($after['rows']['sites'][0]['health_http_status'], null);
             $db->statements = [];
             Database::migrate($db);
-            Assert::same($db->statements, ['PRAGMA main.user_version']);
+            Assert::same(array_values(array_filter($db->statements, static fn (string $sql): bool => preg_match('/^(BEGIN|CREATE|ALTER|DROP|INSERT|UPDATE|COMMIT|ROLLBACK)/', $sql) === 1)), []);
         }
     }
 
@@ -379,7 +379,7 @@ final class DatabaseTest
             $db->statements = [];
             $message = self::errorMessage(fn () => Database::migrate($db));
             Assert::true(str_contains($message ?? '', 'Unsupported SQLite schema version ' . $version));
-            Assert::same($db->statements, ['PRAGMA main.user_version']);
+            Assert::same(array_values(array_filter($db->statements, static fn (string $sql): bool => preg_match('/^(BEGIN|CREATE|ALTER|DROP|INSERT|UPDATE|COMMIT|ROLLBACK)/', $sql) === 1)), []);
             Assert::same(self::snapshot($db), $before);
         }
     }
@@ -409,7 +409,7 @@ final class DatabaseTest
         $db->exec("INSERT INTO notes VALUES ('caller-owned')");
         $db->statements = [];
         Assert::true(str_contains(self::errorMessage(fn () => Database::migrate($db)) ?? '', 'existing transaction'));
-        Assert::same($db->statements, ['PRAGMA main.user_version']);
+        Assert::same(array_values(array_filter($db->statements, static fn (string $sql): bool => preg_match('/^(BEGIN|CREATE|ALTER|DROP|INSERT|UPDATE|COMMIT|ROLLBACK)/', $sql) === 1)), []);
         Assert::true($db->inTransaction());
         Assert::same($db->query('SELECT value FROM notes')->fetchColumn(), 'caller-owned');
         $db->commit();
