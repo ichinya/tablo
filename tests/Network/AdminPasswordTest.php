@@ -57,7 +57,8 @@ final class AdminPasswordTest
                 Assert::same($db->query('SELECT password_hash FROM users')->fetchColumn(), $hash);
             }
             Assert::same(self::command($directory, '/missing-installation', ['--help'])['exit_code'], 0);
-        } finally { $db = null; $directory->close(); }
+        } catch (\Throwable $error) { $directory->retainFailure($error); throw $error; }
+        finally { $db = null; $directory->close(); }
     }
 
     #[Test]
@@ -119,7 +120,8 @@ final class AdminPasswordTest
             unlink($path);
             Assert::same(self::command($directory, $path, ['--show-installation'])['exit_code'], 3);
             Assert::true(!is_file($path));
-        } finally { $db = null; $directory->close(); }
+        } catch (\Throwable $error) { $directory->retainFailure($error); throw $error; }
+        finally { $db = null; $directory->close(); }
     }
 
     #[Test]
@@ -158,7 +160,8 @@ final class AdminPasswordTest
             Assert::same($db->query('SELECT * FROM sqlite_schema ORDER BY name')->fetchAll(), $schema);
             Assert::true(!(new Auth($db))->needsSetup());
             Assert::true(password_verify('fixture-password', $old[0]['password_hash']));
-        } finally { $old = $limits = $schema = $db = null; $directory->close(); }
+        } catch (\Throwable $error) { $directory->retainFailure($error); throw $error; }
+        finally { $old = $limits = $schema = $db = null; $directory->close(); }
     }
 
     #[Test]
@@ -193,30 +196,15 @@ final class AdminPasswordTest
                 Assert::same(self::command($directory, $selection, ['--password-stdin'], "later-new-secret\nlater-new-secret\n")['exit_code'], 0);
                 Assert::true((new Auth($db))->login('later-new-secret', 'client'));
             }
-        } finally { $first?->close(); $second?->close(); $db = null; $directory->close(); }
+        } catch (\Throwable $error) { $directory->retainFailure($error); throw $error; }
+        finally { $first?->close(); $second?->close(); $db = null; $directory->close(); }
     }
 
     #[Test]
-    public function actualUpdateAndCommitBusyFailuresPreserveOldAccess(): void
+    public function actualUpdateRefusalPreservesRowsAndRedactsStorageDiagnostic(): void
     {
-        if (getenv('TABLO_TEST_ISOLATED_PASSWORD_BUSY') !== '1') {
-            $isolated = new TemporaryDirectory('tablo-password-busy-process-');
-            try {
-                // Three actual busy phases retain their individual eight-second deadlines.
-                // Bound only the complete child fixture (3 * 8 seconds plus setup/teardown).
-                $result = Subprocess::run([PHP_BINARY, 'vendor/bin/testo', 'run', '--path', __FILE__,
-                    '--filter', __FUNCTION__, '--json'], $isolated,
-                    ['TABLO_TEST_ISOLATED_PASSWORD_BUSY' => '1'], timeout: 30);
-                Assert::same($result['exit_code'], 0, $result['stderr']);
-                $report = json_decode($result['stdout'], true, 32, JSON_THROW_ON_ERROR);
-                Assert::same($report['totals']['passed'], 1);
-                Assert::same($report['totals']['assertions'], 14);
-            } finally { $isolated->close(); }
-            return;
-        }
-        $directory = new TemporaryDirectory('tablo-password-storage-');
+        $directory = new TemporaryDirectory('tablo-password-update-');
         $db = null;
-        $process = null;
         try {
             $path = $directory->path . '/fixture.sqlite';
             $db = Database::connect($path);
@@ -227,14 +215,45 @@ final class AdminPasswordTest
             Assert::same($result['exit_code'], 1);
             Assert::true(!str_contains($result['stderr'], 'private-trigger-secret'));
             Assert::same($db->query('SELECT * FROM users')->fetchAll(), $old);
-            $db->exec('DROP TRIGGER block_reset');
-            Assert::same($db->query('PRAGMA journal_mode = DELETE')->fetchColumn(), 'delete', 'explicit rollback-journal COMMIT-busy control');
+        } catch (\Throwable $error) { $directory->retainFailure($error); throw $error; }
+        finally { $db = null; $directory->close(); }
+    }
+
+    #[Test]
+    public function actualBeginBusyRefusesWithoutOverwritingRows(): void
+    {
+        $directory = new TemporaryDirectory('tablo-password-begin-');
+        $db = $process = null;
+        try {
+            $path = $directory->path . '/fixture.sqlite';
+            $db = Database::connect($path);
+            (new Auth($db))->setup('fixture-password', 'fixture-password');
+            $old = $db->query('SELECT * FROM users')->fetchAll();
+            Assert::same($db->query('PRAGMA journal_mode = DELETE')->fetchColumn(), 'delete');
             $db->exec('BEGIN IMMEDIATE');
             $process = new PasswordProcess($directory, $path);
             $process->send("replacement-secret\nreplacement-secret\n");
             Assert::same($process->finish()['exit_code'], 4, 'failed BEGIN busy');
-            $process->close(); $process = null;
-            $db->exec('ROLLBACK; BEGIN');
+            $db->exec('ROLLBACK');
+            Assert::same($db->query('SELECT * FROM users')->fetchAll(), $old);
+        } catch (\Throwable $error) { $directory->retainFailure($error); throw $error; }
+        finally { $directory->cleanup(static function () use (&$process, &$db, $directory): void {
+            $process?->close(); $db = null; $directory->close();
+        }); }
+    }
+
+    #[Test]
+    public function actualCommitBusyInDeleteJournalPreservesRows(): void
+    {
+        $directory = new TemporaryDirectory('tablo-password-commit-');
+        $db = $process = null;
+        try {
+            $path = $directory->path . '/fixture.sqlite';
+            $db = Database::connect($path);
+            (new Auth($db))->setup('fixture-password', 'fixture-password');
+            $old = $db->query('SELECT * FROM users')->fetchAll();
+            Assert::same($db->query('PRAGMA journal_mode = DELETE')->fetchColumn(), 'delete', 'explicit rollback-journal COMMIT-busy control');
+            $db->exec('BEGIN');
             $db->query('SELECT * FROM users')->fetchAll(); // hold reader: UPDATE succeeds but COMMIT is busy
             $process = new PasswordProcess($directory, $path);
             $process->send("replacement-secret\nreplacement-secret\n");
@@ -242,20 +261,48 @@ final class AdminPasswordTest
             $process->close(); $process = null;
             $db->exec('ROLLBACK');
             Assert::same($db->query('SELECT * FROM users')->fetchAll(), $old);
+        } catch (\Throwable $error) { $directory->retainFailure($error); throw $error; }
+        finally { $process?->close(); $db = null; $directory->close(); }
+    }
+
+    #[Test]
+    public function actualExclusiveOpenIsBusyAndPreservesRowsWithoutPdoDiagnostic(): void
+    {
+        $directory = new TemporaryDirectory('tablo-password-exclusive-');
+        $db = null;
+        try {
+            $path = $directory->path . '/fixture.sqlite';
+            $db = Database::connect($path);
+            (new Auth($db))->setup('fixture-password', 'fixture-password');
+            $old = $db->query('SELECT * FROM users')->fetchAll();
+            Assert::same($db->query('PRAGMA journal_mode = DELETE')->fetchColumn(), 'delete');
             $db->exec('BEGIN EXCLUSIVE');
-            try {
-                $result = self::command($directory, $path, ['--password-stdin'], "replacement-secret\nreplacement-secret\n");
-                Assert::same($result['exit_code'], 4, 'opening an exclusively locked installation is busy');
-                Assert::same($result['stdout'], '');
-                Assert::true(!str_contains($result['stderr'], 'PDO'));
-            } finally { $db->exec('ROLLBACK'); }
+            $result = self::command($directory, $path, ['--password-stdin'], "replacement-secret\nreplacement-secret\n");
+            Assert::same($result['exit_code'], 4, 'opening an exclusively locked installation is busy');
+            Assert::same($result['stdout'], '');
+            Assert::true(!str_contains($result['stderr'], 'PDO'));
+            $db->exec('ROLLBACK');
             Assert::same($db->query('SELECT * FROM users')->fetchAll(), $old);
+        } catch (\Throwable $error) { $directory->retainFailure($error); throw $error; }
+        finally { $db = null; $directory->close(); }
+    }
+
+    #[Test]
+    public function actualEofCancellationRetainsOldLoginAndRefusesNewLogin(): void
+    {
+        $directory = new TemporaryDirectory('tablo-password-eof-');
+        $db = $process = null;
+        try {
+            $path = $directory->path . '/fixture.sqlite';
+            $db = Database::connect($path);
+            (new Auth($db))->setup('fixture-password', 'fixture-password');
             $process = new PasswordProcess($directory, $path);
             $process->send('');
             Assert::same($process->finish()['exit_code'], 2, 'EOF cancellation');
             Assert::true((new Auth($db))->login('fixture-password', 'old-client'));
             Assert::true(!(new Auth($db))->login('replacement-secret', 'new-client'));
-        } finally {
+        } catch (\Throwable $error) { $directory->retainFailure($error); throw $error; }
+        finally {
             $process?->close();
             if ($db?->inTransaction()) { $db->rollBack(); }
             $db = null; $directory->close();
@@ -284,7 +331,8 @@ final class AdminPasswordTest
             $old = $db->query('SELECT * FROM users')->fetchAll();
             Assert::same(self::command($directory, $path, ['--password-stdin'], "replacement-secret\nreplacement-secret\n")['exit_code'], 3);
             Assert::same($db->query('SELECT * FROM users')->fetchAll(), $old);
-        } finally { $db = null; $directory->close(); }
+        } catch (\Throwable $error) { $directory->retainFailure($error); throw $error; }
+        finally { $db = null; $directory->close(); }
     }
 
     #[Test]
@@ -300,7 +348,8 @@ final class AdminPasswordTest
             Assert::same(curl_exec($curl), '');
             Assert::same(curl_getinfo($curl, CURLINFO_RESPONSE_CODE), 404);
             Assert::true(!file_exists($path));
-        } finally { $curl = null; $server?->close(); $directory->close(); }
+        } catch (\Throwable $error) { $directory->retainFailure($error); throw $error; }
+        finally { $curl = null; $server?->close(); $directory->close(); }
     }
 
     #[Test]
@@ -317,7 +366,8 @@ final class AdminPasswordTest
                 $directory, ['TABLO_DB' => $path, 'TABLO_RACE_FILE' => $path]);
             Assert::same($result['exit_code'], 3);
             Assert::true(!file_exists($path), 'actual no-create flags survive missing-file race');
-        } finally { $db = null; $directory->close(); }
+        } catch (\Throwable $error) { $directory->retainFailure($error); throw $error; }
+        finally { $db = null; $directory->close(); }
     }
 
     #[Test]
@@ -345,6 +395,7 @@ final class AdminPasswordTest
             $malformed = substr_replace($old[0]['password_hash'], '00', 4, 2);
             $db->prepare('UPDATE users SET password_hash=?')->execute([$malformed]);
             Assert::same(self::command($directory, $path, ['--show-installation'])['exit_code'], 3);
-        } finally { $process?->close(); $db = null; $directory->close(); }
+        } catch (\Throwable $error) { $directory->retainFailure($error); throw $error; }
+        finally { $process?->close(); $db = null; $directory->close(); }
     }
 }
