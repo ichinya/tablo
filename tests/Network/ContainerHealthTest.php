@@ -10,9 +10,9 @@ use Testo\Test;
 
 final class ContainerHealthTest
 {
-    private static function client(string $path, string $directory, array $extra = [], bool $noIni = false): array
+    private static function client(string $path, string $directory, array $extra = [], bool $disableCurl = false): array
     {
-        $argv = $noIni ? [PHP_BINARY, '-n', $path] : [PHP_BINARY, $path];
+        $argv = $disableCurl ? [PHP_BINARY, '-d', 'disable_functions=curl_init', $path] : [PHP_BINARY, $path];
         $process = proc_open($argv, [0 => ['pipe', 'r'], 1 => ['file', $directory . '/client.out', 'w'],
             2 => ['file', $directory . '/client.err', 'w']], $pipes, null, array_replace(getenv(), $extra));
         Assert::true(is_resource($process));
@@ -61,11 +61,18 @@ PHP);
     }
 
     #[Test]
-    public function missingCurlFailsWithDirectSafeExit(): void
+    public function unavailableCurlFunctionFailsWithDirectSafeExit(): void
     {
         $directory = new TemporaryDirectory('tablo-container-health-no-curl-');
         try {
-            [$exit, $out, $err] = self::client(dirname(__DIR__, 2) . '/deploy/healthcheck.php', $directory->path, noIni: true);
+            // -n does not remove compiled curl. Prove function absence before executing the fixed client.
+            $precondition = $directory->path . '/precondition.php';
+            file_put_contents($precondition, '<?php echo function_exists("curl_init") ? "present" : "absent";');
+            [$probeExit, $probeOut, $probeErr] = self::client($precondition, $directory->path, disableCurl: true);
+            Assert::same($probeExit, 0);
+            Assert::same($probeOut, 'absent');
+            Assert::same($probeErr, '');
+            [$exit, $out, $err] = self::client(dirname(__DIR__, 2) . '/deploy/healthcheck.php', $directory->path, disableCurl: true);
             Assert::same($exit, 1);
             Assert::same($out, "unavailable\n");
             Assert::same($err, '');

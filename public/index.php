@@ -28,17 +28,52 @@ if ($target === '/_tablo/health' || str_starts_with($target, '/_tablo/health?') 
         return;
     }
     $available = false;
-    ob_start();
+    http_response_code(503);
+    $headers = headers_list();
+    $initialDepth = ob_get_level();
+    $outputDetected = false;
+    $closedEarly = false;
+    $cleaning = false;
+    $deferredResponse = false;
+    // Suppress flushed chunks too; never consume a buffer belonging to the caller.
+    ob_start(static function (string $chunk, int $phase) use (&$outputDetected, &$closedEarly, &$cleaning, &$deferredResponse): string {
+        $outputDetected = $outputDetected || $chunk !== '';
+        if (($phase & PHP_OUTPUT_HANDLER_FINAL) !== 0) {
+            $closedEarly = !$cleaning;
+            return $deferredResponse ? "unavailable\n" : '';
+        }
+        return '';
+    }, 4096);
     try {
         require dirname(__DIR__) . '/vendor/autoload.php';
         $available = Tablo\ContainerHealth::available();
     } catch (Throwable) {
         // No exception paths, configuration or secrets in HTTP or health logs.
-    } finally {
-        $output = ob_get_clean();
     }
-    $available = $available && $output === '';
+    $cleaning = true;
+    // Bound cleanup even if a dependency creates many or non-removable buffers.
+    for ($discarded = 0; ob_get_level() > $initialDepth && $discarded < 32; ++$discarded) {
+        $outputDetected = $outputDetected || ob_get_length() > 0;
+        $status = ob_get_status();
+        if (($status['flags'] & PHP_OUTPUT_HANDLER_REMOVABLE) === 0) { break; }
+        try { if (!ob_end_clean()) { break; } }
+        catch (Throwable) { $available = false; break; }
+    }
+    $available = $available && !$outputDetected && !$closedEarly
+        && ob_get_level() === $initialDepth && headers_list() === $headers && http_response_code() === 503;
+    // Apache transport headers are server-owned; remove only PHP's queued headers.
+    // Already-sent headers / deliberate transport flush / process exit cannot be undone here.
+    if (headers_sent()) { return; }
+    header_remove();
+    header('Content-Type: text/plain; charset=utf-8');
+    header('Cache-Control: no-store');
+    header('X-Content-Type-Options: nosniff');
     http_response_code($available ? 200 : 503);
+    if (ob_get_level() > $initialDepth) {
+        // An intact sink emits the fixed failure at shutdown if nested cleanup was blocked.
+        $deferredResponse = !$closedEarly;
+        return;
+    }
     echo $available ? "ok\n" : "unavailable\n";
     return;
 }

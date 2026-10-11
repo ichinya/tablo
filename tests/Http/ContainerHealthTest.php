@@ -82,8 +82,33 @@ final class ContainerHealthTest
             Assert::same($response['body'], "unavailable\n");
             Assert::false(str_contains(strtolower($response['headers']), 'set-cookie:'));
             mkdir($directory->path . '/vendor');
-            file_put_contents($directory->path . '/vendor/autoload.php', '<?php echo "fixture-private-value"; throw new RuntimeException("fixture-private-value");');
-            Assert::same(self::request($server)['body'], "unavailable\n");
+            $stub = '<?php namespace Tablo; final class ContainerHealth { public static function available(): bool { return true; } } ';
+            $headers = "header('Set-Cookie: fixture=private'); header('X-Probe-Private: fixture-private-value'); header('Content-Type: text/html'); header('Cache-Control: public'); ";
+            $failures = [
+                'output' => 'echo "fixture-private-value";',
+                'headers' => $headers,
+                'headers-throw' => $headers . 'throw new \\RuntimeException("fixture-private-value");',
+                'nested-output-throw' => 'echo "fixture-private-value"; ob_start(); throw new \\RuntimeException("fixture-private-value");',
+                'nested-output' => 'ob_start(); echo "fixture-private-value"; ob_start();',
+                'flush-output' => 'echo "fixture-private-value"; ob_flush();',
+                'closed-buffer' => 'echo "fixture-private-value"; ob_end_flush();',
+                'non-removable-buffer' => 'ob_start(null, 0, PHP_OUTPUT_HANDLER_CLEANABLE); echo "fixture-private-value";',
+                'excess-buffers' => 'for ($i = 0; $i < 40; ++$i) { ob_start(); } echo "fixture-private-value";',
+                'parse-error' => 'function broken( {',
+            ];
+            foreach (['baseline' => '', ...$failures, 'recovery' => ''] as $mode => $effect) {
+                file_put_contents($directory->path . '/vendor/autoload.php', $stub . $effect);
+                $response = self::request($server);
+                Assert::same($response['status'], $effect === '' ? 200 : 503, $mode);
+                Assert::same($response['body'], $effect === '' ? "ok\n" : "unavailable\n", $mode);
+                $responseHeaders = strtolower($response['headers']);
+                Assert::true(str_contains($responseHeaders, 'content-type: text/plain; charset=utf-8'), $mode);
+                Assert::true(str_contains($responseHeaders, 'cache-control: no-store'), $mode);
+                Assert::true(str_contains($responseHeaders, 'x-content-type-options: nosniff'), $mode);
+                Assert::false(str_contains($responseHeaders, 'set-cookie:'), $mode);
+                Assert::false(str_contains($responseHeaders, 'x-probe-private:'), $mode);
+                Assert::false(str_contains($response['body'], 'fixture-private-value'), $mode);
+            }
         } finally { $server->close(); $directory->close(); }
     }
 }

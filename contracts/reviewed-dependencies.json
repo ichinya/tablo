@@ -32,7 +32,7 @@
             "consumers": [
                 "Application HTTP safe initialization"
             ],
-            "fingerprint": "sha256:f08b55c8bf7b4b11d0e20e8e545ce52dc6e5ed4c86b071657e1e4db8bb3c0c0e"
+            "fingerprint": "sha256:59c2ecf9c8d04f6215767c3c43429d34bc2ddd2efa9e9fa6ba8e838d42e0df53"
         },
         {
             "path": "app/container-health.php",
