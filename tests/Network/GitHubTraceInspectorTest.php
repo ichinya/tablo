@@ -68,7 +68,7 @@ final class GitHubTraceInspectorTest
                 Assert::true(TraceInspector::inspect($error, [$marker])['leaked'], 'initialized supported argument state must expose the marker');
                 $result = TraceInspector::inspectArguments($error->getTrace()[0]['args'], [$marker]);
                 Assert::true($result['leaked']);
-                Assert::true($result['complete'], 'this frame has only supported argument state');
+                Assert::same($result['complete'], $value !== $protected, 'uninitialized slots have explicit incomplete coverage');
             }
             $inherited = new TraceProtectedState('safe');
             (new \ReflectionProperty(TracePrivateState::class, 'marker'))->setValue($inherited, $marker);
@@ -99,6 +99,14 @@ final class GitHubTraceInspectorTest
                 $result = TraceInspector::inspectArguments(self::capture($value)->getTrace()[0]['args'], [$marker]);
                 Assert::false($result['complete'], 'opaque argument state cannot count as clean');
                 Assert::true($result['opaque'] !== []);
+            }
+            $uninitialized = new TraceProtectedState('safe');
+            Assert::false(TraceInspector::inspectArguments([$uninitialized], [$marker])['complete']);
+            if (method_exists(\ReflectionClass::class, 'newLazyGhost')) {
+                $initialized = false;
+                $lazy = (new \ReflectionClass(TraceProtectedState::class))->newLazyGhost(static function () use (&$initialized): void { $initialized = true; });
+                Assert::false(TraceInspector::inspectArguments([$lazy], [$marker])['complete']);
+                Assert::false($initialized, 'inspection must not awaken an opaque lazy carrier');
             }
             $cycle = (object) ['value' => 'safe'];
             $cycle->self = $cycle;

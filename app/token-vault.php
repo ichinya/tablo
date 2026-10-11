@@ -56,7 +56,7 @@ final class TokenVault
         $iv = random_bytes(12);
         $cipher = openssl_encrypt($token, 'aes-256-gcm', $this->key(true), OPENSSL_RAW_DATA, $iv, $tag);
         if ($cipher === false) {
-            throw new \RuntimeException('Не удалось сохранить токен GitHub.');
+            throw new \RuntimeException('Не удалось сохранить токен.');
         }
         return 'v1:' . base64_encode($iv . $tag . $cipher);
     }
@@ -65,12 +65,12 @@ final class TokenVault
     {
         $bytes = str_starts_with($encrypted, 'v1:') ? base64_decode(substr($encrypted, 3), true) : false;
         if ($bytes === false || strlen($bytes) < 29) {
-            throw new \RuntimeException('Сохранённый токен GitHub повреждён. Введите новый токен.');
+            throw new \RuntimeException('Сохранённый токен повреждён. Введите новый токен.');
         }
         $token = openssl_decrypt(substr($bytes, 28), 'aes-256-gcm', $this->key(false), OPENSSL_RAW_DATA,
             substr($bytes, 0, 12), substr($bytes, 12, 16));
         if ($token === false) {
-            throw new \RuntimeException('Не удалось расшифровать токен GitHub. Введите новый токен.');
+            throw new \RuntimeException('Не удалось расшифровать токен. Введите новый токен.');
         }
         return $token;
     }

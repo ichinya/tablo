@@ -84,7 +84,7 @@ final class HttpClientTest
         Assert::true((hrtime(true) - $start) / 1e6 < 1000, 'cURL budget clamped');
         $resolver = new class extends HttpClient {
             public int $resolutions = 0;
-            protected function resolve(string $host): array
+            protected function resolve(#[\SensitiveParameter] string $host): array
             {
                 ++$this->resolutions;
                 usleep(80000);

@@ -20,7 +20,8 @@ try {
         if (!$site['enabled']) { continue; }
         $sites->assertWorkerKeyAvailable();
         try {
-            $checker = new Tablo\SiteChecker(new Tablo\HttpClient(getenv('TABLO_ALLOW_PRIVATE_NETWORK') === '1'), $github->provider($site));
+            $checker = new Tablo\SiteChecker(new Tablo\HttpClient(getenv('TABLO_ALLOW_PRIVATE_NETWORK') === '1'),
+                $github->provider(Tablo\SiteRepository::withoutEndpointCredential($site)), $vault);
             $state = $checker->check($site);
             $sites->assertWorkerKeyAvailable();
             $stored = $sites->storeCheck($site, $state);

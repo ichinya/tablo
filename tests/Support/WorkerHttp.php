@@ -14,7 +14,7 @@ final class WorkerHttp extends HttpClient
 
     public function __construct(private readonly string $base) { $this->real = new HttpClient(true); }
 
-    public function get(string $url, array $headers = []): array
+    public function get(#[\SensitiveParameter] string $url, #[\SensitiveParameter] array $headers = []): array
     {
         $path = parse_url($url, PHP_URL_PATH);
         $this->calls[] = $path;

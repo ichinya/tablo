@@ -15,6 +15,8 @@ final class GitHubConnection
 
     public function provider(#[\SensitiveParameter] ?array $site, #[\SensitiveParameter] array $input = []): GitHubProvider
     {
+        $site = SiteRepository::withoutEndpointCredential($site);
+        $input = SiteRepository::withoutEndpointCredential($input);
         GitProviders::requireSupported($site['provider'] ?? 'github');
         try {
             if ($this->worker) { $this->sites->assertWorkerKeyAvailable(); }
@@ -31,7 +33,7 @@ final class GitHubConnection
         // This rejects same-second rotation independently of the private primary-quota identity.
         $current = function () use ($site, $input, $token, $revision): bool {
             if ($this->worker) { $this->sites->assertWorkerKeyAvailable(); }
-            $fresh = isset($site['id']) ? $this->sites->find((int) $site['id']) : $site;
+            $fresh = isset($site['id']) ? SiteRepository::withoutEndpointCredential($this->sites->find((int) $site['id'])) : $site;
             if (isset($site['id']) && ($fresh === null
                 || ($fresh['config_revision'] ?? null) !== ($site['config_revision'] ?? null)
                 || ($fresh['git_token_id'] ?? null) !== ($site['git_token_id'] ?? null)

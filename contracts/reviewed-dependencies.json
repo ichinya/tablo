@@ -16,7 +16,7 @@
             "consumers": [
                 "dashboard.check_site"
             ],
-            "fingerprint": "sha256:10b97555e712a572bc894479ff968d8fbb62034c27343c180fe2b425cbe3bcbf"
+            "fingerprint": "sha256:062093d421bb7da8fcd8a242bb1f92b1404aa8ef22d5471990f894cda33e0118"
         },
         {
             "path": "bin/key-preflight.php",
@@ -145,7 +145,7 @@
             "consumers": [
                 "dashboard.run_worker_pass"
             ],
-            "fingerprint": "sha256:c692fca6bbdcb2514c376524b7dd79aa172cf9feec3d98a0dc798c64756f6372"
+            "fingerprint": "sha256:6064bd961a8a762ab2bd5e16f5adeceb192773b4584d7f36f282d9358c3b9ce2"
         },
         {
             "path": "app/shared-key-failure.php",
@@ -154,6 +154,103 @@
                 "dashboard.run_worker_pass"
             ],
             "fingerprint": "sha256:26461597933888945e97a0fc71f677b37912d0a63ec7b192302fcbbe5d99ebc0"
+        },
+        {
+            "path": "app/http-client.php",
+            "owner": "Tablo\\HttpClient",
+            "consumers": [
+                "dashboard.check_site",
+                "dashboard.list_branches",
+                "dashboard.run_worker_pass"
+            ],
+            "fingerprint": "sha256:e23ef3fff8dd86b92ba2fe1966fc86a3498a4033a6178c27426dbec7df13550a"
+        },
+        {
+            "path": "app/http-failure.php",
+            "owner": "Tablo\\HttpFailure",
+            "consumers": [
+                "dashboard.check_site",
+                "dashboard.run_worker_pass"
+            ],
+            "fingerprint": "sha256:26527aa926a846b2ae31542625e8c1b294ae81b00786719970a6d0a3b79df9a7"
+        },
+        {
+            "path": "app/deployment-fields.php",
+            "owner": "Tablo\\DeploymentFields",
+            "consumers": [
+                "dashboard.check_site",
+                "dashboard.run_worker_pass"
+            ],
+            "fingerprint": "sha256:46fea23bda6c1cffc10a401b38bce44172dcc83051deedba9a758403ad87da38"
+        },
+        {
+            "path": "app/version-response.php",
+            "owner": "Tablo\\VersionResponse",
+            "consumers": [
+                "dashboard.check_site",
+                "dashboard.run_worker_pass"
+            ],
+            "fingerprint": "sha256:847335441d3eb272c0a26f80a75259cd97a255a5d24b834ef297e212abda06c2"
+        },
+        {
+            "path": "app/json-field.php",
+            "owner": "Tablo\\JsonField",
+            "consumers": [
+                "dashboard.create_site",
+                "dashboard.update_site",
+                "dashboard.check_site"
+            ],
+            "fingerprint": "sha256:b7f43500c9d160b457f3a6c8a3431cbd17c8a55c85adecef94398b8682e44476"
+        },
+        {
+            "path": "app/site-presenter.php",
+            "owner": "Tablo\\Presenter",
+            "consumers": [
+                "dashboard.list_sites"
+            ],
+            "fingerprint": "sha256:0fbd8c81269ff11755b27b8bd47cd48bd3a9dd876b11c7771cfa92025afb74a4"
+        },
+        {
+            "path": "tests/Support/EndpointPrivacyChild.php",
+            "owner": "Tablo\\Tests\\Support\\EndpointPrivacyChild",
+            "consumers": [
+                "Native endpoint privacy child PIPE capture"
+            ],
+            "fingerprint": "sha256:6cbd4de28b8137c32efd4229541917e48cfbd18a5a8e09e89ba741ef5d83733c"
+        },
+        {
+            "path": "tests/Support/TraceInspector.php",
+            "owner": "Tablo\\Tests\\Support\\TraceInspector",
+            "consumers": [
+                "Native endpoint and Git privacy controls"
+            ],
+            "fingerprint": "sha256:4a74ac6da3d896739a722bf6e4927f44417beb7c0b2d72681d44b33c48dac05f"
+        },
+        {
+            "path": "tests/fixtures/endpoint-token-privacy.php",
+            "owner": "Isolated native endpoint privacy control",
+            "consumers": [
+                "dashboard.check_site",
+                "dashboard.create_site",
+                "dashboard.update_site"
+            ],
+            "fingerprint": "sha256:fec59e7b6701968853a5210ab960ae6b3266a1d3b0469abef9156dad5d33274e"
+        },
+        {
+            "path": "tests/Support/EndpointCheckFixture.php",
+            "owner": "Tablo\\Tests\\Support\\EndpointCheckFixture",
+            "consumers": [
+                "Native endpoint runner and race controls"
+            ],
+            "fingerprint": "sha256:acdcdfaf6fae98286c2fe9bc01480a4030c328638d2229736b1c1ec06ce25f70"
+        },
+        {
+            "path": "tests/github-fixture.php",
+            "owner": "FixtureGitHubHttp",
+            "consumers": [
+                "Synthetic Git substitution and endpoint isolation audit"
+            ],
+            "fingerprint": "sha256:78134e866fd2639ade06dbd530a5f31812b362f0d61d23af4cc3e2d6cf05cf38"
         },
         {
             "path": "app/github-provider.php",
@@ -177,7 +274,7 @@
             "consumers": [
                 "dashboard.run_worker_pass"
             ],
-            "fingerprint": "sha256:d8b7cb13bebd0a33204fff1a999282a47f681e57ddd7bc42b14fb9ac98fb7ce3"
+            "fingerprint": "sha256:b74e64ba3908950e40bffc35dff625ebbcfc8676fe585ba4ea151c54327552ec"
         },
         {
             "path": "tools/capture-bindings.php",
@@ -185,7 +282,7 @@
             "consumers": [
                 "dashboard.run_worker_pass"
             ],
-            "fingerprint": "sha256:4617b8fb22e430f667ebafe3987ca3ff36378f510d685275cf4153c92030d0b0"
+            "fingerprint": "sha256:281a1e39183c1433164e0f135437273ef297189cac1c05d37edd6b1509b0fe92"
         },
         {
             "path": "tools/reviewed-dependencies.php",
@@ -193,7 +290,7 @@
             "consumers": [
                 "dashboard.run_worker_pass"
             ],
-            "fingerprint": "sha256:1e28f9fc345bae4706cd0f657c334f7681367f4587e1a1ec8b587701dcc7e296"
+            "fingerprint": "sha256:85a02098d653459b37f836453dd9d23817ec15ebbeca35dae748a92bc33b834a"
         }
     ]
 }

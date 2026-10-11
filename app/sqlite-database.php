@@ -9,7 +9,7 @@ use Throwable;
 
 final class Database
 {
-    public const CURRENT_SCHEMA_VERSION = 4;
+    public const CURRENT_SCHEMA_VERSION = 5;
 
     // Version 0 installations may lack these additive fields and git_tokens.
     private const SITE_ADDITIONS = [
@@ -71,7 +71,7 @@ final class Database
     {
         $present = false;
         $verified = false;
-        foreach (['sites' => 'github_token', 'git_tokens' => 'encrypted_token'] as $table => $column) {
+        foreach ([['sites', 'github_token'], ['sites', 'endpoint_token'], ['git_tokens', 'encrypted_token']] as [$table, $column]) {
             $statement = $db->prepare("SELECT type FROM main.sqlite_schema WHERE name = ?");
             try { $statement->execute([$table]); $type = $statement->fetchColumn(); }
             finally { $statement->closeCursor(); }
@@ -241,7 +241,7 @@ final class Database
 
     private static function validateCurrentAdditions(PDO $db): void
     {
-        foreach (['sites' => ['config_revision'], 'github_cooldowns' => ['scope', 'resource', 'eligible_at'],
+        foreach (['sites' => ['config_revision', 'endpoint_token'], 'github_cooldowns' => ['scope', 'resource', 'eligible_at'],
             'installation_settings' => ['id', 'check_interval_minutes'],
             'worker_runtime' => ['id', 'run_id', 'stop_requested', 'fairness_turn'],
             'worker_progress' => ['site_id', 'config_revision', 'latest_release', 'latest_commit', 'open_issues', 'open_prs']] as $table => $required) {
@@ -272,6 +272,7 @@ final class Database
                     1 => self::migrateToVersionTwo($db),
                     2 => self::migrateToVersionThree($db),
                     3 => self::migrateToVersionFour($db),
+                    4 => self::migrateToVersionFive($db),
                     default => throw new RuntimeException('No migration for SQLite schema version ' . $version),
                 };
                 $version++;
@@ -358,6 +359,12 @@ final class Database
             open_issues INTEGER NOT NULL DEFAULT 0 CHECK (open_issues >= 0),
             open_prs INTEGER NOT NULL DEFAULT 0 CHECK (open_prs >= 0)
         )");
+    }
+
+    private static function migrateToVersionFive(PDO $db): void
+    {
+        self::validateSchema($db, true);
+        $db->exec('ALTER TABLE sites ADD COLUMN endpoint_token TEXT');
     }
 
     private static function validateSchema(PDO $db, bool $complete): void

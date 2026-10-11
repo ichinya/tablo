@@ -244,6 +244,21 @@
                 "dashboard.change_admin_password",
                 "dashboard.request_worker_stop"
             ]
+        },
+        {
+            "id": "dashboard.endpoint_credentials",
+            "kind": "scenario",
+            "version": 1,
+            "summary": "Authenticated add/reopen/blank-keep exact cipher/replace/remove/conflict/422 with blank password and safe presence. Nullable schema5 upgrade/current no-DDL/future refusal/rollback preserves owner/Git/key/results. Endpoint-only disabled ciphertext prevents missing/corrupt/live-replaced key admission without regeneration. Real native headers are exact/absent for different/shared URLs in both orders, independent of Git/preview/memo; manual actual CLI and PeriodicWorker agree with disclosed synthetic Git transport. Exact home strict200 and explicit2xx/all JSON operators/no-follow remain. In-flight token ABA rejects current results and atomic worker credit. Actual native TypeError/callback and fatal255 observations preserve raw hostile red controls while returned client traces have fixed messages/no previous; opaque graph bounds remain qualified.",
+            "covers": [
+                "dashboard.site_input",
+                "dashboard.site",
+                "dashboard.create_site",
+                "dashboard.update_site",
+                "dashboard.check_site",
+                "dashboard.list_branches",
+                "dashboard.run_worker_pass"
+            ]
         }
     ]
 }

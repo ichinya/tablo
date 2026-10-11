@@ -5,8 +5,9 @@ namespace Tablo;
 
 final class Presenter
 {
-    public static function site(array $site): array
+    public static function site(#[\SensitiveParameter] array $site): array
     {
+        $site = SiteRepository::publicSite($site);
         $site['host'] = parse_url($site['url'], PHP_URL_HOST) ?: $site['url'];
         $site['initial'] = mb_strtoupper(mb_substr($site['name'], 0, 1));
         $site['tone'] = 'muted';

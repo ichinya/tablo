@@ -5,7 +5,8 @@ namespace Tablo;
 
 final class SiteChecker
 {
-    public function __construct(private readonly HttpClient $http, private readonly RepositoryProvider $provider) {}
+    public function __construct(private readonly HttpClient $http, private readonly RepositoryProvider $provider,
+        #[\SensitiveParameter] private readonly ?TokenVault $vault = null) {}
 
     public function check(#[\SensitiveParameter] array $site, ?array $fieldOrder = null): array
     {
@@ -14,9 +15,36 @@ final class SiteChecker
             'health_error_code' => null, 'health_http_status' => null,
             'response_time_ms' => null, 'last_error' => null, 'checked_at' => gmdate('Y-m-d\TH:i:s\Z')];
         $errors = [];
+        $headers = [];
+        $credentialFailed = false;
+        try { $headers = $this->endpointHeaders($site); }
+        catch (\PDOException | SharedKeyFailure $error) { throw $error; }
+        catch (\Throwable) { $credentialFailed = true; }
+        $this->health($site, $headers, $credentialFailed, $state, $errors);
+        $this->version($site, $headers, $credentialFailed, $state, $errors);
+        unset($headers);
+        $this->git($site['repository'], $site['branch'], $fieldOrder, $state, $errors);
+        $state['last_error'] = $errors ? implode(' ', $errors) : null;
+        return $state;
+    }
+
+    private function endpointHeaders(#[\SensitiveParameter] array $site): array
+    {
+        $encrypted = $site['endpoint_token'] ?? null;
+        if ($encrypted === null || $encrypted === '') { return []; }
+        if (!is_string($encrypted) || $this->vault === null) { throw new HttpFailure('check-error'); }
+        $token = SiteRepository::validateEndpointToken($this->vault->decrypt($encrypted));
+        if ($token === '') { throw new HttpFailure('check-error'); }
+        return ['Authorization: Bearer ' . $token];
+    }
+
+    private function health(#[\SensitiveParameter] array $site, #[\SensitiveParameter] array $headers, bool $credentialFailed,
+        #[\SensitiveParameter] array &$state, #[\SensitiveParameter] array &$errors): void
+    {
         try {
+            if ($credentialFailed) { throw new HttpFailure('check-error'); }
             $homePage = $site['health_path'] === '';
-            $response = $this->http->get($homePage ? $site['url'] : rtrim($site['url'], '/') . $site['health_path']);
+            $response = $this->http->get($homePage ? $site['url'] : rtrim($site['url'], '/') . $site['health_path'], $headers);
             if (!is_int($response['status'] ?? null) || $response['status'] < 100 || $response['status'] > 599
                 || !is_string($response['body'] ?? null)) { throw new HttpFailure('invalid-response'); }
             $state['health_http_status'] = $response['status'];
@@ -26,6 +54,7 @@ final class SiteChecker
             if (!$state['online']) {
                 $state['health_error_code'] = 'http';
                 $errors[] = 'Health: HTTP ' . $response['status'] . ($homePage ? ' (нужен 200, без редиректов).' : ' (нужен 2xx, без редиректов).');
+                if (in_array($response['status'], [401, 403], true)) { $errors[] = 'Health: Проверьте разрешение доступа к endpoint.'; }
             } elseif (!$homePage && ($site['health_check_mode'] ?? 'http') === 'json') {
                 // Unknown until both extraction and comparison succeed.
                 $state['online'] = null;
@@ -44,44 +73,37 @@ final class SiteChecker
                 : ($state['health_http_status'] !== null ? 'invalid-response' : 'check-error');
             $errors[] = 'Health: ' . (HttpFailure::MESSAGES[$state['health_error_code']] ?? HttpFailure::MESSAGES['check-error']);
         }
+    }
+
+    private function version(#[\SensitiveParameter] array $site, #[\SensitiveParameter] array $headers, bool $credentialFailed,
+        #[\SensitiveParameter] array &$state, #[\SensitiveParameter] array &$errors): void
+    {
         if (($site['version_path'] ?? '') !== '') {
             try {
-                $response = $this->http->get(rtrim($site['url'], '/') . $site['version_path']);
+                if ($credentialFailed) { throw new HttpFailure('check-error'); }
+                $response = $this->http->get(rtrim($site['url'], '/') . $site['version_path'], $headers);
                 if ($response['status'] < 200 || $response['status'] >= 300) {
                     $errors[] = 'Version: HTTP ' . $response['status'];
+                    if (in_array($response['status'], [401, 403], true)) { $errors[] = 'Version: Проверьте разрешение доступа к endpoint.'; }
                 } else {
-                    $document = JsonField::decode($response['body']);
-                    $json = $document instanceof \stdClass ? (array) $document : [];
-                    $jsonPath = $site['version_json_path'] ?? '';
-                    if ($jsonPath === '' && !($document instanceof \stdClass)) {
-                        throw new \RuntimeException('Ожидается JSON-объект.');
-                    }
-                    $version = $jsonPath === '' ? ($json['version'] ?? $json['deployed_version'] ?? null)
-                        : JsonField::extract($document, $jsonPath);
-                    $commit = $json['commit'] ?? $json['sha'] ?? $json['deployed_commit'] ?? null;
-                    if ($version !== null && (!is_string($version) || $version === '' || strlen($version) > 200)) {
-                        throw new \RuntimeException('Некорректное поле version.');
-                    }
-                    if ($commit !== null && (!is_string($commit) || !preg_match('/^[a-f0-9]{7,64}$/iD', $commit))) {
-                        throw new \RuntimeException('Некорректное поле commit (нужен SHA, от 7 символов).');
-                    }
-                    if ($version === null && $commit === null) {
-                        throw new \RuntimeException('Нужны поля version и/или commit.');
-                    }
-                    $state['deployed_version'] = $version;
-                    $state['deployed_commit'] = $commit === null ? null : strtolower($commit);
+                    $state = array_replace($state, VersionResponse::decode($response['body'], $site['version_json_path'] ?? ''));
                 }
             } catch (\PDOException | SharedKeyFailure $error) { throw $error; }
             catch (\Throwable $e) {
                 $errors[] = 'Version: ' . ($e instanceof HttpFailure ? $e->getMessage() : 'Некорректный ответ проверки версии.');
             }
         }
+    }
+
+    private function git(string $repository, string $branch, ?array $fieldOrder,
+        #[\SensitiveParameter] array &$state, #[\SensitiveParameter] array &$errors): void
+    {
         if ($this->provider instanceof GitHubProvider) { $this->provider->beginCheck(); }
         $calls = [
-            'latest_release' => fn () => $this->provider->getLatestRelease($site['repository']),
-            'latest_commit' => fn () => $this->provider->getLatestCommit($site['repository'], $site['branch']),
-            'open_issues' => fn () => $this->provider->getOpenIssuesCount($site['repository']),
-            'open_prs' => fn () => $this->provider->getOpenPullRequestsCount($site['repository']),
+            'latest_release' => fn () => $this->provider->getLatestRelease($repository),
+            'latest_commit' => fn () => $this->provider->getLatestCommit($repository, $branch),
+            'open_issues' => fn () => $this->provider->getOpenIssuesCount($repository),
+            'open_prs' => fn () => $this->provider->getOpenPullRequestsCount($repository),
         ];
         $service = [];
         foreach ($fieldOrder ?? array_keys($calls) as $field) {
@@ -99,8 +121,6 @@ final class SiteChecker
             }
             $service[$field] = $completed || ($this->provider instanceof GitHubProvider && $this->provider->admissions() > $before);
         }
-        $state['last_error'] = $errors ? implode(' ', $errors) : null;
         if ($fieldOrder !== null) { $state['worker_service'] = $service; }
-        return $state;
     }
 }

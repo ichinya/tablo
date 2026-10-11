@@ -228,7 +228,7 @@ final class GitHubBudgetTest
             $snapshot = $sites->find($siteId);
             $rotating = new class($tokens, $id) extends HttpClient {
                 public function __construct(private GitTokenRepository $tokens, private int $id) {}
-                public function get(string $url, array $headers = []): array
+                public function get(#[\SensitiveParameter] string $url, #[\SensitiveParameter] array $headers = []): array
                 {
                     $this->tokens->save(['name' => 'Renamed', 'provider' => 'github', 'token' => 'rotated-secret'], $this->id);
                     return UnitFixtures::response(200, '{"tag_name":"obsolete"}');
