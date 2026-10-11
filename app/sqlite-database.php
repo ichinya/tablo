@@ -55,16 +55,80 @@ final class Database
         self::migrate($db);
         if ($path !== ':memory:') {
             // Configure only accepted schemas; rejected future databases keep their journal metadata.
-            // busy_timeout is already installed before this potentially contended mode transition.
-            $statement = $db->query('PRAGMA journal_mode = WAL');
-            try { $mode = $statement->fetchColumn(); }
-            finally { $statement->closeCursor(); }
-            if ($mode !== 'wal') {
-                throw new RuntimeException('SQLite WAL is required for file databases; use writable local storage.');
-            }
+            self::ensureWal($db);
             @chmod($path, 0600);
         }
         return $db;
+    }
+
+    private static function ensureWal(PDO $db): void
+    {
+        // Own one cooperative budget; synchronous driver/filesystem calls cannot be preempted.
+        $deadline = hrtime(true) + 5_000_000_000;
+        $failure = null;
+        $lastBusy = null;
+        $delay = 5_000;
+        try {
+            // Do not stack a native busy-handler wait onto each application retry.
+            if ($db->exec('PRAGMA busy_timeout = 0') === false) {
+                throw new RuntimeException('Cannot configure SQLite WAL negotiation timeout.');
+            }
+            while (true) {
+                $error = null;
+                $cleanupFailed = false;
+                foreach (['PRAGMA main.journal_mode', 'PRAGMA main.journal_mode = WAL'] as $sql) {
+                    if (hrtime(true) >= $deadline) {
+                        throw $lastBusy ?? new RuntimeException('SQLite WAL negotiation budget expired.');
+                    }
+                    $statement = null;
+                    try {
+                        $statement = $db->prepare($sql);
+                        if ($statement === false || !$statement->execute()) {
+                            throw new RuntimeException('Cannot execute SQLite WAL negotiation.');
+                        }
+                        $mode = $statement->fetchColumn();
+                    } catch (Throwable $attemptError) {
+                        $error = $attemptError;
+                    }
+                    try {
+                        if ($statement !== null && $statement !== false && !$statement->closeCursor()) {
+                            throw new RuntimeException('Cannot release SQLite WAL cursor.');
+                        }
+                    } catch (Throwable $cleanupError) {
+                        $cleanupFailed = true;
+                        $error ??= $cleanupError;
+                    }
+                    unset($statement);
+                    if ($error !== null) { break; }
+                    if ($mode === 'wal') { break 2; } // Already WAL: no setter or transaction.
+                    if ($sql === 'PRAGMA main.journal_mode = WAL') {
+                        throw new RuntimeException('SQLite WAL is required for file databases; use writable local storage.');
+                    }
+                }
+                // Cleanup failure never enters the contention retry, even if the primary error is BUSY.
+                if ($cleanupFailed || !$error instanceof \PDOException
+                    || !in_array($error->errorInfo[1] ?? null, [5, 261, 773], true)) {
+                    throw $error;
+                }
+                $lastBusy = $error;
+                $remaining = $deadline - hrtime(true);
+                if ($remaining <= 0) { throw $lastBusy; }
+                usleep(min($delay, (int) ($remaining / 1_000)));
+                $delay = min($delay * 2, 25_000);
+                // The next attempt checks again after waking; the deadline never resets.
+            }
+        } catch (Throwable $error) {
+            $failure = $error;
+        }
+        // Both success and every caught failure reach restoration before return/rethrow.
+        try {
+            if ($db->exec('PRAGMA busy_timeout = 5000') === false) {
+                throw new RuntimeException('Cannot restore SQLite busy timeout.');
+            }
+        } catch (Throwable $restoreError) {
+            $failure ??= $restoreError;
+        }
+        if ($failure !== null) { throw $failure; }
     }
 
     private static function authenticateExternalKey(PDO $db, #[\SensitiveParameter] TokenVault $vault): void

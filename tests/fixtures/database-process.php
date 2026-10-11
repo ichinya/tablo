@@ -7,27 +7,35 @@ use Tablo\Database;
 use Tablo\Tests\Support\MigrationPdo;
 
 [$script, $mode, $path, $directory, $name] = $argv;
-$signal = static function (string $suffix) use ($directory, $name): void {
+$stage = 'entry';
+$signal = static function (string $suffix) use ($directory, $name, &$stage): void {
+    $stage = $suffix;
     file_put_contents($directory . '/' . $name . '.' . $suffix, 'ready');
 };
 $await = static function (string $file) use ($directory): void {
-    $deadline = microtime(true) + 10;
+    $deadline = hrtime(true) + 10_000_000_000;
     do {
         clearstatcache();
         if (is_file($directory . '/' . $file)) { return; }
         usleep(20_000);
-    } while (microtime(true) < $deadline);
+    } while (hrtime(true) < $deadline);
     throw new RuntimeException('Fixture barrier timed out: ' . $file);
+};
+$hold = static function () use ($directory, $name): void {
+    // Blocking command input works on Windows anonymous pipes and releases on parent EOF.
+    $command = fgets(STDIN);
+    if ($command === false) { throw new RuntimeException('WAL holder parent pipe closed'); }
+    if ($command !== "release\n") { throw new RuntimeException('WAL holder cancelled'); }
 };
 
 $db = null;
 $details = [];
 try {
-    if ($mode === 'writer') {
+    if ($mode === 'writer' || $mode === 'writer-held') {
         $db = new MigrationPdo($path);
         $db->exec('BEGIN IMMEDIATE');
         $signal('locked');
-        $await($name . '.release');
+        if ($mode === 'writer-held') { $hold(); } else { $await($name . '.release'); }
         $db->exec('ROLLBACK');
     } elseif ($mode === 'connect') {
         $signal('ready');
@@ -58,8 +66,10 @@ try {
         } elseif ($mode === 'wal-holder') {
             $db->exec('BEGIN IMMEDIATE');
             $signal('locked');
-            $await($name . '.release');
+            // Only the parent decides when this lock ends; there is no child expiry.
+            $hold();
             $db->exec('ROLLBACK');
+            $signal('released');
         } elseif ($mode === 'wal-crash') {
             $db->exec('PRAGMA wal_autocheckpoint = 0');
             $db->exec("INSERT INTO sites(name,url,repository) VALUES('committed','https://example.com','example/project')");
@@ -71,7 +81,8 @@ try {
         } elseif (in_array($mode, ['wal-write', 'wal-write-short', 'wal-delete-write'], true)) {
             if ($mode !== 'wal-write') { $db->exec('PRAGMA busy_timeout = 150'); }
             $details['timeout'] = (int) $db->query('PRAGMA busy_timeout')->fetchColumn();
-            $started = microtime(true);
+            if ($mode === 'wal-write') { $signal('ready'); $await($name . '.proceed'); }
+            $started = hrtime(true);
             try {
                 $db->exec("INSERT INTO sites(name,url,repository) VALUES('new','https://example.com','example/project')");
                 $details['written'] = true;
@@ -80,7 +91,7 @@ try {
                 $details['sqlite_code'] = $error->errorInfo[1] ?? null;
                 unset($error);
             }
-            $details['elapsed'] = microtime(true) - $started;
+            $details['elapsed'] = (hrtime(true) - $started) / 1_000_000_000;
         } else {
             throw new RuntimeException('Unknown WAL fixture mode');
         }
@@ -95,7 +106,12 @@ try {
     if ($mode !== 'writer') { $result['users'] = (int) $db->query('SELECT count(*) FROM users')->fetchColumn(); }
     echo json_encode($result, JSON_THROW_ON_ERROR), "\n";
 } catch (Throwable $error) {
-    fwrite(STDERR, $error->getMessage() . "\n");
+    $diagnostic = in_array($error->getMessage(), ['WAL holder cancelled', 'WAL holder parent pipe closed',
+        'SQLite WAL is required for file databases; use writable local storage.'], true) ? $error->getMessage() : 'Database fixture failed';
+    fwrite(STDERR, json_encode(['mode' => $mode, 'stage' => $stage, 'schema' => null, 'exception' => $error::class,
+        'sqlState' => $error instanceof PDOException ? ($error->errorInfo[0] ?? null) : null,
+        'sqliteCode' => $error instanceof PDOException ? ($error->errorInfo[1] ?? null) : null,
+        'diagnostic' => $diagnostic], JSON_THROW_ON_ERROR) . "\n");
     unset($error, $db);
     exit(1);
 } finally {
