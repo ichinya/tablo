@@ -21,6 +21,10 @@ http_response_code($status);
 if (in_array($status, [301, 302], true)) { header('Location: /destination'); }
 if (str_contains($path, 'version')) {
     header('Content-Type: application/json');
+    if (array_key_exists('reflect', $_GET)) {
+        echo json_encode(['version' => substr($authorization, strlen('Bearer '))], JSON_THROW_ON_ERROR);
+        return;
+    }
     echo isset($_GET['bad']) ? $authorization : '{"version":"1.0.0","commit":"abcdef1"}';
 } elseif (str_contains($path, 'json')) {
     header('Content-Type: application/json');

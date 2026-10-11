@@ -190,7 +190,7 @@
                 "dashboard.check_site",
                 "dashboard.run_worker_pass"
             ],
-            "fingerprint": "sha256:847335441d3eb272c0a26f80a75259cd97a255a5d24b834ef297e212abda06c2"
+            "fingerprint": "sha256:0afaac732b0b48354b308614e4dee0ab5912e792118d11d1f22870e96539d0de"
         },
         {
             "path": "app/json-field.php",
@@ -274,7 +274,7 @@
             "consumers": [
                 "dashboard.run_worker_pass"
             ],
-            "fingerprint": "sha256:b74e64ba3908950e40bffc35dff625ebbcfc8676fe585ba4ea151c54327552ec"
+            "fingerprint": "sha256:c6f036d657bfec7db1a178da6e4ad6e08b64cb10c10e9b3952e4f851c230e546"
         },
         {
             "path": "tools/capture-bindings.php",

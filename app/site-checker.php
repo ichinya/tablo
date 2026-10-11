@@ -86,7 +86,8 @@ final class SiteChecker
                     $errors[] = 'Version: HTTP ' . $response['status'];
                     if (in_array($response['status'], [401, 403], true)) { $errors[] = 'Version: Проверьте разрешение доступа к endpoint.'; }
                 } else {
-                    $state = array_replace($state, VersionResponse::decode($response['body'], $site['version_json_path'] ?? ''));
+                    $state = array_replace($state, VersionResponse::decode($response['body'], $site['version_json_path'] ?? '',
+                        $headers === [] ? null : substr($headers[0], strlen('Authorization: Bearer '))));
                 }
             } catch (\PDOException | SharedKeyFailure $error) { throw $error; }
             catch (\Throwable $e) {

@@ -53,7 +53,7 @@ try {
             }
             $tests = ($unitTests === '' ? '' : $unitTests . ',') . 'tests/Http/DashboardTest.php';
             if (in_array($symbol['id'], ['dashboard.create_site', 'dashboard.update_site', 'dashboard.check_site', 'dashboard.run_worker_pass', 'dashboard.list_branches'], true)) {
-                $tests .= ',tests/Unit/EndpointTokenRepositoryTest.php,tests/Unit/EndpointTokenCheckerTest.php,tests/Unit/EndpointTokenMigrationTest.php,tests/Unit/EndpointTokenIsolationTest.php,tests/Network/EndpointTokenTransportTest.php,tests/Network/EndpointTokenStatusTest.php,tests/Network/EndpointTokenNetworkSafetyTest.php,tests/Network/EndpointTokenPrivacyTest.php,tests/Http/EndpointTokenCrudTest.php,tests/Http/EndpointTokenRunnerTest.php,tests/Http/EndpointTokenInFlightTest.php';
+                $tests .= ',tests/Unit/EndpointTokenRepositoryTest.php,tests/Unit/EndpointTokenCheckerTest.php,tests/Unit/EndpointTokenMigrationTest.php,tests/Unit/EndpointTokenIsolationTest.php,tests/Network/EndpointTokenTransportTest.php,tests/Network/EndpointTokenStatusTest.php,tests/Network/EndpointTokenNetworkSafetyTest.php,tests/Network/EndpointTokenPrivacyTest.php,tests/Http/EndpointTokenCrudTest.php,tests/Http/EndpointTokenRunnerTest.php,tests/Http/EndpointTokenInFlightTest.php,tests/Http/EndpointTokenReflectionTest.php';
             }
             if (in_array($symbol['id'], ['dashboard.create_site', 'dashboard.update_site', 'dashboard.check_site'], true)) {
                 $tests .= ',tests/Http/JsonChecksTest.php,tests/Http/HealthChecksTest.php,tests/Http/HomepageUrlTest.php,tests/Http/ExplicitHealthPathsTest.php,tests/Http/HealthPartialResultsTest.php,tests/Http/HealthInFlightTest.php';

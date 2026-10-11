@@ -211,7 +211,7 @@
                 "path": "app/site-checker.php",
                 "line": 11
             },
-            "fingerprint": "sha256:2b09be1cddb962ca6b9113e9f287d1895a4dd617f4edca772498d0318af1af43",
+            "fingerprint": "sha256:94dd5aa80b3419a9ae006b1e96fed25d632d8049e91bd7877118cf41ca1fbba7",
             "signature": {
                 "inputs": [
                     {
