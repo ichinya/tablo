@@ -8,38 +8,42 @@ final class SqlSyntax
 {
     public static function constraints(string $sql): array
     {
-        $lexemes = self::tokens($sql);
+        $lexemes = SqlLexemes::read($sql);
         $checks = [];
-        foreach ($lexemes as $offset => $lexeme) {
-            if ($lexeme !== 'check' || ($lexemes[$offset + 1] ?? null) !== '(') { continue; }
-            $depth = 1;
-            $check = [];
-            for ($position = $offset + 2; $position < count($lexemes); ++$position) {
-                $value = $lexemes[$position];
-                if ($value === '(') { ++$depth; }
-                if ($value === ')') { --$depth; if ($depth === 0) { break; } }
-                $check[] = $value;
-            }
-            if ($depth !== 0) { SchemaShape::refuse(); }
-            $checks[] = $check;
+        $autoincrement = false;
+        foreach (self::definitions($lexemes) as $definition) {
+            $constraints = SqlDefinitionConstraints::read($definition);
+            array_push($checks, ...$constraints['checks']);
+            $autoincrement = $autoincrement || $constraints['autoincrement'];
         }
         sort($checks);
-        return ['checks' => $checks, 'autoincrement' => in_array('autoincrement', $lexemes, strict: true)];
+        return ['checks' => $checks, 'autoincrement' => $autoincrement];
     }
+
     public static function tokens(string $sql): array
     {
-        preg_match_all('/\s+|--[^\r\n]*|\/\*[\s\S]*?\*\/|\'(?:\'\'|[^\'])*\'|"(?:""|[^"])*"|`[^`]*`|\[[^\]]*\]|[a-zA-Z_][a-zA-Z_0-9]*|[0-9]+|<>|>=|<=|==|!=|./', $sql, $matches);
-        $lexemes = [];
-        foreach ($matches[0] as $lexeme) {
-            if (trim($lexeme) === '' || str_starts_with($lexeme, '--') || str_starts_with($lexeme, '/*')) { continue; }
-            if ($lexeme[0] === "'") { $lexemes[] = $lexeme; continue; }
-            if (in_array($lexeme[0], ['"', '`', '['], strict: true)) {
-                $lexemes[] = strtolower(substr($lexeme, offset: 1, length: -1));
+        return array_map(SqlLexemes::comparable(...), SqlLexemes::read($sql));
+    }
+
+    private static function definitions(array $lexemes): array
+    {
+        $opening = array_search('(', $lexemes, strict: true);
+        if ($opening === false) { SchemaShape::refuse(); }
+        $definitions = [];
+        $definition = [];
+        $depth = 1;
+        foreach (array_slice($lexemes, offset: $opening + 1) as $lexeme) {
+            if ($lexeme === '(') { ++$depth; }
+            if ($lexeme === ')') { --$depth; }
+            if ($depth === 0) { $definitions[] = $definition; return $definitions; }
+            if ($lexeme === ',' && $depth === 1) {
+                $definitions[] = $definition;
+                $definition = [];
                 continue;
             }
-            $lexemes[] = strtolower($lexeme);
+            $definition[] = $lexeme;
         }
-        return $lexemes;
+        SchemaShape::refuse();
     }
 
 }

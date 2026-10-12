@@ -82,5 +82,11 @@ jobs:
           $env:LEKALO_BIN = Join-Path $PWD ".ci/lekalo-bin/$binaryName"
           $version = & $env:LEKALO_BIN --version
           if ($LASTEXITCODE -ne 0 -or $version.Trim() -ne 'lekalo 0.6.3') { throw 'Unexpected Lekalo CLI version' }
+          $env:TABLO_TRACE_ISOLATION_REPORT = Join-Path $env:RUNNER_TEMP 'tablo-trace-inner.jsonl'
+          $env:TABLO_RESPONSE_PRIVACY_REPORT = Join-Path $env:RUNNER_TEMP 'tablo-response-inner.jsonl'
           composer verify
-          exit $LASTEXITCODE
+          $verifyExit = $LASTEXITCODE
+          foreach ($reportPath in @($env:TABLO_TRACE_ISOLATION_REPORT, $env:TABLO_RESPONSE_PRIVACY_REPORT)) {
+            if (Test-Path -LiteralPath $reportPath) { Get-Content -LiteralPath $reportPath }
+          }
+          exit $verifyExit

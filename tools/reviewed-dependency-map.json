@@ -1784,6 +1784,20 @@
       "Composer verify"
     ]
   },
+  "app/SqlDefinitionConstraints.php": {
+    "owner": "Tablo\\SqlDefinitionConstraints",
+    "consumers": [
+      "Composer lint",
+      "Composer verify"
+    ]
+  },
+  "app/SqlLexemes.php": {
+    "owner": "Tablo\\SqlLexemes",
+    "consumers": [
+      "Composer lint",
+      "Composer verify"
+    ]
+  },
   "app/SqlSyntax.php": {
     "owner": "Tablo\\SqlSyntax",
     "consumers": [
@@ -3717,6 +3731,13 @@
       "Composer verify"
     ]
   },
+  "tests/Network/ResponsePrivacyRecord.php": {
+    "owner": "Tablo\\Tests\\Network\\ResponsePrivacyRecord",
+    "consumers": [
+      "Composer lint",
+      "Composer verify"
+    ]
+  },
   "tests/Network/ResponseRateAssertions.php": {
     "owner": "Tablo\\Tests\\Network\\ResponseRateAssertions",
     "consumers": [
@@ -5185,6 +5206,27 @@
   },
   "tests/Unit/SiteTokenRotationTest.php": {
     "owner": "Tablo\\Tests\\Unit\\SiteTokenRotationTest",
+    "consumers": [
+      "Composer lint",
+      "Composer verify"
+    ]
+  },
+  "tests/Unit/SqlSchemaAdmissionTest.php": {
+    "owner": "Tablo\\Tests\\Unit\\SqlSchemaAdmissionTest",
+    "consumers": [
+      "Composer lint",
+      "Composer verify"
+    ]
+  },
+  "tests/Unit/SqlSchemaFixtureCase.php": {
+    "owner": "Tablo\\Tests\\Unit\\SqlSchemaFixtureCase",
+    "consumers": [
+      "Composer lint",
+      "Composer verify"
+    ]
+  },
+  "tests/Unit/SqlSchemaSettlementTest.php": {
+    "owner": "Tablo\\Tests\\Unit\\SqlSchemaSettlementTest",
     "consumers": [
       "Composer lint",
       "Composer verify"

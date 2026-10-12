@@ -8,7 +8,7 @@
                 "Composer verify",
                 "Reviewed dependency capture"
             ],
-            "fingerprint": "sha256:a3d217b9d5dbee8b6920ae40c3547ccab93e14267727f9829a1c755519e749e2"
+            "fingerprint": "sha256:32a9841f61af87a1985adeb290c402b2bbb318a5801686f506b47f6e0aa127b3"
         },
         {
             "path": "tools/reviewed-dependencies.php",
@@ -43,7 +43,7 @@
             "consumers": [
                 "Hosted pinned contract and native PHP gates"
             ],
-            "fingerprint": "sha256:4552671496821211c237f20b3373ed12c9fd4145bdfb139ede3371531208aa24"
+            "fingerprint": "sha256:f87933a702c4671321bee777aa03226972159a9f17451e1c954058675be23404"
         },
         {
             "path": "app/AdministratorCredentialWrite.php",
@@ -2317,13 +2317,31 @@
             "fingerprint": "sha256:7172274ab4f85a14828ce091cc635c61821cb223695fda2446a41059b79c3184"
         },
         {
+            "path": "app/SqlDefinitionConstraints.php",
+            "owner": "Tablo\\SqlDefinitionConstraints",
+            "consumers": [
+                "Composer lint",
+                "Composer verify"
+            ],
+            "fingerprint": "sha256:4ce3d041fb37a1a8ed182f8cda978304976e0063ff8a363e1e0d7fdb4e42c509"
+        },
+        {
+            "path": "app/SqlLexemes.php",
+            "owner": "Tablo\\SqlLexemes",
+            "consumers": [
+                "Composer lint",
+                "Composer verify"
+            ],
+            "fingerprint": "sha256:a2de7dc7bc98dfd0244f898dec715c77128f13b5b697b69a892d9d4ae9c21ed0"
+        },
+        {
             "path": "app/SqlSyntax.php",
             "owner": "Tablo\\SqlSyntax",
             "consumers": [
                 "Composer lint",
                 "Composer verify"
             ],
-            "fingerprint": "sha256:ff54a1fc869331c0930d02c93346be97a442836acc6d61f018c969acf7212095"
+            "fingerprint": "sha256:805b28d72c7fb246969390c72a80022639b54b1f644a97272125cc03437ebf21"
         },
         {
             "path": "app/TokenInput.php",
@@ -4795,7 +4813,16 @@
                 "Composer lint",
                 "Composer verify"
             ],
-            "fingerprint": "sha256:f752cf3e45e1b2aa00e94d452857c5026a7e99f646297b2b46b11dde2aae7aaa"
+            "fingerprint": "sha256:59cb8bbbf18251a9201d81dc9c141a2554bd0b8cd9106ddedbb8590f49e37926"
+        },
+        {
+            "path": "tests/Network/ResponsePrivacyRecord.php",
+            "owner": "Tablo\\Tests\\Network\\ResponsePrivacyRecord",
+            "consumers": [
+                "Composer lint",
+                "Composer verify"
+            ],
+            "fingerprint": "sha256:14098a0e4eae5e52c5b9ee324bb725b7cb1ce589396a512d63f7dd640d998df3"
         },
         {
             "path": "tests/Network/ResponseRateAssertions.php",
@@ -6687,6 +6714,33 @@
             "fingerprint": "sha256:ed0d4821d8cc12f9bcb893dc5777578668ec4213909e1890d9d1fbf13f3496aa"
         },
         {
+            "path": "tests/Unit/SqlSchemaAdmissionTest.php",
+            "owner": "Tablo\\Tests\\Unit\\SqlSchemaAdmissionTest",
+            "consumers": [
+                "Composer lint",
+                "Composer verify"
+            ],
+            "fingerprint": "sha256:7a8e9744b438ee137323ae65d6f30ea620bd4b973b0cb6c95df3a13cd93a2ff5"
+        },
+        {
+            "path": "tests/Unit/SqlSchemaFixtureCase.php",
+            "owner": "Tablo\\Tests\\Unit\\SqlSchemaFixtureCase",
+            "consumers": [
+                "Composer lint",
+                "Composer verify"
+            ],
+            "fingerprint": "sha256:e11927e2bf227426b648ca3e415eebc24f8a138b7e7ff55d9177946804dfe24a"
+        },
+        {
+            "path": "tests/Unit/SqlSchemaSettlementTest.php",
+            "owner": "Tablo\\Tests\\Unit\\SqlSchemaSettlementTest",
+            "consumers": [
+                "Composer lint",
+                "Composer verify"
+            ],
+            "fingerprint": "sha256:d6207b7b2098974ca7a8eafc8be041b69f3a49595ed2c7040eabed57ed2a89f2"
+        },
+        {
             "path": "tests/Unit/TokenTamperAssertions.php",
             "owner": "Tablo\\Tests\\Unit\\TokenTamperAssertions",
             "consumers": [
@@ -6954,7 +7008,7 @@
                 "Composer lint",
                 "Composer verify"
             ],
-            "fingerprint": "sha256:f0c2f6f60d42749d47fd7a698ce8b2fe1e537b8e8b8ec542b2f464833472a221"
+            "fingerprint": "sha256:a5187afc4d205d0033f515ba06257e2bc0d6c0fe13a30579f526049603322f04"
         },
         {
             "path": "views/incidents.volt",

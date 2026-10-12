@@ -125,6 +125,7 @@ try {
             $tests .= ',tests/Unit/IncidentMigrationTest.php';
             $tests .= ',tests/Unit/NotificationMigrationTest.php';
             $tests .= ',tests/Unit/CompositionSchemaTest.php,tests/Unit/CompositionIdentityTest.php,tests/Unit/CompositionAdmissionTest.php,tests/Unit/CompositionMigrationAtomicityTest.php,tests/Unit/CompositionSettlementTest.php,tests/Unit/CompositionKeyTest.php';
+            $tests .= ',tests/Unit/SqlSchemaAdmissionTest.php,tests/Unit/SqlSchemaSettlementTest.php';
             $tests .= ',tests/Unit/ExternalKeyTest.php,tests/Unit/ExternalKeyAuthenticationTest.php,tests/Unit/ExternalKeyCustodyTest.php,tests/Unit/WorkerKeySettlementTest.php,tests/Unit/WorkerConnectionOwnershipTest.php,tests/Network/ExternalKeyTest.php,tests/Http/ExternalKeyTest.php';
             $tests .= ',tests/Unit/SchemaObservationRaceTest.php';
             $tests .= ',tests/Unit/DatabasePathTest.php';
