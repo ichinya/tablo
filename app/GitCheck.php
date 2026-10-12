@@ -3,9 +3,17 @@ declare(strict_types=1);
 
 namespace Tablo;
 
+/**
+ * @phpstan-import-type CheckResult from CheckState
+ */
 final class GitCheck
 {
     public function __construct(private readonly RepositoryProvider $provider) {}
+    /**
+     * @param CheckResult $state
+     * @param list<string> $errors
+     * @param list<string>|null $fieldOrder
+     */
     public function git(string $repository, string $branch, ?array $fieldOrder,
         #[\SensitiveParameter] array &$state, #[\SensitiveParameter] array &$errors): void
     {

@@ -8,6 +8,7 @@ use Phalcon\Http\Response;
 abstract class WebPage
 {
     public function __construct(protected readonly PageResponse $page) {}
+    /** @param array<string, mixed> $data */
     protected function render(string $template, array $data, int $status = 200): Response
     { return $this->page->render($template, $data, $status); }
     protected function notFound(): Response

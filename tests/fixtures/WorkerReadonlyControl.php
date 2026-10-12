@@ -11,7 +11,7 @@ final class WorkerReadonlyControl extends php_user_filter
             $bucket = stream_bucket_make_writeable($in);
             if (!$bucket) { break; }
             if (str_contains($bucket->data, 'Worker started.')) {
-                ($this->params)();
+                (\Tablo\Tests\Support\FixtureNative::callback($this->params))();
             }
             $consumed += $bucket->datalen;
             stream_bucket_append($out, $bucket);
@@ -21,5 +21,6 @@ final class WorkerReadonlyControl extends php_user_filter
 }
 stream_filter_register('tablo.readonly-control', WorkerReadonlyControl::class);
 stream_filter_append(STDOUT, filter_name: 'tablo.readonly-control', params: static function () use (&$db): void {
+    if (!$db instanceof PDO) { throw new RuntimeException('Owned serving database is unavailable'); }
     $db->exec('PRAGMA query_only = ON');
 });

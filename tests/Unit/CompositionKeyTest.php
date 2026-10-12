@@ -26,7 +26,7 @@ final class CompositionKeyTest
                 $path=$directory->path.'/'.$family.'.sqlite';
                 $db=new PDO('sqlite:'.$path,null,null,[PDO::ATTR_ERRMODE=>PDO::ERRMODE_EXCEPTION]);
                 $name=$family==='endpoint'?'endpoint5':'notification7';
-                $db->exec(file_get_contents(dirname(__DIR__).'/fixtures/historical-schema/'.$name.'.sql'));
+                $db->exec(\Tablo\RequiredFile::bytes(file_get_contents(dirname(__DIR__).'/fixtures/historical-schema/'.$name.'.sql')));
                 $db->exec("INSERT INTO sites(id,name,url,repository,enabled) VALUES(1,'Historical','https://example.test/','fixture/public',0)");
                 if (str_starts_with($family,'notification-')) {
                     $db->exec("INSERT INTO notification_settings(id,installation_id) VALUES(1,'0123456789abcdef0123456789abcdef')");
@@ -40,9 +40,9 @@ final class CompositionKeyTest
                     'notification-slot'=>"INSERT INTO notification_slots(site_id,event,event_id,source_id,config_revision,channel_revision,payload,
                         private_cipher,created_at,expires_at,due_at,status) VALUES(1,'unavailable','original',1,0,0,'{}',?,1000,2000,1000,'pending')",
                 };
-                $db->prepare($sql)->execute([$cipher]);
+                \Tablo\SqlStatement::checked($db->prepare($sql))->execute([$cipher]);
                 Assert::true(SiteKeyState::hasEstablishedKeyState($db),$family);
-                $schema=$db->query('SELECT sql FROM sqlite_schema ORDER BY name')->fetchAll();
+                $schema=\Tablo\SqlStatement::checked($db->query('SELECT sql FROM sqlite_schema ORDER BY name'))->fetchAll();
                 $vault = null; $db = null; $before=hash_file('sha256',$path);
                 $error=null;
                 try { Database::connect($path,new TokenVault($wrong,true)); }
@@ -51,7 +51,7 @@ final class CompositionKeyTest
                 Assert::same(hash_file('sha256',$path),$before,$family);
                 Assert::same(file_get_contents($key),$bytes);
                 $db=Database::connect($path,new TokenVault($key,true));
-                Assert::same((int)$db->query('PRAGMA user_version')->fetchColumn(),8);
+                Assert::same((int)\Tablo\SqlStatement::checked($db->query('PRAGMA user_version'))->fetchColumn(),8);
                 Assert::true(SiteKeyState::hasEstablishedKeyState($db),$family);
                 Assert::same(file_get_contents($key),$bytes);
                 Assert::false(is_file($directory->path.'/github-token.key'));

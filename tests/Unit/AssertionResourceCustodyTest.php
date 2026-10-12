@@ -33,7 +33,7 @@ final class AssertionResourceCustodyTest
             $sites = null; $db = null;
             $directory->close();
             Assert::false(is_dir($path));
-            Assert::true(str_contains($failure->getMessage(), 'expected `true`, got `false`'));
+            Assert::true(str_contains(\Tablo\Tests\Support\FixtureValue::object($failure)->getMessage(), 'expected `true`, got `false`'));
         } finally {
             $sites = null; $db = null; $failure = null;
             \Tablo\RuntimeIni::set('zend.exception_ignore_args', $original);
@@ -64,7 +64,7 @@ final class AssertionResourceCustodyTest
             $a = null; $b = null;
             $directory->close();
             Assert::false(is_dir($path));
-            Assert::true(str_contains($failure->getMessage(), 'expected `0`, got `1`'));
+            Assert::true(str_contains(\Tablo\Tests\Support\FixtureValue::object($failure)->getMessage(), 'expected `0`, got `1`'));
         } finally {
             $a = null; $b = null; $failure = null;
             \Tablo\RuntimeIni::set('zend.exception_ignore_args', $original);

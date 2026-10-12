@@ -26,7 +26,7 @@ final class IncidentConcurrencyTest
         try {
             $path = $directory->path . '/db.sqlite';
             $db = new MigrationPdo($path);
-            $db->exec(file_get_contents(dirname(__DIR__) . '/fixtures/historical-schema/history5.sql'));
+            $db->exec(\Tablo\RequiredFile::bytes(file_get_contents(dirname(__DIR__) . '/fixtures/historical-schema/history5.sql')));
             $db->exec("INSERT INTO sites(id,name,url,repository) VALUES(1,'Historical','https://example.test/','fixture/public');
                 INSERT INTO check_history(id,site_id,config_revision,checked_at,online,version_status) VALUES(1,1,0,'2020-01-01T00:00:00Z',0,'skipped')");
             unset($sites, $db);
@@ -39,13 +39,13 @@ final class IncidentConcurrencyTest
             $b = $second->wait();
             Assert::same($a['code'], 0);
             Assert::same($b['code'], 0);
-            Assert::same(json_decode($a['stdout'], associative: true)['ddl'], 14,
+            Assert::same(\Tablo\Tests\Support\FixtureValue::at(\Tablo\JsonRecord::checked(json_decode($a['stdout'], associative: true)), 'ddl'), 14,
                 'endpoint ALTER plus four history widening CREATE/ALTER statements plus four incident and five notification CREATE statements');
-            Assert::same(json_decode($b['stdout'], associative: true)['ddl'], 0);
+            Assert::same(\Tablo\Tests\Support\FixtureValue::at(\Tablo\JsonRecord::checked(json_decode($b['stdout'], associative: true)), 'ddl'), 0);
             $db = Database::connect($path);
-            Assert::same((int) $db->query('SELECT COUNT(*) FROM check_history')->fetchColumn(), 1);
-            Assert::same($db->query('SELECT * FROM incidents')->fetchAll(), []);
-            Assert::same($db->query('SELECT * FROM incident_checkpoints')->fetchAll(), []);
+            Assert::same((int) \Tablo\SqlStatement::checked($db->query('SELECT COUNT(*) FROM check_history'))->fetchColumn(), 1);
+            Assert::same(\Tablo\SqlRows::all(\Tablo\SqlStatement::checked($db->query('SELECT * FROM incidents'))->fetchAll(), \Tablo\SqlIncidentsClockInvalidConfigRevisionEndReasonRow::checked(...)), []);
+            Assert::same(\Tablo\SqlRows::all(\Tablo\SqlStatement::checked($db->query('SELECT * FROM incident_checkpoints'))->fetchAll(), \Tablo\SqlIncidentCheckpointsRow::checked(...)), []);
         } finally { $second?->close(); $first?->close(); unset($sites, $db); $directory->close(); }
     }
 
@@ -69,10 +69,10 @@ final class IncidentConcurrencyTest
             }
             file_put_contents($gate, data: 'go');
             foreach ($children as $child) { Assert::same($child->wait()['exit_code'], 0); }
-            Assert::same((int) $db->query('SELECT COUNT(*) FROM check_history')->fetchColumn(), 2);
-            Assert::same((int) $db->query('SELECT COUNT(*) FROM incidents')->fetchColumn(), 1);
-            Assert::same((int) $db->query('SELECT last_history_id FROM incident_checkpoints')->fetchColumn(), 2);
-            $anchor = $db->query('SELECT * FROM incidents')->fetch();
+            Assert::same((int) \Tablo\SqlStatement::checked($db->query('SELECT COUNT(*) FROM check_history'))->fetchColumn(), 2);
+            Assert::same((int) \Tablo\SqlStatement::checked($db->query('SELECT COUNT(*) FROM incidents'))->fetchColumn(), 1);
+            Assert::same((int) \Tablo\SqlStatement::checked($db->query('SELECT last_history_id FROM incident_checkpoints'))->fetchColumn(), 2);
+            $anchor = \Tablo\SqlRows::one(\Tablo\SqlStatement::checked($db->query('SELECT * FROM incidents'))->fetch(), \Tablo\SqlIncidentsClockInvalidConfigRevisionEndReasonRow::checked(...));
             $maintenance = [];
             foreach (['prune', 'accept'] as $action) {
                 $child = new WorkerProcess($directory, $action, [PHP_BINARY, $script, $path, (string) $id, $action], []);
@@ -80,9 +80,9 @@ final class IncidentConcurrencyTest
                 $maintenance[] = $child;
             }
             foreach ($maintenance as $child) { Assert::same($child->wait()['exit_code'], 0); }
-            Assert::same($db->query('SELECT * FROM incidents')->fetch(), $anchor);
+            Assert::same(\Tablo\SqlRows::one(\Tablo\SqlStatement::checked($db->query('SELECT * FROM incidents'))->fetch(), \Tablo\SqlIncidentsClockInvalidConfigRevisionEndReasonRow::checked(...)), $anchor);
             F::accept($sites, $id, 1, '2020-01-01T00:01:00Z');
-            Assert::same((int) $db->query('SELECT recovery_history_id FROM incidents')->fetchColumn(), 4);
+            Assert::same((int) \Tablo\SqlStatement::checked($db->query('SELECT recovery_history_id FROM incidents'))->fetchColumn(), 4);
             F::accept($sites, $other, 0, '2020-01-01T00:00:00Z');
             $nextGate = $directory->path . '/after-delete';
             $late = new WorkerProcess($directory, 'late', [PHP_BINARY, $script, $path, (string) $id, 'accept'], ['TABLO_INCIDENT_GATE' => $nextGate]);
@@ -113,15 +113,15 @@ final class IncidentConcurrencyTest
             F::accept($sites, $other, 0, '2026-01-01T00:00:00Z');
             $snapshot = $sites->find($id);
             $tokens->save(['name' => 'Renamed', 'provider' => 'github', 'token' => ''], $token);
-            Assert::true($sites->storeCheck($snapshot, ['online' => 0, 'checked_at' => '2026-01-01T00:00:01Z']));
-            $before = $db->query('SELECT * FROM incidents')->fetchAll();
+            Assert::true($sites->storeCheck(\Tablo\Tests\Support\FixtureValue::row($snapshot), ['online' => 0, 'checked_at' => '2026-01-01T00:00:01Z']));
+            $before = \Tablo\SqlRows::all(\Tablo\SqlStatement::checked($db->query('SELECT * FROM incidents'))->fetchAll(), \Tablo\SqlIncidentsClockInvalidConfigRevisionEndReasonRow::checked(...));
             $tokens->save(['name' => 'Renamed', 'provider' => 'github', 'token' => bin2hex(random_bytes(24))], $token);
-            Assert::false($sites->storeCheck($snapshot, ['checked_at' => 'invalid']));
-            Assert::same($db->query('SELECT * FROM incidents')->fetchAll(), $before);
+            Assert::false($sites->storeCheck(\Tablo\Tests\Support\FixtureValue::row($snapshot), ['checked_at' => 'invalid']));
+            Assert::same(\Tablo\SqlRows::all(\Tablo\SqlStatement::checked($db->query('SELECT * FROM incidents'))->fetchAll(), \Tablo\SqlIncidentsClockInvalidConfigRevisionEndReasonRow::checked(...)), $before);
             F::accept($sites, $id, 1, '2026-01-01T00:00:02Z');
-            Assert::same($db->query('SELECT end_reason FROM incidents WHERE site_id=1')->fetchColumn(), 'config-changed');
-            Assert::same($db->query('SELECT recovered_at FROM incidents WHERE site_id=1')->fetchColumn(), null);
-            Assert::same($db->query('SELECT end_reason FROM incidents WHERE site_id=2')->fetchColumn(), null);
+            Assert::same(\Tablo\SqlStatement::checked($db->query('SELECT end_reason FROM incidents WHERE site_id=1'))->fetchColumn(), 'config-changed');
+            Assert::same(\Tablo\SqlStatement::checked($db->query('SELECT recovered_at FROM incidents WHERE site_id=1'))->fetchColumn(), null);
+            Assert::same(\Tablo\SqlStatement::checked($db->query('SELECT end_reason FROM incidents WHERE site_id=2'))->fetchColumn(), null);
         } finally { unset($snapshot, $sites, $tokens, $vault, $db); $directory->close(); }
     }
 
@@ -140,7 +140,7 @@ final class IncidentConcurrencyTest
             $db->exec('PRAGMA busy_timeout=80');
             $before = F::rows($db);
             $error = F::error(static fn () => F::accept($sites, $id, 0, '2026-01-01T00:00:00Z'));
-            Assert::same($error->errorInfo[1], 5);
+            Assert::same(\Tablo\Tests\Support\FixtureNative::sqliteCode(\Tablo\Tests\Support\FixtureNative::pdoException($error)), 5);
             Assert::same(F::rows($db), $before);
             unset($error);
             file_put_contents($directory->path . '/writer.release', data: 'go');

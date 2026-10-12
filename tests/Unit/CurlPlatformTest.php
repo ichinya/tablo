@@ -20,7 +20,7 @@ final class CurlPlatformTest
         $directory = new TemporaryDirectory('tablo-curl-simulation-');
         try {
             mkdir($directory->path . '/app');
-            $source = file_get_contents(dirname(__DIR__, levels: 2) . '/app/bootstrap.php');
+            $source = \Tablo\RequiredFile::bytes(file_get_contents(dirname(__DIR__, levels: 2) . '/app/bootstrap.php'));
             $source = str_replace('declare(strict_types=1);',
                 replace: 'declare(strict_types=1); namespace Tablo\\Tests\\CurlPlatformSimulation;', subject: $source);
             file_put_contents($directory->path . '/app/bootstrap.php', $source);
@@ -36,9 +36,9 @@ final class CurlPlatformTest
                 catch (InstallationException $caught) { $error = $caught; }
                 Assert::same($error === null, $supported);
                 if (!$supported) {
-                    Assert::same($error->getCode(), InstallationException::UNSUPPORTED_CURL);
-                    Assert::same($error->getMessage(), InstallationException::CURL_DIAGNOSTIC);
-                    Assert::same($error->getPrevious(), null);
+                    Assert::same(\Tablo\Tests\Support\FixtureValue::object($error)->getCode(), InstallationException::UNSUPPORTED_CURL);
+                    Assert::same(\Tablo\Tests\Support\FixtureValue::object($error)->getMessage(), InstallationException::CURL_DIAGNOSTIC);
+                    Assert::same(\Tablo\Tests\Support\FixtureValue::object($error)->getPrevious(), null);
                 }
             }
             } catch (\Throwable $error) {

@@ -19,11 +19,11 @@ final class RedirectRequestLineTest
                 $before = count($server->rows());
                 $response = (new HttpClient(true))->getEndpoint($server->base . $target, \Tablo\Tests\Support\RedirectAssertions::headers());
                 Assert::same($response['status'], $status, 'receiver status distinguishes query presence');
-                Assert::same(json_decode($response['body'], associative: true)['query_resource'], $status);
+                Assert::same(\Tablo\Tests\Support\FixtureValue::at(\Tablo\JsonRecord::checked(json_decode($response['body'], associative: true)), 'query_resource'), $status);
                 $rows = array_slice($server->rows(), $before);
                 Assert::same(count($rows), 1);
-                Assert::same($rows[0]['request_line'], 'GET ' . $target . ' HTTP/1.1');
-                Assert::true($rows[0]['bearer']); Assert::false($rows[0]['unexpected_headers']);
+                Assert::same(\Tablo\Tests\Support\FixtureValue::at($rows, 0)['request_line'], 'GET ' . $target . ' HTTP/1.1');
+                Assert::true(\Tablo\Tests\Support\FixtureValue::at($rows, 0)['bearer']); Assert::false(\Tablo\Tests\Support\FixtureValue::at($rows, 0)['unexpected_headers']);
             }
         } finally { $server->close(); }
     }
@@ -46,7 +46,7 @@ final class RedirectRequestLineTest
                 $before = count($server->rows());
                 $response = (new HttpClient(true))->getEndpoint($server->base . $targets[0], \Tablo\Tests\Support\RedirectAssertions::headers());
                 Assert::same($response['status'], $status, 'receiver rejects any changed target');
-                Assert::same(json_decode($response['body'], associative: true)['query_resource'], $status);
+                Assert::same(\Tablo\Tests\Support\FixtureValue::at(\Tablo\JsonRecord::checked(json_decode($response['body'], associative: true)), 'query_resource'), $status);
                 $rows = array_slice($server->rows(), $before);
                 Assert::same(array_column($rows, 'request_line'), array_map(static fn (string $target): string => 'GET ' . $target . ' HTTP/1.1', $targets));
                 foreach ($rows as $row) { Assert::true($row['bearer']); Assert::false($row['unexpected_headers']); }

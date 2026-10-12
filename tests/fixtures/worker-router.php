@@ -1,10 +1,12 @@
 <?php
 declare(strict_types=1);
+require_once __DIR__ . '/../Support/FixtureRequest.php';
+require_once __DIR__ . '/../Support/FixtureValue.php';
 
-$directory = getenv('TABLO_WORKER_FIXTURE');
-$path = parse_url($_SERVER['REQUEST_URI'], PHP_URL_PATH);
-file_put_contents($directory . '/requests.jsonl', json_encode(['path' => $path,
-    'window' => (int) ($_SERVER['HTTP_X_FIXTURE_WINDOW'] ?? 0)]) . "\n", FILE_APPEND | LOCK_EX);
+$directory = \Tablo\Tests\Support\FixtureValue::string(getenv('TABLO_WORKER_FIXTURE'));
+$path = \Tablo\Tests\Support\FixtureRequest::path($_SERVER['REQUEST_URI']);
+file_put_contents($directory . '/requests.jsonl', \Tablo\Tests\Support\FixtureValue::string(json_encode(['path' => $path,
+    'window' => (int) ($_SERVER['HTTP_X_FIXTURE_WINDOW'] ?? 0)])) . "\n", FILE_APPEND | LOCK_EX);
 if ($path === '/barrier') {
     file_put_contents($directory . '/entered', data: 'ready');
     $deadline = microtime(true) + 8;

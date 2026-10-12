@@ -7,6 +7,7 @@ final class Clock
 {
     public static int $now = 0;
     public static int $overshoot = 0;
+    /** @var list<array{before: int, microseconds: int}> */
     public static array $sleeps = [];
     public static function reset(int $overshoot): void { self::$now = 0; self::$overshoot = $overshoot; self::$sleeps = []; }
 }

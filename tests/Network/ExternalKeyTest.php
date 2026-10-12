@@ -51,7 +51,7 @@ final class ExternalKeyTest
             Assert::same((new WorkerStateRepository($db))->generation(),null);
             $result = Subprocess::run(command: [PHP_BINARY,'bin/admin-password.php','--password-stdin'], directory: $directory, environment: $env, options: new \Tablo\Tests\Support\CommandOptions(input: \Tablo\Tests\Support\FixtureCredentials::confirmationInput(label: 'replacement-password')));
             Assert::same($result['exit_code'],0);
-            Assert::true(password_verify(\Tablo\Tests\Support\FixtureCredentials::value(label: 'replacement-password'),$db->query('SELECT password_hash FROM users')->fetchColumn()));
+            Assert::true(password_verify(\Tablo\Tests\Support\FixtureCredentials::value(label: 'replacement-password'),\Tablo\Tests\Support\FixtureValue::string(\Tablo\SqlStatement::checked($db->query('SELECT password_hash FROM users'))->fetchColumn())));
             Assert::false(is_file($key)); Assert::false(is_file($directory->path . '/github-token.key'));
             $preflight=Subprocess::run([PHP_BINARY,'bin/key-preflight.php'],$directory,$env); Assert::same($preflight['exit_code'],1);
             $result = Subprocess::run([PHP_BINARY,'bin/check.php'],$directory,$env); Assert::same($result['exit_code'],1);
@@ -112,8 +112,8 @@ final class ExternalKeyTest
                 $result=$child->wait(); Assert::same($result['exit_code'],1);
                 Assert::false(str_contains($result['stdout'],'Worker pass complete.'));
                 Assert::false(str_contains($result['stderr'],$key));
-                Assert::same((int)$db->query('SELECT count(*) FROM sites WHERE checked_at IS NOT NULL')->fetchColumn(),0);
-                Assert::same((int)$db->query('SELECT count(*) FROM worker_progress')->fetchColumn(),0);
+                Assert::same((int)\Tablo\SqlStatement::checked($db->query('SELECT count(*) FROM sites WHERE checked_at IS NOT NULL'))->fetchColumn(),0);
+                Assert::same((int)\Tablo\SqlStatement::checked($db->query('SELECT count(*) FROM worker_progress'))->fetchColumn(),0);
                 Assert::false(is_file($directory->path.'/github-token.key'));
             } finally {$child?->close();$server?->close();$vault = null; $sites = null; $db = null; $server = null; $child = null;$directory->close();}
         }

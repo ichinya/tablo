@@ -1,8 +1,10 @@
 <?php
 declare(strict_types=1);
+require_once __DIR__ . '/../Support/FixtureRequest.php';
+require_once __DIR__ . '/../Support/FixtureValue.php';
 
-$directory = getenv('TABLO_CHECK_DIRECTORY');
-$path = parse_url($_SERVER['REQUEST_URI'], PHP_URL_PATH);
+$directory = \Tablo\Tests\Support\FixtureValue::string(getenv('TABLO_CHECK_DIRECTORY'));
+$path = \Tablo\Tests\Support\FixtureRequest::path($_SERVER['REQUEST_URI']);
 file_put_contents($directory . '/requests.jsonl', json_encode(['path' => $path], JSON_THROW_ON_ERROR) . "\n", FILE_APPEND | LOCK_EX);
 if ($path === '/barrier') {
     file_put_contents($directory . '/entered', data: 'ready');

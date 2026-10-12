@@ -31,9 +31,7 @@ final class GitHubRequest
         if ($this->token !== '') {
             $headers[] = 'Authorization: Bearer ' . $this->token;
         }
-        $response = $this->http->getBefore('https://api.github.com' . $path, $headers, $deadline);
-        if (!is_int($response['status'] ?? null) || !is_string($response['body'] ?? null)
-            || $response['status'] < 100 || $response['status'] > 599) { throw new GitHubFailure('unavailable'); }
+        $response = GitHubFrame::checked($this->http->getBefore('https://api.github.com' . $path, $headers, $deadline));
         $this->policy->observe($resource, $response, $this->scope, $this->credential->equivalentScope);
         $this->credential->assertCurrent($this->policy, $this->identity);
         return GitHubResponse::decode($response,$missing);

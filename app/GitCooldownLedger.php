@@ -3,8 +3,10 @@ declare(strict_types=1);
 
 namespace Tablo;
 
+/** @phpstan-import-type Frame from GitHubFrame */
 final class GitCooldownLedger
 {
+    /** @var array<string, int> */
     private array $cooldowns = [];
     public function __construct(private readonly ?GitHubCooldownRepository $storage, private readonly GitHubClock $clock) {}
     public function eligibility(string $resource, string $scope): int
@@ -20,6 +22,7 @@ final class GitCooldownLedger
         catch (\PDOException | SharedKeyFailure $error) { throw $error; }
         catch (\Throwable) { throw new GitHubFailure('unavailable'); }
     }
+    /** @param Frame $response */
     public function observe(string $requestedResource, #[\SensitiveParameter] array $response, string $scope = 'anonymous', ?string $equivalentScope = null): void
     {
         $limit = GitHubRateLimit::fromResponse($requestedResource, $response, $this->clock->epoch());

@@ -29,7 +29,7 @@ final class SiteCredentialCrudTest
             $sites = new SiteRepository(Database::connect(':memory:'), $vault);
             $id = $sites->save($sample + ['github_token' => \Tablo\Tests\Support\FixtureCredentials::value(label: 'fixture-token')]);
             $site = $sites->find($id);
-            Assert::true(str_starts_with($site['github_token'], 'v1:') && !str_contains($site['github_token'], \Tablo\Tests\Support\FixtureCredentials::value(label: 'fixture-token')), 'plaintext stored');
+            Assert::true(str_starts_with(\Tablo\Tests\Support\FixtureValue::string(\Tablo\Tests\Support\FixtureValue::row($site)['github_token']), 'v1:') && !str_contains(\Tablo\Tests\Support\FixtureValue::string(\Tablo\Tests\Support\FixtureValue::row($site)['github_token']), \Tablo\Tests\Support\FixtureCredentials::value(label: 'fixture-token')), 'plaintext stored');
             Assert::true($sites->tokenFor($site) === \Tablo\Tests\Support\FixtureCredentials::value(label: 'fixture-token') && filesize($key) === 32, 'token not restored');
             $other = $sites->save(array_replace($sample, ['name' => 'Second', 'github_token' => \Tablo\Tests\Support\FixtureCredentials::value(label: 'other-token')]));
             Assert::true($sites->tokenFor($sites->find($other)) === \Tablo\Tests\Support\FixtureCredentials::value(label: 'other-token') && $sites->tokenFor($site) === \Tablo\Tests\Support\FixtureCredentials::value(label: 'fixture-token'), 'tokens crossed sites');
@@ -38,12 +38,12 @@ final class SiteCredentialCrudTest
             Assert::true($sites->resolveToken(['remove_github_token' => \Tablo\FormCheckbox::VALUE], $site) === '', 'removed token was reused');
             Assert::true($sites->resolveToken([], null) === '', 'credentials invented for a tokenless project');
             $sites->save($sample, $id);
-            Assert::true( hash_equals($sites->find($id)['github_token'], $site['github_token']) , 'empty token erased saved token');
+            Assert::true( hash_equals(\Tablo\Tests\Support\FixtureValue::string(\Tablo\Tests\Support\FixtureValue::row($sites->find($id))['github_token']), \Tablo\Tests\Support\FixtureValue::string(\Tablo\Tests\Support\FixtureValue::row($site)['github_token'])) , 'empty token erased saved token');
             $sites->save($sample + ['github_token' => \Tablo\Tests\Support\FixtureCredentials::value(label: 'replacement-token')], $id);
-            Assert::true(!$sites->storeCheck($site, ['online' => 1]), 'old check survived token-only replacement');
+            Assert::true(!$sites->storeCheck(\Tablo\Tests\Support\FixtureValue::row($site), ['online' => 1]), 'old check survived token-only replacement');
             Assert::true($sites->tokenFor($sites->find($id)) === \Tablo\Tests\Support\FixtureCredentials::value(label: 'replacement-token'), 'new token lost');
             $sites->save($sample + ['remove_github_token' => \Tablo\FormCheckbox::VALUE], $id);
-            Assert::true($sites->find($id)['github_token'] === null, 'token not deleted');
+            Assert::true(\Tablo\Tests\Support\FixtureValue::row($sites->find($id))['github_token'] === null, 'token not deleted');
             foreach (["token\r\nInjected: value", 'a b', str_repeat('a', times: 513), ['array']] as $bad) {
                 (new \Tablo\Tests\Support\FixtureRejection(\Closure::fromCallable(static fn () => $sites->save($sample + ['github_token' => $bad]))))->verify('unsafe token accepted');
             }

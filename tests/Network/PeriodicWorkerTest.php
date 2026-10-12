@@ -41,9 +41,9 @@ final class PeriodicWorkerTest
                 if ($mode === 'site-token') { $sites->save(array_replace($input, ['github_token' => bin2hex(random_bytes(24))]), $id); }
                 if ($mode === 'saved-token') { $tokens->save(['name' => 'Shared', 'provider' => 'github','token' => bin2hex(random_bytes(24))], $token); }
                 if ($mode === 'rename-only') { $tokens->save(['name' => 'Renamed', 'provider' => 'github','token' => ''], $token); }
-                if ($mode === 'stop') { $state->requestStop($state->generation()); Assert::true($child->running(), 'stop request is not immediate exit of admitted HTTP'); }
+                if ($mode === 'stop') { $state->requestStop(\Tablo\Tests\Support\FixtureValue::string($state->generation())); Assert::true($child->running(), 'stop request is not immediate exit of admitted HTTP'); }
                 file_put_contents($directory->path . '/release', data: 'release');
-                if ($mode !== 'stop') { $child->awaitOutput('Worker pass complete.'); $state->requestStop($state->generation()); }
+                if ($mode !== 'stop') { $child->awaitOutput('Worker pass complete.'); $state->requestStop(\Tablo\Tests\Support\FixtureValue::string($state->generation())); }
                 Assert::same($child->wait()['exit_code'], 0);
                 WorkerCredentialAssertions::settled(WorkerCredentialObservation::read($sites, $db, $id), $mode);
                 Assert::false(str_contains(implode(' ', $child->output()), 'synthetic-private-response'));

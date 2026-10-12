@@ -3,8 +3,10 @@ declare(strict_types=1);
 
 namespace Tablo;
 
+/** @phpstan-import-type Frame from GitHubFrame */
 final class GitHubResponse
 {
+    /** @param Frame $response */
     public static function decode(#[\SensitiveParameter] array $response, GitMissingPolicy $missing): ?array
     {
         if ($missing === GitMissingPolicy::Allowed && $response['status'] === 404) {
@@ -18,7 +20,11 @@ final class GitHubResponse
             };
             throw new GitHubFailure($reason, httpStatus: $response['status']);
         }
-        $json = json_decode($response['body'], associative: true, depth: 32);
+        return self::record(json_decode($response['body'], associative: true, depth: 32));
+    }
+
+    private static function record(mixed $json): array
+    {
         if (!is_array($json)) {
             throw new GitHubFailure('invalid-data');
         }

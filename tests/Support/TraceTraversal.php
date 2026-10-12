@@ -4,35 +4,32 @@ declare(strict_types=1);
 namespace Tablo\Tests\Support;
 
 
+/** @phpstan-import-type Result from TraceInspector */
 final class TraceTraversal
 {
+    /** @var \SplObjectStorage<object, null> */
     public \SplObjectStorage $seen;
     public int $visited = 0;
     public bool $leaked = false;
+    /** @var array<string, int> */
     public array $opaque = [];
     public int $redacted = 0;
+    /**
+     * @param array<array-key, mixed> $pending Actual raw native trace arguments, never treated as domain data.
+     * @param list<string> $markers
+     */
     public function __construct(#[\SensitiveParameter] public array $pending, #[\SensitiveParameter] public readonly array $markers)
-    { $this->seen = new \SplObjectStorage(); }
+    {
+        /** @var \SplObjectStorage<object, null> $seen */
+        $seen = new \SplObjectStorage();
+        $this->seen = $seen;
+    }
+    /** @return Result */
     public function inspect(): array
     {
         while ($this->pending !== []) {
             if (++$this->visited > 10_000) { throw new \RuntimeException('Trace inspection bound exceeded'); }
-            $value = array_pop($this->pending);
-            if (is_string($value)) {
-                foreach ($this->markers as $marker) { $this->leaked = $this->leaked || str_contains($value, $marker); }
-                continue;
-            }
-            if (is_array($value)) {
-                foreach ($value as $key => $item) { $this->pending[] = $key; $this->pending[] = $item; }
-                continue;
-            }
-            if (is_resource($value)) { $this->opaque['resource-state'] = ($this->opaque['resource-state'] ?? 0) + 1; continue; }
-            if (!is_object($value)) { continue; }
-            if ($value instanceof \SensitiveParameterValue) { ++$this->redacted; continue; }
-            if ($this->seen->offsetExists($value)) { continue; }
-            $this->seen->offsetSet($value);
-            if ($value instanceof \Closure) { $this->opaque['closure'] = ($this->opaque['closure'] ?? 0) + 1; continue; }
-            TraceObjectInspection::append($value, $this);
+            TraceValueInspection::append(array_pop($this->pending), $this);
         }
         return ['leaked' => $this->leaked, 'complete' => $this->opaque === [], 'opaque' => $this->opaque, 'redacted' => $this->redacted];
         }

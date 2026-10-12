@@ -24,7 +24,7 @@ foreach ($rows as [$name, $url, $repository, $mode, $enabled, $online, $version,
     $id = $sites->save(array_replace(Tablo\SiteInput::defaults(), ['name' => $name, 'url' => $url,
         'repository' => $repository, 'comparison_mode' => $mode, 'enabled' => $enabled,
         'git_token_id' => $token, 'version_path' => $mode === 'branch' ? '' : '/version']));
-    $sites->storeCheck($sites->find($id), ['online' => $online, 'deployed_version' => $version,
+    $sites->storeCheck(\Tablo\Tests\Support\FixtureValue::row($sites->find($id)), ['online' => $online, 'deployed_version' => $version,
         'latest_release' => $release, 'deployed_commit' => $commit,
         'latest_commit' => $commit ? $commit . str_repeat('0', times: 33) : null,
         'open_issues' => $issues, 'open_prs' => $prs, 'response_time_ms' => $ms,

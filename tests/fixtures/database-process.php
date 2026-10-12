@@ -6,21 +6,17 @@ require dirname(__DIR__, levels: 2) . '/vendor/autoload.php';
 use Tablo\Database;
 use Tablo\Tests\Support\MigrationPdo;
 
-[$script, $mode, $path, $directory, $name] = $argv;
+$arguments = \Tablo\Tests\Support\FixtureValue::row($argv);
+$mode = \Tablo\Tests\Support\FixtureValue::at($arguments, 1);
+$path = \Tablo\Tests\Support\FixtureValue::at($arguments, 2);
+$directory = \Tablo\Tests\Support\FixtureValue::at($arguments, 3);
+$name = \Tablo\Tests\Support\FixtureValue::at($arguments, 4);
 $stage = 'entry';
 $signal = static function (string $suffix) use ($directory, $name, &$stage): void {
     $stage = $suffix;
     file_put_contents($directory . '/' . $name . '.' . $suffix, data: 'ready');
 };
-$await = static function (string $file) use ($directory): void {
-    $deadline = hrtime(true) + 10_000_000_000;
-    do {
-        clearstatcache();
-        if (is_file($directory . '/' . $file)) { return; }
-        usleep(20_000);
-    } while (hrtime(true) < $deadline);
-    throw new RuntimeException('Fixture barrier timed out: ' . $file);
-};
+$await = static function (string $file) use ($directory): void { \Tablo\Tests\Support\FixtureBarrier::awaitFile($directory, $file); };
 $hold = static function () use ($directory, $name): void {
     // Blocking command input works on Windows anonymous pipes and releases on parent EOF.
     $command = fgets(STDIN);
@@ -34,7 +30,7 @@ try {
     switch (true) {
 case ($mode === 'writer' || $mode === 'writer-held'):
 
-        $db = new MigrationPdo($path);
+        $db = new MigrationPdo(\Tablo\Tests\Support\FixtureValue::string($path));
         $db->exec('BEGIN IMMEDIATE');
         $signal('locked');
         switch (true) {
@@ -57,7 +53,7 @@ case ($mode === 'connect'):
     break;
 case ($mode === 'migrate-first' || $mode === 'migrate-second'):
 
-        $db = new MigrationPdo($path);
+        $db = new MigrationPdo(\Tablo\Tests\Support\FixtureValue::string($path));
         $db->beforeBegin = static function () use ($signal): void { $signal('before-begin'); };
         if ($mode === 'migrate-first') {
             $db->afterBegin = static function () use ($signal, $await, $name): void {
@@ -68,21 +64,21 @@ case ($mode === 'migrate-first' || $mode === 'migrate-second'):
         Database::migrate($db);
 
     break;
-case (str_starts_with($mode, 'wal-')):
+case (str_starts_with(\Tablo\Tests\Support\FixtureValue::string($mode), 'wal-')):
 
         // Only the DELETE negative control bypasses the application's connection policy.
         $db = $mode === 'wal-delete-reader' || $mode === 'wal-delete-write'
-            ? new MigrationPdo($path) : Database::connect($path);
+            ? new MigrationPdo(\Tablo\Tests\Support\FixtureValue::string($path)) : Database::connect($path);
         switch (true) {
 case ($mode === 'wal-reader' || $mode === 'wal-delete-reader'):
 
             $db->exec('BEGIN');
-            $details['before'] = (int) $db->query('SELECT count(*) FROM sites')->fetchColumn();
+            $details['before'] = (int) \Tablo\SqlStatement::checked($db->query('SELECT count(*) FROM sites'))->fetchColumn();
             $signal('snapshot');
             $await($name . '.release');
-            $details['during'] = (int) $db->query('SELECT count(*) FROM sites')->fetchColumn();
+            $details['during'] = (int) \Tablo\SqlStatement::checked($db->query('SELECT count(*) FROM sites'))->fetchColumn();
             $db->exec('COMMIT');
-            $details['after'] = (int) $db->query('SELECT count(*) FROM sites')->fetchColumn();
+            $details['after'] = (int) \Tablo\SqlStatement::checked($db->query('SELECT count(*) FROM sites'))->fetchColumn();
 
     break;
 case ($mode === 'wal-holder'):
@@ -109,9 +105,9 @@ case ($mode === 'wal-crash'):
 case (in_array($mode, ['wal-write', 'wal-write-short', 'wal-delete-write'], strict: true)):
 
             if ($mode !== 'wal-write') { $db->exec('PRAGMA busy_timeout = 150'); }
-            $details['timeout'] = (int) $db->query('PRAGMA busy_timeout')->fetchColumn();
+            $details['timeout'] = (int) \Tablo\SqlStatement::checked($db->query('PRAGMA busy_timeout'))->fetchColumn();
             if ($mode === 'wal-write') { $signal('ready'); $await($name . '.proceed'); }
-            $started = hrtime(true);
+            $started = \Tablo\MonotonicTime::integer(hrtime(true));
             try {
                 $db->exec("INSERT INTO sites(name,url,repository) VALUES('new','https://example.com','example/project')");
                 $details['written'] = true;
@@ -120,29 +116,25 @@ case (in_array($mode, ['wal-write', 'wal-write-short', 'wal-delete-write'], stri
                 $details['sqlite_code'] = $error->errorInfo[1] ?? null;
                 unset($error);
             }
-            $details['elapsed'] = (hrtime(true) - $started) / 1_000_000_000;
+            $details['elapsed'] = (\Tablo\MonotonicTime::integer(hrtime(true)) - $started) / 1_000_000_000;
 
     break;
 default:
 
             throw new RuntimeException('Unknown WAL fixture mode');
-
-    break;
 }
 
     break;
 default:
 
         throw new RuntimeException('Unknown fixture mode');
-
-    break;
 }
     $ddl = $db instanceof MigrationPdo ? count(array_filter($db->statements,
         static fn (string $sql): bool => preg_match('/^\s*(CREATE|ALTER)\b/i', $sql) === 1)) : null;
-    $result = $details + ['version' => (int) $db->query('PRAGMA user_version')->fetchColumn(), 'ddl' => $ddl,
-        'journal' => $db->query('PRAGMA journal_mode')->fetchColumn(),
-        'foreign_keys' => (int) $db->query('PRAGMA foreign_keys')->fetchColumn()];
-    if ($mode !== 'writer') { $result['users'] = (int) $db->query('SELECT count(*) FROM users')->fetchColumn(); }
+    $result = $details + ['version' => (int) \Tablo\SqlStatement::checked($db->query('PRAGMA user_version'))->fetchColumn(), 'ddl' => $ddl,
+        'journal' => \Tablo\SqlStatement::checked($db->query('PRAGMA journal_mode'))->fetchColumn(),
+        'foreign_keys' => (int) \Tablo\SqlStatement::checked($db->query('PRAGMA foreign_keys'))->fetchColumn()];
+    if ($mode !== 'writer') { $result['users'] = (int) \Tablo\SqlStatement::checked($db->query('SELECT count(*) FROM users'))->fetchColumn(); }
     echo json_encode($result, JSON_THROW_ON_ERROR), "\n";
 } catch (Throwable $error) {
     $diagnostic = in_array($error->getMessage(), ['WAL holder cancelled', 'WAL holder parent pipe closed',

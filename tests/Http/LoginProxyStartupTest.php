@@ -50,7 +50,7 @@ final class LoginProxyStartupTest extends LoginProxyFixtureCase
             Assert::same(curl_getinfo($curl, CURLINFO_RESPONSE_CODE), 500);
             $log = $server->diagnostics();
             Assert::true(str_contains($log, ClientAddress::CONFIG_ERROR), $log);
-            Assert::true(!str_contains($log . $body, 'fixture-sensitive-invalid-value'));
+            Assert::true(!str_contains($log . \Tablo\Tests\Support\FixtureValue::string($body), 'fixture-sensitive-invalid-value'));
             Assert::true(!is_dir($directory->path . '/runtime'));
             Assert::true(!is_file($directory->path . '/unused.sqlite'));
         } finally { $server?->close(); $directory->close(); }

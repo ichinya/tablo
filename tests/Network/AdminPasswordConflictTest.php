@@ -33,17 +33,17 @@ final class AdminPasswordConflictTest extends AdminPasswordFixtureCase
                 $second->send("second-new-secret\nsecond-new-secret\n");
                 $firstResult = $first->finish();
                 $secondResult = $second->finish();
-                $hash = $db->query('SELECT password_hash FROM users WHERE id=1')->fetchColumn();
-                Assert::same(password_verify('first-new-secret', $hash), $firstResult['exit_code'] === 0);
-                Assert::same(password_verify('second-new-secret', $hash), $secondResult['exit_code'] === 0);
+                $hash = \Tablo\Tests\Support\FixtureValue::string(\Tablo\SqlStatement::checked($db->query('SELECT password_hash FROM users WHERE id=1'))->fetchColumn());
+                Assert::same(password_verify('first-new-secret', \Tablo\Tests\Support\FixtureValue::string($hash)), $firstResult['exit_code'] === 0);
+                Assert::same(password_verify('second-new-secret', \Tablo\Tests\Support\FixtureValue::string($hash)), $secondResult['exit_code'] === 0);
                 $hash = null;
                 $results = [$firstResult['exit_code'], $secondResult['exit_code']];
                 sort($results);
                 Assert::same($results, [0, 4]);
-                Assert::same((int) $db->query('SELECT COUNT(*) FROM users')->fetchColumn(), 1);
+                Assert::same((int) \Tablo\SqlStatement::checked($db->query('SELECT COUNT(*) FROM users'))->fetchColumn(), 1);
                 Assert::true(!(new Auth($db))->needsSetup());
                 $first->close(); $second->close(); $second = null; $first = null;
-                Assert::same(self::command($directory, $selection, ['--password-stdin'], "later-new-secret\nlater-new-secret\n")['exit_code'], 0);
+                Assert::same(\Tablo\Tests\Support\FixtureValue::at(self::command($directory, $selection, ['--password-stdin'], "later-new-secret\nlater-new-secret\n"), 'exit_code'), 0);
                 Assert::true((new Auth($db))->login('later-new-secret', 'client'));
             }
         } catch (\Throwable $error) { $directory->retainFailure($error); throw $error; }

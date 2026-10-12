@@ -17,11 +17,16 @@ use Testo\Assert;
 final class DatabaseWalPdo extends PDO
 {
     public int $timeout = 5000;
+    /** @var list<int> */
     public array $timeouts = [];
+    /** @var list<string> */
     public array $sql = [];
+    /** @var list<\WeakReference<DatabaseWalStatement>> */
     public array $statements = [];
+    /** @var list<int> */
     public array $attemptTimes = [];
     public int $setters = 0;
+    /** @var array{mode: string, returnedMode: string, failure: ?\PDOException, failureStage: string, repeatFailure: bool, cleanupFailure: \RuntimeException|false|null, restoreFailure: ?\RuntimeException, initialFailure: ?\PDOException} */
     public array $plan = ['mode' => 'delete', 'returnedMode' => 'wal', 'failure' => null, 'failureStage' => 'execute',
         'repeatFailure' => false, 'cleanupFailure' => null, 'restoreFailure' => null, 'initialFailure' => null];
 

@@ -6,6 +6,7 @@ namespace Tablo\Tests\Network;
 
 final class PasswordHelperCommand
 {
+    /** @return list<string> */
     public static function forHost(string $shell, string $encoding, string $scenario): array
     {
         return [$shell, '-NoProfile', '-ExecutionPolicy', 'Bypass', '-File',

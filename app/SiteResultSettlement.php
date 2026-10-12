@@ -3,9 +3,12 @@ declare(strict_types=1);
 
 namespace Tablo;
 
+/** @phpstan-import-type Config from SiteCheckWriter */
 final class SiteResultSettlement
 {
+    /** @param (\Closure(): int)|null $notificationClock */
     public function __construct(private readonly \PDO $db,#[\SensitiveParameter] private readonly TokenVault $tokens,private readonly SiteCheckWriter $writes,private readonly ?\Closure $notificationClock) {}
+    /** @param Config $site */
     public function persistCheck(#[\SensitiveParameter] array $site, array $state, SettlementKind $kind): bool
     {
         // A failed BEGIN owns nothing, including a caller's existing transaction.
@@ -17,8 +20,8 @@ final class SiteResultSettlement
             }
             $row = CheckHistorySnapshot::project($site, $state);
             $fields = array_keys($row);
-            $statement = $this->db->prepare('INSERT INTO check_history (' . implode(', ', $fields)
-                . ') VALUES (' . implode(', ', array_fill(0, count($fields), value: '?')) . ')');
+            $statement = \Tablo\SqlStatement::checked($this->db->prepare('INSERT INTO check_history (' . implode(', ', $fields)
+                . ') VALUES (' . implode(', ', array_fill(0, count($fields), value: '?')) . ')'));
             try { $statement->execute(array_values($row)); }
             finally { $statement->closeCursor(); }
             // Capture the real AUTOINCREMENT identity before any other INSERT.

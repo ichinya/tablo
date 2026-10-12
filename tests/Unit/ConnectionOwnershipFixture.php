@@ -9,8 +9,10 @@ use Tablo\TokenVault;
 use Tablo\Tests\Support\TemporaryDirectory;
 use Tablo\Tests\Support\UnitFixtures;
 
+/** @phpstan-import-type SiteRecord from \Tablo\SiteRow */
 final class ConnectionOwnershipFixture
 {
+    /** @return array{string, string, TokenVault, \PDO, \PDO, SiteRepository, SiteRepository, int, int, SiteRecord|null, array{checked_at: string, worker_service: array{latest_release: true}}} */
     public static function create(TemporaryDirectory $directory): array
     {
             $key = $directory->path . '/key';

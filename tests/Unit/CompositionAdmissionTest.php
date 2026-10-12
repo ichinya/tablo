@@ -45,7 +45,7 @@ final class CompositionAdmissionTest extends CompositionSchemaFixtureCase
             ['REFERENCES sites(id) ON DELETE CASCADE', 'REFERENCES sites(id) ON DELETE RESTRICT'],
             ['CREATE INDEX check_history_time ON check_history(checked_at, id)', 'CREATE INDEX check_history_time ON check_history(id, checked_at)'],
         ] as [$from, $to]) {
-            $sql = file_get_contents(dirname(__DIR__) . '/fixtures/historical-schema/history5.sql');
+            $sql = \Tablo\RequiredFile::bytes(file_get_contents(dirname(__DIR__) . '/fixtures/historical-schema/history5.sql'));
             switch (true) {
 case (str_contains($to, '/*')):
 
@@ -56,7 +56,7 @@ default:
  $sql = str_replace($from, $to, $sql);
     break;
 }
-            $db = new MigrationPdo(':memory:'); $db->exec($sql); $before = self::snapshot($db);
+            $db = new MigrationPdo(':memory:'); $db->exec(\Tablo\Tests\Support\FixtureValue::string($sql)); $before = self::snapshot($db);
             Assert::instanceOf(self::error(static fn () => Database::migrate($db)), \RuntimeException::class);
             Assert::same(self::snapshot($db), $before);
         }

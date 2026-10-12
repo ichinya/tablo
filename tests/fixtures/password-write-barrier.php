@@ -10,7 +10,7 @@ function hash_equals(#[\SensitiveParameter] string $known, #[\SensitiveParameter
     $matches = \hash_equals($known, $provided);
     // Confirmation, old fingerprint, then the just-written replacement hash.
     if (++$calls === 3 && $matches) {
-        $barrier = getenv('TABLO_TEST_WRITE_BARRIER');
+        $barrier = \Tablo\Tests\Support\FixtureValue::string(getenv('TABLO_TEST_WRITE_BARRIER'));
         file_put_contents($barrier . '/written', data: 'ready');
         $deadline = microtime(true) + 10;
         while (!is_file($barrier . '/release') && microtime(true) < $deadline) {

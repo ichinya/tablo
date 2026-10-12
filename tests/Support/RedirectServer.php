@@ -3,6 +3,7 @@ declare(strict_types=1);
 
 namespace Tablo\Tests\Support;
 
+/** @phpstan-import-type Redirect from FixtureWireRows */
 final class RedirectServer
 {
     public readonly TemporaryDirectory $directory;
@@ -13,30 +14,32 @@ final class RedirectServer
     {
         $this->directory = new TemporaryDirectory('tablo-redirect-');
         try {
-            $this->process = proc_open([PHP_BINARY, dirname(__DIR__) . '/fixtures/redirect-server.php', $this->directory->path],
-                [0 => ['pipe', 'r'], 1 => ['file', $this->directory->path . '/peer.log', 'a'],
-                    2 => ['file', $this->directory->path . '/peer.log', 'a']], $pipes);
+            $pipes = [];
+            $this->process = FixtureSpawn::append([PHP_BINARY, dirname(__DIR__) . '/fixtures/redirect-server.php', $this->directory->path], $this->directory->path . '/peer.log', $this->directory->path . '/peer.log', $pipes);
             if (!is_resource($this->process)) { throw new \RuntimeException('Cannot start owned redirect peer'); }
-            fclose($pipes[0]);
+            fclose(\Tablo\Tests\Support\FixturePipes::pipe($pipes, 0));
             $deadline = microtime(true) + 5;
+            $base = null;
             do {
                 clearstatcache();
                 if (is_file($this->directory->path . '/ready')) {
-                    $this->base = 'http://' . file_get_contents($this->directory->path . '/ready');
-                    return;
+                    $base = 'http://' . \Tablo\RequiredFile::bytes(file_get_contents($this->directory->path . '/ready'));
+                    break;
                 }
                 if (!proc_get_status($this->process)['running']) { break; }
                 usleep(10_000);
             } while (microtime(true) < $deadline);
-            throw new \RuntimeException('Owned redirect peer did not become ready');
+            if ($base === null) { throw new \RuntimeException('Owned redirect peer did not become ready'); }
+            $this->base = $base;
         } catch (\Throwable $error) { $this->close(); throw $error; }
     }
 
+    /** @return list<Redirect> */
     public function rows(): array
     {
         $file = $this->directory->path . '/requests.jsonl';
-        return is_file($file) ? array_map(static fn (string $line): array => json_decode($line, associative: true, depth: 8, flags: JSON_THROW_ON_ERROR),
-            file($file, FILE_IGNORE_NEW_LINES)) : [];
+        return is_file($file) ? array_map(FixtureWireRows::redirect(...),
+            \Tablo\Tests\Support\FixtureValue::fetched(file($file, FILE_IGNORE_NEW_LINES))) : [];
     }
 
     public function close(): void
@@ -54,6 +57,7 @@ final class RedirectServer
             $this->process = null;
         }
         if (($this->base ?? null) !== null) {
+            $errno = 0; $error = '';
             $probe = stream_socket_server('tcp://' . substr($this->base, offset: 7), $errno, $error);
             if ($probe === false) { throw new \RuntimeException('Owned redirect port is not reusable; retain fixture'); }
             fclose($probe);

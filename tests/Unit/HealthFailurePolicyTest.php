@@ -29,13 +29,13 @@ final class HealthFailurePolicyTest
                 Assert::same($state['response_time_ms'], null);
                 Assert::same($state['deployed_version'], '1.2.3');
                 Assert::same($state['open_issues'], 4);
-                Assert::true(str_contains($state['last_error'], HttpFailure::MESSAGES[$reason]));
+                Assert::true(str_contains(\Tablo\Tests\Support\FixtureValue::string($state['last_error']), \Tablo\Tests\Support\FixtureValue::at(HttpFailure::MESSAGES, $reason)));
             }
         }
         $site = array_replace(UnitFixtures::site(), ['health_path' => '', 'version_path' => '']);
         $state = (new SiteChecker(new FakeHttp([new RuntimeException('https://secret-user:secret-token@example.com/private-body')]), new FakeProvider()))->check($site);
         Assert::same($state['health_error_code'], 'check-error');
-        Assert::false(str_contains($state['last_error'], 'secret-'));
+        Assert::false(str_contains(\Tablo\Tests\Support\FixtureValue::string($state['last_error']), 'secret-'));
         Assert::same((new HttpFailure('secret-token'))->reason, 'check-error');
     }
 }

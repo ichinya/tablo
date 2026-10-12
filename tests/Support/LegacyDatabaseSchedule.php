@@ -3,8 +3,10 @@ declare(strict_types=1);
 
 namespace Tablo\Tests\Support;
 
+/** @phpstan-import-type Owners from ScheduleSourceCopy */
 final class LegacyDatabaseSchedule
 {
+    /** @return Owners */
     public static function anchors(string $owner): array
     {
         $source = file_get_contents($owner);

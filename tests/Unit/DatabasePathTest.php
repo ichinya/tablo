@@ -33,7 +33,7 @@ final class DatabasePathTest
             Assert::same(scandir($directory->path), ['.', '..']);
         } finally {
             restore_error_handler();
-            chdir($workingDirectory);
+            chdir(\Tablo\Tests\Support\FixtureValue::string($workingDirectory));
             $directory->close();
         }
     }
@@ -48,7 +48,7 @@ final class DatabasePathTest
                 ? str_replace(search: '/', replace: '\\', subject: $directory->path) . '\\nested\\test.sqlite'
                 : $directory->path . '/local:directory/test.sqlite';
             $db = Database::connect($path);
-            Assert::same($db->query('PRAGMA journal_mode')->fetchColumn(), 'wal');
+            Assert::same(\Tablo\SqlStatement::checked($db->query('PRAGMA journal_mode'))->fetchColumn(), 'wal');
             Assert::true(is_file($path));
         } finally {
             unset($db);

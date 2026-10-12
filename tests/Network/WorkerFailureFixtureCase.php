@@ -26,7 +26,7 @@ abstract class WorkerFailureFixtureCase
     protected static function requests(TemporaryDirectory $directory): array
     {
         $path = $directory->path . '/requests.jsonl';
-        return is_file($path) ? array_map(static fn (string $line): string => json_decode($line, associative: true, depth: 16, flags: JSON_THROW_ON_ERROR)['path'],
-            file($path, FILE_IGNORE_NEW_LINES)) : [];
+        return is_file($path) ? array_map(static fn (string $line): string => \Tablo\SqlColumn::string(\Tablo\JsonRecord::checked(json_decode($line, associative: true, depth: 16, flags: JSON_THROW_ON_ERROR)), 'path'),
+            \Tablo\Tests\Support\FixtureValue::fetched(file($path, FILE_IGNORE_NEW_LINES))) : [];
     }
 }

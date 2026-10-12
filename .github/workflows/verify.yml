@@ -71,7 +71,7 @@ jobs:
           New-Item -ItemType Directory -Force .ci/lekalo-bin | Out-Null
           $binaryName = if ($IsWindows) { 'lekalo.exe' } else { 'lekalo' }
           Copy-Item -LiteralPath ".ci/lekalo-source/target/release/$binaryName" -Destination ".ci/lekalo-bin/$binaryName"
-      - name: Verify contracts and Testo suites
+      - name: Verify lint, static analysis, contracts and Testo suites
         run: |
           git rev-parse HEAD
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }

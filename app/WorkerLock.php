@@ -12,8 +12,8 @@ final class WorkerLock
 
     public function acquire(PDO $db): bool
     {
-        $statement = $db->query('PRAGMA main.database_list');
-        try { $databases = $statement->fetchAll(PDO::FETCH_ASSOC); }
+        $statement = \Tablo\SqlStatement::checked($db->query('PRAGMA main.database_list'));
+        try { $databases = \Tablo\SqlRows::all($statement->fetchAll(PDO::FETCH_ASSOC), \Tablo\SqlFileNameSeqRow::checked(...)); }
         finally { $statement->closeCursor(); }
         $path = '';
         foreach ($databases as $database) {
@@ -27,6 +27,7 @@ final class WorkerLock
         try {
             $handle = fopen($canonical . '.worker.lock', mode: 'c+b');
             if ($handle === false) { throw new RuntimeException('Worker lock access failed.'); }
+            $wouldBlock = 0;
             if (!flock($handle, LOCK_EX | LOCK_NB, $wouldBlock)) {
                 fclose($handle);
                 if ($wouldBlock === 1) { return false; }

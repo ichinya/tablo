@@ -39,7 +39,7 @@ default:
             Assert::instanceOf(self::error(static fn () => Database::migrate($db)), \RuntimeException::class);
             Assert::same(self::snapshot($db), $before);
             Assert::false(in_array('ROLLBACK', $db->statements, strict: true));
-            $db->exec('ROLLBACK'); Assert::same($db->query('SELECT name FROM sites')->fetchColumn(), 'original-site');
+            $db->exec('ROLLBACK'); Assert::same(\Tablo\SqlStatement::checked($db->query('SELECT name FROM sites'))->fetchColumn(), 'original-site');
         }
         $db = self::fixture('history5'); $db->afterBegin = static function () use ($db): void { $db->exec('DROP INDEX check_history_time'); };
         $before = self::snapshot($db);
@@ -54,7 +54,7 @@ default:
     {
         foreach ([false, true] as $commitFailure) {
             $db = new CompositionMigrationPdo();
-            $db->exec(file_get_contents(dirname(__DIR__) . '/fixtures/historical-schema/history5.sql'));
+            $db->exec(\Tablo\RequiredFile::bytes(file_get_contents(dirname(__DIR__) . '/fixtures/historical-schema/history5.sql')));
             $db->exec("INSERT INTO sites(id,name,url,repository) VALUES(1,'Historical','https://example.test/','fixture/public');
                 INSERT INTO check_history(id,site_id,config_revision,checked_at,version_status) VALUES(41,1,0,'2026-01-01T00:00:00Z','skipped');
                 UPDATE sqlite_sequence SET seq=900 WHERE name='check_history';
@@ -63,11 +63,11 @@ default:
             $db->refuseSequence = !$commitFailure; $db->deferCommitFailure = $commitFailure;
             $error = self::error(static fn () => Database::migrate($db));
             Assert::instanceOf($error, \PDOException::class);
-            Assert::same($error->errorInfo[1], $commitFailure ? 19 : 1);
+            Assert::same(\Tablo\Tests\Support\FixtureValue::at(\Tablo\Tests\Support\FixtureValue::row($error->errorInfo), 1), $commitFailure ? 19 : 1);
             Assert::same(self::snapshot($db), $before);
             $db->deferCommitFailure = false; $db->refuseSequence = false;
             Database::migrate($db);
-            Assert::same((int) $db->query('PRAGMA user_version')->fetchColumn(), 8);
+            Assert::same((int) \Tablo\SqlStatement::checked($db->query('PRAGMA user_version'))->fetchColumn(), 8);
         }
     }
 }

@@ -12,6 +12,7 @@ final class MagoSource
 {
     public const DIRECTORIES = ['app', 'bin', 'public', 'tests', 'tools'];
 
+    /** @return list<string> */
     public static function files(string $root): array
     {
         $files = [];
@@ -21,6 +22,7 @@ final class MagoSource
             $count = 0;
             $entries = new RecursiveIteratorIterator(new RecursiveDirectoryIterator($base, flags: FilesystemIterator::SKIP_DOTS));
             foreach ($entries as $entry) {
+                if (!$entry instanceof \SplFileInfo) { throw new RuntimeException('Invalid Mago source entry.'); }
                 if ($entry->isLink()) { throw new RuntimeException('Linked lint source is unsupported.'); }
                 if (!$entry->isFile() || $entry->getExtension() !== 'php') { continue; }
                 $files[] = str_replace('\\', replace: '/', subject: substr($entry->getPathname(), offset: strlen($root) + 1));
@@ -32,9 +34,14 @@ final class MagoSource
         return $files;
     }
 
-    public static function confirm(array $command, string $root, array $expected): void
+    /**
+     * @param list<string> $command
+     * @param list<string> $expected
+     */
+    public static function confirm(array $command, string $root, array $expected, string $tool = 'linter'): void
     {
-        $result = MagoProcess::capture([...$command, 'list-files', '--command', 'linter', '--zero-terminate'], $root);
+        if (!in_array($tool, ['linter', 'analyzer'], strict: true)) { throw new RuntimeException('Unsupported Mago discovery tool.'); }
+        $result = MagoProcess::capture([...$command, 'list-files', '--command', $tool, '--zero-terminate'], $root);
         if ($result['exit'] !== 0) { throw new RuntimeException('Mago source discovery failed.'); }
         $information = ' INFO Overriding PHP version with 8.2.0.' . PHP_EOL
             . ' INFO Overriding workspace directory with ' . $root . '.' . PHP_EOL;

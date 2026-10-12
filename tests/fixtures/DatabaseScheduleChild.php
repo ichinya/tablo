@@ -12,7 +12,7 @@ final class DatabaseScheduleChild
     public static function stage(string $stage, array $details = []): void
     {
         self::$lastStage = $stage;
-        file_put_contents(self::$directory . '/' . self::$name . '.events', json_encode(['stage' => $stage, 'ns' => hrtime(true)] + $details,
+        file_put_contents(self::$directory . '/' . self::$name . '.events', json_encode(['stage' => $stage, 'ns' => \Tablo\MonotonicTime::integer(hrtime(true))] + $details,
             JSON_THROW_ON_ERROR) . "\n", FILE_APPEND);
         file_put_contents(self::$directory . '/' . self::$name . '.' . $stage, data: 'ready');
     }
@@ -52,7 +52,12 @@ final class DatabaseScheduleChild
     }
 }
 
-[$script, $kind, $path, $directory, $name, $source] = $argv;
+require_once __DIR__ . '/../Support/FixtureValue.php';
+$kind = \Tablo\Tests\Support\FixtureValue::at(\Tablo\Tests\Support\FixtureValue::row($argv), 1);
+$path = \Tablo\Tests\Support\FixtureValue::at(\Tablo\Tests\Support\FixtureValue::row($argv), 2);
+$directory = \Tablo\Tests\Support\FixtureValue::at(\Tablo\Tests\Support\FixtureValue::row($argv), 3);
+$name = \Tablo\Tests\Support\FixtureValue::at(\Tablo\Tests\Support\FixtureValue::row($argv), 4);
+$source = \Tablo\Tests\Support\FixtureValue::at(\Tablo\Tests\Support\FixtureValue::row($argv), 5);
 DatabaseScheduleChild::$kind = $kind;
 DatabaseScheduleChild::$directory = $directory;
 DatabaseScheduleChild::$name = $name;
@@ -62,17 +67,17 @@ spl_autoload_register(static function (string $class) use ($source): void {
     $name = substr($class,offset: 6);
     if (is_file($source.'/app/'.$name.'.php')) { require $source.'/app/'.$name.'.php'; }
 }, prepend: true);
-$started = hrtime(true);
+$started = \Tablo\MonotonicTime::integer(hrtime(true));
 $db = null;
 $weak = null;
 $code = 0;
 try {
     $db = \Tablo\Database::connect($path);
     $weak = WeakReference::create($db);
-    $result = ['ok' => true, 'version' => (int) $db->query('PRAGMA main.user_version')->fetchColumn(),
-        'journal' => $db->query('PRAGMA main.journal_mode')->fetchColumn(),
-        'timeout' => (int) $db->query('PRAGMA busy_timeout')->fetchColumn(),
-        'foreignKeys' => (int) $db->query('PRAGMA foreign_keys')->fetchColumn(),
+    $result = ['ok' => true, 'version' => (int) \Tablo\SqlStatement::checked($db->query('PRAGMA main.user_version'))->fetchColumn(),
+        'journal' => \Tablo\SqlStatement::checked($db->query('PRAGMA main.journal_mode'))->fetchColumn(),
+        'timeout' => (int) \Tablo\SqlStatement::checked($db->query('PRAGMA busy_timeout'))->fetchColumn(),
+        'foreignKeys' => (int) \Tablo\SqlStatement::checked($db->query('PRAGMA foreign_keys'))->fetchColumn(),
         'errorMode' => $db->getAttribute(PDO::ATTR_ERRMODE), 'fetchMode' => $db->getAttribute(PDO::ATTR_DEFAULT_FETCH_MODE)];
 } catch (Throwable $error) {
     $code = 1;
@@ -82,6 +87,6 @@ try {
     unset($db);
     gc_collect_cycles();
 }
-echo json_encode($result + ['stage' => DatabaseScheduleChild::$lastStage, 'elapsedMs' => (hrtime(true) - $started) / 1_000_000,
+echo json_encode($result + ['stage' => DatabaseScheduleChild::$lastStage, 'elapsedMs' => (\Tablo\MonotonicTime::integer(hrtime(true)) - $started) / 1_000_000,
     'returnedPdoReleased' => $weak !== null ? $weak->get() === null : null], JSON_THROW_ON_ERROR), "\n";
 exit($code);

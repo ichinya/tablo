@@ -34,7 +34,7 @@ final class HttpFramingTest
                         'TABLO_ALLOW_PRIVATE_NETWORK' => '1']);
                 Assert::same($cli['exit_code'], 1);
                 Assert::same($cli['stderr'], '');
-                Assert::same($web->database()->query('SELECT online,health_error_code,health_http_status,response_time_ms,last_error FROM sites WHERE id=' . $id)->fetch(),
+                Assert::same(\Tablo\SqlStatement::checked($web->database()->query('SELECT online,health_error_code,health_http_status,response_time_ms,last_error FROM sites WHERE id=' . $id))->fetch(),
                     ['online' => null, 'health_error_code' => 'invalid-response', 'health_http_status' => null,
                         'response_time_ms' => null, 'last_error' => 'Health: ' . HttpFailure::MESSAGES['invalid-response']]);
                 $repository->delete($id);
@@ -64,7 +64,7 @@ final class HttpFramingTest
                         'repository' => 'fixture/public', 'enabled' => 1]));
                     Assert::same($web->request('/sites/' . $id . '/check', ['_csrf' => $csrf])['status'], 303);
                     $query = 'SELECT online,health_error_code,health_http_status,response_time_ms,deployed_version,deployed_commit,latest_commit,open_issues,open_prs,last_error FROM sites WHERE id=' . $id;
-                    $manual = $web->database()->query($query)->fetch();
+                    $manual = \Tablo\Tests\Support\FixtureValue::fetched(\Tablo\SqlRows::one(\Tablo\SqlStatement::checked($web->database()->query($query))->fetch(), CheckObservation::framing(...)));
                     $panel = (new FramingObservationAssertions($web))->manual($manual, $reason, $mode);
                     $root = dirname(__DIR__, levels: 2);
                     $cli = Subprocess::run([PHP_BINARY, '-d', 'auto_prepend_file=' . $root . '/tests/FixtureCliGitHubConnection.php',
@@ -73,7 +73,7 @@ final class HttpFramingTest
                     Assert::same($cli['exit_code'], $reason === null ? 0 : 1, $mode);
                     Assert::same($cli['stderr'], '', $mode);
                     Assert::false(str_contains($panel . $cli['stdout'], 'private-marker'), $mode);
-                    $after = $web->database()->query($query)->fetch();
+                    $after = \Tablo\Tests\Support\FixtureValue::fetched(\Tablo\SqlRows::one(\Tablo\SqlStatement::checked($web->database()->query($query))->fetch(), CheckObservation::framing(...)));
                     if ($reason !== null) { Assert::same($after['response_time_ms'], null, $mode); }
                     // Completed-request timings vary; incomplete responses must stay null.
                     unset($after['response_time_ms'], $manual['response_time_ms']);

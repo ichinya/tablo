@@ -4,12 +4,15 @@ declare(strict_types=1);
 namespace Tablo;
 
 // URI references only. HTTP framing remains the native libcurl decoder's responsibility.
+/** @phpstan-type Target array{url: string, origin: string, scheme: string, host: string, port: int, path: string, query: ?string} */
 final class EndpointTarget
 {
+    /** @return Target */
     public static function parse(#[\SensitiveParameter] string $url): array
     {
         UriSyntax::validate($url);
         $parts = parse_url($url);
+        if ($parts === false) { throw new HttpFailure('invalid-url'); }
         $authority = EndpointAuthority::parse($parts);
         $scheme = $authority['scheme']; $host = $authority['host']; $port = $authority['port'];
         $path = UriPath::removeDots($parts['path'] ?? '/');
@@ -30,6 +33,10 @@ final class EndpointTarget
 
 
 
+    /**
+     * @param Target $base
+     * @return Target
+     */
     public static function redirect(#[\SensitiveParameter] array $base, #[\SensitiveParameter] string $reference): array
     {
         return EndpointRedirect::resolve($base, $reference);

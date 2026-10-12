@@ -40,8 +40,8 @@ final class DatabaseMigrationAtomicityTest
                 $db = new MigrationPdo($path);
                 Assert::same(\Tablo\Tests\Support\DatabaseAssertions::snapshot($db), $before, $failure . ' persisted partial changes');
                 Database::migrate($db);
-                Assert::same((int) $db->query('PRAGMA user_version')->fetchColumn(), Database::CURRENT_SCHEMA_VERSION);
-                Assert::same($db->query('PRAGMA integrity_check')->fetchColumn(), 'ok');
+                Assert::same((int) \Tablo\SqlStatement::checked($db->query('PRAGMA user_version'))->fetchColumn(), Database::CURRENT_SCHEMA_VERSION);
+                Assert::same(\Tablo\SqlStatement::checked($db->query('PRAGMA integrity_check'))->fetchColumn(), 'ok');
             } finally {
                 unset($db);
                 $directory->close();
@@ -60,11 +60,11 @@ final class DatabaseMigrationAtomicityTest
         Assert::true(str_contains(\Tablo\Tests\Support\DatabaseAssertions::errorMessage(static fn () => Database::migrate($db)) ?? '', 'existing transaction'));
         Assert::same(array_values(array_filter($db->statements, static fn (string $sql): bool => preg_match('/^(BEGIN|CREATE|ALTER|DROP|INSERT|UPDATE|COMMIT|ROLLBACK)/', $sql) === 1)), []);
         Assert::true($db->inTransaction());
-        Assert::same($db->query('SELECT value FROM notes')->fetchColumn(), 'caller-owned');
+        Assert::same(\Tablo\SqlStatement::checked($db->query('SELECT value FROM notes'))->fetchColumn(), 'caller-owned');
         $db->commit();
         Database::migrate($db);
-        Assert::same($db->query('SELECT value FROM notes')->fetchColumn(), 'caller-owned');
-        Assert::same((int) $db->query('PRAGMA user_version')->fetchColumn(), Database::CURRENT_SCHEMA_VERSION);
+        Assert::same(\Tablo\SqlStatement::checked($db->query('SELECT value FROM notes'))->fetchColumn(), 'caller-owned');
+        Assert::same((int) \Tablo\SqlStatement::checked($db->query('PRAGMA user_version'))->fetchColumn(), Database::CURRENT_SCHEMA_VERSION);
     }
 
     #[Test]
@@ -79,10 +79,10 @@ final class DatabaseMigrationAtomicityTest
         Assert::true(str_contains($message ?? '', 'existing transaction') || str_contains($message ?? '', 'within a transaction'));
         Assert::false(in_array('COMMIT', $db->statements, strict: true));
         Assert::false(in_array('ROLLBACK', $db->statements, strict: true));
-        Assert::same($db->query('SELECT value FROM notes')->fetchColumn(), 'pending');
+        Assert::same(\Tablo\SqlStatement::checked($db->query('SELECT value FROM notes'))->fetchColumn(), 'pending');
         $db->exec('ROLLBACK');
-        Assert::same((int) $db->query('SELECT count(*) FROM notes')->fetchColumn(), 0);
-        Assert::same((int) $db->query('PRAGMA user_version')->fetchColumn(), 0);
+        Assert::same((int) \Tablo\SqlStatement::checked($db->query('SELECT count(*) FROM notes'))->fetchColumn(), 0);
+        Assert::same((int) \Tablo\SqlStatement::checked($db->query('PRAGMA user_version'))->fetchColumn(), 0);
     }
 
     #[Test]
@@ -95,8 +95,8 @@ final class DatabaseMigrationAtomicityTest
         Assert::false(str_contains($message ?? '', 'Injected rollback failure'));
         $db->failRollback = false;
         $db->exec('ROLLBACK');
-        Assert::same((int) $db->query('PRAGMA user_version')->fetchColumn(), 0);
-        Assert::same($db->query('SELECT name FROM sqlite_schema')->fetchAll(), []);
+        Assert::same((int) \Tablo\SqlStatement::checked($db->query('PRAGMA user_version'))->fetchColumn(), 0);
+        Assert::same(\Tablo\SqlStatement::checked($db->query('SELECT name FROM sqlite_schema'))->fetchAll(), []);
     }
 
 }

@@ -32,7 +32,7 @@ final class GitHubCooldownPersistenceTest extends GitHubBudgetFixtureCase
         $fresh = new GitHubProvider($http, \Tablo\Tests\Support\FixtureCredentials::value(label: 'rotated-secret'), new GitHubRequestPolicy($storage, clock: new GitHubClock(epoch: static fn (): int => $now)));
         self::failure(static fn () => $fresh->getOpenIssuesCount('example/project'), 'rate-limit');
         Assert::same(count($http->requests), 1);
-        Assert::same($db->query('SELECT resource FROM github_cooldowns')->fetchAll(\PDO::FETCH_COLUMN), ['secondary']);
+        Assert::same(\Tablo\SqlStatement::checked($db->query('SELECT resource FROM github_cooldowns'))->fetchAll(\PDO::FETCH_COLUMN), ['secondary']);
         $now += 172_801;
         $expired = new GitHubProvider(new FakeHttp([self::response(200, '{"total_count":0,"incomplete_results":false}')]), '',
             new GitHubRequestPolicy($storage, clock: new GitHubClock(epoch: static fn (): int => $now)));

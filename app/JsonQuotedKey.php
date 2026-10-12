@@ -16,6 +16,8 @@ final class JsonQuotedKey
                     throw new \InvalidArgumentException('Некорректный ключ в JSON path.');
                 }
                 try {
+                    // The scanner selected a complete quoted JSON string; successful decoding preserves that scalar type.
+                    /** @var string $key */
                     $key = json_decode(substr($path, $start, $cursor - $start + 1), associative: false, depth: 2, flags: JSON_THROW_ON_ERROR);
                 } catch (\JsonException) {
                     throw new \InvalidArgumentException('Некорректный ключ в JSON path.');

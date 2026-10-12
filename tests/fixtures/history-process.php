@@ -9,18 +9,20 @@ use Tablo\SiteRepository;
 use Tablo\SiteInput;
 use Tablo\TokenVault;
 
-[$script, $path, $id, $action] = $argv;
+$path = \Tablo\Tests\Support\FixtureValue::at(\Tablo\Tests\Support\FixtureValue::row($argv), 1);
+$id = \Tablo\Tests\Support\FixtureValue::at(\Tablo\Tests\Support\FixtureValue::row($argv), 2);
+$action = \Tablo\Tests\Support\FixtureValue::at(\Tablo\Tests\Support\FixtureValue::row($argv), 3);
 $selectedKeyPath = getenv('TABLO_GITHUB_TOKEN_KEY');
-$vault = new TokenVault($selectedKeyPath ? $selectedKeyPath : dirname($path) . '/github-token.key');
+$vault = new TokenVault($selectedKeyPath ? $selectedKeyPath : dirname(\Tablo\Tests\Support\FixtureValue::string($path)) . '/github-token.key');
 $db = Database::connect($path, $vault);
 $sites = new SiteRepository($db, $vault);
 $site = $sites->find((int) $id);
-$input = array_intersect_key($site, SiteInput::defaults());
+$input = array_intersect_key(\Tablo\Tests\Support\FixtureValue::row($site), SiteInput::defaults());
 $input['git_token_id'] = $site['git_token_id'] ?? '';
 switch (true) {
 case ($action === 'field'):
 
-    $input[$argv[4]] = json_decode($argv[5], associative: true, depth: 8, flags: JSON_THROW_ON_ERROR);
+    $input[\Tablo\Tests\Support\FixtureValue::at(\Tablo\Tests\Support\FixtureValue::row($argv), 4)] = json_decode(\Tablo\Tests\Support\FixtureValue::at(\Tablo\Tests\Support\FixtureValue::row($argv), 5), associative: true, depth: 8, flags: JSON_THROW_ON_ERROR);
     $sites->save($input, (int) $id);
 
     break;
@@ -43,7 +45,7 @@ case ($action === 'remove'):
 case ($action === 'shared' || $action === 'rename'):
 
     (new GitTokenRepository($db, $vault))->save(['name' => 'Shared ' . $id, 'provider' => 'github',
-        'token' => $action === 'shared' ? bin2hex(random_bytes(24)) : ''], $site['git_token_id']);
+        'token' => $action === 'shared' ? bin2hex(random_bytes(24)) : ''], \Tablo\Tests\Support\FixtureValue::row($site)['git_token_id']);
 
     break;
 case ($action === 'delete'):
@@ -53,12 +55,11 @@ case ($action === 'delete'):
     break;
 case ($action === 'store'):
 
-    if (!$sites->storeCheck($site, ['checked_at' => $argv[4], 'online' => 1])) { throw new RuntimeException('Fixture acceptance refused.'); }
+    if (!$sites->storeCheck(\Tablo\Tests\Support\FixtureValue::row($site), ['checked_at' => \Tablo\Tests\Support\FixtureValue::at(\Tablo\Tests\Support\FixtureValue::row($argv), 4), 'online' => 1])) { throw new RuntimeException('Fixture acceptance refused.'); }
 
     break;
 default:
  throw new RuntimeException('Invalid history fixture action.');
-    break;
 }
 unset($sites, $site, $db);
 echo "History child complete.\n";

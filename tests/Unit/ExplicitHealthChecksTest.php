@@ -39,6 +39,6 @@ final class ExplicitHealthChecksTest
         Assert::same($state['online'], 1);
         Assert::same($state['health_error_code'], null);
         Assert::same($state['health_http_status'], 200);
-        Assert::true(str_contains($state['last_error'], 'Version:') && str_contains($state['last_error'], 'rate limit'));
+        Assert::true(str_contains(\Tablo\Tests\Support\FixtureValue::string($state['last_error']), 'Version:') && str_contains(\Tablo\Tests\Support\FixtureValue::string($state['last_error']), 'rate limit'));
     }
 }

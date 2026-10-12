@@ -7,23 +7,26 @@ use PDO;
 use Tablo\SiteRepository;
 use Tablo\SiteInput;
 
+/** @phpstan-import-type SiteData from SiteInput */
 final class IncidentFixtures
 {
+    /** @return SiteData */
     public static function site(): array
     {
-        return array_replace(SiteInput::defaults(), ['name' => 'Service', 'url' => 'https://example.com', 'repository' => 'example/service']);
+        return [...SiteInput::defaults(), 'name' => 'Service', 'url' => 'https://example.com', 'repository' => 'example/service'];
     }
 
     public static function accept(SiteRepository $sites, int $id, ?int $online, string $time, array $extra = []): bool
     {
-        return $sites->storeCheck($sites->find($id), $extra + ['online' => $online, 'checked_at' => $time]);
+        return $sites->storeCheck(\Tablo\Tests\Support\FixtureValue::row($sites->find($id)), $extra + ['online' => $online, 'checked_at' => $time]);
     }
 
+    /** @return array<string, list<array>> */
     public static function rows(PDO $db): array
     {
         $rows = [];
         foreach (['sites', 'check_history', 'incidents', 'incident_checkpoints', 'worker_progress', 'worker_runtime'] as $table) {
-            $rows[$table] = $db->query('SELECT * FROM ' . $table . ' ORDER BY 1')->fetchAll();
+            $rows[$table] = \Tablo\SqlRows::all(\Tablo\SqlStatement::checked($db->query('SELECT * FROM ' . $table . ' ORDER BY 1'))->fetchAll(), \Tablo\JsonRecord::checked(...));
         }
         return $rows;
     }

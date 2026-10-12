@@ -48,7 +48,9 @@ final class EndpointRoutingPermissionTest extends EndpointPolicyFixtureCase
         }
         foreach ([['8.8.8.8', '10.0.0.1'], ['8.8.8.8', '::ffff:8.8.8.8'], ['8.8.8.8', '198.18.0.1'], ['not-an-ip']] as $answers) {
             $http = new class($answers) extends HttpClient {
+                /** @param list<string> $answers */
                 public function __construct(private array $answers) { parent::__construct(); }
+                /** @return list<string> */
                 protected function resolve(#[\SensitiveParameter] string $host): array { return $this->answers; }
             };
             $reason = null;

@@ -15,7 +15,7 @@ namespace {
     \Tablo\RuntimeIni::set('zend.exception_ignore_args', value: '0');
     $db = \Tablo\Database::connect(':memory:');
     $auth = new \Tablo\Auth($db);
-    $db->prepare('INSERT INTO users(id,password_hash) VALUES(1,?)')
+    \Tablo\SqlStatement::checked($db->prepare('INSERT INTO users(id,password_hash) VALUES(1,?)'))
         ->execute([\password_hash('synthetic-private-password', PASSWORD_BCRYPT, ['cost' => 4])]);
     foreach ([fn () => \Tablo\PasswordService::hash('synthetic-private-password', 'synthetic-private-password'),
         fn () => $auth->setup('synthetic-private-password', 'synthetic-private-password'),

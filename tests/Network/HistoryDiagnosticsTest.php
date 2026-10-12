@@ -42,11 +42,11 @@ final class HistoryDiagnosticsTest
                     'health_check_mode' => 'json', 'health_json_path' => '$.status', 'health_json_expected_value' => 'ok']));
                 $site = $sites->find($id);
                 $http = new WorkerHttp($server->base);
-                $state = (new SiteChecker($http, (new GitHubConnection($sites, $http))->provider($site)))->check($site);
-                Assert::true($sites->storeCheck($site, $state));
-                $row = $db->query('SELECT * FROM check_history WHERE site_id=' . $id)->fetch();
+                $state = (new SiteChecker($http, (new GitHubConnection($sites, $http))->provider($site)))->check(\Tablo\Tests\Support\FixtureValue::row($site));
+                Assert::true($sites->storeCheck(\Tablo\Tests\Support\FixtureValue::row($site), $state));
+                $row = \Tablo\SqlRows::required(\Tablo\SqlStatement::checked($db->query('SELECT * FROM check_history WHERE site_id=' . $id))->fetch(), \Tablo\SqlCheckHistoryCheckedAtCommitErrorCodeCommitHttpStatusRow::checked(...));
                 HistoryDiagnosticAssertions::row($row, [$health, $version, $repo, $online, $healthCode, $versionCode, $releaseCode, $commitCode], $server->base);
-                Assert::same($sites->find($id)['online'], $online, 'Git/version failures do not change accepted health');
+                Assert::same(\Tablo\Tests\Support\FixtureValue::row($sites->find($id))['online'], $online, 'Git/version failures do not change accepted health');
             }
             Assert::false(is_file($directory->path . '/never-created.key'));
         } finally { unset($row, $state, $site, $http, $sites, $db); $server?->close(); $directory->close(); }

@@ -6,10 +6,17 @@ namespace Tablo\Tests\Http;
 use PDO;
 use Testo\Assert;
 
+/**
+ * @phpstan-import-type Record from \Tablo\SqlGitTokensCreatedAtEncryptedTokenIdRow as Credential
+ * @phpstan-import-type Record from \Tablo\SqlSitesBranchCheckedAtComparisonModeRow as Site
+ */
 final class SavedTokenPageAssertions
 {
     public function __construct(private readonly \Tablo\Tests\Support\WebFixture $web) {}
 
+    /**
+     * @param Credential $credential
+     */
     public function privateMetadata(array $credential, string $tokenId): void
     {
         Assert::true(str_starts_with($credential['encrypted_token'], 'v1:') && !hash_equals($credential['encrypted_token'], \Tablo\Tests\Support\FixtureCredentials::value(label: 'fixture-token')) , 'shared token encrypted at rest');
@@ -22,6 +29,10 @@ final class SavedTokenPageAssertions
         Assert::true(str_contains($this->web->request('/sites/new')['body'], 'Shared &lt;token&gt;'), 'project selector includes saved token');
 
     }
+    /**
+     * @param Site $poolSite
+     * @param Credential $credential
+     */
     public function admittedProject(array $poolSite, string $tokenId, array $credential, string $csrf): void
     {
         $projectId = (string) $poolSite['id'];
@@ -31,7 +42,7 @@ final class SavedTokenPageAssertions
         Assert::true(preg_match('/<option value="' . $tokenId . '" selected/', $projectEdit['body']) === 1
             && !str_contains($projectEdit['body'], $credential['encrypted_token']), 'edit preserves token selection without secret');
         Assert::true($this->web->request('/sites/' . $projectId . '/check', ['_csrf' => $csrf])['status'] === 303, 'manual check accepts project without version endpoint');
-        $state = $db->query("SELECT * FROM sites WHERE id = {$projectId}")->fetch(PDO::FETCH_ASSOC);
+        $state = \Tablo\Tests\Support\FixtureValue::fetched(\Tablo\SqlRows::one(\Tablo\SqlStatement::checked($db->query("SELECT * FROM sites WHERE id = {$projectId}"))->fetch(PDO::FETCH_ASSOC), \Tablo\SqlSitesBranchCheckedAtComparisonModeRow::checked(...)));
         Assert::true($state['latest_commit'] === str_repeat('a', times: 40) && $state['deployed_version'] === null
             && !str_contains($state['last_error'] ?? '', 'Version:'), 'optional version check skipped while Git metrics still update');
 

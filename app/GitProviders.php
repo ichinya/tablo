@@ -6,6 +6,7 @@ namespace Tablo;
 final class GitProviders
 {
     // Provider IDs also identify saved credentials. Add adapters here when supported.
+    /** @return array{'github': string} */
     public static function available(): array { return ['github' => 'GitHub']; }
 
     public static function requireSupported(string $provider): void

@@ -12,7 +12,7 @@ final class WebPostAdmission
             if (($_SERVER['CONTENT_LENGTH'] ?? 0) > 16_384) {
                 return $page->render('error', ['title' => 'Слишком большой запрос', 'message' => 'Данные формы превышают 16 КБ.'], 413);
             }
-            if (!is_string($csrf) || !hash_equals($_SESSION['csrf'], $csrf)) {
+            if (!is_string($csrf) || !is_string($_SESSION['csrf'] ?? null) || !hash_equals($_SESSION['csrf'], $csrf)) {
                 return $page->render('error', ['title' => 'Форма устарела', 'message' => 'Обновите страницу и повторите действие.'], 419);
             }
         }

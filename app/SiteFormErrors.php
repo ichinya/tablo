@@ -5,6 +5,7 @@ namespace Tablo;
 
 final class SiteFormErrors
 {
+    /** @return (array<string, string>)|(array{'storage': string})|(array{'github_token': string}) */
     public static function errors(\Throwable $e): array
     {
         if ($e instanceof ValidationException) { return $e->errors; }

@@ -7,6 +7,7 @@ use PDO;
 
 // Pinned Lekalo requires lowercase physical source paths for this contracted owner.
 // @mago-expect lint:file-name
+/** @phpstan-import-type Record from SqlNotificationSettingsBearerPresentBlockedEnabledRow as PublicSettings */
 final class NotificationSettings
 {
     private readonly TokenVault $vault;
@@ -16,11 +17,12 @@ final class NotificationSettings
     }
 
     // Presence only. Neither read nor validation performs DNS, decrypts or sends.
+    /** @return PublicSettings */
     public function get(): array
     {
-        $statement = $this->db->query("SELECT revision, enabled, blocked, unavailable, recovery, version_lag, include_name, include_url,
-            endpoint_cipher IS NOT NULL AS endpoint_present, bearer_cipher IS NOT NULL AS bearer_present FROM notification_settings WHERE id = 1");
-        try { return $statement->fetch(); } finally { $statement->closeCursor(); }
+        $statement = \Tablo\SqlStatement::checked($this->db->query("SELECT revision, enabled, blocked, unavailable, recovery, version_lag, include_name, include_url,
+            endpoint_cipher IS NOT NULL AS endpoint_present, bearer_cipher IS NOT NULL AS bearer_present FROM notification_settings WHERE id = 1"));
+        try { return \Tablo\SqlRows::required($statement->fetch(), \Tablo\SqlNotificationSettingsBearerPresentBlockedEnabledRow::checked(...)); } finally { $statement->closeCursor(); }
     }
 
     public function update(#[\SensitiveParameter] array $input): void

@@ -11,8 +11,8 @@ final class GitHubCooldownRepository
 
     public function eligibleAt(string $resource, string $scope = 'anonymous', bool $includeSecondary = true): int
     {
-        $statement = $this->db->prepare("SELECT MAX(eligible_at) FROM github_cooldowns
-            WHERE (scope = ? AND resource = ?) OR (CAST(? AS INTEGER) = 1 AND scope = 'shared' AND resource = 'secondary')");
+        $statement = \Tablo\SqlStatement::checked($this->db->prepare("SELECT MAX(eligible_at) FROM github_cooldowns
+            WHERE (scope = ? AND resource = ?) OR (CAST(? AS INTEGER) = 1 AND scope = 'shared' AND resource = 'secondary')"));
         $statement->execute([$scope, $resource, (int) $includeSecondary]);
         try { return (int) $statement->fetchColumn(); }
         finally { $statement->closeCursor(); }
@@ -23,8 +23,8 @@ final class GitHubCooldownRepository
         // Stable credential handles preserve primary eligibility on rotation; secondary is
         // shared because distinct PATs may belong to one user. Equivalent tokens also use a
         // domain-separated HMAC scope from the private vault, never a raw/unkeyed token hash.
-        $this->db->prepare('INSERT INTO github_cooldowns (scope, resource, eligible_at) VALUES (?, ?, ?)
-            ON CONFLICT(scope, resource) DO UPDATE SET eligible_at = MAX(eligible_at, excluded.eligible_at)')
+        \Tablo\SqlStatement::checked($this->db->prepare('INSERT INTO github_cooldowns (scope, resource, eligible_at) VALUES (?, ?, ?)
+            ON CONFLICT(scope, resource) DO UPDATE SET eligible_at = MAX(eligible_at, excluded.eligible_at)'))
             ->execute([$resource === 'secondary' ? 'shared' : $scope, $resource, $eligibleAt]);
     }
 }

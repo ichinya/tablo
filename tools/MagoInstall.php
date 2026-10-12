@@ -5,8 +5,10 @@ namespace Tablo\Tools;
 
 use RuntimeException;
 
+/** @phpstan-import-type Pin from MagoPin */
 final class MagoInstall
 {
+    /** @param list<string> $arguments */
     public static function run(string $root, array $arguments): void
     {
         $pin = MagoPin::selected($root);
@@ -32,15 +34,17 @@ final class MagoInstall
         fwrite(STDOUT, data: "Installed verified Mago 1.54.0 in the project cache.\n");
     }
 
+    /** @param list<string> $arguments */
     private static function archiveArgument(array $arguments): ?string
     {
         if ($arguments === []) { return null; }
-        if (count($arguments) === 1 && str_starts_with($arguments[0], '--archive=') && strlen($arguments[0]) > 10) {
+        if (array_key_exists(0, $arguments) && count($arguments) === 1 && str_starts_with($arguments[0], '--archive=') && strlen($arguments[0]) > 10) {
             return substr($arguments[0], offset: 10);
         }
         throw new RuntimeException('Usage: php tools/install-mago.php [--archive=verified-local-archive]');
     }
 
+    /** @param Pin $pin */
     private static function provision(array $pin, ?string $source): void
     {
         if (file_exists($pin['archive_path'])) { return; }

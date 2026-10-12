@@ -5,6 +5,7 @@ namespace Tablo;
 
 final class CheckAbortProjection
 {
+    /** @param list<array> $snapshot */
     public static function fragments(CheckProgress $progress,string $reason,array $snapshot,int $index): void
     {
         $active=$progress->active; $record=$progress->record; $storeAttempted=$progress->storeAttempted; $fragments = &$progress->fragments;
@@ -19,7 +20,7 @@ final class CheckAbortProjection
                     if ($record === null) { $record = CheckOutput::site($active, 'failed', $reason, true); }
                     // The record is the already validated scalar projection. Preserve
                     // actual settlement even if the ordinary fragment encoder failed.
-                    $fragments[] = \json_encode($record, JSON_THROW_ON_ERROR);
+                    $fragments[] = JsonEncoding::encode($record);
                 } catch (\Throwable $discardedCleanup) { /* An invalid ID is unrepresentable; earlier safe fragments survive. */  unset($discardedCleanup); }
             }
             foreach (array_slice($snapshot, $index + 1) as $site) {

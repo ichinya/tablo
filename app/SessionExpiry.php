@@ -7,9 +7,13 @@ final class SessionExpiry
 {
     public static function expire(): void
     {
-        if ((($_SESSION['authenticated_at'] ?? null) !== null) && (!is_int($_SESSION['authenticated_at'])
-            || time() - $_SESSION['authenticated_at'] > 43_200)) {
+        if (self::expired($_SESSION['authenticated_at'] ?? null)) {
             WebSession::invalidateAuthentication();
         }
+    }
+
+    private static function expired(mixed $authenticatedAt): bool
+    {
+        return $authenticatedAt !== null && (!is_int($authenticatedAt) || time() - $authenticatedAt > 43_200);
     }
 }

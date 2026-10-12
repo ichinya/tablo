@@ -6,6 +6,7 @@ namespace Tablo\Tests\Network;
 
 final class HistoryMutationCases
 {
+    /** @return array<string, string|int> */
     public static function fields(): array
     {
             return ['name' => 'Changed', 'url' => 'https://other.example', 'repository' => 'other/project', 'branch' => 'other',

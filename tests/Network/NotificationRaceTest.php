@@ -20,8 +20,8 @@ final class NotificationRaceTest
             $second=new WorkerProcess($f->directory,'claim-b',$command,['TABLO_TOKEN_KEY_FILE'=>'']);
             $a=$first->wait();$b=$second->wait();Assert::same($a['exit_code'],0);Assert::same($b['exit_code'],0);
             Assert::true(substr_count($a['stdout'].$b['stdout'],needle: 'claimed=1')===1);
-            Assert::same($f->slots()[0]['attempts'],1);
-            $f->db->exec('BEGIN IMMEDIATE');$f->db->exec('ROLLBACK');
+            Assert::same(\Tablo\Tests\Support\FixtureValue::at($f->slots(), 0)['attempts'],1);
+            \Tablo\Tests\Support\FixtureValue::object($f->db)->exec('BEGIN IMMEDIATE');\Tablo\Tests\Support\FixtureValue::object($f->db)->exec('ROLLBACK');
             Assert::true(true,'independent writer acquires immediately while the durable attempt is inflight');
         } finally {$first?->close();$second?->close();$second = null; $first = null;$f->close();}
     }

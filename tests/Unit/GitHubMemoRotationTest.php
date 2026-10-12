@@ -51,9 +51,9 @@ final class GitHubMemoRotationTest extends GitHubBudgetFixtureCase
             };
             $provider = (new GitHubConnection($sites, $rotating))->provider($snapshot);
             self::failure(static fn () => $provider->getLatestRelease('example/project'), 'credential-changed');
-            Assert::false($sites->storeCheck($snapshot, array_fill_keys(['online','health_error_code','health_http_status',
+            Assert::false($sites->storeCheck(\Tablo\Tests\Support\FixtureValue::row($snapshot), array_fill_keys(['online','health_error_code','health_http_status',
                 'deployed_version','deployed_commit','latest_release','latest_commit','open_issues','open_prs','response_time_ms','last_error','checked_at'], value: null)));
-            Assert::same($sites->find($siteId)['checked_at'], null);
+            Assert::same(\Tablo\Tests\Support\FixtureValue::row($sites->find($siteId))['checked_at'], null);
         } finally {
             unset($provider, $rotating, $old, $connection, $sites, $tokens, $vault, $db);
             $directory->close();

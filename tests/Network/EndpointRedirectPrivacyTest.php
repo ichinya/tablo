@@ -19,25 +19,30 @@ final class EndpointRedirectPrivacyTest
             Assert::same($result['stderr_bytes'], 0);
             foreach ($result['records'] as $row) {
                 if (!(($row['leaked'] ?? null) !== null)) { continue; }
- Assert::false($row['leaked']); Assert::false($row['previous']);
+ $row = \Tablo\Tests\Support\EndpointPrivacyRecords::probe($row);
+                    Assert::false($row['leaked']); Assert::false($row['previous']);
             }
             switch (true) {
 case ($mode === 'redirect-native'):
+                $records = \Tablo\Tests\Support\EndpointPrivacyRecords::native($result['records']);
 
-                foreach ([0, 2] as $index) {
-                    $row = $result['records'][$index];
+                foreach ([$records[0], $records[2]] as $record) {
+                    $row = \Tablo\Tests\Support\EndpointPrivacyRecords::probe($record);
+                    $row['handle_released'] = \Tablo\Tests\Support\FixtureJson::boolean($row, 'handle_released');
+                    $row['callback_released'] = \Tablo\Tests\Support\FixtureJson::boolean($row, 'callback_released');
                     Assert::true($row['typed']); Assert::same($row['reason'], 'check-error');
                     Assert::true($row['handle_released'] && $row['callback_released']);
                 }
-                Assert::true($result['records'][0]['original_typeerror'] && $result['records'][0]['original_leaked']);
-                Assert::true($result['records'][3]['raw_callback_leaked']);
+                Assert::true($records[0]['original_typeerror'] && $records[0]['original_leaked']);
+                Assert::true($records[3]['raw_callback_leaked']);
 
     break;
 default:
+                $records = \Tablo\Tests\Support\EndpointPrivacyRecords::safe($result['records']);
 
-                Assert::true($result['records'][8]['raw_control_leaked']);
-                Assert::true($result['records'][9]['private_previous_control_leaked']);
-                Assert::false($result['records'][9]['opaque_complete']);
+                Assert::true($records[8]['raw_control_leaked']);
+                Assert::true($records[9]['private_previous_control_leaked']);
+                Assert::false($records[9]['opaque_complete']);
 
     break;
 }

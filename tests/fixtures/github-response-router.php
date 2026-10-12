@@ -1,11 +1,13 @@
 <?php
 declare(strict_types=1);
+require_once __DIR__ . '/../Support/FixtureValue.php';
+require_once __DIR__ . '/../Support/FixtureRequest.php';
 
 // Count real requests without storing request credentials or response bodies.
-$path = parse_url($_SERVER['REQUEST_URI'], PHP_URL_PATH);
+$path = \Tablo\Tests\Support\FixtureRequest::path($_SERVER['REQUEST_URI']);
 $now = (int) getenv('TABLO_TEST_RESPONSE_NOW');
 $status = str_contains($path, '429') ? 429 : (match (true) { (str_contains($path, 'control')) => 200, default => 403 });
-file_put_contents(getenv('TABLO_TEST_RESPONSE_COUNT'), $status . "\n", FILE_APPEND | LOCK_EX);
+file_put_contents(\Tablo\Tests\Support\FixtureValue::string(getenv('TABLO_TEST_RESPONSE_COUNT')), $status . "\n", FILE_APPEND | LOCK_EX);
 header('Content-Type: application/json');
 if ($status !== 200) { header('Location: /repos/fixture/control/releases/latest'); }
 http_response_code($status);

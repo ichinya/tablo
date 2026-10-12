@@ -5,31 +5,45 @@ namespace Tablo\Tools;
 
 use RuntimeException;
 
+require_once dirname(__DIR__) . '/app/RequiredFile.php';
+require_once __DIR__ . '/MagoPinData.php';
+
+/**
+ * @phpstan-import-type Asset from MagoPinData
+ * @phpstan-type Pin array{asset: string, url: string, archive_sha256: string, binary_sha256: string, member: string, binary: string,
+ * directory: string, archive_path: string, binary_path: string, version_output: string, ...}
+ */
 final class MagoPin
 {
+    /** @return Pin */
     public static function selected(string $root): array
     {
-        $manifest = json_decode(file_get_contents($root . '/tools/mago-pin.json'), associative: true,
-            flags: JSON_THROW_ON_ERROR);
-        if ($manifest['version'] !== '1.54.0' || $manifest['version_output'] !== 'mago 1.54.0') {
-            throw new RuntimeException('Unsupported Mago pin.');
-        }
+        $manifest = MagoPinData::checked(json_decode(\Tablo\RequiredFile::bytes(file_get_contents($root . '/tools/mago-pin.json')), associative: true,
+            flags: JSON_THROW_ON_ERROR));
         $platform = MagoPlatform::selected();
-        $pin = $manifest['platforms'][$platform];
+        $pin = $manifest['platforms'][$platform] ?? throw new RuntimeException('Unsupported Mago pin.');
         $directory = $root . '/.ci/mago/' . $manifest['version'] . '/' . $platform;
-        return [...$pin, 'directory' => $directory, 'archive_path' => $directory . '/' . $pin['asset'],
-            'binary_path' => $directory . '/' . $pin['binary'], 'version_output' => $manifest['version_output']];
+        $pin['directory'] = $directory;
+        $pin['archive_path'] = $directory . '/' . $pin['asset'];
+        $pin['binary_path'] = $directory . '/' . $pin['binary'];
+        $pin['version_output'] = $manifest['version_output'];
+        return $pin;
     }
 
     public static function digest(string $path, string $expected): void
     {
-        if (!is_file($path) || is_link($path)
-            || str_replace('\\', replace: '/', subject: realpath($path)) !== str_replace('\\', replace: '/', subject: $path)
-            || !hash_equals($expected, hash_file('sha256', $path))) {
+        $canonical = realpath($path);
+        if (!is_file($path) || is_link($path) || $canonical === false
+            || str_replace('\\', replace: '/', subject: $canonical) !== str_replace('\\', replace: '/', subject: $path)) {
+            throw new RuntimeException('Missing or corrupt pinned Mago file. Run the explicit installer.');
+        }
+        $actual = hash_file('sha256', $path);
+        if ($actual === false || !hash_equals($expected, $actual)) {
             throw new RuntimeException('Missing or corrupt pinned Mago file. Run the explicit installer.');
         }
     }
 
+    /** @param Pin $pin */
     public static function verify(array $pin, string $root): void
     {
         self::digest($pin['archive_path'], $pin['archive_sha256']);

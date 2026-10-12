@@ -23,20 +23,20 @@ final class WebhookTransportTest
         foreach(['8.8.8.8','1.1.1.1','2001:4860:4860::8888','2606:4700:4700::1111'] as $address){Assert::true(WebhookAddress::globallyRoutable($address));}
         $client=new class extends HttpClient{protected function resolve(string $host):array{return ['8.8.8.8','127.0.0.1'];}};
         $marker=bin2hex(random_bytes(20)); $error=null;
-        try{$client->postBefore('https://receiver.example/'.$marker,'{}','fixture:1',$marker,hrtime(true)+1_000_000_000);}catch(WebhookFailure $caught){$error=$caught;}
-        Assert::same($error->reason,'ssrf'); Assert::same($error->getPrevious(),null);
+        try{$client->postBefore('https://receiver.example/'.$marker,'{}','fixture:1',$marker,\Tablo\MonotonicTime::integer(hrtime(true))+1_000_000_000);}catch(WebhookFailure $caught){$error=$caught;}
+        Assert::same(\Tablo\Tests\Support\FixtureValue::object($error)->reason,'ssrf'); Assert::same(\Tablo\Tests\Support\FixtureValue::object($error)->getPrevious(),null);
         $client=new class extends HttpClient{
             protected function resolve(string $host):array
             {
                 // A single Windows sleep may return before the requested duration.
-                $until=hrtime(true)+80_000_000;
-                do {usleep(1000);} while(hrtime(true)<$until);
+                $until=\Tablo\MonotonicTime::integer(hrtime(true))+80_000_000;
+                do {usleep(1000);} while(\Tablo\MonotonicTime::integer(hrtime(true))<$until);
                 return ['8.8.8.8'];
             }
         };
-        $started=hrtime(true);
-        try{$client->postBefore('https://receiver.example/'.$marker,'{}','fixture:1',$marker,hrtime(true)+10_000_000);}catch(WebhookFailure $caught){$error=$caught;}
-        Assert::same($error->reason,'timeout'); Assert::true(hrtime(true)-$started>=80_000_000,'synchronous DNS exceeds curl deadline; parent supervision is required');
+        $started=\Tablo\MonotonicTime::integer(hrtime(true));
+        try{$client->postBefore('https://receiver.example/'.$marker,'{}','fixture:1',$marker,\Tablo\MonotonicTime::integer(hrtime(true))+10_000_000);}catch(WebhookFailure $caught){$error=$caught;}
+        Assert::same(\Tablo\Tests\Support\FixtureValue::object($error)->reason,'timeout'); Assert::true(\Tablo\MonotonicTime::integer(hrtime(true))-$started>=80_000_000,'synchronous DNS exceeds curl deadline; parent supervision is required');
         // Inspect complete actual exception traces outside Testo's unbounded runner object graph.
         $directory=new TemporaryDirectory('tablo-webhook-trace-');
         try {
@@ -53,7 +53,7 @@ final class WebhookTransportTest
             $directory=new TemporaryDirectory('tablo-webhook-tls-'); $receiver=null;
             try {
                 $bearer=$mode==='success'?'':bin2hex(random_bytes(24)); $payload=json_encode(['event_id'=>'fixture:unavailable:1','event'=>'unavailable']);
-                $receiver=new WebhookReceiver($directory,$mode,$payload,$bearer,$mode==='lost'?2:1);
+                $receiver=new WebhookReceiver($directory,$mode,\Tablo\Tests\Support\FixtureValue::string($payload),$bearer,$mode==='lost'?2:1);
                 $client=new class($receiver->certificate) extends HttpClient{
                     public function __construct(private readonly string $ca) {parent::__construct();}
                     protected function webhookAddresses(string $host):array{return ['127.0.0.1'];}
@@ -61,7 +61,7 @@ final class WebhookTransportTest
                 };
                 $url='https://receiver.example:'.$receiver->port.'/hook'; $failure=null; $status=null;
                 for($i=0;$i<($mode==='lost'?2:1);$i++){
-                    try{$status=$client->postBefore($url,$payload,'fixture:unavailable:1',$bearer,hrtime(true)+6_000_000_000);}
+                    try{$status=$client->postBefore($url,\Tablo\Tests\Support\FixtureValue::string($payload),'fixture:unavailable:1',$bearer,\Tablo\MonotonicTime::integer(hrtime(true))+6_000_000_000);}
                     catch(WebhookFailure $error){$failure=$error->reason;Assert::same($error->getPrevious(),null);unset($error);}
                 }
                 $result=$receiver->result(); Assert::true($result['exact']); Assert::true($result['authorization']); Assert::true($result['same_key']);

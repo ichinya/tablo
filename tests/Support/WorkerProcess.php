@@ -12,23 +12,27 @@ final class WorkerProcess
     private readonly string $stderr;
 
 
+    /** @param list<string> $command */
     public function __construct(TemporaryDirectory $directory, string $name, array $command, array $environment, ?string $cwd = null)
     {
         $this->stdout = $directory->path . '/' . $name . '.out';
         $this->stderr = $directory->path . '/' . $name . '.err';
         $this->status = new WorkerObservation();
+        $pipes = [];
+        if ($cwd === '') { throw new RuntimeException('Empty fixture working directory'); }
         $this->status->process = proc_open($command, [0 => ['pipe', 'r'], 1 => ['file', $this->stdout, 'w'],
             2 => ['file', $this->stderr, 'w']], $pipes, $cwd ?? dirname(__DIR__, levels: 2),
-            array_replace(getenv(), $environment), ['bypass_shell' => true]);
+            FixtureSpawn::environment($environment), ['bypass_shell' => true]);
         if (!is_resource($this->status->process)) { throw new RuntimeException('Cannot start owned worker fixture.'); }
-        fclose($pipes[0]);
+        fclose(\Tablo\Tests\Support\FixturePipes::pipe($pipes, 0));
     }
 
 
 
+    /** @return array{stdout: string, stderr: string} */
     public function output(): array
     {
-        return ['stdout' => file_get_contents($this->stdout), 'stderr' => file_get_contents($this->stderr)];
+        return WorkerStreams::read($this->stdout, $this->stderr);
     }
 
     public function awaitOutput(string $text, float $timeout = 8): void
@@ -42,6 +46,7 @@ final class WorkerProcess
         throw new RuntimeException('Worker readiness boundary failed.');
     }
 
+    /** @return array{exit_code: ?int, stdout: string, stderr: string} */
     public function wait(float $timeout = 8): array
     {
         $deadline = microtime(true) + $timeout;
@@ -52,9 +57,10 @@ final class WorkerProcess
         return $result;
     }
 
+    /** @return array{exit_code: ?int, stdout: string, stderr: string} */
     public function terminate(int $signal = 9): array
     {
-        if ($this->status->running()) { proc_terminate($this->status->process, $signal); }
+        if ($this->status->running()) { proc_terminate(\Tablo\Tests\Support\FixtureNative::resource($this->status->process), $signal); }
         return $this->wait();
     }
 

@@ -44,7 +44,8 @@ final class JsonChecksTest
 
     private function input(string $csrf): array
     {
-        return ['_csrf' => $csrf, 'name' => 'JSON fixture', 'url' => $this->server->base,
+        $server = \Tablo\Tests\Support\FixtureValue::object($this->server);
+        return ['_csrf' => $csrf, 'name' => 'JSON fixture', 'url' => $server->base,
             'repository' => 'fixture/public', 'branch' => 'main', 'health_path' => '/json-health',
             'health_check_mode' => 'json', 'health_json_path' => '$.result', 'health_json_operator' => '==',
             'health_json_expected_value' => 'ok', 'version_path' => '/json-version',
@@ -54,66 +55,71 @@ final class JsonChecksTest
     #[Test]
     public function roundTripsJsonFieldsAndValidatesWithoutJavascript(): void
     {
-        $csrf = $this->web->authenticate();
-        $form = $this->web->request('/sites/new');
+        $web = \Tablo\Tests\Support\FixtureValue::object($this->web);
+        $csrf = $web->authenticate();
+        $form = $web->request('/sites/new');
         Assert::same($form['status'], 200);
         Assert::true(str_contains($form['body'], 'value="http" selected'), 'default mode');
+        $select = [];
         preg_match('/id="health_json_operator"[^>]*>(.*?)<\/select>/s', $form['body'], $select);
-        preg_match_all('/<option value="([^"]*)"/', $select[1], $options);
-        Assert::same(array_map(static fn ($value) => html_entity_decode($value, ENT_QUOTES, encoding: 'UTF-8'), $options[1]), ['>', '>=', '<', '<=', '!=', '==', 'contains']);
+        $options = [];
+        preg_match_all('/<option value="([^"]*)"/', \Tablo\Tests\Support\FixtureValue::string(\Tablo\Tests\Support\FixtureValue::at($select, 1)), $options);
+        Assert::same(array_map(static fn (string $value): string => html_entity_decode($value, ENT_QUOTES, encoding: 'UTF-8'), \Tablo\Tests\Support\FixtureValue::at($options, 1)), ['>', '>=', '<', '<=', '!=', '==', 'contains']);
         $input = $this->input($csrf);
         $input['health_json_operator'] = 'contains';
         $input['health_json_expected_value'] = '<script>alert("fixture")</script>';
-        Assert::same($this->web->request('/sites/new', $input)['status'], 303);
-        $edit = $this->web->request('/sites/1/edit');
+        Assert::same($web->request('/sites/new', $input)['status'], 303);
+        $edit = $web->request('/sites/1/edit');
         Assert::true(str_contains($edit['body'], 'value="$.build.version"') && str_contains($edit['body'], 'value="json" selected'), 'configuration rendered');
         Assert::true(str_contains($edit['body'], '&lt;script&gt;') && !str_contains($edit['body'], '<script>alert("fixture")'), 'expected value escaped');
-        Assert::same($this->web->database()->query('SELECT health_json_expected_value FROM sites')->fetchColumn(), $input['health_json_expected_value']);
-        $badPath = $this->web->request('/sites/1/edit', array_replace($input, ['health_json_path' => '$.bad(']));
+        Assert::same(\Tablo\SqlStatement::checked($web->database()->query('SELECT health_json_expected_value FROM sites'))->fetchColumn(), $input['health_json_expected_value']);
+        $badPath = $web->request('/sites/1/edit', array_replace($input, ['health_json_path' => '$.bad(']));
         Assert::same($badPath['status'], 422);
         Assert::true(str_contains($badPath['body'], 'id="health_json_path-error"') && str_contains($badPath['body'], 'value="$.bad("') && str_contains($badPath['body'], 'aria-invalid="true"'), 'path error and input retained');
-        $badNumber = $this->web->request('/sites/1/edit', array_replace($input, ['health_json_operator' => '>', 'health_json_expected_value' => 'no']));
+        $badNumber = $web->request('/sites/1/edit', array_replace($input, ['health_json_operator' => '>', 'health_json_expected_value' => 'no']));
         Assert::same($badNumber['status'], 422);
         Assert::true(str_contains($badNumber['body'], 'id="health_json_expected_value-error"') && str_contains($badNumber['body'], 'value="no"'), 'numeric error bound to expected value');
         $disabled = array_replace($this->input($csrf), ['version_path' => '', 'version_json_path' => 'not a path']);
-        Assert::same($this->web->request('/sites/1/edit', $disabled)['status'], 303, 'disabled selector ignored server-side');
-        Assert::same($this->web->request('/sites/1/check', ['_csrf' => $csrf])['status'], 303);
-        $state = $this->web->database()->query('SELECT online, deployed_version, last_error FROM sites')->fetch();
+        Assert::same($web->request('/sites/1/edit', $disabled)['status'], 303, 'disabled selector ignored server-side');
+        Assert::same($web->request('/sites/1/check', ['_csrf' => $csrf])['status'], 303);
+        $state = \Tablo\SqlRows::one(\Tablo\SqlStatement::checked($web->database()->query('SELECT online, deployed_version, last_error FROM sites'))->fetch(), \Tablo\SqlSitesDeployedVersionLastErrorOnlineRow::checked(...));
         Assert::same($state, ['online' => 1, 'deployed_version' => null, 'last_error' => null]);
     }
 
     #[Test]
     public function actualCliAndManualChecksStoreEquivalentJsonOutcomes(): void
     {
-        $csrf = $this->web->authenticate();
+        $web = \Tablo\Tests\Support\FixtureValue::object($this->web);
+        $endpoints = \Tablo\Tests\Support\FixtureValue::object($this->endpoints);
+        $csrf = $web->authenticate();
         $input = $this->input($csrf);
-        Assert::same($this->web->request('/sites/new', $input)['status'], 303);
+        Assert::same($web->request('/sites/new', $input)['status'], 303);
         try {
             foreach ([
                 [[], 1, 0],
                 [['health_json_expected_value' => 'error'], 0, 1],
                 [['health_json_path' => '$.missing'], null, 1],
             ] as [$settings, $online, $exit]) {
-                Assert::same($this->web->request('/sites/1/edit', array_replace($input, $settings))['status'], 303);
-                Assert::same($this->web->request('/sites/1/check', ['_csrf' => $csrf])['status'], 303);
+                Assert::same($web->request('/sites/1/edit', array_replace($input, $settings))['status'], 303);
+                Assert::same($web->request('/sites/1/check', ['_csrf' => $csrf])['status'], 303);
                 $query = 'SELECT online,deployed_version,deployed_commit,latest_release,latest_commit,open_issues,open_prs,last_error FROM sites WHERE id=1';
-                $manual = $this->web->database()->query($query)->fetch();
-                $diagnostic = $this->web->database()->query('SELECT health_http_status,health_error_code FROM sites WHERE id=1')->fetch();
+                $manual = \Tablo\Tests\Support\FixtureValue::fetched(\Tablo\SqlRows::one(\Tablo\SqlStatement::checked($web->database()->query($query))->fetch(), CheckObservation::metrics(...)));
+                $diagnostic = \Tablo\SqlRows::one(\Tablo\SqlStatement::checked($web->database()->query('SELECT health_http_status,health_error_code FROM sites WHERE id=1'))->fetch(), \Tablo\SqlSitesHealthErrorCodeHealthHttpStatusRow::checked(...));
                 Assert::same($manual['online'], $online, 'persisted health classification: ' . json_encode($diagnostic, JSON_THROW_ON_ERROR));
                 Assert::same($manual['deployed_version'], '1.2.3');
                 $root = dirname(__DIR__, levels: 2);
                 $result = Subprocess::run([PHP_BINARY, '-d', 'auto_prepend_file=' . $root . '/tests/FixtureCliGitHubConnection.php',
-                    $root . '/bin/check.php'], $this->web->directory, [
-                        'TABLO_DB' => $this->web->directory->path . '/test.sqlite', 'TABLO_ALLOW_PRIVATE_NETWORK' => '1',
+                    $root . '/bin/check.php'], $web->directory, [
+                        'TABLO_DB' => \Tablo\Tests\Support\FixtureValue::object($web->directory)->path . '/test.sqlite', 'TABLO_ALLOW_PRIVATE_NETWORK' => '1',
                     ]);
                 Assert::same($result['exit_code'], $exit, 'native CLI: ' . $result['stderr']);
                 Assert::same($result['stderr'], '', 'CLI is quiet on stderr');
                 Assert::true(str_contains($result['stdout'], $exit === 0 ? '1: ok' : '1: attention'));
-                Assert::same($this->web->database()->query($query)->fetch(), $manual, 'same checker in actual CLI and HTTP');
+                Assert::same(\Tablo\SqlStatement::checked($web->database()->query($query))->fetch(), $manual, 'same checker in actual CLI and HTTP');
             }
         } catch (\Throwable $error) {
-            $this->web->directory->retainFailure($error);
-            $this->endpoints->retainFailure($error);
+            \Tablo\Tests\Support\FixtureValue::object($web->directory)->retainFailure($error);
+            $endpoints->retainFailure($error);
             throw $error;
         }
     }

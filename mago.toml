@@ -3,7 +3,15 @@ php-version = "8.2"
 
 [source]
 paths = ["app", "bin", "public", "tests", "tools"]
-excludes = ["vendor", "storage", "artifacts", ".lekalo"]
+includes = ["vendor"]
+excludes = ["storage", "artifacts", ".lekalo"]
 
 [linter]
 minimum-fail-level = "note"
+
+[analyzer]
+minimum-fail-level = "note"
+strict-array-index-existence = true
+check-use-statements = true
+check-name-casing = true
+check-property-initialization = true

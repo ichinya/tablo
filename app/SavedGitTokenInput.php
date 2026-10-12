@@ -5,6 +5,7 @@ namespace Tablo;
 
 final class SavedGitTokenInput
 {
+    /** @return list{non-empty-string, string, string} */
     public static function parse(#[\SensitiveParameter] array $input, #[\SensitiveParameter] ?array $existing): array
     {
         $name = is_string($input['name'] ?? null) ? trim($input['name']) : '';

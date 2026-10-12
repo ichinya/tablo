@@ -9,6 +9,7 @@ final class PublicAddress
     {
         if (!filter_var($address, FILTER_VALIDATE_IP, FILTER_FLAG_NO_PRIV_RANGE | FILTER_FLAG_NO_RES_RANGE)) { return false; }
         $binary = inet_pton($address);
+        if ($binary === false) { return false; }
         // Conservative IANA special-purpose policy, reviewed 2026-10-11. Even
         // globally reachable exceptions within special blocks remain excluded.
         $blocked = PublicAddressRanges::ranges($binary);
@@ -19,13 +20,18 @@ final class PublicAddress
 
     public static function inRange(#[\SensitiveParameter] string $binary, string $range): bool
     {
-        [$network, $prefix] = explode('/', $range);
-        $network = inet_pton($network);
-        $bits = (int) $prefix;
+        $parsed = AddressRange::parse($range, $binary);
+        if ($parsed === null) { return false; }
+        $network = $parsed['network'];
+        $bits = $parsed['bits'];
         $bytes = intdiv($bits, num2: 8);
         $remaining = $bits % 8;
-        return substr($binary, offset: 0, length: $bytes) === substr($network, offset: 0, length: $bytes)
-            && ($remaining === 0 || (ord($binary[$bytes]) & (255 << (8 - $remaining))) === ord($network[$bytes]));
+        if (substr($binary, offset: 0, length: $bytes) !== substr($network, offset: 0, length: $bytes)) { return false; }
+        if ($remaining === 0) { return true; }
+        $addressByte = substr($binary, offset: $bytes, length: 1);
+        $networkByte = substr($network, offset: $bytes, length: 1);
+        if ($addressByte === '' || $networkByte === '') { return false; }
+        return (ord($addressByte) & (255 << (8 - $remaining))) === ord($networkByte);
     }
     public static function legacy(#[\SensitiveParameter] string $address): bool
     {

@@ -39,7 +39,13 @@ final class ExistingConnection
     }
     public static function refuseExistingFailure(#[\SensitiveParameter] RuntimeException $error, string $message): never
     {
-        $code = $error instanceof \PDOException ? (($error->errorInfo[1] ?? 0) & 255) : 0;
+        $code = 0;
+        if ($error instanceof \PDOException) {
+            // PDO SQLite's native driver code is an integer; absent/null stays the prior zero fallback.
+            /** @var array{0?: string, 1?: ?int, 2?: ?string}|null $errorInfo */
+            $errorInfo = $error->errorInfo;
+            $code = ($errorInfo[1] ?? 0) & 255;
+        }
         if (in_array($code, [5, 6], strict: true)) {
             $safe = new \PDOException('Installation busy.');
             $safe->errorInfo = ['HY000', $code, null];

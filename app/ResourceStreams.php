@@ -7,10 +7,12 @@ final class ResourceStreams
 {
     public static function close(#[\SensitiveParameter] array $streams): void
     {
-        foreach ($streams as $stream) {
-            if (!is_resource($stream)) { continue; }
-            fclose($stream);
-        }
+        foreach (array_keys($streams) as $key) { self::closeOne($streams[$key] ?? null); }
+    }
+
+    private static function closeOne(#[\SensitiveParameter] mixed $stream): void
+    {
+        if (is_resource($stream)) { fclose($stream); }
     }
 
 }

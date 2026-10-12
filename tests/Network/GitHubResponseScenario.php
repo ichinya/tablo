@@ -43,7 +43,7 @@ final class GitHubResponseScenario extends GitHubPrivacyFixtureCase
                     // Assert privacy first: the exact frozen negative must fail here, not at fixture setup.
                     self::assertSupportedProviderTrace(TraceInspector::inspect($error, [$secret, $marker]));
                     ResponseRateAssertions::typed($error, $now, $delay);
-                    $rows = $db->query('SELECT scope,resource,eligible_at FROM github_cooldowns ORDER BY scope')->fetchAll();
+                    $rows = \Tablo\SqlRows::all(\Tablo\SqlStatement::checked($db->query('SELECT scope,resource,eligible_at FROM github_cooldowns ORDER BY scope'))->fetchAll(), \Tablo\SqlGithubCooldownsEligibleAtResourceScopeRow::checked(...));
                     $primary = $case === 'primary429';
                     ResponseCooldownAssertions::stored($rows, $case, $kind, $now, $delay);
                     $status = str_contains($case, '429') ? 429 : 403;

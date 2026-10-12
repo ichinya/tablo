@@ -6,9 +6,16 @@ namespace Tablo\Tests\Http;
 use Tablo\Tests\Support\WebFixture;
 use Testo\Assert;
 
+/**
+ * @phpstan-import-type Record from \Tablo\SqlLoginLimitsFailuresKeyRow as LoginLimit
+ */
 abstract class LoginProxyFixtureCase
 {
 
+    /**
+     * @param list<string> $headers
+     * @return array{status: int, headers: string, body: string}
+     */
     protected function attempt(WebFixture $web, string $source, #[\SensitiveParameter] string $password,
         array $headers = [], ?string $base = null): array
     {
@@ -25,12 +32,18 @@ abstract class LoginProxyFixtureCase
         return $response;
     }
 
+    /**
+     * @return list<LoginLimit>
+     */
     protected function rows(WebFixture $web): array
     {
         $web->reopenDatabase();
-        return $web->database()->query('SELECT key, failures FROM login_limits ORDER BY key')->fetchAll();
+        return \Tablo\SqlRows::all(\Tablo\SqlStatement::checked($web->database()->query('SELECT key, failures FROM login_limits ORDER BY key'))->fetchAll(), \Tablo\SqlLoginLimitsFailuresKeyRow::checked(...));
     }
 
+    /**
+     * @return LoginLimit
+     */
     protected function row(string $address, int $failures): array
     {
         return ['key' => hash('sha256', $address), 'failures' => $failures];

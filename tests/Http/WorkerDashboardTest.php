@@ -35,10 +35,10 @@ final class WorkerDashboardTest
                 ['TABLO_DB' => $path, 'TABLO_WORKER_BASE' => $server->base]);
             $child->awaitOutput('Worker pass complete.');
             $state = new WorkerStateRepository($db);
-            $state->requestStop($state->generation());
+            $state->requestStop(\Tablo\Tests\Support\FixtureValue::string($state->generation()));
             Assert::same($child->wait()['exit_code'], 0);
             $workerRow = $sites->find($id);
-            (new WorkerDashboardAssertions($web))->visible($workerRow);
+            (new WorkerDashboardAssertions($web))->visible(\Tablo\Tests\Support\FixtureValue::row($workerRow));
             Assert::same($web->request('/sites/' . $id . '/check', ['_csrf' => $csrf])['status'], 303);
             $manual = $sites->find($id);
             $cli = Subprocess::run([PHP_BINARY, '-d', 'auto_prepend_file=' . dirname(__DIR__) . '/FixtureCliGitHubConnection.php',
@@ -46,7 +46,7 @@ final class WorkerDashboardTest
                 ['TABLO_DB' => $path, 'TABLO_ALLOW_PRIVATE_NETWORK' => '1', 'TABLO_TEST_GITHUB_LOG' => $directory->path . '/cli-calls.log']);
             Assert::same($cli['exit_code'], 0);
             $oneShot = $sites->find($id);
-            WorkerDashboardAssertions::equivalent($manual, $oneShot, $workerRow);
+            WorkerDashboardAssertions::equivalent(\Tablo\Tests\Support\FixtureValue::row($manual), \Tablo\Tests\Support\FixtureValue::row($oneShot), \Tablo\Tests\Support\FixtureValue::row($workerRow));
         } finally { $child?->close(); $server?->close(); unset($state, $sites, $db); $web->close(); $directory->close(); }
     }
 }

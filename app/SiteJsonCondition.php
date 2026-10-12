@@ -3,14 +3,29 @@ declare(strict_types=1);
 
 namespace Tablo;
 
+/**
+ * @phpstan-import-type SiteData from SiteInput
+ */
 final class SiteJsonCondition
 {
+    /**
+     * @param SiteData $data
+     * @param array<string, string> $errors
+     */
     public static function normalize(#[\SensitiveParameter] array $input, #[\SensitiveParameter] array &$data, array &$errors): void
     {
-        $mode = $input['health_check_mode'] ?? 'http';
-        $operator = $input['health_json_operator'] ?? '==';
+        self::condition($input['health_check_mode'] ?? 'http', $input['health_json_operator'] ?? '==',
+            $input['health_json_expected_value'] ?? '', $data, $errors);
+    }
+
+    /**
+     * @param SiteData $data
+     * @param array<string, string> $errors
+     */
+    private static function condition(#[\SensitiveParameter] mixed $mode, #[\SensitiveParameter] mixed $operator, #[\SensitiveParameter] mixed $expected,
+        #[\SensitiveParameter] array &$data, array &$errors): void
+    {
         $data['health_json_operator'] = is_string($operator) && in_array($operator, JsonField::OPERATORS, strict: true) ? $operator : '==';
-        $expected = $input['health_json_expected_value'] ?? '';
         $data['health_json_expected_value'] = is_string($expected) ? $expected : '';
         if ($data['health_path'] !== '' && $mode === 'json') {
             if (!is_string($operator) || !in_array($operator, JsonField::OPERATORS, strict: true)) {

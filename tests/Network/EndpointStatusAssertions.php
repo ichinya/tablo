@@ -16,9 +16,10 @@ final class EndpointStatusAssertions
                 Assert::same($home['health_http_status'], $status);
                 $explicit = $checker->check([...$site, 'health_path' => '/up?status=' . $status]);
                 $final = in_array($status, [301, 302], strict: true) ? 200 : $status;
-                Assert::same($explicit['online'], (int) ($final >= 200 && $final < 300));
+                Assert::same($explicit['online'], self::successful($final));
                 Assert::same($explicit['health_http_status'], $final);
             }
 
     }
+    private static function successful(int $status): int { return (int) ($status >= 200 && $status < 300); }
 }

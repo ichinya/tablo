@@ -5,6 +5,7 @@ namespace Tablo;
 
 final class GitResponseHeaders
 {
+    /** @param array<string, ?string> $headers */
     public static function consume(string $name, #[\SensitiveParameter] string $line, int $colon, array &$headers): void
     {
         if (!in_array($name, ['retry-after', 'x-ratelimit-limit', 'x-ratelimit-remaining',

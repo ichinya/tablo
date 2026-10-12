@@ -31,7 +31,7 @@ final class HttpFailure extends RuntimeException
     public function __construct(string $reason)
     {
         $this->reason = array_key_exists($reason, self::MESSAGES) ? $reason : 'check-error';
-        parent::__construct(self::MESSAGES[$this->reason]);
+        parent::__construct(self::MESSAGES[$this->reason] ?? self::MESSAGES['check-error']);
     }
 
     public static function fromCurl(int $error, int $osError = 0): self

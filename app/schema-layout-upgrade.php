@@ -5,8 +5,10 @@ namespace Tablo;
 
 // Pinned Lekalo requires lowercase physical source paths for this contracted owner.
 // @mago-expect lint:file-name
+/** @phpstan-import-type Layout from SchemaLayout */
 final class SchemaLayoutUpgrade
 {
+    /** @param Layout $layout */
     public static function apply(\PDO $db,array $layout): void
     {
             $version = $layout['version'];
@@ -16,6 +18,7 @@ final class SchemaLayoutUpgrade
                     1 => BaseSchema::migrateToVersionTwo($db),
                     2 => BaseSchema::migrateToVersionThree($db),
                     3 => BaseSchema::migrateToVersionFour($db),
+                    default => SchemaShape::refuse(),
                 };
                 ++$version;
             }

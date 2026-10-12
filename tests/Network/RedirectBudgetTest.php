@@ -47,10 +47,10 @@ final class RedirectBudgetTest
             $body = (new HttpClient(true))->getEndpoint($server->base . '/budget/tiny-chunks')['body'];
             Assert::same(strlen($body), 200_000, 'decoded-read cap excludes raw chunk framing and TLS');
             $before = count($server->rows());
-            $start = hrtime(true);
+            $start = \Tablo\MonotonicTime::integer(hrtime(true));
             \Tablo\Tests\Support\RedirectAssertions::reject($server->base . '/held/start', 'timeout',
                 \Tablo\Tests\Support\RedirectAssertions::headers(), deadline: $start + 180_000_000);
-            Assert::true((hrtime(true) - $start) / 1e6 < 900, 'first-hop refusal keeps the original upper bound');
+            Assert::true((\Tablo\MonotonicTime::integer(hrtime(true)) - $start) / 1e6 < 900, 'first-hop refusal keeps the original upper bound');
             $sent = array_slice($server->rows(), $before);
             if ($sent === []) {
                 Assert::same($sent, [], 'pre-send expiry has no held-response receipt');
@@ -64,11 +64,11 @@ final class RedirectBudgetTest
                 public int $calls = 0;
                 protected function resolve(#[\SensitiveParameter] string $host): array { ++$this->calls; usleep(40_000); return ['8.8.8.8']; }
             };
-            $reason = null; $start = hrtime(true);
+            $reason = null; $start = \Tablo\MonotonicTime::integer(hrtime(true));
             try { $slow->getEndpoint('https://synthetic.example/up', [], deadline: $start + 10_000_000); }
             catch (HttpFailure $error) { $reason = $error->reason; }
             Assert::same($reason, 'timeout'); Assert::same($slow->calls, 1);
-            Assert::true(hrtime(true) - $start > 10_000_000, 'synchronous resolver overrun is qualified, not a hard DNS bound');
+            Assert::true(\Tablo\MonotonicTime::integer(hrtime(true)) - $start > 10_000_000, 'synchronous resolver overrun is qualified, not a hard DNS bound');
         } finally { $server->close(); }
     }
 

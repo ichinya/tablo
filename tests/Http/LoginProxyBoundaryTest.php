@@ -73,7 +73,7 @@ final class LoginProxyBoundaryTest extends LoginProxyFixtureCase
                 Assert::same($this->attempt($web, '127.0.0.10', \Tablo\Tests\Support\FixtureCredentials::value(label: 'fixture-password'), ['X-Forwarded-For: ' . $chain])['status'], 422);
             }
             $expected[] = $this->row('198.51.100.42', 5);
-            usort($expected, static fn (array $a, array $b): int => strcmp($a['key'], $b['key']));
+            usort($expected, static fn (array $a, array $b): int => strcmp(\Tablo\SqlColumn::string($a, 'key'), \Tablo\SqlColumn::string($b, 'key')));
             Assert::same($this->rows($web), $expected);
         } finally { $web->close(); }
     }

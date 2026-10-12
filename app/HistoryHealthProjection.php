@@ -5,6 +5,7 @@ namespace Tablo;
 
 final class HistoryHealthProjection
 {
+    /** @return array{'health_error_code': null|string, 'health_http_status': int|null, 'online': int|null, 'response_time_ms': int|null} */
     public static function project(array $state): array
     {
         return ['online' => HistoryScalar::integer($state['online'] ?? null, 0, 1),

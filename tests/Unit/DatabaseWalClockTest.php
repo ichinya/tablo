@@ -20,11 +20,11 @@ final class DatabaseWalClockTest extends WalNegotiationFixtureCase
     {
         $owner = 'Tablo\\Tests\\Support\\WalClock\\WalNegotiation';
         if (!class_exists($owner, false)) {
-            $source = file_get_contents(dirname(__DIR__, levels: 2) . '/app/WalNegotiation.php');
+            $source = \Tablo\RequiredFile::bytes(file_get_contents(dirname(__DIR__, levels: 2) . '/app/WalNegotiation.php'));
             if (substr_count($source, needle: 'namespace Tablo;') !== 1) { throw new \RuntimeException('Clock copy namespace changed'); }
             $directory = new TemporaryDirectory('tablo-wal-clock-');
             try {
-                $copy = str_replace('namespace Tablo;', replace: "namespace Tablo\\Tests\\Support\\WalClock;\nuse Tablo\\WalAttempt;\nuse Tablo\\WalRetryAdmission;", subject: $source);
+                $copy = str_replace('namespace Tablo;', replace: "namespace Tablo\\Tests\\Support\\WalClock;\nuse Tablo\\WalAttempt;\nuse Tablo\\WalRetryAdmission;\nuse Tablo\\MonotonicTime;", subject: $source);
                 file_put_contents($directory->path . '/owner.php', $copy);
                 require $directory->path . '/owner.php';
             } finally { $directory->close(); }

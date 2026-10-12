@@ -3,8 +3,16 @@ declare(strict_types=1);
 
 namespace Tablo;
 
+/**
+ * @phpstan-import-type CheckResult from CheckState
+ */
 final class GitCheckResult
 {
+    /**
+     * @param CheckResult $state
+     * @param list<string> $errors
+     * @param list<string>|null $fieldOrder
+     */
     public static function failed(string $field, \Throwable $e, ?array $fieldOrder, #[\SensitiveParameter] array &$state, #[\SensitiveParameter] array &$errors): void
     {
                 $state['git_outcomes'][$field] = ['status' => 'failed',

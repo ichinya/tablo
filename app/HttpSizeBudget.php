@@ -5,6 +5,9 @@ namespace Tablo;
 
 final class HttpSizeBudget
 {
+    /**
+     * @param array{deadline: int, body_bytes: int, header_bytes: int, too_large: bool}|null $chain
+     */
     public static function header(?array &$chain, int $length): bool
     {
         if ($chain === null) { return true; }
@@ -15,6 +18,9 @@ final class HttpSizeBudget
         }
         return true;
     }
+    /**
+     * @param array{deadline: int, body_bytes: int, header_bytes: int, too_large: bool}|null $chain
+     */
     public static function body(?array &$chain, int $length): bool
     {
         if ($chain === null) { return true; }

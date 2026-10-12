@@ -7,7 +7,7 @@ $root = dirname(__DIR__);
 $files = [];
 foreach (required_reviewed_dependencies() as $path => $ownership) {
     if (!is_file($root . '/' . $path)) { throw new RuntimeException('Missing reviewed dependency: ' . $path); }
-    $files[] = ['path' => $path, ...$ownership, 'fingerprint' => 'sha256:' . hash_file('sha256', $root . '/' . $path)];
+    $files[] = ['path' => $path, ...$ownership, 'fingerprint' => dependency_hash($root, $path)];
 }
 $written = file_put_contents($root . '/contracts/reviewed-dependencies.json', json_encode([
     'schema' => 'tablo/reviewed-dependencies/v1', 'dependencies' => $files,

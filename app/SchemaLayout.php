@@ -5,6 +5,7 @@ namespace Tablo;
 
 use PDO;
 
+/** @phpstan-type Layout array{endpoint: bool, history: bool, incidents: bool, notifications: bool, version: int} */
 final class SchemaLayout
 {
     private const LINEAGES = [
@@ -18,6 +19,7 @@ final class SchemaLayout
         7 => [[false, true, true, true]],
         8 => [[true, true, true, true]],
     ];
+    /** @return Layout */
     public static function observe(PDO $db, int $version): array
     {
         $objects = SchemaShape::objects($db);
@@ -35,6 +37,7 @@ final class SchemaLayout
         }
         if (($objects['_tablo_history_upgrade'] ?? null) !== null) { SchemaShape::refuse(); }
         $features = [$endpoint, $present['history'], $present['incidents'], $present['notifications']];
+        if (!array_key_exists($version, self::LINEAGES)) { SchemaShape::refuse(); }
         $valid = in_array($features, self::LINEAGES[$version], strict: true);
         if (!$valid) { SchemaShape::refuse(); }
         SchemaShape::assert($db, SchemaReference::reference($version, ['endpoint' => $endpoint]), $version);

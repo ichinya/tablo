@@ -27,19 +27,19 @@ final class DatabaseTest
         try {
             foreach ([':memory:', $directory->path . '/nested/test.sqlite'] as $path) {
                 $db = Database::connect($path);
-                Assert::same((int) $db->query('PRAGMA user_version')->fetchColumn(), Database::CURRENT_SCHEMA_VERSION);
-                Assert::same((int) $db->query('PRAGMA foreign_keys')->fetchColumn(), 1);
-                Assert::same((int) $db->query('PRAGMA busy_timeout')->fetchColumn(), 5000);
-                Assert::same($db->query('PRAGMA integrity_check')->fetchColumn(), 'ok');
-                Assert::same($db->query('SELECT name FROM sqlite_schema WHERE type = \'table\' AND name NOT LIKE \'sqlite_%\' ORDER BY name')
+                Assert::same((int) \Tablo\SqlStatement::checked($db->query('PRAGMA user_version'))->fetchColumn(), Database::CURRENT_SCHEMA_VERSION);
+                Assert::same((int) \Tablo\SqlStatement::checked($db->query('PRAGMA foreign_keys'))->fetchColumn(), 1);
+                Assert::same((int) \Tablo\SqlStatement::checked($db->query('PRAGMA busy_timeout'))->fetchColumn(), 5000);
+                Assert::same(\Tablo\SqlStatement::checked($db->query('PRAGMA integrity_check'))->fetchColumn(), 'ok');
+                Assert::same(\Tablo\SqlStatement::checked($db->query('SELECT name FROM sqlite_schema WHERE type = \'table\' AND name NOT LIKE \'sqlite_%\' ORDER BY name'))
                     ->fetchAll(PDO::FETCH_COLUMN), ['check_history', 'git_tokens', 'github_cooldowns', 'incident_checkpoints', 'incidents', 'installation_settings', 'login_limits', 'notification_checkpoints', 'notification_settings', 'notification_slots', 'sites', 'users', 'worker_progress', 'worker_runtime']);
-                Assert::same($db->query('PRAGMA foreign_key_check')->fetchAll(), []);
-                Assert::same($db->query('PRAGMA journal_mode')->fetchColumn(), $path === ':memory:' ? 'memory' : 'wal');
+                Assert::same(\Tablo\SqlStatement::checked($db->query('PRAGMA foreign_key_check'))->fetchAll(), []);
+                Assert::same(\Tablo\SqlStatement::checked($db->query('PRAGMA journal_mode'))->fetchColumn(), $path === ':memory:' ? 'memory' : 'wal');
                 unset($db);
             }
             $db = Database::connect($directory->path . '/nested/test.sqlite');
-            Assert::same($db->query('PRAGMA journal_mode')->fetchColumn(), 'wal');
-            Assert::same((int) $db->query('PRAGMA user_version')->fetchColumn(), Database::CURRENT_SCHEMA_VERSION);
+            Assert::same(\Tablo\SqlStatement::checked($db->query('PRAGMA journal_mode'))->fetchColumn(), 'wal');
+            Assert::same((int) \Tablo\SqlStatement::checked($db->query('PRAGMA user_version'))->fetchColumn(), Database::CURRENT_SCHEMA_VERSION);
         } finally {
             unset($db);
             $directory->close();

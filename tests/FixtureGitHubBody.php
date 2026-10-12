@@ -16,7 +16,7 @@ case (str_ends_with($path, '/branches')):
     break;
 case (str_contains($path, '/branches/')):
 
-            $branch = rawurldecode(substr($path, strpos($path, needle: '/branches/') + 10));
+            $branch = rawurldecode(substr($path, \Tablo\Tests\Support\FixtureValue::integer(strpos($path, needle: '/branches/')) + 10));
             if (!in_array($branch, $branches, strict: true)) { $response->status = 404; }
             $response->body = ['name' => $branch, 'commit' => ['sha' => $sha]];
 

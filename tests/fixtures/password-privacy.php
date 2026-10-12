@@ -12,14 +12,14 @@ try {
     $auth = new Tablo\Auth($db);
     $auth->setup('fixture-private-password', 'fixture-private-password');
     $fingerprint = $auth->credentialFingerprint();
-    $hash = $db->query('SELECT password_hash FROM users')->fetchColumn();
+    $hash = \Tablo\Tests\Support\FixtureValue::string(\Tablo\SqlStatement::checked($db->query('SELECT password_hash FROM users'))->fetchColumn());
     $db->exec("CREATE TRIGGER block_update BEFORE UPDATE ON users BEGIN SELECT RAISE(ABORT, 'private-trigger-text'); END");
     $actions = [
         fn () => Tablo\PasswordService::hash('fixture-private-password', 'fixture-private-confirmation'),
         fn () => Tablo\PasswordService::hash("fixture-private\0password", "fixture-private\0password"),
         fn () => $auth->setup('fixture-private-password', 'fixture-private-password'),
         fn () => $auth->setupSession('fixture-private-password', 'fixture-private-password'),
-        fn () => $auth->changePassword('fixture-new-private-password', 'fixture-new-private-password', $fingerprint),
+        fn () => $auth->changePassword('fixture-new-private-password', 'fixture-new-private-password', \Tablo\Tests\Support\FixtureValue::string($fingerprint)),
         fn () => Tablo\Database::openExisting('file:' . $directory->path . '/fixture.sqlite?mode=fixture-private-confirmation'),
     ];
     for ($i = 0; $i < 5; $i++) { $auth->login('wrong', 'blocked'); }
@@ -34,7 +34,7 @@ try {
         }
         foreach (['fixture-private-password', 'fixture-private-confirmation', 'fixture-new-private-password',
             'private-trigger-text', $fingerprint, $hash] as $secret) {
-            if (str_contains($complete, $secret)) { throw new RuntimeException('Complete trace privacy failed'); }
+            if (str_contains($complete, \Tablo\Tests\Support\FixtureValue::string($secret))) { throw new RuntimeException('Complete trace privacy failed'); }
             ++$checks;
         }
         $caught = null;
@@ -42,13 +42,13 @@ try {
     foreach ([['setup', [0, 1]], ['setupSession', [0, 1]], ['login', [0]], ['loginSession', [0]], ['changePassword', [0, 1, 2]]] as [$method, $positions]) {
         $parameters = (new ReflectionMethod(Tablo\Auth::class, $method))->getParameters();
         foreach ($positions as $position) {
-            if (count($parameters[$position]->getAttributes(SensitiveParameter::class)) !== 1) { throw new RuntimeException('Sensitive wrapper missing'); }
+            if (count(\Tablo\Tests\Support\FixtureValue::object(\Tablo\Tests\Support\FixtureValue::at($parameters, $position))->getAttributes(SensitiveParameter::class)) !== 1) { throw new RuntimeException('Sensitive wrapper missing'); }
             ++$checks;
         }
     }
     foreach ([[Tablo\Database::class, 'connect'], [Tablo\Database::class, 'openExisting'], [Tablo\ExistingConnection::class, 'resolvePath'], [Tablo\ExistingConnection::class, 'validateExistingUri'], [Tablo\ExistingConnection::class, 'refuseExistingFailure']] as [$owner, $method]) {
-        $parameter = (new ReflectionMethod($owner, $method))->getParameters()[0];
-        if (count($parameter->getAttributes(SensitiveParameter::class)) !== 1) { throw new RuntimeException('Sensitive connection wrapper missing'); }
+        $parameter = \Tablo\Tests\Support\FixtureValue::at((new ReflectionMethod($owner, $method))->getParameters(), 0);
+        if (count(\Tablo\Tests\Support\FixtureValue::object($parameter)->getAttributes(SensitiveParameter::class)) !== 1) { throw new RuntimeException('Sensitive connection wrapper missing'); }
         ++$checks;
     }
     echo 'Complete propagated/previous traces redacted; ' . $checks . " checks.\n";

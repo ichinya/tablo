@@ -9,6 +9,6 @@ final class WorkerKeyObservation extends WorkerFailureFixtureCase
     public static function read(TemporaryDirectory $directory, \PDO $db): array
     {
         return [self::requests($directory),
-            (int) $db->query('SELECT COUNT(*) FROM sites WHERE checked_at IS NOT NULL')->fetchColumn()];
+            (int) \Tablo\SqlStatement::checked($db->query('SELECT COUNT(*) FROM sites WHERE checked_at IS NOT NULL'))->fetchColumn()];
     }
 }

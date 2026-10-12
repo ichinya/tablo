@@ -19,6 +19,7 @@ final class PasswordProcess
 
     public function send(#[\SensitiveParameter] string $input): void { $this->child->send($input); }
 
+    /** @return array{'exit_code': int|null, 'files': array{'receipt': string, 'stderr': string, 'stdout': string}, 'stderr': string, 'stdout': string} */
     public function finish(float $timeout = 8): array { return $this->child->finish($timeout); }
 
     public function close(?Throwable $primary = null): void { $this->child->close($primary); }

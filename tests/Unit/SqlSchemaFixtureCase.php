@@ -17,14 +17,16 @@ abstract class SqlSchemaFixtureCase extends CompositionSchemaFixtureCase
         return $db;
     }
 
+    /** @param (callable(string): string)|null $transform */
     protected static function redeclare(MigrationPdo $db, string $declaration, ?callable $transform = null): void
     {
-        $sql = $db->query("SELECT sql FROM sqlite_schema WHERE name='check_history'")->fetchColumn();
+        $sql = \Tablo\Tests\Support\FixtureValue::string(\Tablo\SqlStatement::checked($db->query("SELECT sql FROM sqlite_schema WHERE name='check_history'"))->fetchColumn());
+        $count = 0;
         $sql = str_replace('id INTEGER PRIMARY KEY AUTOINCREMENT', $declaration, $sql, $count);
         Assert::same($count, 1);
         if ($transform !== null) { $sql = $transform($sql); }
         $db->exec('DROP TABLE check_history');
-        $db->exec($sql);
+        $db->exec(\Tablo\Tests\Support\FixtureValue::string($sql));
         $db->exec('CREATE INDEX check_history_site_time ON check_history(site_id,checked_at,id)');
         $db->exec('CREATE INDEX check_history_time ON check_history(checked_at,id)');
     }

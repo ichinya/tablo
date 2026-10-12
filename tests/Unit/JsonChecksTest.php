@@ -32,9 +32,9 @@ final class JsonChecksTest extends JsonCheckFixtureCase
         foreach ($cases as [$operator, $value, $expected, $passes]) {
             $state = $this->check(json_encode(['value' => $value], JSON_THROW_ON_ERROR),
                 ['health_json_operator' => $operator, 'health_json_expected_value' => $expected]);
-            Assert::same($state['online'], (int) $passes, 'condition ' . $operator . ' against ' . $expected);
-            Assert::same($state['last_error'] === null, $passes, 'false comparisons report health failure');
-            Assert::same($state['deployed_version'], '1.2.3', 'comparison did not stop version');
+            Assert::same(\Tablo\Tests\Support\FixtureValue::at($state, 'online'), (int) $passes, 'condition ' . $operator . ' against ' . $expected);
+            Assert::same(\Tablo\Tests\Support\FixtureValue::at($state, 'last_error') === null, $passes, 'false comparisons report health failure');
+            Assert::same(\Tablo\Tests\Support\FixtureValue::at($state, 'deployed_version'), '1.2.3', 'comparison did not stop version');
         }
     }
 
@@ -47,11 +47,11 @@ final class JsonChecksTest extends JsonCheckFixtureCase
             'a"b' => 'ok', 'a\b' => 'ok', '0' => 'ok', 'ключ' => 'ok', '' => 'ok'], JSON_THROW_ON_ERROR);
         foreach (['$.checks[0].status', '$["service.status"]', '$["a\"b"]', '$["a\\\\b"]',
             '$["0"]', '$["ключ"]', '$[""]'] as $path) {
-            Assert::same($this->check($body, ['health_json_path' => $path])['online'], 1, $path);
+            Assert::same(\Tablo\Tests\Support\FixtureValue::at($this->check($body, ['health_json_path' => $path]), 'online'), 1, $path);
         }
-        Assert::same($this->check('"ok"', ['health_json_path' => '$'])['online'], 1, 'root scalar');
-        Assert::same($this->check('["ok"]', ['health_json_path' => '$[0]'])['online'], 1, 'root array element');
-        Assert::same($this->check('{"0":"ok"}', ['health_json_path' => '$[0]'])['online'], null, 'object is not an array');
-        Assert::same($this->check('["ok"]', ['health_json_path' => '$["0"]'])['online'], null, 'array is not an object');
+        Assert::same(\Tablo\Tests\Support\FixtureValue::at($this->check('"ok"', ['health_json_path' => '$']), 'online'), 1, 'root scalar');
+        Assert::same(\Tablo\Tests\Support\FixtureValue::at($this->check('["ok"]', ['health_json_path' => '$[0]']), 'online'), 1, 'root array element');
+        Assert::same(\Tablo\Tests\Support\FixtureValue::at($this->check('{"0":"ok"}', ['health_json_path' => '$[0]']), 'online'), null, 'object is not an array');
+        Assert::same(\Tablo\Tests\Support\FixtureValue::at($this->check('["ok"]', ['health_json_path' => '$["0"]']), 'online'), null, 'array is not an object');
     }
 }

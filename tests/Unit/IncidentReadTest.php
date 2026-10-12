@@ -26,7 +26,7 @@ final class IncidentReadTest
         $read = new IncidentRepository($db);
         $first = $read->page();
         Assert::same(count($first['rows']), 50);
-        Assert::true(strlen($first['next_cursor']) <= 256);
+        Assert::true(strlen(\Tablo\Tests\Support\FixtureValue::string($first['next_cursor'])) <= 256);
         F::accept($sites, $id, 0, '2025-01-01T00:00:00Z');
         $second = $read->page(cursor: $first['next_cursor']);
         $third = $read->page(cursor: $second['next_cursor']);
@@ -37,7 +37,7 @@ final class IncidentReadTest
         Assert::false(in_array(231, $ids, strict: true));
         Assert::same(count($read->page(limit: 100)['rows']), 100);
         $scoped = $read->page($id, 1);
-        Assert::same($scoped['rows'][0]['site_id'], $id);
+        Assert::same(\Tablo\Tests\Support\FixtureValue::at($scoped['rows'], 0)['site_id'], $id);
         Assert::instanceOf(F::error(static fn () => $read->page($other, 1, $scoped['next_cursor'])), \InvalidArgumentException::class);
         $before = F::rows($db);
         $db->exec('PRAGMA query_only=ON');
@@ -46,7 +46,7 @@ final class IncidentReadTest
         $db->exec('PRAGMA query_only=OFF');
         $sites->delete($other);
         Assert::instanceOf(F::error(static fn () => $read->page($other)), \OutOfBoundsException::class);
-        Assert::same($read->page(cursor: $first['next_cursor'])['rows'][0]['site_id'], $id);
+        Assert::same(\Tablo\Tests\Support\FixtureValue::at($read->page(cursor: $first['next_cursor'])['rows'], 0)['site_id'], $id);
     }
 
     #[Test]
@@ -71,7 +71,7 @@ final class IncidentReadTest
             ['SELECT * FROM incidents WHERE site_id=1 AND id<=20 AND id<10 ORDER BY id DESC LIMIT 51', 'incidents_site_id'],
             ['SELECT * FROM incidents WHERE id<=20 AND id<10 ORDER BY id DESC LIMIT 51', 'INTEGER PRIMARY KEY'],
         ] as [$sql, $index]) {
-            $plan = implode(' ', array_column($db->query('EXPLAIN QUERY PLAN ' . $sql)->fetchAll(), 'detail'));
+            $plan = implode(' ', array_map(static fn (array $row): string => \Tablo\SqlColumn::string($row, 'detail'), \Tablo\SqlRows::all(\Tablo\SqlStatement::checked($db->query('EXPLAIN QUERY PLAN ' . $sql))->fetchAll(), \Tablo\JsonRecord::checked(...))));
             Assert::true(str_contains($plan, $index), $plan);
             Assert::false(str_contains($plan, 'TEMP B-TREE'));
         }

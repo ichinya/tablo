@@ -3,10 +3,10 @@ declare(strict_types=1);
 
 // Fresh CLI process using the real connection, vault, persisted policy and cURL adapter.
 require dirname(__DIR__, levels: 2) . '/vendor/autoload.php';
-$db = Tablo\Database::connect(getenv('TABLO_TEST_BUDGET_DB'));
-$vault = new Tablo\TokenVault(getenv('TABLO_TEST_BUDGET_KEY'));
+$db = Tablo\Database::connect(\Tablo\Tests\Support\FixtureValue::string(getenv('TABLO_TEST_BUDGET_DB')));
+$vault = new Tablo\TokenVault(\Tablo\Tests\Support\FixtureValue::string(getenv('TABLO_TEST_BUDGET_KEY')));
 $sites = new Tablo\SiteRepository($db, $vault);
-$http = new Tablo\Tests\Support\MeasuredGitHubHttp(getenv('TABLO_TEST_BUDGET_BASE'));
+$http = new Tablo\Tests\Support\MeasuredGitHubHttp(\Tablo\Tests\Support\FixtureValue::string(getenv('TABLO_TEST_BUDGET_BASE')));
 $connection = new Tablo\GitHubConnection($sites, $http);
 $outcomes = [];
 foreach ($sites->all() as $site) {

@@ -14,6 +14,7 @@ use Tablo\Tests\Support\TestServer;
 use Testo\Assert;
 use Testo\Test;
 
+/** @phpstan-import-type Endpoint from \Tablo\Tests\Support\FixtureWireRows */
 final class EndpointTokenStatusTest
 {
     #[Test]
@@ -30,7 +31,7 @@ final class EndpointTokenStatusTest
             $home = $checker->check([...$site, 'health_path' => '', 'health_check_mode' => 'json', 'health_json_path' => '$.missing']);
             Assert::same($home['online'], 1);
             $rows = self::rows($directory);
-            Assert::same($rows[count($rows)-1]['path'], '/home///');
+            Assert::same(\Tablo\Tests\Support\FixtureValue::at($rows, count($rows)-1)['path'], '/home///');
             Assert::same(count(array_filter($rows, static fn (array $row): bool => $row['path'] === '/destination')), 2,
                 'only the two explicit endpoints follow; homepage redirects stay no-follow');
             foreach ([['==', 'ok', '$.result'], ['!=', 'bad', '$.result'], ['contains', 'o', '$.result'],
@@ -44,9 +45,10 @@ final class EndpointTokenStatusTest
         } finally { $vault = null; $checker = null; $server?->close(); $directory->close(); }
     }
 
+    /** @return list<Endpoint> */
     private static function rows(TemporaryDirectory $directory): array
     {
         $file = $directory->path . '/requests.jsonl';
-        return is_file($file) ? array_map(static fn (string $line): array => json_decode($line, associative: true, depth: 8, flags: JSON_THROW_ON_ERROR), file($file, FILE_IGNORE_NEW_LINES)) : [];
+        return is_file($file) ? array_map(\Tablo\Tests\Support\FixtureWireRows::endpoint(...), \Tablo\Tests\Support\FixtureValue::fetched(file($file, FILE_IGNORE_NEW_LINES))) : [];
     }
 }

@@ -3,11 +3,20 @@ declare(strict_types=1);
 
 namespace Tablo;
 
+/**
+ * @phpstan-import-type CheckResult from CheckState
+ * @phpstan-import-type HttpResponse from HttpClient
+ */
 final class EndpointHealthStatus
 {
+    /**
+     * @param CheckResult $state
+     * @param HttpResponse $response
+     * @param list<string> $errors
+     */
     public static function apply(#[\SensitiveParameter] array $site,#[\SensitiveParameter] array $response,#[\SensitiveParameter] array &$state,#[\SensitiveParameter] array &$errors): bool
     {
-        $homePage = $site['health_path'] === '';
+        $homePage = SiteCheckInput::text($site, 'health_path') === '';
             $state['health_http_status'] = $response['status'];
             $state['online'] = (int) ($homePage ? $response['status'] === 200
                 : ($response['status'] >= 200 && $response['status'] < 300));

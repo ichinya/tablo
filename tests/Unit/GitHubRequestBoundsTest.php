@@ -29,19 +29,19 @@ final class GitHubRequestBoundsTest extends GitHubBudgetFixtureCase
         $policy = new GitHubRequestPolicy(durationMs: 1, clock: new GitHubClock(static function () use (&$clock): int { return $clock; }));
         $clock = 1_000_000;
         self::failure(static fn () => $policy->before('core', PHP_INT_MAX), 'budget');
-        $loads = 0;
+        $loads = new \Tablo\Tests\Support\FixtureCounter();
         $memo = new GitHubRequestPolicy(maxEntries: 2);
-        $loader = static function () use (&$loads): int { return ++$loads; };
+        $loader = static function () use (&$loads): int { return $loads->increment(); };
         foreach (['one', 'two', 'three', 'one'] as $key) { $memo->remember($memo->identity(\Tablo\Tests\Support\FixtureCredentials::value(label: 'synthetic-secret')), $key, $loader); }
-        Assert::same($loads, 4, 'oldest entries evicted');
+        Assert::same($loads->value(), 4, 'oldest entries evicted');
         $memo->remember($memo->identity(\Tablo\Tests\Support\FixtureCredentials::value(label: 'synthetic-secret')), 'one', $loader);
-        Assert::same($loads, 4, 'current entry reused');
+        Assert::same($loads->value(), 4, 'current entry reused');
         $memo->invalidate($memo->identity(\Tablo\Tests\Support\FixtureCredentials::value(label: 'synthetic-secret')));
         $memo->remember($memo->identity(\Tablo\Tests\Support\FixtureCredentials::value(label: 'synthetic-secret')), 'one', $loader);
-        Assert::same($loads, 5);
-        $entries = (new \ReflectionProperty($memo, 'memo'))->getValue($memo);
-        $keys = array_keys((new \ReflectionProperty($entries, 'memo'))->getValue($entries));
-        Assert::false(str_contains(json_encode($keys), \Tablo\Tests\Support\FixtureCredentials::value(label: 'synthetic-secret')));
+        Assert::same($loads->value(), 5);
+        $entries = \Tablo\Tests\Support\FixtureNative::object((new \ReflectionProperty($memo, 'memo'))->getValue($memo));
+        $keys = array_keys(\Tablo\JsonRecord::checked((new \ReflectionProperty($entries, 'memo'))->getValue($entries)));
+        Assert::false(str_contains(\Tablo\Tests\Support\FixtureValue::string(json_encode($keys)), \Tablo\Tests\Support\FixtureCredentials::value(label: 'synthetic-secret')));
     }
 
 

@@ -3,21 +3,23 @@ declare(strict_types=1);
 
 namespace Tablo;
 
+/** @phpstan-import-type Record from SqlNotificationSettingsActivationIdBearerCipherBlockedRow as Settings */
 final class NotificationMaintenance
 {
     public function __construct(private readonly \PDO $db) {}
+    /** @param Settings $settings */
     public function maintain(#[\SensitiveParameter] array $settings,int $now): void
     {
         $store = new NotificationProjectionStore($this->db);
-        $query=$this->db->prepare("SELECT n.*,s.enabled AS site_enabled,s.config_revision AS current_revision
+        $query=\Tablo\SqlStatement::checked($this->db->prepare("SELECT n.*,s.enabled AS site_enabled,s.config_revision AS current_revision
             FROM notification_slots n LEFT JOIN sites s ON s.id=n.site_id WHERE
             (n.status='pending' AND n.due_at<=? AND (n.expires_at<=? OR n.attempts>=3 OR n.channel_revision<>?
                 OR s.id IS NULL OR s.enabled<>1 OR s.config_revision<>n.config_revision
                 OR (n.event='unavailable' AND CAST(? AS INTEGER)=0) OR (n.event='recovery' AND CAST(? AS INTEGER)=0) OR (n.event='version_lag' AND CAST(? AS INTEGER)=0)))
-            OR (n.status='inflight' AND n.lease_until<=?) ORDER BY n.due_at,n.site_id,n.event LIMIT 32");
+            OR (n.status='inflight' AND n.lease_until<=?) ORDER BY n.due_at,n.site_id,n.event LIMIT 32"));
         try {
             $query->execute([$now,$now,$settings['revision'],$settings['unavailable'],$settings['recovery'],$settings['version_lag'],$now]);
-            $rows=$query->fetchAll();
+            $rows=SqlRows::all($query->fetchAll(), NotificationMaintenanceRow::checked(...));
         } finally { $query->closeCursor(); }
         foreach($rows as $slot){
             $status = NotificationMaintenanceStatus::classify($slot,$settings,$now);

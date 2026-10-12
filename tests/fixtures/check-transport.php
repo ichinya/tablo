@@ -13,7 +13,7 @@ function dns_get_record(string $host, int $type = DNS_ANY): array|false
 function curl_init(?string $url = null): \CurlHandle|false
 {
     if (is_string($url) && str_starts_with($url, 'https://api.github.com/')) {
-        $url = getenv('TABLO_CHECK_PEER') . substr($url, strlen('https://api.github.com'));
+        $url = \Tablo\Tests\Support\FixtureValue::string(getenv('TABLO_CHECK_PEER')) . substr($url, strlen('https://api.github.com'));
     }
     return \curl_init($url);
 }

@@ -3,15 +3,21 @@ declare(strict_types=1);
 
 namespace Tablo;
 
+/**
+ * @phpstan-import-type Version from Presenter
+ */
 final class ReleasePresentation
 {
+    /**
+     * @param Version $site
+     */
     public static function apply(array &$site): void
     {
             $a = $site['deployed_version'];
             $b = $site['latest_release'];
             if ($a !== null && $b !== null) {
-                $a = preg_replace('/^v(?=\d)/i', replacement: '', subject: $a);
-                $b = preg_replace('/^v(?=\d)/i', replacement: '', subject: $b);
+                $a = RegexReplacement::text(preg_replace('/^v(?=\d)/i', replacement: '', subject: $a));
+                $b = RegexReplacement::text(preg_replace('/^v(?=\d)/i', replacement: '', subject: $b));
                 if ($a === $b) {
                     $site['comparison'] = 'Актуальная версия';
                     $site['comparison_tone'] = 'green';

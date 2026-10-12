@@ -13,7 +13,7 @@ final class NotificationMigrationTest
 {
     private static function predecessor(): MigrationPdo
     {
-        $db=new MigrationPdo(':memory:'); $db->exec(file_get_contents(dirname(__DIR__) . '/fixtures/historical-schema/incident6.sql'));
+        $db=new MigrationPdo(':memory:'); $db->exec(\Tablo\RequiredFile::bytes(file_get_contents(dirname(__DIR__) . '/fixtures/historical-schema/incident6.sql')));
         return $db;
     }
 
@@ -22,22 +22,22 @@ final class NotificationMigrationTest
     {
         foreach (['CREATE TABLE notification_settings','CREATE TABLE notification_checkpoints','CREATE TABLE notification_slots',
             'CREATE INDEX notification_due','CREATE INDEX notification_eligible','PRAGMA main.user_version = 8','COMMIT'] as $failure) {
-            $db=self::predecessor(); $before=$db->query('SELECT name,type,sql FROM sqlite_schema ORDER BY name')->fetchAll();
+            $db=self::predecessor(); $before=\Tablo\SqlStatement::checked($db->query('SELECT name,type,sql FROM sqlite_schema ORDER BY name'))->fetchAll();
             $db->failBefore=$failure;
             Assert::instanceOf(IncidentFixtures::error(static fn()=>Database::migrate($db)),\PDOException::class);
-            Assert::same((int)$db->query('PRAGMA user_version')->fetchColumn(),6);
-            Assert::same($db->query('SELECT name,type,sql FROM sqlite_schema ORDER BY name')->fetchAll(),$before);
+            Assert::same((int)\Tablo\SqlStatement::checked($db->query('PRAGMA user_version'))->fetchColumn(),6);
+            Assert::same(\Tablo\SqlStatement::checked($db->query('SELECT name,type,sql FROM sqlite_schema ORDER BY name'))->fetchAll(),$before);
             $db->failBefore=null; Database::migrate($db);
-            Assert::same($db->query('PRAGMA foreign_key_check')->fetchAll(),[]);
+            Assert::same(\Tablo\SqlStatement::checked($db->query('PRAGMA foreign_key_check'))->fetchAll(),[]);
         }
         foreach (['CREATE TABLE notification_settings(bad TEXT)','CREATE VIEW notification_settings AS SELECT 1',
             'CREATE TABLE notification_checkpoints(bad TEXT)','CREATE VIEW notification_slots AS SELECT 1',
             'CREATE INDEX notification_due ON sites(id)','CREATE INDEX notification_eligible ON sites(id)'] as $conflict) {
             $db=self::predecessor(); $db->exec($conflict);
-            $before=$db->query('SELECT name,type,sql FROM sqlite_schema ORDER BY name')->fetchAll();
+            $before=\Tablo\SqlStatement::checked($db->query('SELECT name,type,sql FROM sqlite_schema ORDER BY name'))->fetchAll();
             Assert::instanceOf(IncidentFixtures::error(static fn()=>Database::migrate($db)),\RuntimeException::class);
-            Assert::same((int)$db->query('PRAGMA user_version')->fetchColumn(),6);
-            Assert::same($db->query('SELECT name,type,sql FROM sqlite_schema ORDER BY name')->fetchAll(),$before);
+            Assert::same((int)\Tablo\SqlStatement::checked($db->query('PRAGMA user_version'))->fetchColumn(),6);
+            Assert::same(\Tablo\SqlStatement::checked($db->query('SELECT name,type,sql FROM sqlite_schema ORDER BY name'))->fetchAll(),$before);
         }
     }
 
@@ -53,16 +53,16 @@ final class NotificationMigrationTest
         Database::migrate($db);
         $after=IncidentFixtures::rows($db);
         foreach ($rows as $table => $values) {
-            foreach ($values as $index => $row) { Assert::same(array_intersect_key($after[$table][$index],$row),$row); }
+            foreach ($values as $index => $row) { Assert::same(array_intersect_key(\Tablo\Tests\Support\FixtureValue::at(\Tablo\Tests\Support\FixtureValue::at($after, $table), $index),$row),$row); }
         }
-        Assert::same($db->query('SELECT * FROM notification_slots')->fetchAll(),[]);
-        Assert::same($db->query('SELECT * FROM notification_checkpoints')->fetchAll(),[]);
-        Assert::same($db->query('SELECT enabled FROM notification_settings')->fetchColumn(),0);
-        Assert::same((int)$db->query('PRAGMA user_version')->fetchColumn(),Database::CURRENT_SCHEMA_VERSION);
-        $settings=$db->query('SELECT * FROM notification_settings')->fetch(); Database::migrate($db);
-        Assert::same($db->query('SELECT * FROM notification_settings')->fetch(),$settings);
-        Assert::same($db->query('PRAGMA foreign_key_check')->fetchAll(),[]);
+        Assert::same(\Tablo\SqlStatement::checked($db->query('SELECT * FROM notification_slots'))->fetchAll(),[]);
+        Assert::same(\Tablo\SqlStatement::checked($db->query('SELECT * FROM notification_checkpoints'))->fetchAll(),[]);
+        Assert::same(\Tablo\SqlStatement::checked($db->query('SELECT enabled FROM notification_settings'))->fetchColumn(),0);
+        Assert::same((int)\Tablo\SqlStatement::checked($db->query('PRAGMA user_version'))->fetchColumn(),Database::CURRENT_SCHEMA_VERSION);
+        $settings=\Tablo\Tests\Support\FixtureValue::databaseRow(\Tablo\SqlStatement::checked($db->query('SELECT * FROM notification_settings'))->fetch()); Database::migrate($db);
+        Assert::same(\Tablo\SqlStatement::checked($db->query('SELECT * FROM notification_settings'))->fetch(),$settings);
+        Assert::same(\Tablo\SqlStatement::checked($db->query('PRAGMA foreign_key_check'))->fetchAll(),[]);
         (new \Tablo\SiteRepository($db))->delete(1);
-        Assert::same($db->query('SELECT * FROM notification_checkpoints')->fetchAll(),[]);
+        Assert::same(\Tablo\SqlStatement::checked($db->query('SELECT * FROM notification_checkpoints'))->fetchAll(),[]);
     }
 }

@@ -30,28 +30,30 @@ final class AdminPasswordTest extends PasswordHttpFixtureCase
                 response_time_ms=42, last_error='synthetic-error', checked_at='2026-10-09T00:00:00Z',
                 health_error_code='http_error', health_http_status=503");
             $tables = [];
-            foreach (['sites', 'git_tokens', 'login_limits'] as $table) { $tables[$table] = $db->query('SELECT * FROM ' . $table)->fetchAll(); }
-            Assert::same(count($tables['sites']), 1);
-            Assert::same(count($tables['git_tokens']), 1);
+            foreach (['sites', 'git_tokens', 'login_limits'] as $table) { $tables[$table] = \Tablo\SqlStatement::checked($db->query('SELECT * FROM ' . $table))->fetchAll(); }
+            Assert::same(count(\Tablo\Tests\Support\FixtureValue::at($tables, 'sites')), 1);
+            Assert::same(count(\Tablo\Tests\Support\FixtureValue::at($tables, 'git_tokens')), 1);
             $keyPath = $web->directory->path . '/github-token.key';
             $key = file_get_contents($keyPath);
-            $created = $db->query('SELECT created_at FROM users')->fetchColumn();
-            $oldHash = $db->query('SELECT password_hash FROM users')->fetchColumn();
+            $created = \Tablo\Tests\Support\FixtureValue::string(\Tablo\SqlStatement::checked($db->query('SELECT created_at FROM users'))->fetchColumn());
+            $oldHash = \Tablo\Tests\Support\FixtureValue::string(\Tablo\SqlStatement::checked($db->query('SELECT password_hash FROM users'))->fetchColumn());
             Assert::same(self::reset($web)['exit_code'], 0);
-            foreach ($tables as $table => $rows) { Assert::same($db->query('SELECT * FROM ' . $table)->fetchAll(), $rows); }
+            foreach ($tables as $table => $rows) { Assert::same(\Tablo\SqlStatement::checked($db->query('SELECT * FROM ' . $table))->fetchAll(), $rows); }
             Assert::same(file_get_contents($keyPath), $key);
-            Assert::same($db->query('SELECT created_at FROM users')->fetchColumn(), $created);
+            Assert::same(\Tablo\SqlStatement::checked($db->query('SELECT created_at FROM users'))->fetchColumn(), $created);
             $vault = \Tablo\TokenVault::forDatabase($db);
-            Assert::same($vault->decrypt($tables['git_tokens'][0]['encrypted_token']), \Tablo\Tests\Support\FixtureCredentials::value(label: 'fixture-token'));
-            Assert::same($vault->decrypt($tables['sites'][0]['github_token']), \Tablo\Tests\Support\FixtureCredentials::value(label: 'fixture-token'));
+            Assert::same($vault->decrypt(\Tablo\SqlColumn::string(\Tablo\JsonRecord::checked(\Tablo\Tests\Support\FixtureValue::at(\Tablo\Tests\Support\FixtureValue::at($tables, 'git_tokens'), 0)), 'encrypted_token')), \Tablo\Tests\Support\FixtureCredentials::value(label: 'fixture-token'));
+            Assert::same($vault->decrypt(\Tablo\SqlColumn::string(\Tablo\JsonRecord::checked(\Tablo\Tests\Support\FixtureValue::at(\Tablo\Tests\Support\FixtureValue::at($tables, 'sites'), 0)), 'github_token')), \Tablo\Tests\Support\FixtureCredentials::value(label: 'fixture-token'));
             $vault = null;
             (new ProtectedRouteRevocationAssertions($web, $db))->all($csrf, $tables);
             Assert::same(self::login($web, \Tablo\Tests\Support\FixtureCredentials::value(label: 'fixture-password'))['status'], 422);
             Assert::same(self::login($web, \Tablo\Tests\Support\FixtureCredentials::value(label: 'replacement-secret'))['status'], 303);
             Assert::same($web->request('/')['status'], 200);
             Assert::true(WebFixture::csrf($web->request('/')) !== $csrf);
-            foreach (glob($web->directory->path . '/runtime/sessions/sess_*') as $session) {
-                $contents = file_get_contents($session);
+            $sessions = glob($web->directory->path . '/runtime/sessions/sess_*');
+            if ($sessions === false) { throw new \RuntimeException('Cannot enumerate owned browser sessions.'); }
+            foreach ($sessions as $session) {
+                $contents = \Tablo\RequiredFile::bytes(file_get_contents($session));
                 Assert::true(!str_contains($contents, $oldHash) && !str_contains($contents, \Tablo\Tests\Support\FixtureCredentials::value(label: 'replacement-secret')));
             }
         } finally { $db = null; $web->close(); }
@@ -67,17 +69,17 @@ final class AdminPasswordTest extends PasswordHttpFixtureCase
         try {
             $csrf = $web->authenticate();
             $db = $web->database();
-            $old = $db->query('SELECT * FROM users')->fetchAll();
+            $old = \Tablo\SqlRows::all(\Tablo\SqlStatement::checked($db->query('SELECT * FROM users'))->fetchAll(), \Tablo\SqlUsersCreatedAtIdPasswordHashRow::checked(...));
             $db->exec('BEGIN IMMEDIATE');
             $snapshot = (new Auth($db))->credentialFingerprint();
             // Writer retains id=1; another connection sees its committed old row.
-            $db->prepare('UPDATE users SET password_hash=? WHERE id=1')->execute([password_hash(\Tablo\Tests\Support\FixtureCredentials::value(label: 'replacement-secret'), PASSWORD_DEFAULT)]);
+            \Tablo\SqlStatement::checked($db->prepare('UPDATE users SET password_hash=? WHERE id=1'))->execute([password_hash(\Tablo\Tests\Support\FixtureCredentials::value(label: 'replacement-secret'), PASSWORD_DEFAULT)]);
             foreach ([true, false] as $cookie) {
                 foreach ([null, [], ['_csrf' => $csrf]] as $data) { Assert::same($web->request(path: '/setup', data: $data, options: new \Tablo\Tests\Support\WebRequestOptions(cookies: ($cookie) ? \Tablo\Tests\Support\CookiePolicy::Retained : \Tablo\Tests\Support\CookiePolicy::Omitted))['status'], 404); }
             }
             Assert::same($web->request('/')['status'], 200, 'old committed snapshot remains admitted during writer');
             $db->exec('ROLLBACK');
-            Assert::same($db->query('SELECT * FROM users')->fetchAll(), $old);
+            Assert::same(\Tablo\SqlRows::all(\Tablo\SqlStatement::checked($db->query('SELECT * FROM users'))->fetchAll(), \Tablo\SqlUsersCreatedAtIdPasswordHashRow::checked(...)), $old);
             Assert::same((new Auth($db))->credentialFingerprint(), $snapshot);
             $db->exec("CREATE TRIGGER block_reset BEFORE UPDATE ON users BEGIN SELECT RAISE(ABORT, 'synthetic failure'); END");
             Assert::same(self::reset($web)['exit_code'], 1);

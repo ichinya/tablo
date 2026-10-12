@@ -5,11 +5,18 @@ namespace Tablo\Tools;
 
 use RuntimeException;
 
+require_once __DIR__ . '/MagoProcessClosure.php';
+
 /** Direct argv and complete independent streams for the small tool boundary. */
 final class MagoProcess
 {
+    /**
+     * @param list<string> $command
+     * @return array{exit: int, stdout: string, stderr: string, pid: int, initial_exit: int, proc_close: int}
+     */
     public static function capture(array $command, string $root): array
     {
+        if ($root === '') { throw new RuntimeException('Mago workspace is required.'); }
         $stdout = tmpfile();
         $stderr = tmpfile();
         if (!is_resource($stdout) || !is_resource($stderr)) {
@@ -17,6 +24,7 @@ final class MagoProcess
             throw new RuntimeException('Cannot reserve Mago capture streams.');
         }
         $process = null;
+        $pipes = [];
         try {
             $environment = getenv();
             foreach (array_keys($environment) as $name) {
@@ -38,11 +46,12 @@ final class MagoProcess
             return ['exit' => $exit, 'stdout' => $out, 'stderr' => $err, 'pid' => $initial['pid'],
                 'initial_exit' => $initial['exitcode'], 'proc_close' => $closed];
         } finally {
-            if (is_resource($process)) { proc_terminate($process); proc_close($process); }
+            MagoProcessClosure::close($process);
             fclose($stdout); fclose($stderr);
         }
     }
 
+    /** @param array{running: bool, exitcode: int, ...} $initial */
     private static function exitCode(array $initial, int $closed): int
     {
         if (!$initial['running'] && $initial['exitcode'] !== -1) { return $initial['exitcode']; }
@@ -54,4 +63,5 @@ final class MagoProcess
     {
         if (is_resource($stream)) { fclose($stream); }
     }
+
 }

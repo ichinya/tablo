@@ -18,7 +18,7 @@ final class HealthFormAssertions
         Assert::same($this->web->request('/sites/1/edit', $input)['status'], 422, 'JSON settings become active when path is set');
         $input['health_check_mode'] = 'http';
         Assert::same($this->web->request('/sites/1/edit', $input)['status'], 303);
-        Assert::same($this->web->database()->query('SELECT health_error_code,health_http_status,checked_at FROM sites')->fetch(),
+        Assert::same(\Tablo\SqlRows::one(\Tablo\SqlStatement::checked($this->web->database()->query('SELECT health_error_code,health_http_status,checked_at FROM sites'))->fetch(), \Tablo\SqlSitesCheckedAtHealthErrorCodeHealthHttpStatusRow::checked(...)),
             ['health_error_code' => null, 'health_http_status' => null, 'checked_at' => null]);
 
     }

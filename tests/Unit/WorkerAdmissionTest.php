@@ -45,17 +45,17 @@ final class WorkerAdmissionTest
         $result = (new SiteChecker(new FakeHttp([UnitFixtures::response()]), $provider))->check($site, $order);
         Assert::same($result['latest_release'], null);
         Assert::same($result['open_issues'], 0);
-        Assert::same($result['worker_service'], ['latest_release' => true,'latest_commit' => true,'open_issues' => true,'open_prs' => false]);
+        Assert::same(\Tablo\Tests\Support\FixtureValue::at($result, 'worker_service'), ['latest_release' => true,'latest_commit' => true,'open_issues' => true,'open_prs' => false]);
         Assert::same($policy->admissions(), 4, 'no-release confirmation counts two core attempts');
         Assert::same($provider->getLatestRelease('example/project'), null, 'validated null memo succeeds without new admission');
         Assert::same($policy->admissions(), 4);
         $stale = new GitHubProvider(new FakeHttp([]), policy: $policy, credential: new GitHubCredential(current: static fn (): bool => false));
         $result = (new SiteChecker(new FakeHttp([UnitFixtures::response()]), $stale))->check($site, $order);
-        Assert::same($result['worker_service'], array_fill_keys($order, value: false));
+        Assert::same(\Tablo\Tests\Support\FixtureValue::at($result, 'worker_service'), array_fill_keys($order, value: false));
         Assert::same($policy->admissions(), 4);
         $zero = new GitHubProvider(new FakeHttp([]), policy: new GitHubRequestPolicy(maxRequests: 0));
         $result = (new SiteChecker(new FakeHttp([UnitFixtures::response()]), $zero))->check($site, $order);
-        Assert::same($result['worker_service'], array_fill_keys($order, value: false));
+        Assert::same(\Tablo\Tests\Support\FixtureValue::at($result, 'worker_service'), array_fill_keys($order, value: false));
         Assert::same($result['online'], 1);
     }
 }

@@ -1,28 +1,36 @@
 <?php
 declare(strict_types=1);
+require dirname(__DIR__, levels: 2) . '/vendor/autoload.php';
 require_once dirname(__DIR__, levels: 2) . '/app/RuntimeIni.php';
 \Tablo\RuntimeIni::set('display_errors',value: '0'); \Tablo\RuntimeIni::set('log_errors',value: '0');
 set_error_handler(static fn():bool=>true);
-$expected=json_decode(stream_get_contents(STDIN,length: 4096),associative: true,depth: 8,flags: JSON_THROW_ON_ERROR);
-$context=stream_context_create(['ssl'=>['local_cert'=>$argv[2],'verify_peer'=>false]]);
-$server=stream_socket_server('tcp://127.0.0.1:'.$argv[1],$number,$message,STREAM_SERVER_BIND|STREAM_SERVER_LISTEN,$context);
+$expected=\Tablo\JsonRecord::checked(json_decode(\Tablo\Tests\Support\FixtureValue::string(stream_get_contents(STDIN,length: 4096)),associative: true,depth: 8,flags: JSON_THROW_ON_ERROR));
+$expected['payload'] = \Tablo\SqlColumn::string($expected, 'payload');
+$expected['bearer'] = \Tablo\SqlColumn::string($expected, 'bearer');
+// The optional count retains its existing absent/null fallback; supplied counts are admitted.
+$expectedCount = \Tablo\Tests\Support\FixtureValue::integer($expected['count'] ?? 1);
+$context=stream_context_create(['ssl'=>['local_cert'=>\Tablo\Tests\Support\FixtureValue::at(\Tablo\Tests\Support\FixtureValue::row($argv), 2),'verify_peer'=>false]]);
+$number = 0; $message = '';
+$server=stream_socket_server('tcp://127.0.0.1:'.\Tablo\Tests\Support\FixtureValue::at(\Tablo\Tests\Support\FixtureValue::row($argv), 1),$number,$message,STREAM_SERVER_BIND|STREAM_SERVER_LISTEN,$context);
 if($server===false){echo json_encode(['server_errno'=>$number]);exit(2);}
-$deadline=hrtime(true)+15_000_000_000; $count=0; $exact=true; $authorization=true; $keys=[];
-while($count<($expected['count']??1)&&hrtime(true)<$deadline){
+$deadline=\Tablo\MonotonicTime::integer(hrtime(true))+15_000_000_000; $count=0; $exact=true; $authorization=true; $keys=[];
+while($count<$expectedCount&&\Tablo\MonotonicTime::integer(hrtime(true))<$deadline){
     $peer=stream_socket_accept($server,timeout: .2); if($peer===false){continue;}
     stream_set_timeout($peer,seconds: 1);
     if(stream_socket_enable_crypto($peer,enable: true,crypto_method: STREAM_CRYPTO_METHOD_TLS_SERVER)!==true){fclose($peer);continue;}
-    $line=fgets($peer,length: 2048); $headers=[];
+    $line=fgets($peer,length: 2048);
+    /** @var array<string, string> $headers */
+    $headers=[];
     while(($header=fgets($peer,length: 2048))!==false&&trim($header)!==''){
-        $pair=explode(':',$header,limit: 2); if(count($pair)===2){$headers[strtolower($pair[0])]=trim($pair[1]);}
+        $pair=explode(':',$header,limit: 2); if(count($pair)===2){$headers[strtolower($pair[0])]=trim(\Tablo\Tests\Support\FixtureValue::at($pair, 1));}
     }
     $length=(int)($headers['content-length']??0); $body='';
     while(strlen($body)<$length && $length<=8192){$part=fread($peer,$length-strlen($body));if($part===false||$part===''){break;}$body.=$part;}
     ++$count;
-    $exact=$exact&&str_starts_with($line??'','POST /hook ')&&$body===$expected['payload'];
+    $exact=$exact&&str_starts_with(\Tablo\Tests\Support\FixtureValue::string($line),'POST /hook ')&&$body===$expected['payload'];
     $authorization=$authorization&&($headers['authorization']??'')===($expected['bearer']===''?'':'Bearer '.$expected['bearer']);
     $keys[]=$headers['idempotency-key']??'';
-    $mode=$argv[3];
+    $mode=\Tablo\Tests\Support\FixtureValue::at(\Tablo\Tests\Support\FixtureValue::row($argv), 3);
     if($mode==='lost'){fclose($peer);continue;}
     if($mode==='stall'){sleep(3);}
     $response=$mode==='size'?str_repeat('x',times: 4097):'';

@@ -10,12 +10,7 @@ final class MagoLint
     public static function run(string $root, array $arguments): int
     {
         if ($arguments !== []) { throw new RuntimeException('Lint accepts no extra arguments.'); }
-        $config = $root . '/mago.toml';
-        $expected = "version = \"1.54.0\"\nphp-version = \"8.2\"\n\n[source]\npaths = [\"app\", \"bin\", \"public\", \"tests\", \"tools\"]\n"
-            . "excludes = [\"vendor\", \"storage\", \"artifacts\", \".lekalo\"]\n\n[linter]\nminimum-fail-level = \"note\"\n";
-        if (!is_file($config) || str_replace("\r\n", replace: "\n", subject: file_get_contents($config)) !== $expected) {
-            throw new RuntimeException('Missing or changed lint configuration; review the complete lint scope.');
-        }
+        $config = MagoConfig::verify($root);
         $pin = MagoPin::selected($root);
         MagoPin::verify($pin, $root);
         $files = MagoSource::files($root);

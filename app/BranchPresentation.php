@@ -3,8 +3,14 @@ declare(strict_types=1);
 
 namespace Tablo;
 
+/**
+ * @phpstan-import-type Version from Presenter
+ */
 final class BranchPresentation
 {
+    /**
+     * @param Version $site
+     */
     public static function apply(array &$site): void
     {
         if ($site['deployed_commit'] && $site['latest_commit']) {

@@ -23,10 +23,10 @@ final class FixtureGitHubHttp extends Tablo\HttpClient
         $authorization = implode("\n", $headers);
         $status = 200;
         $responseHeaders = [];
-        FixtureGitHubAudit::request($path, $authorization);
-        $status = FixtureGitHubStatus::select($path, $authorization, $headers);
+        FixtureGitHubAudit::request(\Tablo\Tests\Support\FixtureValue::string($path), $authorization);
+        $status = FixtureGitHubStatus::select(\Tablo\Tests\Support\FixtureValue::string($path), $authorization, $headers);
         $response = new FixtureGitHubResponse($status);
-        FixtureGitHubBody::select($path, $url, $authorization, $headers, $response);
+        FixtureGitHubBody::select(\Tablo\Tests\Support\FixtureValue::string($path), $url, $authorization, $headers, $response);
         $status = $response->status;
         $body = $response->body;
         $responseHeaders = $response->headers;

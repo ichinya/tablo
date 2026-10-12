@@ -5,6 +5,7 @@ namespace Tablo;
 
 final class WebhookHostSyntax
 {
+    /** @param array{host: string, ...} $parts */
     public static function validate(#[\SensitiveParameter] array $parts): void
     {
         $host = trim($parts['host'], characters: '[]');

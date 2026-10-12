@@ -14,8 +14,12 @@ final class SettingsRepository
 
     public function get(): int
     {
-        $statement = $this->db->query('SELECT check_interval_minutes FROM installation_settings WHERE id = 1');
-        try { $value = $statement->fetchColumn(); }
+        $statement = \Tablo\SqlStatement::checked($this->db->query('SELECT check_interval_minutes FROM installation_settings WHERE id = 1'));
+        try {
+            // A SQLite scalar column or the distinct no-row sentinel; admission below remains authoritative.
+            /** @var int|float|string|null|false $value */
+            $value = $statement->fetchColumn();
+        }
         finally { $statement->closeCursor(); }
         if ($value === false) { return 10; }
         if (!is_int($value) || $value < 1 || $value > intdiv(PHP_INT_MAX, num2: 60)) {
@@ -32,8 +36,8 @@ final class SettingsRepository
             || strlen($value) > strlen($maximum) || (strlen($value) === strlen($maximum) && strcmp($value, $maximum) > 0)) {
             throw ValidationException::field(field: 'check_interval_minutes', message: 'Укажите положительное целое число минут.');
         }
-        $statement = $this->db->prepare('INSERT INTO installation_settings (id, check_interval_minutes) VALUES (1, ?)
-            ON CONFLICT(id) DO UPDATE SET check_interval_minutes = excluded.check_interval_minutes');
+        $statement = \Tablo\SqlStatement::checked($this->db->prepare('INSERT INTO installation_settings (id, check_interval_minutes) VALUES (1, ?)
+            ON CONFLICT(id) DO UPDATE SET check_interval_minutes = excluded.check_interval_minutes'));
         $statement->bindValue(1, (int) $value, PDO::PARAM_INT);
         $statement->execute();
     }

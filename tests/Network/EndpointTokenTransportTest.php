@@ -14,6 +14,7 @@ use Tablo\Tests\Support\TestServer;
 use Testo\Assert;
 use Testo\Test;
 
+/** @phpstan-import-type Endpoint from \Tablo\Tests\Support\FixtureWireRows */
 final class EndpointTokenTransportTest
 {
     #[Test]
@@ -37,7 +38,7 @@ final class EndpointTokenTransportTest
                         Assert::same($state['deployed_version'], '1.0.0');
                         $rows = self::rows($directory);
                         foreach (array_slice($rows, -2) as $row) {
-                            Assert::true($row['present'] && $row[$siteId] && !$row[$siteId === 'a' ? 'b' : 'a']);
+                            Assert::true($row['present'] && \Tablo\Tests\Support\FixtureValue::boolean(\Tablo\Tests\Support\FixtureValue::at($row, $siteId)) && !\Tablo\Tests\Support\FixtureValue::at($row, $siteId === 'a' ? 'b' : 'a'));
                         }
                     }
                 }
@@ -47,16 +48,17 @@ final class EndpointTokenTransportTest
             $state = $checker->check($site);
             $rows = self::rows($directory);
             Assert::same(count($rows), $before + 1);
-            Assert::same($rows[$before]['path'], '/anonymous/');
-            Assert::false($rows[$before]['present']);
+            Assert::same(\Tablo\Tests\Support\FixtureValue::at($rows, $before)['path'], '/anonymous/');
+            Assert::false(\Tablo\Tests\Support\FixtureValue::at($rows, $before)['present']);
             Assert::same($state['online'], 1);
             Assert::same(count($rows), 17);
         } finally { $vault = null; $checker = null; $server?->close(); $directory->close(); }
     }
 
+    /** @return list<Endpoint> */
     private static function rows(TemporaryDirectory $directory): array
     {
         $file = $directory->path . '/requests.jsonl';
-        return is_file($file) ? array_map(static fn (string $line): array => json_decode($line, associative: true, depth: 8, flags: JSON_THROW_ON_ERROR), file($file, FILE_IGNORE_NEW_LINES)) : [];
+        return is_file($file) ? array_map(\Tablo\Tests\Support\FixtureWireRows::endpoint(...), \Tablo\Tests\Support\FixtureValue::fetched(file($file, FILE_IGNORE_NEW_LINES))) : [];
     }
 }

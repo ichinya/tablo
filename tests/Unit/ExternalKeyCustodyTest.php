@@ -68,21 +68,25 @@ final class ExternalKeyCustodyTest
             $marker = bin2hex(random_bytes(24)); $path = $directory->path . '/' . $marker;
             putenv('TABLO_TOKEN_KEY_FILE=' . $path);
             try { TokenVault::configured(); } catch (SharedKeyFailure $error) { $caught = $error; unset($error); }
-            Assert::same(TraceInspector::inspect($caught, [$marker])['leaked'], false); $caught = null;
+            Assert::same(TraceInspector::inspect(\Tablo\Tests\Support\FixtureValue::object($caught), [$marker])['leaked'], false); $caught = null;
             file_put_contents($path, random_bytes(32));
             $vault = TokenVault::configured(); $db = Database::connect(':memory:', $vault);
             $sites = new SiteRepository($db, $vault);
+            // @mago-expect analysis:invalid-argument(1)
             try { new \Tablo\GitHubConnection($sites, []); }
-            catch (\TypeError $error) { $caught = $error; unset($error); }
-            Assert::true($caught->getTrace()[0]['args'][0] instanceof \SensitiveParameterValue);
-            Assert::same(TraceInspector::inspect($caught, [$marker])['leaked'], false);
+            catch (\Throwable $error) { $caught = $error; unset($error); }
+            Assert::instanceOf($caught, \TypeError::class);
+            $frame = \Tablo\JsonRecord::checked(\Tablo\Tests\Support\FixtureValue::at(\Tablo\Tests\Support\FixtureValue::object($caught)->getTrace(), 0));
+            $arguments = \Tablo\JsonRecord::checked(\Tablo\Tests\Support\FixtureValue::at($frame, 'args'));
+            Assert::true(\Tablo\Tests\Support\FixtureValue::at($arguments, 0) instanceof \SensitiveParameterValue);
+            Assert::same(TraceInspector::inspect(\Tablo\Tests\Support\FixtureValue::object($caught), [$marker])['leaked'], false);
             $previous = new \RuntimeException('Safe wrapper', previous: $caught);
             Assert::same(TraceInspector::inspect($previous, [$marker])['leaked'], false);
             $sites = null; $previous = null; $caught = null;
             $repository = new GitTokenRepository($db, $vault); unlink($path);
             try { $repository->save(['name' => 'Synthetic','provider' => 'github','token' => $marker]); }
             catch (SharedKeyFailure $error) { $caught = $error; unset($error); }
-            Assert::same(TraceInspector::inspect($caught, [$marker])['leaked'], false);
+            Assert::same(TraceInspector::inspect(\Tablo\Tests\Support\FixtureValue::object($caught), [$marker])['leaked'], false);
         } finally {
             $repository = null; $vault = null; $db = null; $caught = null; gc_collect_cycles();
             \Tablo\RuntimeIni::set('zend.exception_ignore_args',$ignore);
@@ -95,7 +99,7 @@ final class ExternalKeyCustodyTest
     {
         $directory = new TemporaryDirectory('tablo-external-binary-');
         $environment = getenv('TABLO_TOKEN_KEY_FILE');
-        $vault = null; $saved = null; $sites = null; $db = null;
+        $vault = null; $saved = null; $sites = null; $db = null; $external = null;
         try {
             putenv('TABLO_TOKEN_KEY_FILE');
             $key = $directory->path . '/github-token.key';
@@ -109,7 +113,7 @@ final class ExternalKeyCustodyTest
             $sites->save(UnitFixtures::site() + ['github_token' => $secret]);
             $saved->save(['name' => 'Synthetic', 'provider' => 'github', 'token' => $secret]);
             $scope = $vault->credentialScope($secret);
-            $ciphertexts = [$db->query('SELECT github_token FROM sites')->fetchColumn(), $db->query('SELECT encrypted_token FROM git_tokens')->fetchColumn()];
+            $ciphertexts = [\Tablo\Tests\Support\FixtureValue::string(\Tablo\SqlStatement::checked($db->query('SELECT github_token FROM sites'))->fetchColumn()), \Tablo\Tests\Support\FixtureValue::string(\Tablo\SqlStatement::checked($db->query('SELECT encrypted_token FROM git_tokens'))->fetchColumn())];
             $external = $directory->path . '/raw key ' . bin2hex(random_bytes(5));
             rename($key, $external);
             chmod($external, permissions: 0o444);
@@ -117,20 +121,24 @@ final class ExternalKeyCustodyTest
             $db = null; $vault = null; $saved = null; $sites = null;
             $vault = TokenVault::configured();
             $db = Database::connect($directory->path . '/db.sqlite', $vault);
-            foreach ($ciphertexts as $ciphertext) { Assert::same($vault->decrypt($ciphertext), $secret); }
-            Assert::same($vault->credentialScope($secret), $scope);
-            Assert::same((new TokenVault('ignored-local-file'))->decrypt($vault->encrypt($secret)), $secret);
+            foreach ($ciphertexts as $ciphertext) { Assert::same(\Tablo\Tests\Support\FixtureValue::object($vault)->decrypt(\Tablo\Tests\Support\FixtureValue::string($ciphertext)), $secret); }
+            Assert::same(\Tablo\Tests\Support\FixtureValue::object($vault)->credentialScope($secret), $scope);
+            Assert::same((new TokenVault('ignored-local-file'))->decrypt(\Tablo\Tests\Support\FixtureValue::object($vault)->encrypt($secret)), $secret);
             Assert::same((new GitTokenRepository($db))->tokenFor(1, 'github'), $secret);
             Assert::same(file_get_contents($external), $raw);
             Assert::false(is_file($key));
-            Assert::same((int) $db->query('PRAGMA user_version')->fetchColumn(), Database::CURRENT_SCHEMA_VERSION);
-            Assert::same([$db->query('SELECT github_token FROM sites')->fetchColumn(), $db->query('SELECT encrypted_token FROM git_tokens')->fetchColumn()], $ciphertexts);
+            Assert::same((int) \Tablo\SqlStatement::checked($db->query('PRAGMA user_version'))->fetchColumn(), Database::CURRENT_SCHEMA_VERSION);
+            Assert::same([\Tablo\SqlStatement::checked($db->query('SELECT github_token FROM sites'))->fetchColumn(), \Tablo\SqlStatement::checked($db->query('SELECT encrypted_token FROM git_tokens'))->fetchColumn()], $ciphertexts);
         } finally {
             $vault = null; $saved = null; $sites = null; $db = null;
             putenv($environment === false ? 'TABLO_TOKEN_KEY_FILE' : 'TABLO_TOKEN_KEY_FILE=' . $environment);
-            if ((($external ?? null) !== null) && is_file($external)) { chmod($external, permissions: 0o600); }
+            self::restorePermission($external);
             $directory->close();
         }
     }
 
+    private static function restorePermission(?string $path): void
+    {
+        if ($path !== null && is_file($path)) { chmod($path, permissions: 0o600); }
+    }
 }

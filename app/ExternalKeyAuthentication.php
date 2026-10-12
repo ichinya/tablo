@@ -14,12 +14,19 @@ final class ExternalKeyAuthentication
         $verified = false;
         foreach ([['sites', 'github_token'], ['sites', 'endpoint_token'], ['git_tokens', 'encrypted_token'], ['notification_settings', 'endpoint_cipher'],
             ['notification_settings', 'bearer_cipher'], ['notification_slots', 'private_cipher']] as [$table, $column]) {
-            $statement = $db->prepare("SELECT type FROM main.sqlite_schema WHERE name = ?");
-            try { $statement->execute([$table]); $type = $statement->fetchColumn(); }
+            $statement = \Tablo\SqlStatement::checked($db->prepare("SELECT type FROM main.sqlite_schema WHERE name = ?"));
+            try {
+                $statement->execute([$table]);
+                // sqlite_schema.type is non-null text, with false reserved for no matching object.
+                /** @var string|false $type */
+                $type = $statement->fetchColumn();
+            }
             finally { $statement->closeCursor(); }
             if ($type !== 'table' || !in_array($column, array_column(BaseSchema::columns($db, $table), 'name'), strict: true)) { continue; }
-            $statement = $db->query('SELECT ' . $column . ' FROM main.' . $table . ' WHERE ' . $column . " IS NOT NULL AND " . $column . " <> ''");
+            $statement = \Tablo\SqlStatement::checked($db->query('SELECT ' . $column . ' FROM main.' . $table . ' WHERE ' . $column . " IS NOT NULL AND " . $column . " <> ''"));
             try {
+                // These six credential columns have TEXT affinity and the query excludes SQL NULL.
+                /** @var string|false $encrypted */
                 while (($encrypted = $statement->fetchColumn()) !== false) {
                     $present = true;
                     try { $plaintext = $vault->decrypt($encrypted); $verified = true; unset($plaintext); }

@@ -24,16 +24,16 @@ final class HealthUrlTest
             'https://example.test/app///', 'https://example.test/a//b///', 'https://example.test/%2Fapp/%7e///'] as $url) {
             $input = array_replace(UnitFixtures::site(), ['url' => '  ' . $url . '  ', 'health_path' => '', 'version_path' => '']);
             $id = $sites->save($input);
-            Assert::same($sites->find($id)['url'], $url);
+            Assert::same(\Tablo\Tests\Support\FixtureValue::row($sites->find($id))['url'], $url);
             $http = new FakeHttp([UnitFixtures::response(200, '<html>ok</html>')]);
-            Assert::same((new SiteChecker($http, new FakeProvider()))->check($sites->find($id))['online'], 1);
+            Assert::same((new SiteChecker($http, new FakeProvider()))->check(\Tablo\Tests\Support\FixtureValue::row($sites->find($id)))['online'], 1);
             Assert::same($http->requests, [[$url, []]]);
             $input['health_path'] = '/up?check=%2F&value=a%20b';
             $input['version_path'] = '/version?format=%7E';
             $sites->save($input, $id);
             $http = new FakeHttp([UnitFixtures::response(204), UnitFixtures::response(200, '{"version":"v1"}')]);
-            $state = (new SiteChecker($http, new FakeProvider()))->check($sites->find($id));
-            Assert::same($sites->find($id)['url'], $url);
+            $state = (new SiteChecker($http, new FakeProvider()))->check(\Tablo\Tests\Support\FixtureValue::row($sites->find($id)));
+            Assert::same(\Tablo\Tests\Support\FixtureValue::row($sites->find($id))['url'], $url);
             Assert::same($http->requests, [[rtrim($url, characters: '/') . $input['health_path'], []], [rtrim($url, characters: '/') . $input['version_path'], []]]);
             Assert::same($state['online'], 1);
             Assert::same($state['deployed_version'], 'v1');

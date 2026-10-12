@@ -4,8 +4,10 @@ declare(strict_types=1);
 namespace Tablo;
 
 // Decide from affirmative evidence only; unusable metadata is not a secondary limit.
+/** @phpstan-import-type Frame from GitHubFrame */
 final class GitHubRateLimit
 {
+    /** @param array<int, string> $resources */
     private function __construct(
         public readonly array $resources,
         public readonly int $eligibleAt,
@@ -16,6 +18,7 @@ final class GitHubRateLimit
 
 
 
+    /** @param Frame $response */
     public static function fromResponse(string $requestedResource, #[\SensitiveParameter] array $response, int $now): ?self
     {
         $headers = is_array($response['headers'] ?? null) ? $response['headers'] : [];

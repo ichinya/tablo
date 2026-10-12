@@ -11,6 +11,7 @@ use RuntimeException;
 // Real SQLite with SQL observation, barriers and deliberate SQL failures for migration tests.
 final class MigrationPdo extends PDO
 {
+    /** @var list<string> */
     public array $statements = [];
     public ?Closure $beforeBegin = null;
     public ?Closure $afterBegin = null;

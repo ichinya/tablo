@@ -6,6 +6,7 @@ namespace Tablo;
 final class HistoryPruner
 {
     public function __construct(private readonly \PDO $db) {}
+    /** @return (array{'capped': false, 'deleted': int})|(array{'capped': true, 'deleted': int}) */
     public function prune(int $days = 30, ?int $siteId = null, ?\DateTimeImmutable $now = null): array
     {
         $cutoff = HistoryRetention::cutoff($days, $now); // Capture once, before destructive work.
@@ -26,7 +27,7 @@ final class HistoryPruner
         try {
             $sql = 'DELETE FROM check_history WHERE id IN (SELECT id FROM check_history WHERE checked_at < :cutoff';
             if ($siteId !== null) { $sql .= ' AND site_id = :site'; }
-            $statement = $this->db->prepare($sql . ' ORDER BY checked_at, id LIMIT :limit)');
+            $statement = \Tablo\SqlStatement::checked($this->db->prepare($sql . ' ORDER BY checked_at, id LIMIT :limit)'));
             $statement->bindValue(':cutoff', $cutoff, \PDO::PARAM_STR);
             $statement->bindValue(':limit', 500, \PDO::PARAM_INT);
             if ($siteId !== null) { $statement->bindValue(':site', $siteId, \PDO::PARAM_INT); }

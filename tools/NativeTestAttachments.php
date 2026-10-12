@@ -8,11 +8,15 @@ use RuntimeException;
 /** Real Testo directory selectors preserve the expanded test union within Lekalo's 64-ID bound. */
 final class NativeTestAttachments
 {
+    /**
+     * @param list<string> $paths
+     * @return list<string>
+     */
     public static function selectors(array $paths): array
     {
         $paths = array_values(array_unique($paths));
         foreach ($paths as $path) {
-            if (!is_string($path) || !str_starts_with($path, 'tests/') || !is_file($path)) {
+            if (!str_starts_with($path, 'tests/') || !is_file($path)) {
                 throw new RuntimeException('Native attachment must name a real test file.');
             }
         }
@@ -26,6 +30,10 @@ final class NativeTestAttachments
         return $paths;
     }
 
+    /**
+     * @param list<string> $paths
+     * @return list<string>
+     */
     private static function groupUnitTests(array $paths): array
     {
         $selectors = [];

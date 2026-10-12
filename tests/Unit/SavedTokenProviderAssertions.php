@@ -15,7 +15,7 @@ final class SavedTokenProviderAssertions
 
     public function refuses(string $cipher): void
     {
-            $this->db->prepare('INSERT INTO git_tokens (name, provider, encrypted_token) VALUES (?, ?, ?)')->execute(['Future provider', 'gitlab', $cipher]);
+            \Tablo\SqlStatement::checked($this->db->prepare('INSERT INTO git_tokens (name, provider, encrypted_token) VALUES (?, ?, ?)'))->execute(['Future provider', 'gitlab', $cipher]);
             $foreign = (string) $this->db->lastInsertId();
             (new \Tablo\Tests\Support\FixtureRejection(\Closure::fromCallable(fn () => $this->sites->resolveToken(['git_token_id' => $foreign], null))))->verify('token from another provider accepted');
             $unsupportedHttp = new FakeHttp([]);

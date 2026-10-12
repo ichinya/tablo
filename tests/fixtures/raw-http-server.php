@@ -1,8 +1,10 @@
 <?php
 declare(strict_types=1);
+require_once __DIR__ . '/../Support/FixtureValue.php';
 
 // A real TCP peer: PHP's HTTP server cannot emit broken chunk framing.
-$directory = $argv[1];
+$directory = \Tablo\Tests\Support\FixtureValue::at(\Tablo\Tests\Support\FixtureValue::row($argv), 1);
+$errno = 0; $error = '';
 $server = stream_socket_server('tcp://127.0.0.1:0', $errno, $error);
 if ($server === false) { throw new RuntimeException('Cannot allocate raw HTTP fixture port'); }
 file_put_contents($directory . '/ready.tmp', stream_socket_get_name($server, remote: false));

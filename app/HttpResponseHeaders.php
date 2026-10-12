@@ -3,13 +3,16 @@ declare(strict_types=1);
 
 namespace Tablo;
 
+/** @phpstan-import-type Chain from EndpointChain */
 final class HttpResponseHeaders
 {
+    /** @var array<string, ?string> */
     public array $rate = [];
     public ?string $location = null;
     public bool $locationInvalid = false;
     private bool $inHeaders = false;
 
+    /** @param Chain|null $chain */
     public function consume(#[\SensitiveParameter] string $line, ?array &$chain): int
     {
         $length = strlen($line);

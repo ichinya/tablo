@@ -5,6 +5,7 @@ namespace Tablo;
 
 final class WebhookAddress
 {
+    /** @return array{'host': non-empty-string, 'path'?: string, 'port'?: int<0, 65535>, 'query'?: string, 'scheme'?: non-empty-string} */
     public static function parts(#[\SensitiveParameter] string $url): array
     {
         if (strlen($url) > 500 || preg_match('/[\x00-\x20\x7f\\\\<>"{}|^]/', $url)) { self::invalid(); }

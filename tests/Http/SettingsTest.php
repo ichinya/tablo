@@ -15,8 +15,8 @@ final class SettingsTest
         $web = new WebFixture();
         try {
             $csrf = $web->authenticate();
-            Assert::same($web->request(path: '/settings', data: null, options: new \Tablo\Tests\Support\WebRequestOptions(cookies: (false) ? \Tablo\Tests\Support\CookiePolicy::Retained : \Tablo\Tests\Support\CookiePolicy::Omitted))['status'], 303);
-            Assert::same($web->request(path: '/settings', data: ['check_interval_minutes' => '1'], options: new \Tablo\Tests\Support\WebRequestOptions(cookies: (false) ? \Tablo\Tests\Support\CookiePolicy::Retained : \Tablo\Tests\Support\CookiePolicy::Omitted))['status'], 303);
+            Assert::same($web->request(path: '/settings', data: null, options: new \Tablo\Tests\Support\WebRequestOptions(cookies: \Tablo\Tests\Support\CookiePolicy::Omitted))['status'], 303);
+            Assert::same($web->request(path: '/settings', data: ['check_interval_minutes' => '1'], options: new \Tablo\Tests\Support\WebRequestOptions(cookies: \Tablo\Tests\Support\CookiePolicy::Omitted))['status'], 303);
             $page = $web->request('/settings');
             Assert::same($page['status'], 200);
             Assert::true(str_contains($page['body'], 'name="check_interval_minutes" type="text" inputmode="numeric" value="10"'));
@@ -27,14 +27,14 @@ final class SettingsTest
                 $response = $web->request('/settings', ['_csrf' => $csrf, 'check_interval_minutes' => $value]);
                 Assert::same($response['status'], 422);
                 Assert::false(str_contains($response['body'], '<script>secret</script>'));
-                Assert::same((int) $web->database()->query('SELECT check_interval_minutes FROM installation_settings')->fetchColumn(), 10);
+                Assert::same((int) \Tablo\SqlStatement::checked($web->database()->query('SELECT check_interval_minutes FROM installation_settings'))->fetchColumn(), 10);
             }
             Assert::true(str_contains($response['body'], '&lt;script&gt;secret&lt;/script&gt;'));
             $saved = $web->request('/settings', ['_csrf' => $csrf, 'check_interval_minutes' => '0002']);
             Assert::same($saved['status'], 303);
             Assert::true(str_contains($saved['headers'], 'Location: /settings'));
             Assert::true(str_contains($web->request('/settings')['body'], 'inputmode="numeric" value="2"'));
-            Assert::same((int) $web->database()->query('SELECT check_interval_minutes FROM installation_settings')->fetchColumn(), 2);
+            Assert::same((int) \Tablo\SqlStatement::checked($web->database()->query('SELECT check_interval_minutes FROM installation_settings'))->fetchColumn(), 2);
         } finally { $web->close(); }
     }
 }

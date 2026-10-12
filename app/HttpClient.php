@@ -3,12 +3,17 @@ declare(strict_types=1);
 
 namespace Tablo;
 
+/** @phpstan-type HttpResponse array{status: int, body: string, headers?: array<string, ?string>, time_ms: int, location?: ?string, location_invalid?: bool} */
 class HttpClient
 {
     private ?int $deadline = null;
 
     public function __construct(private readonly bool $allowPrivate = false) {}
 
+    /**
+     * @param list<string> $headers
+     * @return HttpResponse
+     */
     public function getBefore(#[\SensitiveParameter] string $url, #[\SensitiveParameter] array $headers, int $deadline): array
     {
         $previous = $this->deadline;
@@ -19,6 +24,10 @@ class HttpClient
 
 
 
+    /**
+     * @param list<string> $headers
+     * @return HttpResponse
+     */
     public function get(#[\SensitiveParameter] string $url, #[\SensitiveParameter] array $headers = []): array
     {
         try { return (new CurlGetTransport($this->allowPrivate, $this->resolve(...), $this->deadline))->request($url, $headers); }
@@ -32,6 +41,10 @@ class HttpClient
         }
     }
 
+    /**
+     * @param list<string> $headers
+     * @return HttpResponse
+     */
     public function getEndpoint(#[\SensitiveParameter] string $url, #[\SensitiveParameter] array $headers = [],
         int $maxRedirects = 3, ?int $deadline = null): array
     {
@@ -65,6 +78,8 @@ class HttpClient
 
 
     protected function configureWebhook(#[\SensitiveParameter] \CurlHandle $curl): void {}
+    /** @return list<string> */
     protected function resolve(#[\SensitiveParameter] string $host): array { return PublicDns::addresses($host); }
+    /** @return non-empty-list<string> */
     protected function webhookAddresses(string $host): array { return WebhookAddressAdmission::addresses($host, $this->resolve(...)); }
 }

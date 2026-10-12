@@ -47,14 +47,14 @@ final class GitHubSweepTest
                         }
                         $http = new MeasuredGitHubHttp($server->base);
                         $connection = new GitHubConnection($sites, $http);
-                        $start = hrtime(true);
+                        $start = \Tablo\MonotonicTime::integer(hrtime(true));
                         (new GitHubSweepAssertions($sites, $connection))->acceptedSites(['release' => $release]);
                         $multiplier = $unique === 1 && $mode !== 'distinct' ? 1 : 20;
                         Assert::same($http->core, ($release ? 2 : 3) * $multiplier);
                         Assert::same($http->search, 2 * $multiplier);
                         $this->measurements[] = ['credential_mode' => $mode, 'unique_repositories' => $unique,
                             'has_release' => $release, 'sites' => 20, 'requests' => $http->core + $http->search,
-                            'core' => $http->core, 'search' => $http->search, 'elapsed_ms' => round((hrtime(true) - $start) / 1e6, precision: 2)];
+                            'core' => $http->core, 'search' => $http->search, 'elapsed_ms' => round((\Tablo\MonotonicTime::integer(hrtime(true)) - $start) / 1e6, precision: 2)];
                         unset($connection, $http, $sites, $tokens, $vault, $db);
                     }
                 }
@@ -85,7 +85,7 @@ final class GitHubSweepTest
                 Assert::same($state['latest_commit'], null);
                 Assert::same($state['open_issues'], null);
                 Assert::same($state['open_prs'], null);
-                Assert::true(str_contains($state['last_error'], 'лимит API'));
+                Assert::true(str_contains(\Tablo\Tests\Support\FixtureValue::string($state['last_error']), 'лимит API'));
             }
             Assert::same($http->core, 1);
             Assert::same($http->search, 0);

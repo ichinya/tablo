@@ -26,7 +26,7 @@ final class NotificationSchema
             include_name INTEGER NOT NULL DEFAULT 0 CHECK (include_name IN (0,1)),
             include_url INTEGER NOT NULL DEFAULT 0 CHECK (include_url IN (0,1))
         )");
-        $db->prepare('INSERT INTO notification_settings (id, installation_id) VALUES (1, ?)')->execute([bin2hex(random_bytes(16))]);
+        \Tablo\SqlStatement::checked($db->prepare('INSERT INTO notification_settings (id, installation_id) VALUES (1, ?)'))->execute([bin2hex(random_bytes(16))]);
         $db->exec("CREATE TABLE notification_checkpoints (
             site_id INTEGER PRIMARY KEY REFERENCES sites(id) ON DELETE CASCADE,
             last_history_id INTEGER NOT NULL CHECK (last_history_id > 0),

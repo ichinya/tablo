@@ -37,9 +37,9 @@ final class ExternalKeyAuthenticationTest
                 if ($selection === 'environment') { putenv('TABLO_TOKEN_KEY_FILE=' . $key); }
                 $vault = new TokenVault($key, true);
                 $db = Database::connect($path, $vault);
-                Assert::same((int) $db->query('PRAGMA user_version')->fetchColumn(), Database::CURRENT_SCHEMA_VERSION);
-                Assert::same($db->query('PRAGMA journal_mode')->fetchColumn(), 'wal');
-                Assert::same($db->query('SELECT github_token FROM sites')->fetchColumn(), $cipher);
+                Assert::same((int) \Tablo\SqlStatement::checked($db->query('PRAGMA user_version'))->fetchColumn(), Database::CURRENT_SCHEMA_VERSION);
+                Assert::same(\Tablo\SqlStatement::checked($db->query('PRAGMA journal_mode'))->fetchColumn(), 'wal');
+                Assert::same(\Tablo\SqlStatement::checked($db->query('SELECT github_token FROM sites'))->fetchColumn(), $cipher);
                 Assert::same(file_get_contents($key), $originalBytes);
                 $vault = null; $db = null;
             }
@@ -92,24 +92,24 @@ final class ExternalKeyAuthenticationTest
             $path = $directory->path . '/db.sqlite'; $key = $directory->path . '/original';
             file_put_contents($key, random_bytes(32)); $vault = new TokenVault($key);
             $db = new PDO('sqlite:' . $path, null, null, [PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION]);
-            $db->exec(file_get_contents(dirname(__DIR__) . '/fixtures/pre-json-schema.sql'));
-            $db->prepare('INSERT INTO sites(name,url,repository,github_token) VALUES(?,?,?,?)')->execute(['Synthetic','https://example.com','fixture/control',$vault->encrypt('synthetic')]);
-            $before = $db->query('SELECT sql FROM sqlite_schema ORDER BY name')->fetchAll();
+            $db->exec(\Tablo\RequiredFile::bytes(file_get_contents(dirname(__DIR__) . '/fixtures/pre-json-schema.sql')));
+            \Tablo\SqlStatement::checked($db->prepare('INSERT INTO sites(name,url,repository,github_token) VALUES(?,?,?,?)'))->execute(['Synthetic','https://example.com','fixture/control',$vault->encrypt('synthetic')]);
+            $before = \Tablo\SqlStatement::checked($db->query('SELECT sql FROM sqlite_schema ORDER BY name'))->fetchAll();
             $db = null;
             $wrong = $directory->path . '/wrong'; file_put_contents($wrong, random_bytes(32));
             putenv('TABLO_TOKEN_KEY_FILE=' . $wrong);
             Assert::true(str_contains(self::refuses(static fn () => Database::connect($path)), 'unverified'));
-            $db = new PDO('sqlite:' . $path); Assert::same((int) $db->query('PRAGMA user_version')->fetchColumn(), 0);
-            Assert::same($db->query('SELECT sql FROM sqlite_schema ORDER BY name')->fetchAll(), $before);
-            Assert::same($db->query('PRAGMA journal_mode')->fetchColumn(), 'delete'); $db = null;
+            $db = new PDO('sqlite:' . $path); Assert::same((int) \Tablo\SqlStatement::checked($db->query('PRAGMA user_version'))->fetchColumn(), 0);
+            Assert::same(\Tablo\SqlStatement::checked($db->query('SELECT sql FROM sqlite_schema ORDER BY name'))->fetchAll(), $before);
+            Assert::same(\Tablo\SqlStatement::checked($db->query('PRAGMA journal_mode'))->fetchColumn(), 'delete'); $db = null;
             putenv('TABLO_TOKEN_KEY_FILE=' . $key);
             Database::preflightExternalKey($path);
             $db = new PDO('sqlite:' . $path);
-            Assert::same((int) $db->query('PRAGMA user_version')->fetchColumn(), 0);
-            Assert::same($db->query('SELECT sql FROM sqlite_schema ORDER BY name')->fetchAll(), $before);
+            Assert::same((int) \Tablo\SqlStatement::checked($db->query('PRAGMA user_version'))->fetchColumn(), 0);
+            Assert::same(\Tablo\SqlStatement::checked($db->query('SELECT sql FROM sqlite_schema ORDER BY name'))->fetchAll(), $before);
             $db = null; $db = Database::connect($path);
             $db->exec("INSERT INTO git_tokens(name,provider,encrypted_token) VALUES('Bad','github','v1:bad')");
-            $db = null; $db = Database::connect($path); Assert::same((int) $db->query('SELECT count(*) FROM git_tokens')->fetchColumn(), 1);
+            $db = null; $db = Database::connect($path); Assert::same((int) \Tablo\SqlStatement::checked($db->query('SELECT count(*) FROM git_tokens'))->fetchColumn(), 1);
             $db->exec("UPDATE sites SET github_token='v1:bad'"); $db = null;
             Assert::true(str_contains(self::refuses(static fn () => Database::connect($path)), 'unverified'));
         } finally {
@@ -129,16 +129,16 @@ final class ExternalKeyAuthenticationTest
             putenv('TABLO_TOKEN_KEY_FILE=' . $key);
             $path = $directory->path . '/db.sqlite'; $db = Database::connect($path);
             $vault = TokenVault::forDatabase($db); $scope = $vault->credentialScope('synthetic');
-            $db->prepare("INSERT INTO github_cooldowns(scope,resource,eligible_at) VALUES(?,'core',2147483647)")->execute([$scope]);
-            $rows = $db->query('SELECT * FROM github_cooldowns')->fetchAll(); $vault = null; $db = null;
+            \Tablo\SqlStatement::checked($db->prepare("INSERT INTO github_cooldowns(scope,resource,eligible_at) VALUES(?,'core',2147483647)"))->execute([$scope]);
+            $rows = \Tablo\SqlRows::all(\Tablo\SqlStatement::checked($db->query('SELECT * FROM github_cooldowns'))->fetchAll(), \Tablo\SqlGithubCooldownsEligibleAtResourceScopeRow::checked(...)); $vault = null; $db = null;
             file_put_contents($key, random_bytes(32));
-            $db = Database::connect($path); Assert::same($db->query('SELECT * FROM github_cooldowns')->fetchAll(), $rows);
+            $db = Database::connect($path); Assert::same(\Tablo\SqlRows::all(\Tablo\SqlStatement::checked($db->query('SELECT * FROM github_cooldowns'))->fetchAll(), \Tablo\SqlGithubCooldownsEligibleAtResourceScopeRow::checked(...)), $rows);
             $db->exec('PRAGMA user_version=99'); $db = null;
             $caught = null;
             try { Database::connect($path); } catch (\RuntimeException $error) { $caught = $error->getMessage(); unset($error); }
-            Assert::true(str_contains($caught, 'Unsupported SQLite schema'));
-            $db = new PDO('sqlite:' . $path); Assert::same((int) $db->query('PRAGMA user_version')->fetchColumn(),99);
-            Assert::same($db->query('SELECT * FROM github_cooldowns')->fetchAll(PDO::FETCH_ASSOC), $rows);
+            Assert::true(str_contains(\Tablo\Tests\Support\FixtureValue::string($caught), 'Unsupported SQLite schema'));
+            $db = new PDO('sqlite:' . $path); Assert::same((int) \Tablo\SqlStatement::checked($db->query('PRAGMA user_version'))->fetchColumn(),99);
+            Assert::same(\Tablo\SqlRows::all(\Tablo\SqlStatement::checked($db->query('SELECT * FROM github_cooldowns'))->fetchAll(PDO::FETCH_ASSOC), \Tablo\SqlGithubCooldownsEligibleAtResourceScopeRow::checked(...)), $rows);
             Assert::false(is_file($directory->path . '/github-token.key'));
         } finally {$vault = null; $db = null;putenv($environment===false?'TABLO_TOKEN_KEY_FILE':'TABLO_TOKEN_KEY_FILE='.$environment);$directory->close();}
     }

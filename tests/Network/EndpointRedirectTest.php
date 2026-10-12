@@ -72,7 +72,7 @@ final class EndpointRedirectTest
             Assert::same($state['online'], 0); Assert::same($state['health_http_status'], 302);
             Assert::same(count($server->rows()) - $before, 1);
             $before = count($server->rows());
-            Assert::same((new HttpClient(true))->getBefore($server->base . '/status/307', [], hrtime(true) + 1_000_000_000)['status'], 307);
+            Assert::same((new HttpClient(true))->getBefore($server->base . '/status/307', [], \Tablo\MonotonicTime::integer(hrtime(true)) + 1_000_000_000)['status'], 307);
             Assert::same(count($server->rows()) - $before, 1);
             \Tablo\Tests\Support\RedirectAssertions::reject($server->base . '/framing/start', 'invalid-response');
         } finally { $vault = null; $server->close(); }
@@ -93,18 +93,18 @@ final class EndpointRedirectTest
             $id = $sites->save($input);
             $snapshot = $sites->find($id);
             $checker = new SiteChecker(new HttpClient(true), new FakeProvider());
-            $result = $checker->check($snapshot, $state::FIELDS);
+            $result = $checker->check(\Tablo\Tests\Support\FixtureValue::row($snapshot), $state::FIELDS);
             Assert::same($result['online'], 1); Assert::same($result['deployed_version'], null);
             $sites->save([...$input, 'health_path' => '/final'], $id);
             $sites->save($input, $id); // URL/endpoint ABA retains the newer revision.
-            Assert::false($state->settle($snapshot, $result));
-            Assert::same($sites->find($id)['checked_at'], null);
-            Assert::same((int) $db->query('SELECT count(*) FROM worker_progress')->fetchColumn(), 0);
+            Assert::false($state->settle(\Tablo\Tests\Support\FixtureValue::row($snapshot), $result));
+            Assert::same(\Tablo\Tests\Support\FixtureValue::row($sites->find($id))['checked_at'], null);
+            Assert::same((int) \Tablo\SqlStatement::checked($db->query('SELECT count(*) FROM worker_progress'))->fetchColumn(), 0);
             $current = $sites->find($id);
-            $result = $checker->check($current, $state::FIELDS);
-            Assert::true($state->settle($current, $result));
-            Assert::same($sites->find($id)['health_http_status'], 200);
-            Assert::true(min($state->turns($id, $current['config_revision'])) > 0);
+            $result = $checker->check(\Tablo\Tests\Support\FixtureValue::row($current), $state::FIELDS);
+            Assert::true($state->settle(\Tablo\Tests\Support\FixtureValue::row($current), $result));
+            Assert::same(\Tablo\Tests\Support\FixtureValue::row($sites->find($id))['health_http_status'], 200);
+            Assert::true(min($state->turns($id, \Tablo\Tests\Support\FixtureValue::row($current)['config_revision'])) > 0);
             Assert::false($db->inTransaction());
         } finally { unset($checker, $snapshot, $current, $result); $db = null; $sites = null; $state = null; $server->close(); }
     }

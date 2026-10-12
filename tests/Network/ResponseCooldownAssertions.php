@@ -5,8 +5,10 @@ namespace Tablo\Tests\Network;
 
 use Testo\Assert;
 
+/** @phpstan-import-type Record from \Tablo\SqlGithubCooldownsEligibleAtResourceScopeRow */
 final class ResponseCooldownAssertions
 {
+    /** @param list<Record> $rows */
     public static function stored(array $rows, string $case, string $kind, int $now, int $delay): void
     {
         $primary = $case === 'primary429';
@@ -14,7 +16,7 @@ final class ResponseCooldownAssertions
                     foreach ($rows as $row) {
                         Assert::same($row['resource'], $primary ? 'core' : 'secondary');
                         Assert::same((int) $row['eligible_at'], $now + $delay);
-                        Assert::true($primary ? str_starts_with($row['scope'], 'credential:v1:') || str_starts_with($row['scope'], 'saved:')
+                        Assert::true($primary ? str_starts_with(\Tablo\Tests\Support\FixtureValue::string($row['scope']), 'credential:v1:') || str_starts_with(\Tablo\Tests\Support\FixtureValue::string($row['scope']), 'saved:')
                             : $row['scope'] === 'shared');
                     }
 

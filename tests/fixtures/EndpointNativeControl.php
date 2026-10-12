@@ -14,13 +14,13 @@ namespace Tablo {
     // are not recorded: only booleans/class identity and weak references survive.
     function curl_setopt_array(#[\SensitiveParameter] \CurlHandle $handle, #[\SensitiveParameter] array $options): bool
     {
-        if ((\Tablo\EndpointNativeControl::$fault ?? '') === 'callback') {
+        if (\Tablo\EndpointNativeControl::$fault === 'callback') {
             \Tablo\EndpointNativeControl::$handle = \WeakReference::create($handle);
-            \Tablo\EndpointNativeControl::$callback = \WeakReference::create($options[CURLOPT_WRITEFUNCTION]);
+            \Tablo\EndpointNativeControl::$callback = \WeakReference::create(\Tablo\Tests\Support\FixtureNative::object(\Tablo\Tests\Support\FixtureValue::at($options, CURLOPT_WRITEFUNCTION)));
         }
-        if ((\Tablo\EndpointNativeControl::$fault ?? '') !== 'setopt') { return \curl_setopt_array($handle, $options); }
+        if (\Tablo\EndpointNativeControl::$fault !== 'setopt') { return \curl_setopt_array($handle, $options); }
         \Tablo\EndpointNativeControl::$handle = \WeakReference::create($handle);
-        \Tablo\EndpointNativeControl::$callback = \WeakReference::create($options[CURLOPT_WRITEFUNCTION]);
+        \Tablo\EndpointNativeControl::$callback = \WeakReference::create(\Tablo\Tests\Support\FixtureNative::object(\Tablo\Tests\Support\FixtureValue::at($options, CURLOPT_WRITEFUNCTION)));
         $options[CURLOPT_RESOLVE] = new \stdClass();
         try { return \curl_setopt_array($handle, $options); }
         catch (\Throwable $error) {
@@ -31,7 +31,7 @@ namespace Tablo {
     }
     function strlen(#[\SensitiveParameter] string $value): int
     {
-        if ((\Tablo\EndpointNativeControl::$fault ?? '') === 'callback' && str_contains($value, \Tablo\Tests\Support\EndpointFixture::tokenA())) {
+        if (\Tablo\EndpointNativeControl::$fault === 'callback' && str_contains($value, \Tablo\Tests\Support\EndpointFixture::tokenA())) {
             throw new \TypeError('Fixed callback control.');
         }
         return \strlen($value);
@@ -43,6 +43,7 @@ namespace {
     \Tablo\RuntimeIni::set('zend.exception_ignore_args', value: '0');
     \Tablo\RuntimeIni::set('zend.exception_string_param_max_len', value: '8192');
     function unprotected_endpoint_control(string $raw): never { throw new \RuntimeException('Fixed hostile control.'); }
+    /** @param list<string> $markers */
     function protected_endpoint_probe(#[\SensitiveParameter] callable $action, #[\SensitiveParameter] array $markers): array
     {
         try { $action(); } catch (\Throwable $error) {
@@ -69,8 +70,8 @@ case ($mode === 'native'):
         $scan = protected_endpoint_probe(static fn () => (new \Tablo\HttpClient(true))->{$method}('http://127.0.0.1/setopt-fault', ['Authorization: Bearer ' . $marker]), [$marker]);
         gc_collect_cycles();
         $records[] = [...$scan, 'original_typeerror' => \Tablo\EndpointNativeControl::$originalTypeerror,
-            'original_leaked' => \Tablo\EndpointNativeControl::$originalLeaked, 'handle_released' => \Tablo\EndpointNativeControl::$handle->get() === null,
-            'callback_released' => \Tablo\EndpointNativeControl::$callback->get() === null];
+            'original_leaked' => \Tablo\EndpointNativeControl::$originalLeaked, 'handle_released' => \Tablo\Tests\Support\FixtureValue::object(\Tablo\EndpointNativeControl::$handle)->get() === null,
+            'callback_released' => \Tablo\Tests\Support\FixtureValue::object(\Tablo\EndpointNativeControl::$callback)->get() === null];
         \Tablo\EndpointNativeControl::$fault = '';
         $handle = curl_init();
         try { curl_setopt_array($handle, [CURLOPT_HTTPHEADER => new \stdClass(), $marker => $marker]); }
@@ -84,8 +85,8 @@ case ($mode === 'native'):
             \Tablo\EndpointNativeControl::$fault = 'callback';
             $scan = protected_endpoint_probe(static fn () => (new \Tablo\HttpClient(true))->{$method}($server->base . '/version?bad=1', ['Authorization: Bearer ' . $marker]), [$marker]);
             gc_collect_cycles();
-            $records[] = [...$scan, 'callback_boundary' => true, 'handle_released' => \Tablo\EndpointNativeControl::$handle->get() === null,
-                'callback_released' => \Tablo\EndpointNativeControl::$callback->get() === null];
+            $records[] = [...$scan, 'callback_boundary' => true, 'handle_released' => \Tablo\Tests\Support\FixtureValue::object(\Tablo\EndpointNativeControl::$handle)->get() === null,
+                'callback_released' => \Tablo\Tests\Support\FixtureValue::object(\Tablo\EndpointNativeControl::$callback)->get() === null];
             \Tablo\EndpointNativeControl::$fault = '';
             $handle = curl_init($server->base . '/version?bad=1');
             curl_setopt_array($handle, [CURLOPT_PROXY => '', CURLOPT_TIMEOUT => 3, CURLOPT_HTTPHEADER => ['Authorization: Bearer ' . $marker],
@@ -102,7 +103,7 @@ default:
         // Closures are deliberately opaque to the inspector. The returned trace
         // remains untrimmed and its caller arguments are protected independently.
         $records[] = protected_endpoint_probe(static fn () => (new \Tablo\HttpClient())->{$method}('https://' . $marker . '@example.com/', ['Authorization: Bearer ' . $marker]), [$marker]);
-        $records[] = protected_endpoint_probe(static fn () => (new \Tablo\HttpClient())->getBefore('file:///' . $marker, ['Authorization: Bearer ' . $marker], hrtime(true)+1_000_000_000), [$marker]);
+        $records[] = protected_endpoint_probe(static fn () => (new \Tablo\HttpClient())->getBefore('file:///' . $marker, ['Authorization: Bearer ' . $marker], \Tablo\MonotonicTime::integer(hrtime(true))+1_000_000_000), [$marker]);
         $records[] = protected_endpoint_probe(static fn () => \Tablo\EndpointCredential::validateEndpointToken(['raw' => $marker]), [$marker]);
         $records[] = protected_endpoint_probe(static fn () => \Tablo\SiteInput::normalize(['url' => 'https://' . $marker . '@example.com/', 'endpoint_token' => $marker]), [$marker]);
         $records[] = protected_endpoint_probe(static fn () => \Tablo\JsonField::decode($marker), [$marker]);
@@ -125,13 +126,13 @@ default:
             $input = [...\Tablo\Tests\Support\UnitFixtures::site(), 'endpoint_token' => $marker];
             $id = $sites->save($input);
             $site = $sites->find($id);
-            $cipher = $site['endpoint_token'];
+            $cipher = \Tablo\Tests\Support\FixtureValue::string(\Tablo\Tests\Support\FixtureValue::row($site)['endpoint_token']);
             $db->exec("CREATE TRIGGER endpoint_refusal BEFORE UPDATE ON sites BEGIN SELECT RAISE(ABORT, 'Fixed storage control.'); END");
-            foreach ([static fn () => $sites->save($input, $id), static fn () => $sites->storeCheck($site, ['online' => 1])] as $action) {
+            foreach ([static fn () => $sites->save($input, $id), static fn () => $sites->storeCheck(\Tablo\Tests\Support\FixtureValue::row($site), ['online' => 1])] as $action) {
                 $scan = protected_endpoint_probe($action, [$marker, $cipher]);
                 $records[] = [...$scan, 'sql_boundary' => true];
             }
-            try { $db->prepare('UPDATE sites SET endpoint_token = ? WHERE id = ?')->execute([$cipher, $id]); }
+            try { \Tablo\SqlStatement::checked($db->prepare('UPDATE sites SET endpoint_token = ? WHERE id = ?'))->execute([$cipher, $id]); }
             catch (\Throwable $error) { $records[] = ['raw_sql_control_leaked' => \Tablo\Tests\Support\TraceInspector::inspect($error, [$cipher])['leaked']]; unset($error); }
             unset($action, $site, $input, $cipher);
         } finally { $db = null; $vault = null; $sites = null; $directory->close(); }

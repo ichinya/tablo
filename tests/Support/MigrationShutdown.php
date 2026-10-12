@@ -9,11 +9,11 @@ final class MigrationShutdown
     {
         if (!is_resource($state->process)) { return; }
         $awaitExit = static function (float $timeout) use ($state): void {
-            $deadline = hrtime(true) + $timeout * 1_000_000_000;
+            $deadline = \Tablo\MonotonicTime::integer(hrtime(true)) + $timeout * 1_000_000_000;
             do {
                 if (!$state->running()) { return; }
                 usleep(20_000);
-            } while (hrtime(true) < $deadline);
+            } while (\Tablo\MonotonicTime::integer(hrtime(true)) < $deadline);
         };
         if ($state->running()) {
             file_put_contents($state->directory->path . '/' . $state->name . '.cancel', data: 'cancel');

@@ -16,8 +16,10 @@ final class CheckSiteFragment
     {
         if ($format !== CheckFormat::Json) { return; }
         $progress->phase='serializing';
-        CheckSettlementOutput::settle($progress->record,$state);
-        $progress->fragments[]=CheckOutput::encode($progress->record);
+        if ($progress->record === null) { throw new \TypeError('Missing prepared check record.'); }
+        $record = &$progress->record;
+        CheckSettlementOutput::settle($record,$state);
+        $progress->fragments[]=CheckOutput::encode($record);
     }
     public static function paused(CheckFormat $format,CheckProgress $progress,#[\SensitiveParameter] array $site): void
     {

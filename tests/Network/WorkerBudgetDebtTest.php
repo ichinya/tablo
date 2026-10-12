@@ -43,8 +43,8 @@ final class WorkerBudgetDebtTest
                 Assert::same($policy->admissions(), 5, 'one aggregate pass budget, never per-site reset');
                 foreach ($sites->all() as $site) { Assert::same($site['online'], 1); }
             }
-            foreach ($db->query('SELECT * FROM worker_progress')->fetchAll() as $row) {
-                foreach (WorkerStateRepository::FIELDS as $field) { Assert::true($row[$field] > 0, 'every field gets admitted opportunity'); }
+            foreach (\Tablo\SqlRows::all(\Tablo\SqlStatement::checked($db->query('SELECT * FROM worker_progress'))->fetchAll(), \Tablo\SqlWorkerProgressRow::checked(...)) as $row) {
+                foreach (WorkerStateRepository::FIELDS as $field) { Assert::true(\Tablo\Tests\Support\FixtureValue::integer(\Tablo\Tests\Support\FixtureValue::at($row, $field)) > 0, 'every field gets admitted opportunity'); }
             }
             $storage = new GitHubCooldownRepository($db);
             $storage->defer('core', time() + 3600, 'anonymous');
@@ -57,7 +57,7 @@ final class WorkerBudgetDebtTest
             $worker->runPass();
             $calls = array_slice($http->calls, $start);
             Assert::same(count(array_filter($calls, static fn (string $path): bool => str_starts_with($path, '/repos/'))), 0);
-            Assert::same($sites->find(24)['open_prs'], 2, 'cooled zero core turns cannot pin early sites before usable search');
+            Assert::same(\Tablo\Tests\Support\FixtureValue::row($sites->find(24))['open_prs'], 2, 'cooled zero core turns cannot pin early sites before usable search');
             Assert::same((new WorkerStateRepository($db))->turns(24, 0)['latest_release'], 0);
             Assert::same(count(array_filter($calls, static fn (string $path): bool => $path === '/up')), 24);
         } finally { unset($worker, $policy, $storage, $sites, $db, $http); $server?->close(); $directory->close(); }

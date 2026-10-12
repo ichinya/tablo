@@ -34,12 +34,12 @@ final class DatabaseMigrationCustodyTest extends DatabaseMigrationFixtureCase
             Assert::true(str_contains($message ?? '', 'database is locked'));
             Assert::same(array_values(array_filter($db->statements, static fn (string $sql): bool => str_starts_with($sql, 'BEGIN') || str_starts_with($sql, 'ROLLBACK') || str_starts_with($sql, 'COMMIT'))), ['BEGIN IMMEDIATE']);
             Assert::false($db->inTransaction());
-            Assert::same((int) $db->query('PRAGMA user_version')->fetchColumn(), 0);
+            Assert::same((int) \Tablo\SqlStatement::checked($db->query('PRAGMA user_version'))->fetchColumn(), 0);
             file_put_contents($directory->path . '/writer.release', data: 'release');
             self::result($writer);
             Database::migrate($db);
-            Assert::same((int) $db->query('PRAGMA user_version')->fetchColumn(), Database::CURRENT_SCHEMA_VERSION);
-            Assert::same($db->query('SELECT github_token FROM sites')->fetchColumn(), 'synthetic-ciphertext');
+            Assert::same((int) \Tablo\SqlStatement::checked($db->query('PRAGMA user_version'))->fetchColumn(), Database::CURRENT_SCHEMA_VERSION);
+            Assert::same(\Tablo\SqlStatement::checked($db->query('SELECT github_token FROM sites'))->fetchColumn(), 'synthetic-ciphertext');
         } finally {
             $writer?->close();
             unset($db, $error);

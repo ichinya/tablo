@@ -10,7 +10,9 @@ final class SubprocessInput
 {
     public static function input(SubprocessState $state, #[\SensitiveParameter] string $input): void
     {
-        $state->secrets = array_values(array_filter(preg_split('/[\r\n]+/', $input), static fn(string $line): bool => $line !== ''));
+        $lines = preg_split('/[\r\n]+/', $input);
+        if ($lines === false) { throw new RuntimeException('Cannot split test command input'); }
+        $state->secrets = array_values(array_filter($lines, static fn(string $line): bool => $line !== ''));
         try {
             if (!is_resource($state->input)) { throw new RuntimeException('Test command input already closed'); }
             $offset = 0;

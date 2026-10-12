@@ -7,6 +7,7 @@ use Tablo\NotificationSettings;
 use Tablo\SiteRepository;
 use Tablo\TokenVault;
 
+/** @phpstan-import-type Record from \Tablo\SqlNotificationSlotsAcknowledgedAtAttemptsChannelRevisionRow as Slot */
 final class NotificationFixture
 {
     public readonly TemporaryDirectory $directory;
@@ -25,15 +26,16 @@ final class NotificationFixture
     }
     public function configure(array $extra=[]): void
     {
-        $settings=new NotificationSettings($this->db,$this->vault);
+        $settings=new NotificationSettings(\Tablo\Tests\Support\FixtureValue::object($this->db),$this->vault);
         $settings->update($extra+['revision'=>(string)$settings->get()['revision'],'enabled'=>'1',
             'endpoint'=>'https://receiver.example/hook','unavailable'=>'1','recovery'=>'1','version_lag'=>'1']);
     }
     public function accept(?int $online,int $seconds,array $extra=[]): bool
     {
         $this->now=1000+$seconds;
-        return IncidentFixtures::accept($this->sites,$this->id,$online,gmdate('Y-m-d\TH:i:s\Z',1_767_225_600+$seconds),$extra);
+        return IncidentFixtures::accept(\Tablo\Tests\Support\FixtureValue::object($this->sites),$this->id,$online,gmdate('Y-m-d\TH:i:s\Z',1_767_225_600+$seconds),$extra);
     }
-    public function slots(): array { return $this->db->query('SELECT * FROM notification_slots ORDER BY event')->fetchAll(); }
+    /** @return list<Slot> */
+    public function slots(): array { return \Tablo\SqlRows::all(\Tablo\SqlStatement::checked(\Tablo\Tests\Support\FixtureValue::object($this->db)->query('SELECT * FROM notification_slots ORDER BY event'))->fetchAll(), \Tablo\SqlNotificationSlotsAcknowledgedAtAttemptsChannelRevisionRow::checked(...)); }
     public function close(): void { $this->db = null; $this->vault = null; $this->sites = null; $this->directory->close(); }
 }

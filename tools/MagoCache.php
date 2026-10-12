@@ -19,8 +19,9 @@ final class MagoCache
             if (!file_exists($directory)) {
                 if (!mkdir($directory, permissions: 0o700)) { throw new RuntimeException('Cannot create project Mago cache.'); }
             }
-            if (!is_dir($directory) || is_link($directory)
-                || str_replace('\\', replace: '/', subject: realpath($directory)) !== str_replace('\\', replace: '/', subject: $directory)) {
+            $canonical = realpath($directory);
+            if (!is_dir($directory) || is_link($directory) || $canonical === false
+                || str_replace('\\', replace: '/', subject: $canonical) !== str_replace('\\', replace: '/', subject: $directory)) {
                 throw new RuntimeException('Linked or invalid Mago cache directory.');
             }
         }

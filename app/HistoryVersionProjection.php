@@ -5,11 +5,13 @@ namespace Tablo;
 
 final class HistoryVersionProjection
 {
+    /** @return array{'deployed_commit': null|string, 'deployed_version': null|string} */
     public static function deployed(array $state): array
     {
         return ['deployed_version' => HistoryVersionText::version($state['deployed_version'] ?? null),
             'deployed_commit' => HistoryVersionText::commit($state['deployed_commit'] ?? null)];
     }
+    /** @return array{'version_error_code': null|string, 'version_http_status': int|null, 'version_status': string} */
     public static function diagnostics(array $state,string $versionStatus): array
     {
         return ['version_status' => $versionStatus,

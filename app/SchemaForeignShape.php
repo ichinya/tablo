@@ -3,10 +3,12 @@ declare(strict_types=1);
 
 namespace Tablo;
 
+/** @phpstan-import-type ForeignKey from SchemaShape */
 final class SchemaForeignShape
 {
     public static function foreignKeys(\PDO $db, string $table): array
     {
+        /** @var list<ForeignKey> $rows */
         $rows = SchemaShape::rows($db, 'PRAGMA main.foreign_key_list("' . $table . '")');
         foreach ($rows as &$row) { unset($row['id']); }
         unset($row);

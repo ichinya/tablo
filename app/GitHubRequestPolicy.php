@@ -3,6 +3,10 @@ declare(strict_types=1);
 
 namespace Tablo;
 
+/**
+ * @phpstan-import-type MemoValue from GitHubMemo
+ * @phpstan-import-type Frame from GitHubFrame
+ */
 final class GitHubRequestPolicy
 {
     private readonly GitHubMemo $memo;
@@ -71,7 +75,12 @@ final class GitHubRequestPolicy
 
     public function identity(#[\SensitiveParameter] string $token, string $revision = ''): string { return $this->memo->identity($token, $revision); }
     public function invalidate(string $identity): void { $this->memo->invalidate($identity); }
+    /**
+     * @param \Closure(): MemoValue $load
+     * @return MemoValue
+     */
     public function remember(string $identity, string $metric, \Closure $load): mixed { return $this->memo->remember($identity, $metric, $load); }
     public function currentEligibility(string $resource, string $scope, ?string $equivalentScope = null): int { return $this->ledger->currentEligibility($resource, $scope, $equivalentScope); }
+    /** @param Frame $response */
     public function observe(string $requestedResource, #[\SensitiveParameter] array $response, string $scope = 'anonymous', ?string $equivalentScope = null): void { $this->ledger->observe($requestedResource, $response, $scope, $equivalentScope); }
 }

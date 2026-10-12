@@ -48,13 +48,13 @@ final class WorkerSearchDebtTest
                 (new SearchServiceAssertions($policy, $sites))->oneWindow($calls);
 
             }
-            $rows = $db->query('SELECT * FROM worker_progress')->fetchAll();
+            $rows = \Tablo\SqlRows::all(\Tablo\SqlStatement::checked($db->query('SELECT * FROM worker_progress'))->fetchAll(), \Tablo\SqlWorkerProgressRow::checked(...));
             Assert::same(count($rows), 21);
             foreach ($rows as $row) {
                 Assert::true($row['open_issues'] > 0 && $row['open_prs'] > 0, 'both search debts paid, including later repositories');
             }
-            $requests = array_map(static fn (string $line): array => json_decode($line, associative: true), file($directory->path . '/requests.jsonl', FILE_IGNORE_NEW_LINES));
-            Assert::same(count(array_filter($requests, static fn (array $row): bool => $row['path'] === '/search/issues')), 42);
+            $requests = array_map(static fn (string $line): array => \Tablo\JsonRecord::checked(json_decode($line, associative: true)), \Tablo\Tests\Support\FixtureValue::fetched(file($directory->path . '/requests.jsonl', FILE_IGNORE_NEW_LINES)));
+            Assert::same(count(array_filter($requests, static fn (array $row): bool => \Tablo\Tests\Support\FixtureValue::at($row, 'path') === '/search/issues')), 42);
         } finally { unset($worker, $policy, $sites, $db, $http); $server?->close(); $directory->close(); }
     }
 }

@@ -7,6 +7,12 @@ use PDO;
 
 // Pinned Lekalo requires lowercase physical source paths for this contracted owner.
 // @mago-expect lint:file-name
+/**
+ * @phpstan-import-type Record from SqlNotificationSlotsAcknowledgedAtAttemptsChannelRevisionRow as Slot
+ * @phpstan-import-type Record from SqlNotificationSettingsActivationIdBearerCipherBlockedRow as Settings
+ * @phpstan-import-type Result from NotificationResult
+ * @phpstan-type Claim array{slot: Slot, claim: string, attempt: int, settings: Settings}
+ */
 final class NotificationOutbox
 {
     public function __construct(private readonly PDO $db) {}
@@ -27,24 +33,25 @@ final class NotificationOutbox
 
 
     // At most32 maintenance updates and one eligible claim/pass. Caller owns channel mutex.
+    /** @return Claim|false */
     public function claim(int $now): array|false
     {
         $store = new NotificationProjectionStore($this->db);
         $this->db->exec('BEGIN IMMEDIATE');
         try {
-            $settings=$store->one('SELECT * FROM notification_settings WHERE id = 1');
+            $settings=\Tablo\SqlRows::required($store->one('SELECT * FROM notification_settings WHERE id = 1'), \Tablo\SqlNotificationSettingsActivationIdBearerCipherBlockedRow::checked(...));
             if ($settings['blocked'] || !$settings['enabled'] || $settings['endpoint_cipher'] === null
                 || !($settings['unavailable'] || $settings['recovery'] || $settings['version_lag'])) {
                 $this->db->exec('COMMIT'); return false;
             }
             (new NotificationMaintenance($this->db))->maintain($settings,$now);
             // Invalid/expired rows cannot consume the fresh event's entire one-hour TTL.
-            $slot=$store->one("SELECT n.* FROM notification_slots n INDEXED BY notification_eligible
+            $slot=\Tablo\SqlRows::one($store->one("SELECT n.* FROM notification_slots n INDEXED BY notification_eligible
                 JOIN sites s ON s.id=n.site_id WHERE n.status='pending' AND n.channel_revision=? AND n.expires_at>?
                 AND n.attempts<3 AND n.due_at<=? AND s.enabled=1 AND s.config_revision=n.config_revision
                 AND ((n.event='unavailable' AND CAST(? AS INTEGER)=1) OR (n.event='recovery' AND CAST(? AS INTEGER)=1) OR (n.event='version_lag' AND CAST(? AS INTEGER)=1))
                 ORDER BY n.due_at,n.site_id,n.event LIMIT 1",[$settings['revision'],$now,$now,
-                    $settings['unavailable'],$settings['recovery'],$settings['version_lag']]);
+                    $settings['unavailable'],$settings['recovery'],$settings['version_lag']]), \Tablo\SqlNotificationSlotsAcknowledgedAtAttemptsChannelRevisionRow::checked(...));
             if ($slot === false) { $this->db->exec('COMMIT'); return false; }
             $claim=bin2hex(random_bytes(16));
             $store->execute("UPDATE notification_slots SET status='inflight',claim=?,lease_until=?,attempts=attempts+1
@@ -64,5 +71,6 @@ final class NotificationOutbox
 
 
     public function statusTruncated(): bool { return (new NotificationStatus($this->db))->statusTruncated(); }
+    /** @param Claim $claimed */
     public function acknowledge(#[\SensitiveParameter] array $claimed,array $result,int $now): bool { return (new NotificationAcknowledgement($this->db))->acknowledge($claimed,$result,$now); }
 }

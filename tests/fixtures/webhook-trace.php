@@ -15,7 +15,7 @@ $clients=[
 $checks=0;
 foreach($clients as $client){
     $caught=null;
-    try { $client->postBefore('https://receiver.example/'.$marker,'{"private":"'.$marker.'"}','fixture:1',$marker,hrtime(true)+1_000_000_000); }
+    try { $client->postBefore('https://receiver.example/'.$marker,'{"private":"'.$marker.'"}','fixture:1',$marker,\Tablo\MonotonicTime::integer(hrtime(true))+1_000_000_000); }
     catch(\Tablo\WebhookFailure $error){ $caught=$error; }
     if($caught===null || $caught->getPrevious()!==null){throw new RuntimeException('Expected detached actual webhook failure.');}
     $inspection=\Tablo\Tests\Support\TraceInspector::inspect($caught,[$marker]);
@@ -24,7 +24,7 @@ foreach($clients as $client){
 }
 function deliberately_leaking_webhook_probe(string $marker): void
 {
-    (new \Tablo\HttpClient())->postBefore('https://127.0.0.1/'.$marker,'{}','fixture:1',$marker,hrtime(true)+1_000_000_000);
+    (new \Tablo\HttpClient())->postBefore('https://127.0.0.1/'.$marker,'{}','fixture:1',$marker,\Tablo\MonotonicTime::integer(hrtime(true))+1_000_000_000);
 }
 try { deliberately_leaking_webhook_probe($marker); }
 catch(\Tablo\WebhookFailure $error) {
@@ -33,7 +33,7 @@ catch(\Tablo\WebhookFailure $error) {
 }
 function deliberately_opaque_webhook_probe(mixed $opaque): void
 {
-    (new \Tablo\HttpClient())->postBefore('https://127.0.0.1/hook','{}','fixture:1','',hrtime(true)+1_000_000_000);
+    (new \Tablo\HttpClient())->postBefore('https://127.0.0.1/hook','{}','fixture:1','',\Tablo\MonotonicTime::integer(hrtime(true))+1_000_000_000);
 }
 try { deliberately_opaque_webhook_probe(new PDO('sqlite::memory:')); }
 catch(\Tablo\WebhookFailure $error) {

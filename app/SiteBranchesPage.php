@@ -18,7 +18,7 @@ final class SiteBranchesPage extends WebPage
         // Credentials travel only in this authenticated, CSRF-protected POST.
         session_write_close();
         try {
-            return $this->json($this->github->branches(SiteProjection::withoutEndpointCredential($_POST), SiteProjection::withoutEndpointCredential($site)));
+            return $this->json($this->github->branches(SiteProjection::withoutEndpointCredential($_POST), SiteProjection::gitCredentials($site)));
         } catch (ValidationException $e) {
             return $this->json(['error' => implode(' ', $e->errors)], 422);
         }

@@ -44,7 +44,7 @@ final class SitePages extends WebPage
         }
         try {
             SiteInput::normalize($_POST); // Reject invalid endpoint input before any Git request.
-            $this->github->validate(SiteProjection::withoutEndpointCredential($_POST), SiteProjection::withoutEndpointCredential($existing));
+            $this->github->validate(SiteProjection::withoutEndpointCredential($_POST), SiteProjection::gitCredentials($existing));
             $this->sites->save($_POST, $id);
             $_SESSION['notice'] = $id === null ? 'Сайт добавлен. Запустите первую проверку.' : 'Настройки сохранены. Запустите новую проверку.';
             return $this->redirect('/');

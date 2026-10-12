@@ -15,11 +15,11 @@ final class NotificationEnqueue
         $private=[];
         if ($settings['include_name']) { $private['display_name']=$site['name']; }
         if ($settings['include_url']) {
-            $parts=parse_url($site['url']);
+            $parts=GetTarget::parts($site['url']);
             $private['site_origin']=$parts['scheme'].'://'.$parts['host'].((($parts['port'] ?? null) !== null) ? ':'.$parts['port'] : '');
         }
         $cipher=null;
-        if ($private !== []) { $this->vault->assertAvailable(KeyRequirement::Existing); $cipher=$this->vault->encrypt(json_encode($private,JSON_THROW_ON_ERROR)); }
+        if ($private !== []) { $this->vault->assertAvailable(KeyRequirement::Existing); $cipher=$this->vault->encrypt(JsonEncoding::encode($private)); }
         $this->store->execute("INSERT INTO notification_slots (site_id,event,event_id,source_id,config_revision,channel_revision,payload,private_cipher,
             created_at,expires_at,due_at,status) VALUES (?,?,?,?,?,?,?,?,?,?,?,'pending')
             ON CONFLICT(site_id,event) DO UPDATE SET event_id=excluded.event_id,source_id=excluded.source_id,

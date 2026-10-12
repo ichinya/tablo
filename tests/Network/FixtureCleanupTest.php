@@ -27,6 +27,7 @@ final class FixtureCleanupTest
         } catch (RuntimeException $error) { Assert::same($error->getMessage(), 'Simulated scenario failure'); }
         $web->close();
         Assert::false(is_dir($path), 'Database, sessions, cookies and Volt cache removed');
+        $errno = 0;
         $socket = stream_socket_server('tcp://127.0.0.1:' . $port, $errno, $error);
         Assert::true(is_resource($socket), 'Server exited and port released');
         if (is_resource($socket)) { fclose($socket); }

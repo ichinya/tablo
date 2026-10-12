@@ -61,7 +61,7 @@ final class GitHubEquivalentScopeTest extends GitHubCorrectionFixtureCase
             self::failure(static fn () => (new GitHubConnection($sites, $http))->provider($sites->find($ids[3]))
                 ->getLatestRelease('fixture/control'), 'rate-limit');
             Assert::same($http->core, 1);
-            Assert::false(str_contains(file_get_contents($path), $secret));
+            Assert::false(str_contains(\Tablo\RequiredFile::bytes(file_get_contents($path)), $secret));
             Assert::false(str_contains($server->diagnostics(), $secret));
         } finally {
             unset($freshSites, $freshDb, $sites, $tokens, $vault, $http, $db);

@@ -1,21 +1,23 @@
 <?php
 declare(strict_types=1);
+require_once __DIR__ . '/../Support/FixtureRequest.php';
 
 require dirname(__DIR__, levels: 2) . '/vendor/autoload.php';
-$path = parse_url($_SERVER['REQUEST_URI'], PHP_URL_PATH);
+$path = \Tablo\Tests\Support\FixtureRequest::path($_SERVER['REQUEST_URI']);
 $authorization = $_SERVER['HTTP_AUTHORIZATION'] ?? '';
 $a = 'Bearer ' . \Tablo\Tests\Support\EndpointFixture::tokenA();
 $b = 'Bearer ' . \Tablo\Tests\Support\EndpointFixture::tokenB();
 $row = ['path' => $path, 'present' => $authorization !== '', 'a' => hash_equals($a, $authorization),
     'b' => hash_equals($b, $authorization), 'git' => str_starts_with($path, '/repos/') || str_starts_with($path, '/search/')];
-file_put_contents(getenv('TABLO_ENDPOINT_FIXTURE') . '/requests.jsonl', json_encode($row, JSON_THROW_ON_ERROR) . "\n", FILE_APPEND | LOCK_EX);
+file_put_contents(\Tablo\Tests\Support\FixtureValue::string(getenv('TABLO_ENDPOINT_FIXTURE')) . '/requests.jsonl', json_encode($row, JSON_THROW_ON_ERROR) . "\n", FILE_APPEND | LOCK_EX);
 if ($row['git']) { require __DIR__ . '/worker-router.php'; return; }
 if ($path === '/barrier/') {
-    file_put_contents(getenv('TABLO_ENDPOINT_FIXTURE') . '/entered', data: 'ready');
+    file_put_contents(\Tablo\Tests\Support\FixtureValue::string(getenv('TABLO_ENDPOINT_FIXTURE')) . '/entered', data: 'ready');
     $deadline = microtime(true) + 8;
-    while (!is_file(getenv('TABLO_ENDPOINT_FIXTURE') . '/release') && microtime(true) < $deadline) { clearstatcache(); usleep(10_000); }
+    while (!is_file(\Tablo\Tests\Support\FixtureValue::string(getenv('TABLO_ENDPOINT_FIXTURE')) . '/release') && microtime(true) < $deadline) { clearstatcache(); usleep(10_000); }
 }
-$homeStatus = preg_match('~^/home/(\d{3})/+$~D', $path, $match) === 1 ? (int) $match[1] : 200;
+$match = [];
+$homeStatus = preg_match('~^/home/(\d{3})/+$~D', $path, $match) === 1 ? (int) \Tablo\Tests\Support\FixtureValue::at($match, 1) : 200;
 $status = (int) ($_GET['status'] ?? $homeStatus);
 http_response_code($status);
 if (in_array($status, [301, 302], strict: true)) { header('Location: /destination'); }

@@ -39,7 +39,7 @@ final class GitHubKeyLivenessTest extends GitHubKeyFixtureCase
             Assert::same($before[0], []);
             Assert::same($before[1], []);
             Assert::same(count($before[2]), 1);
-            Assert::true(str_starts_with($before[2][0]['scope'], 'credential:v1:'));
+            Assert::true(str_starts_with(\Tablo\Tests\Support\FixtureValue::string(\Tablo\Tests\Support\FixtureValue::at($before[2], 0)['scope']), 'credential:v1:'));
             Assert::same($http->core, 1);
             $keyHash = hash_file('sha256', $key);
             rename($key, $directory->path . '/moved-original.key');
@@ -62,7 +62,7 @@ final class GitHubKeyLivenessTest extends GitHubKeyFixtureCase
                 Assert::same($connection->provider(null, self::input($allowed))->getLatestRelease('fixture/control'), 'v1');
             }
             Assert::same($http->core, 3);
-            Assert::false(str_contains(file_get_contents($path), $secret));
+            Assert::false(str_contains(\Tablo\RequiredFile::bytes(file_get_contents($path)), $secret));
             Assert::false(str_contains($server->diagnostics(), $secret));
         } finally {
             unset($error, $connection, $sites, $http, $db);
@@ -84,7 +84,7 @@ final class GitHubKeyLivenessTest extends GitHubKeyFixtureCase
             $sites = new SiteRepository($db);
             $secret = bin2hex(random_bytes(24));
             $scope = $sites->equivalentCredentialScope($secret);
-            $sites->githubCooldowns()->defer('core', time() - 1, $scope);
+            $sites->githubCooldowns()->defer('core', time() - 1, \Tablo\Tests\Support\FixtureValue::string($scope));
             $before = self::rows($db);
             $key = $directory->path . '/github-token.key';
             rename($key, $key . '.backup');

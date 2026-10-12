@@ -6,6 +6,7 @@ namespace Tablo\Tests\Http;
 
 final class InFlightCommand
 {
+    /** @return list<string> */
     public static function forMode(string $mode, \Tablo\Tests\Support\WebFixture $web, int $id, string $csrf): array
     {
                 $root = dirname(__DIR__, levels: 2);

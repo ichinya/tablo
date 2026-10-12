@@ -1,7 +1,8 @@
 <?php
 declare(strict_types=1);
+require_once __DIR__ . '/Support/FixtureRequest.php';
 
-$path = parse_url($_SERVER['REQUEST_URI'], PHP_URL_PATH);
+$path = \Tablo\Tests\Support\FixtureRequest::path($_SERVER['REQUEST_URI']);
 if ($path !== '/' && is_file(dirname(__DIR__) . '/public' . $path)) {
     return false;
 }

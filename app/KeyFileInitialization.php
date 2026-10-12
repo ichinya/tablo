@@ -18,7 +18,9 @@ final class KeyFileInitialization
             }
             \Tablo\NativeWarning::ignore(static fn () => chmod($path, permissions: 0o600));
             try {
-                if (fstat($file)['size'] === 0) {
+                $information = fstat($file);
+                if ($information === false) { throw new \RuntimeException('Cannot inspect token key file.'); }
+                if ($information['size'] === 0) {
                     if (fwrite($file, random_bytes(32)) !== 32) {
                         throw new \RuntimeException('Не удалось создать ключ для токенов.');
                     }

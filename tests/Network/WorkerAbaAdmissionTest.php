@@ -44,16 +44,16 @@ final class WorkerAbaAdmissionTest
             file_put_contents($directory->path . '/release', data: 'release');
             $child->awaitOutput('Worker pass complete.');
             $state = new WorkerStateRepository($db);
-            Assert::true($state->requestStop($state->generation()));
+            Assert::true($state->requestStop(\Tablo\Tests\Support\FixtureValue::string($state->generation())));
             Assert::same($child->wait()['exit_code'], 0);
             (new WorkerAbaAssertions($sites, $directory))->firstPass([$first, $later, $new]);
             $child = new WorkerProcess($directory, 'restart', [PHP_BINARY, dirname(__DIR__) . '/fixtures/worker-process.php'],
                 ['TABLO_DB' => $path, 'TABLO_WORKER_BASE' => $server->base]);
             $child->awaitOutput('Worker pass complete.');
-            $state->requestStop($state->generation());
+            $state->requestStop(\Tablo\Tests\Support\FixtureValue::string($state->generation()));
             Assert::same($child->wait()['exit_code'], 0);
-            Assert::same($sites->find($new)['online'], 1);
-            Assert::true($sites->find($new)['checked_at'] !== null);
+            Assert::same(\Tablo\Tests\Support\FixtureValue::row($sites->find($new))['online'], 1);
+            Assert::true(\Tablo\Tests\Support\FixtureValue::row($sites->find($new))['checked_at'] !== null);
         } finally {
             if (is_dir($directory->path)) { file_put_contents($directory->path . '/release', data: 'release'); }
             $child?->close(); $server?->close(); unset($state, $sites, $db); $directory->close();
