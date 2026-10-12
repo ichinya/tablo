@@ -4078,6 +4078,13 @@
       "Composer verify"
     ]
   },
+  "tests/Support/HeldResponseProbe.php": {
+    "owner": "Tablo\\Tests\\Support\\HeldResponseProbe",
+    "consumers": [
+      "Composer lint",
+      "Composer verify"
+    ]
+  },
   "tests/Support/IncidentFixtures.php": {
     "owner": "Tablo\\Tests\\Support\\IncidentFixtures",
     "consumers": [

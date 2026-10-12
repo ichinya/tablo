@@ -124,7 +124,10 @@ case ($path === '/budget/combined'):
 case ($path === '/budget/tiny-chunks'):
  $chunked = true; $body = str_repeat('x', times: 200_000);
     break;
-case ($path === '/held/start'):
+case ($path === '/held/start' || $path === '/held/observed'):
+ if ($path === '/held/observed') {
+     fwrite($connection, data: "HTTP/1.1 200 Fixture\r\nConnection: close\r\nContent-Length: 2\r\n\r\nx");
+ }
  // The client must expire while this response is held; close signals the owned stop latch.
  $holdUntil = hrtime(true) + 3_000_000_000;
  while (!is_file($directory . '/stop') && hrtime(true) < $holdUntil) { clearstatcache(); usleep(1_000); }

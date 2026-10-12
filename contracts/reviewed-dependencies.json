@@ -8,7 +8,7 @@
                 "Composer verify",
                 "Reviewed dependency capture"
             ],
-            "fingerprint": "sha256:e1c901b87dc645892ee73df258670be3a784b223b6c4adc3ae2e03a7dfb924d5"
+            "fingerprint": "sha256:5a7ac1472b00e192afc205733d858db675faeb0b3d274877b97128502066c3d0"
         },
         {
             "path": "tools/reviewed-dependencies.php",
@@ -3426,7 +3426,7 @@
                 "Composer lint",
                 "Composer verify"
             ],
-            "fingerprint": "sha256:467dbb61603bbc127f5e29b6d10832039f24ea88dba5840c568b7a69d688aaaa"
+            "fingerprint": "sha256:1e91ff8804eddc26a6a3fbb3e3ce238a2a32913442e4926f10b26e3cf09ca674"
         },
         {
             "path": "tests/fixtures/settings-process.php",
@@ -4768,7 +4768,7 @@
                 "Composer lint",
                 "Composer verify"
             ],
-            "fingerprint": "sha256:b09b23777997eefdd851f5ffa01c0b9121c3716a765d8a25d9164870cec77e66"
+            "fingerprint": "sha256:c07487122bdfddc622e51966d4807346a84ae0b4f2741d45d1e47bd87f580ae9"
         },
         {
             "path": "tests/Network/RedirectOriginAdmissionTest.php",
@@ -5261,6 +5261,15 @@
             "fingerprint": "sha256:d76d726fdc6bcd565aaa8220adec083861bec712cf155a3a86473a61ea910b9d"
         },
         {
+            "path": "tests/Support/HeldResponseProbe.php",
+            "owner": "Tablo\\Tests\\Support\\HeldResponseProbe",
+            "consumers": [
+                "Composer lint",
+                "Composer verify"
+            ],
+            "fingerprint": "sha256:06f2e310f26e62643819f3d44a87a2e1750b3dbc4d6e7e4e218288f3db991f1e"
+        },
+        {
             "path": "tests/Support/IncidentFixtures.php",
             "owner": "Tablo\\Tests\\Support\\IncidentFixtures",
             "consumers": [
@@ -5384,7 +5393,7 @@
                 "Composer lint",
                 "Composer verify"
             ],
-            "fingerprint": "sha256:b3876e113c5e8eec488d359570ae305964d5abdbd8f1a1a8b54a54c1c8bfe1fd"
+            "fingerprint": "sha256:ee0daaf6f0d67bffe11168d05b7362414d6ac3ed1b0671d49e31c6fbe132ea71"
         },
         {
             "path": "tests/Support/RedirectServer.php",

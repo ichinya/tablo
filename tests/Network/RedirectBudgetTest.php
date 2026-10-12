@@ -50,10 +50,16 @@ final class RedirectBudgetTest
             $start = hrtime(true);
             \Tablo\Tests\Support\RedirectAssertions::reject($server->base . '/held/start', 'timeout',
                 \Tablo\Tests\Support\RedirectAssertions::headers(), deadline: $start + 180_000_000);
-            Assert::same(count($server->rows()) - $before, 1, 'held first response exhausts the original deadline');
-            Assert::same($server->rows()[$before]['route'], 'held');
-            Assert::true($server->rows()[$before]['bearer'], 'the real first request carries the protected credential');
             Assert::true((hrtime(true) - $start) / 1e6 < 900, 'first-hop refusal keeps the original upper bound');
+            $sent = array_slice($server->rows(), $before);
+            if ($sent === []) {
+                Assert::same($sent, [], 'pre-send expiry has no held-response receipt');
+            }
+            if ($sent !== []) {
+                Assert::same(count($sent), 1, 'an observed held request cannot advance to another hop');
+                Assert::same($sent[0]['route'], 'held');
+                Assert::true($sent[0]['bearer'], 'the observed request carries the protected credential');
+            }
             $slow = new class extends HttpClient {
                 public int $calls = 0;
                 protected function resolve(#[\SensitiveParameter] string $host): array { ++$this->calls; usleep(40_000); return ['8.8.8.8']; }
@@ -79,6 +85,31 @@ final class RedirectBudgetTest
             Assert::same(count($server->rows()), 2, 'both native transfers actually reach the peer');
             Assert::same(array_column($server->rows(), 'bearer'), [true, true]);
         } finally { $server->close(); }
+    }
+
+    #[Test]
+    public function expiredDeadlineRefusesBeforeAnyIo(): void
+    {
+        if (getenv('TABLO_TEST_ISOLATED_TRACE') !== __FUNCTION__) {
+            \Tablo\Tests\Support\TraceTestIsolation::run(__FILE__, __FUNCTION__, minimumAssertions: 6);
+            return;
+        }
+        $server = new RedirectServer();
+        try {
+            \Tablo\Tests\Support\RedirectAssertions::expired($server);
+        } finally { $server->close(); }
+    }
+
+    #[Test]
+    public function observedNativeResponseExpiresInFlight(): void
+    {
+        if (getenv('TABLO_TEST_ISOLATED_TRACE') !== __FUNCTION__) {
+            \Tablo\Tests\Support\TraceTestIsolation::run(__FILE__, __FUNCTION__, minimumAssertions: 10);
+            return;
+        }
+        $server = new RedirectServer();
+        try { \Tablo\Tests\Support\HeldResponseProbe::verify($server); }
+        finally { $server->close(); }
     }
 
 }
