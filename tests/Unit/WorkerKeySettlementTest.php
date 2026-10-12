@@ -20,7 +20,7 @@ final class WorkerKeySettlementTest
     {
         $directory = new TemporaryDirectory('tablo-settlement-selected-');
         $environment = getenv('TABLO_TOKEN_KEY_FILE');
-        $db = $sites = $state = $vault = null;
+        $vault = null; $state = null; $sites = null; $db = null;
         try {
             putenv('TABLO_TOKEN_KEY_FILE');
             $key = $directory->path . '/key';
@@ -38,7 +38,7 @@ final class WorkerKeySettlementTest
             Assert::same($state->turns($id, $snapshot['config_revision'])['latest_release'], 1);
             Assert::false($db->inTransaction());
         } finally {
-            $state = $sites = $db = $vault = null;
+            $vault = null; $db = null; $sites = null; $state = null;
             putenv($environment === false ? 'TABLO_TOKEN_KEY_FILE' : 'TABLO_TOKEN_KEY_FILE=' . $environment);
             $directory->close();
         }
@@ -49,7 +49,7 @@ final class WorkerKeySettlementTest
     {
         $directory = new TemporaryDirectory('tablo-settlement-lifetime-');
         $environment = getenv('TABLO_TOKEN_KEY_FILE');
-        $db = $sites = $state = $vault = null;
+        $vault = null; $state = null; $sites = null; $db = null;
         try {
             putenv('TABLO_TOKEN_KEY_FILE');
             $key = $directory->path . '/key';
@@ -89,7 +89,7 @@ final class WorkerKeySettlementTest
             Assert::true($state->settle($snapshot, $result));
             Assert::same($state->turns($id, $snapshot['config_revision'])['latest_release'], 1);
         } finally {
-            $state = $sites = $db = $vault = null;
+            $vault = null; $db = null; $sites = null; $state = null;
             putenv($environment === false ? 'TABLO_TOKEN_KEY_FILE' : 'TABLO_TOKEN_KEY_FILE=' . $environment);
             $directory->close();
         }

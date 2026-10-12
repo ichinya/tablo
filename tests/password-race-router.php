@@ -8,11 +8,11 @@ namespace Tablo {
     {
         $barrier = getenv('TABLO_TEST_AUTH_BARRIER');
         if ($barrier && is_file($barrier . '/armed')) {
-            file_put_contents($barrier . '/verified', 'ready');
+            file_put_contents($barrier . '/verified', data: 'ready');
             $deadline = microtime(true) + 8;
             while (!is_file($barrier . '/release') && microtime(true) < $deadline) {
                 clearstatcache();
-                usleep(20000);
+                usleep(20_000);
             }
             if (!is_file($barrier . '/release')) { throw new \RuntimeException('Authentication barrier timed out'); }
         }

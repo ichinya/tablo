@@ -3,7 +3,7 @@ declare(strict_types=1);
 namespace Tablo\Tests\Unit;
 
 use Tablo\NotificationOutbox;
-use Tablo\SiteRepository;
+use Tablo\SiteProjection;
 use Tablo\Tests\Support\NotificationFixture as F;
 use Testo\Assert;
 use Testo\Test;
@@ -51,9 +51,9 @@ final class NotificationSelectionTest
         try {
             $f->accept(0,0); $f->configure(); $f->accept(0,60); $f->accept(0,120); Assert::same($f->slots(),[]);
             $snapshot=$f->sites->find($f->id);
-            $f->sites->save(array_replace(SiteRepository::withoutEndpointCredential($snapshot),['enabled'=>0]),$f->id);
+            $f->sites->save(array_replace(SiteProjection::withoutEndpointCredential($snapshot),['enabled'=>0]),$f->id);
             Assert::false($f->sites->storeCheck($snapshot,['checked_at'=>'invalid']));
-            $f->sites->save(array_replace(SiteRepository::withoutEndpointCredential($snapshot),['enabled'=>1]),$f->id);
+            $f->sites->save(array_replace(SiteProjection::withoutEndpointCredential($snapshot),['enabled'=>1]),$f->id);
             Assert::false($f->sites->storeCheck($snapshot,['checked_at'=>'invalid']));
             $f->accept(0,200); $f->accept(0,200); Assert::same($f->slots(),[]);
             $f->accept(0,190); $f->accept(0,260); Assert::same($f->slots(),[]);

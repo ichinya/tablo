@@ -6,7 +6,7 @@ namespace Tablo\Tests\Unit;
 use Tablo\SiteChecker;
 use Tablo\HttpFailure;
 use Tablo\VersionResponse;
-use Tablo\SiteRepository;
+use Tablo\SiteProjection;
 use Tablo\SharedKeyFailure;
 use Tablo\TokenVault;
 use Tablo\Tests\Support\EndpointFixture;
@@ -61,8 +61,12 @@ final class EndpointTokenCheckerTest
     #[Test]
     public function reflectionFailureHasProtectedRealArgumentsAndNoPreviousException(): void
     {
+        if (getenv('TABLO_TEST_ISOLATED_TRACE') !== __FUNCTION__) {
+            \Tablo\Tests\Support\TraceTestIsolation::run(__FILE__, __FUNCTION__, minimumAssertions: 7);
+            return;
+        }
         $previous = (string) ini_get('zend.exception_ignore_args');
-        ini_set('zend.exception_ignore_args', value: '0');
+        \Tablo\RuntimeIni::set('zend.exception_ignore_args', value: '0');
         try {
             Assert::same(ini_get('zend.exception_ignore_args'), '0');
             $token = EndpointFixture::tokenA();
@@ -75,7 +79,7 @@ final class EndpointTokenCheckerTest
             $inspection = TraceInspector::inspect($error, [$token]);
             Assert::false($inspection['leaked']);
             Assert::true($inspection['redacted'] >= 3);
-        } finally { ini_set('zend.exception_ignore_args', $previous); }
+        } finally { \Tablo\RuntimeIni::set('zend.exception_ignore_args', $previous); }
         Assert::same(ini_get('zend.exception_ignore_args'), $previous);
     }
 
@@ -106,7 +110,7 @@ final class EndpointTokenCheckerTest
             Assert::same(count($http->requests), 1);
             Assert::same($state['online'], 1);
             Assert::true(hash_equals($http->requests[0][1][0], 'Authorization: Bearer ' . EndpointFixture::tokenA()));
-        } finally { $http = $vault = null; $directory->close(); }
+        } finally { $vault = null; $http = null; $directory->close(); }
     }
 
     #[Test]
@@ -130,7 +134,7 @@ final class EndpointTokenCheckerTest
             catch (SharedKeyFailure) { $failed = true; }
             Assert::true($failed);
             Assert::false(is_file($directory->path . '/key'));
-        } finally { $http = $vault = null; $directory->close(); }
+        } finally { $vault = null; $http = null; $directory->close(); }
     }
 
     #[Test]
@@ -138,15 +142,15 @@ final class EndpointTokenCheckerTest
     {
         $secret = EndpointFixture::tokenA();
         $site = [...UnitFixtures::site(), 'endpoint_token' => $secret, 'github_token' => $secret,
-            'selected_token_snapshot' => $secret, 'remove_endpoint_token' => '1'];
-        $public = SiteRepository::publicSite($site);
+            'selected_token_snapshot' => $secret, 'remove_endpoint_token' => \Tablo\FormCheckbox::VALUE];
+        $public = SiteProjection::publicSite($site);
         Assert::true($public['has_endpoint_token']);
         Assert::true($public['has_github_token']);
-        Assert::true(SiteRepository::publicSite(['endpoint_token' => '0'])['has_endpoint_token'], 'presence is independent of ciphertext validity');
+        Assert::true(SiteProjection::publicSite(['endpoint_token' => EndpointFixture::invalidCiphertext()])['has_endpoint_token'], 'presence is independent of ciphertext validity');
         Assert::false(str_contains(json_encode($public, JSON_THROW_ON_ERROR), $secret));
-        $git = SiteRepository::withoutEndpointCredential($site);
+        $git = SiteProjection::withoutEndpointCredential($site);
         Assert::false(array_key_exists('endpoint_token', $git));
         Assert::false(array_key_exists('remove_endpoint_token', $git));
-        Assert::true(isset($git['github_token'], $git['selected_token_snapshot']));
+        Assert::true(($git['github_token'] ?? null) !== null && ($git['selected_token_snapshot'] ?? null) !== null);
     }
 }

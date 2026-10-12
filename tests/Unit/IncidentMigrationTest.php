@@ -58,7 +58,7 @@ final class IncidentMigrationTest
             $site = $db->query('SELECT * FROM sites')->fetchAll();
             $history = $db->query('SELECT * FROM check_history')->fetchAll();
             $db->failBefore = $failure;
-            Assert::instanceOf(F::error(fn () => Database::migrate($db)), \PDOException::class, $failure);
+            Assert::instanceOf(F::error(static fn () => Database::migrate($db)), \PDOException::class, $failure);
             Assert::same((int) $db->query('PRAGMA user_version')->fetchColumn(), 5);
             Assert::same($db->query('SELECT name,type,sql FROM sqlite_schema ORDER BY name')->fetchAll(), $schema);
             Assert::same($db->query('SELECT * FROM sites')->fetchAll(), $site);
@@ -73,7 +73,7 @@ final class IncidentMigrationTest
             $db = self::predecessor();
             $db->exec($conflict);
             $schema = $db->query('SELECT name,type,sql FROM sqlite_schema ORDER BY name')->fetchAll();
-            Assert::instanceOf(F::error(fn () => Database::migrate($db)), \RuntimeException::class);
+            Assert::instanceOf(F::error(static fn () => Database::migrate($db)), \RuntimeException::class);
             Assert::same((int) $db->query('PRAGMA user_version')->fetchColumn(), 5);
             Assert::same($db->query('SELECT name,type,sql FROM sqlite_schema ORDER BY name')->fetchAll(), $schema);
         }

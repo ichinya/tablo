@@ -19,9 +19,9 @@ final class IncidentPublicTest
     public function realManualOneShotCliAndWorkerNetworkPersistenceShareOneIncidentAndRecovery(): void
     {
         $directory = new TemporaryDirectory('tablo-incidents-public-');
-        $web = $server = $child = null;
+        $child = null; $server = null; $web = null;
         try {
-            file_put_contents($directory->path . '/health-status', '503');
+            file_put_contents($directory->path . '/health-status', data: '503');
             $server = new TestServer($directory, dirname(__DIR__) . '/fixtures/incident-router.php',
                 environment: ['TABLO_WORKER_FIXTURE' => $directory->path]);
             $web = new WebFixture(true);
@@ -34,12 +34,12 @@ final class IncidentPublicTest
             $opening = $db->query('SELECT * FROM incidents')->fetch();
             Assert::same($opening['id'], 1);
             Assert::same($opening['health_http_status'], 503);
-            $root = dirname(__DIR__, 2);
-            $result = Subprocess::run([PHP_BINARY, '-d', 'auto_prepend_file=' . $root . '/tests/cli-github-fixture.php',
+            $root = dirname(__DIR__, levels: 2);
+            $result = Subprocess::run([PHP_BINARY, '-d', 'auto_prepend_file=' . $root . '/tests/FixtureCliGitHubConnection.php',
                 $root . '/bin/check.php'], $web->directory, ['TABLO_DB' => $web->directory->path . '/test.sqlite', 'TABLO_ALLOW_PRIVATE_NETWORK' => '1']);
             Assert::same($result['exit_code'], 1);
             Assert::same($db->query('SELECT * FROM incidents')->fetch(), $opening, 'repeat CLI Offline preserves identity and opening reason');
-            file_put_contents($directory->path . '/health-status', '200');
+            file_put_contents($directory->path . '/health-status', data: '200');
             $child = new WorkerProcess($directory, 'incident-worker', [PHP_BINARY, $root . '/tests/fixtures/worker-process.php'],
                 ['TABLO_DB' => $web->directory->path . '/test.sqlite', 'TABLO_WORKER_BASE' => $server->base]);
             $child->awaitOutput('Worker pass complete.');
@@ -52,7 +52,7 @@ final class IncidentPublicTest
             Assert::same($recovered['end_reason'], 'recovered');
             Assert::same((int) $db->query('SELECT last_history_id FROM incident_checkpoints')->fetchColumn(), 3);
             Assert::true(min($state->turns(1, 0)) > 0, 'actual worker admitted credit committed');
-            file_put_contents($directory->path . '/health-status', '503');
+            file_put_contents($directory->path . '/health-status', data: '503');
             Assert::same($web->request('/sites/1/check', ['_csrf' => $csrf])['status'], 303);
             Assert::same(array_column($db->query('SELECT id FROM incidents ORDER BY id')->fetchAll(), 'id'), [1, 4]);
         } finally {

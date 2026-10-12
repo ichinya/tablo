@@ -17,7 +17,7 @@ final class IncidentsTest
         $web = new WebFixture();
         try {
             $web->authenticate();
-            Assert::same($web->request('/incidents', cookie: false)['status'], 303);
+            Assert::same($web->request(path: '/incidents', options: new \Tablo\Tests\Support\WebRequestOptions(cookies: (false) ? \Tablo\Tests\Support\CookiePolicy::Retained : \Tablo\Tests\Support\CookiePolicy::Omitted))['status'], 303);
             $db = $web->database();
             $sites = new SiteRepository($db);
             $id = $sites->save(array_replace(F::site(), ['name' => '<img src=x onerror=alert(1)>']));
@@ -38,7 +38,7 @@ final class IncidentsTest
             Assert::true(str_contains($response['body'], 'HTTP 503'));
             Assert::true(str_contains($response['body'], 'Не наблюдалось'));
             Assert::true(str_contains($response['body'], 'Нет новых наблюдений'));
-            foreach (['synthetic-private-error', 'synthetic-private-version', 'https://example.com', 'example/service', 'fixture-token'] as $marker) {
+            foreach (['synthetic-private-error', 'synthetic-private-version', 'https://example.com', 'example/service', \Tablo\Tests\Support\FixtureCredentials::value(label: 'fixture-token')] as $marker) {
                 Assert::false(str_contains($response['body'], $marker), $marker);
             }
             foreach (['X-Content-Type-Options: nosniff', 'X-Frame-Options: DENY', 'Cache-Control: no-store', "frame-ancestors 'none'"] as $header) {
@@ -50,7 +50,7 @@ final class IncidentsTest
             Assert::true(str_contains($response['body'], 'href="/incidents"'));
             foreach (glob($web->directory->path . '/runtime/sessions/sess_*') as $session) {
                 $contents = file_get_contents($session);
-                file_put_contents($session, preg_replace('/authenticated_at\|i:[0-9]+;/', 'authenticated_at|i:1;', $contents));
+                file_put_contents($session, preg_replace('/authenticated_at\|i:[0-9]+;/', replacement: 'authenticated_at|i:1;', subject: $contents));
             }
             $expired = $web->request('/incidents');
             Assert::same($expired['status'], 303);
@@ -73,16 +73,16 @@ final class IncidentsTest
                 F::accept($sites, $id, 1, '2026-01-01T00:00:01Z');
             }
             $first = $web->request('/incidents');
-            Assert::same(substr_count($first['body'], 'data-incident-id='), 50);
+            Assert::same(substr_count($first['body'], needle: 'data-incident-id='), 50);
             preg_match('/href="([^\"]+)"[^>]*>Следующая страница/', $first['body'], $match);
-            Assert::true(isset($match[1]));
+            Assert::true(($match[1] ?? null) !== null);
             F::accept($sites, $id, 0, '2025-01-01T00:00:00Z');
             $second = $web->request(html_entity_decode($match[1]));
             Assert::same($second['status'], 200);
-            Assert::same(substr_count($second['body'], 'data-incident-id='), 2);
+            Assert::same(substr_count($second['body'], needle: 'data-incident-id='), 2);
             Assert::false(str_contains($second['body'], 'data-incident-id="105"'));
             foreach (['limit=0', 'limit=101', 'limit=01', 'limit=1e2', 'limit[]=1', 'site_id[]=1', 'site_id=0',
-                'site_id=01', 'site_id=9223372036854775808', 'cursor[]=a', 'cursor=', 'cursor=' . str_repeat('a', 257)] as $query) {
+                'site_id=01', 'site_id=9223372036854775808', 'cursor[]=a', 'cursor=', 'cursor=' . str_repeat('a', times: 257)] as $query) {
                 Assert::same($web->request('/incidents?' . $query)['status'], 422, $query);
             }
             Assert::same($web->request('/incidents?site_id=999')['status'], 404);

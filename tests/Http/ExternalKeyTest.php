@@ -13,7 +13,7 @@ final class ExternalKeyTest
     #[Test]
     public function actualPublicEntrypointRefusesMissingKeyBeforeSessionAndDatabase(): void
     {
-        $web = new WebFixture(router: dirname(__DIR__,2).'/public/index.php',
+        $web = new WebFixture(router: dirname(__DIR__,levels: 2).'/public/index.php',
             environment:['TABLO_TOKEN_KEY_FILE'=>'missing-'.bin2hex(random_bytes(20))]);
         try {
             $response=$web->request('/'); Assert::same($response['status'],500);
@@ -29,12 +29,12 @@ final class ExternalKeyTest
     #[Test]
     public function actualAuthenticatedFormsBranchesSettingsAndMetadataUseExternalKey(): void
     {
-        $directory=new TemporaryDirectory('tablo-external-http-'); $web=$db=null;
+        $directory=new TemporaryDirectory('tablo-external-http-'); $db = null; $web = null;
         try {
             $key=$directory->path.'/raw'; $bytes=random_bytes(32); file_put_contents($key,$bytes);
             $web=new WebFixture(environment:['TABLO_TOKEN_KEY_FILE'=>$key]); $csrf=$web->authenticate();
             // Public fixture protocol: github-fixture.php admits this exact test credential.
-            $secret='fixture-token';
+            $secret=\Tablo\Tests\Support\FixtureCredentials::value(label: 'fixture-token');
             $invalid=$web->request('/settings/tokens/new',['_csrf'=>$csrf,'provider'=>'github','name'=>'','token'=>$secret]);
             Assert::same($invalid['status'],422); Assert::false(str_contains($invalid['body'],$secret));
             Assert::same($web->request('/settings/tokens/new',['_csrf'=>$csrf,'provider'=>'github','name'=>'Synthetic','token'=>$secret])['status'],303);

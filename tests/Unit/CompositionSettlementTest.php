@@ -42,7 +42,7 @@ final class CompositionSettlementTest
     public function metadataBoundaryClassifiesNulUtf8LengthAndSuccessfulVersionBeforeHistory(): void
     {
         $db=Database::connect(':memory:'); $sites=new SiteRepository($db); $id=$sites->save(UnitFixtures::site());
-        foreach (["v\0secret",str_repeat('x',201),'v1.2.3'] as $version) {
+        foreach (["v\0secret",str_repeat('x',times: 201),'v1.2.3'] as $version) {
             $http=new FakeHttp([UnitFixtures::response(),UnitFixtures::response(200,json_encode(['version'=>$version],JSON_THROW_ON_ERROR))]);
             $site=$sites->find($id); $state=(new SiteChecker($http,new FakeProvider()))->check($site);
             Assert::same($state['version_status'],$version==='v1.2.3'?'ok':'error');
@@ -63,10 +63,10 @@ final class CompositionSettlementTest
     {
         $f=new NotificationFixture();
         try {
-            $f->configure(); $f->sites->save([...UnitFixtures::site(),'endpoint_token'=>'synthetic-old'], $f->id);
+            $f->configure(); $f->sites->save([...UnitFixtures::site(),'endpoint_token'=>\Tablo\Tests\Support\FixtureCredentials::value(label: 'synthetic-old')], $f->id);
             $snapshot=$f->sites->find($f->id);
-            $f->sites->save([...UnitFixtures::site(),'endpoint_token'=>'synthetic-new'], $f->id);
-            $f->sites->save([...UnitFixtures::site(),'endpoint_token'=>'synthetic-old'], $f->id);
+            $f->sites->save([...UnitFixtures::site(),'endpoint_token'=>\Tablo\Tests\Support\FixtureCredentials::value(label: 'synthetic-new')], $f->id);
+            $f->sites->save([...UnitFixtures::site(),'endpoint_token'=>\Tablo\Tests\Support\FixtureCredentials::value(label: 'synthetic-old')], $f->id);
             $before=IncidentFixtures::rows($f->db); $slots=$f->slots();
             Assert::false((new WorkerStateRepository($f->db,$f->sites))->settle($snapshot,
                 ['online'=>0,'checked_at'=>'2026-01-01T00:00:00Z','health_error_code'=>'http','worker_service'=>['latest_release'=>true]]));
@@ -80,7 +80,7 @@ final class CompositionSettlementTest
     {
         $db=Database::connect(':memory:'); $sites=new SiteRepository($db); $id=$sites->save(UnitFixtures::site());
         $before=IncidentFixtures::rows($db);
-        $error=IncidentFixtures::error(fn()=>(new WorkerStateRepository($db,$sites))->settle($sites->find($id),
+        $error=IncidentFixtures::error(static fn()=>(new WorkerStateRepository($db,$sites))->settle($sites->find($id),
             ['online'=>0,'checked_at'=>'2026-01-01T00:00:00Z','health_error_code'=>'redirect-origin','worker_service'=>['latest_release'=>true]]));
         Assert::instanceOf($error,\PDOException::class);
         Assert::same(IncidentFixtures::rows($db),$before);

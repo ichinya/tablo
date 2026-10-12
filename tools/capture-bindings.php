@@ -5,26 +5,26 @@ declare(strict_types=1);
 $root = dirname(__DIR__);
 $definitions = [];
 foreach (glob($root . '/lekalo/modules/dashboard/*.yaml') as $file) {
-    foreach (json_decode(file_get_contents($file), true, 64, JSON_THROW_ON_ERROR)['definitions'] as $definition) {
+    foreach (json_decode(file_get_contents($file), associative: true, depth: 64, flags: JSON_THROW_ON_ERROR)['definitions'] as $definition) {
         $definitions[$definition['id']] = $definition;
     }
 }
 $mapping = [
-    'change_admin_password' => ['app/auth-service.php', 'public function changePassword'],
-    'setup' => ['app/auth-service.php', 'public function setupSession'],
-    'login' => ['app/auth-service.php', 'public function loginSession'],
-    'logout' => ['app/web-application.php', "post('/logout'"],
-    'create_site' => ['app/web-application.php', 'private function save'],
-    'update_site' => ['app/web-application.php', 'private function save'],
+    'change_admin_password' => ['app/auth.php', 'public function changePassword'],
+    'setup' => ['app/auth.php', 'public function setupSession'],
+    'login' => ['app/auth.php', 'public function loginSession'],
+    'logout' => ['app/authentication-pages.php', "post('/logout'"],
+    'create_site' => ['app/site-pages.php', 'private function save'],
+    'update_site' => ['app/site-pages.php', 'private function save'],
     'delete_site' => ['app/site-repository.php', 'public function delete'],
     'check_site' => ['app/site-checker.php', 'public function check'],
     'run_checks' => ['app/check-command.php', 'public function run'],
     'list_sites' => ['app/site-repository.php', 'public function all'],
-    'list_branches' => ['app/github-connection.php', 'public function branches'],
+    'list_branches' => ['app/git-hub-connection.php', 'public function branches'],
     'user' => ['database/schema.sql', 'CREATE TABLE IF NOT EXISTS users'],
-    'site' => ['app/sqlite-database.php', 'ALTER TABLE sites ADD COLUMN endpoint_token TEXT'],
+    'site' => ['app/schema-layout-upgrade.php', 'ALTER TABLE sites ADD COLUMN endpoint_token TEXT'],
     'git_token' => ['database/schema.sql', 'CREATE TABLE IF NOT EXISTS git_tokens'],
-    'github_cooldown' => ['app/sqlite-database.php', 'private static function migrateToVersionThree'],
+    'github_cooldown' => ['app/base-schema.php', 'public static function migrateToVersionThree'],
     'list_git_tokens' => ['app/git-token-repository.php', 'public function all'],
     'create_git_token' => ['app/git-token-repository.php', 'public function save'],
     'update_git_token' => ['app/git-token-repository.php', 'public function save'],
@@ -33,16 +33,16 @@ $mapping = [
     'update_settings' => ['app/settings-repository.php', 'public function updateInterval'],
     'run_worker_pass' => ['app/periodic-worker.php', 'public function runPass'],
     'request_worker_stop' => ['app/worker-state-repository.php', 'public function requestStop'],
-    'installation_settings' => ['app/sqlite-database.php', 'CREATE TABLE installation_settings'],
-    'worker_runtime' => ['app/sqlite-database.php', 'CREATE TABLE worker_runtime'],
-    'worker_progress' => ['app/sqlite-database.php', 'CREATE TABLE worker_progress'],
-    'check_history' => ['app/sqlite-database.php', 'CREATE TABLE check_history'],
+    'installation_settings' => ['app/base-schema.php', 'CREATE TABLE installation_settings'],
+    'worker_runtime' => ['app/base-schema.php', 'CREATE TABLE worker_runtime'],
+    'worker_progress' => ['app/base-schema.php', 'CREATE TABLE worker_progress'],
+    'check_history' => ['app/history-schema.php', 'CREATE TABLE check_history'],
     'store_check' => ['app/site-repository.php', 'public function storeCheck'],
     'settle_worker_check' => ['app/worker-state-repository.php', 'public function settle'],
     'read_history' => ['app/check-history-repository.php', 'public function page'],
     'prune_history' => ['app/check-history-repository.php', 'public function prune('],
-    'incident' => ['app/sqlite-database.php', 'CREATE TABLE incidents'],
-    'incident_checkpoint' => ['app/sqlite-database.php', 'CREATE TABLE incident_checkpoints'],
+    'incident' => ['app/incident-schema.php', 'CREATE TABLE incidents'],
+    'incident_checkpoint' => ['app/incident-schema.php', 'CREATE TABLE incident_checkpoints'],
     'read_incidents' => ['app/incident-repository.php', 'public function page'],
     'notification_settings' => ['app/notification-schema.php', 'CREATE TABLE notification_settings'],
     'notification_checkpoint' => ['app/notification-schema.php', 'CREATE TABLE notification_checkpoints'],
@@ -55,11 +55,11 @@ $mapping = [
     'ack_notification' => ['app/notification-outbox.php', 'public function acknowledge'],
     'deliver_notification' => ['app/notification-delivery.php', 'public function runOne'],
 ];
-function typeName(array $type): string
+function type_name(array $type): string
 {
-    if (isset($type['ref'])) { return $type['ref']; }
+    if (($type['ref'] ?? null) !== null) { return $type['ref']; }
     foreach (['optional', 'list'] as $wrapper) {
-        if (isset($type[$wrapper])) { return $wrapper . '(' . typeName($type[$wrapper]) . ')'; }
+        if (($type[$wrapper] ?? null) !== null) { return $wrapper . '(' . type_name($type[$wrapper]) . ')'; }
     }
     throw new RuntimeException('Unmapped type');
 }
@@ -71,10 +71,10 @@ foreach ($mapping as $name => [$path, $needle]) {
     if ($offset === false) { throw new RuntimeException('Missing implementation: ' . $name); }
     $signature = null;
     $effects = [];
-    if (in_array($definition['kind'], ['command', 'query'], true)) {
-        $signature = ['inputs' => [], 'output' => isset($definition['returns']) ? typeName($definition['returns']) : null, 'reads' => $definition['reads'] ?? []];
+    if (in_array($definition['kind'], ['command', 'query'], strict: true)) {
+        $signature = ['inputs' => [], 'output' => (($definition['returns'] ?? null) !== null) ? type_name($definition['returns']) : null, 'reads' => $definition['reads'] ?? []];
         foreach ($definition['input'] ?? [] as $input) {
-            $signature['inputs'][] = ['name' => $input['name'], 'type' => typeName($input['type']), 'required' => !isset($input['type']['optional'])];
+            $signature['inputs'][] = ['name' => $input['name'], 'type' => type_name($input['type']), 'required' => !(($input['type']['optional'] ?? null) !== null)];
         }
         foreach ($definition['effects'] ?? [] as $id) {
             $effect = $definitions[$id];
@@ -82,11 +82,11 @@ foreach ($mapping as $name => [$path, $needle]) {
         }
     }
     $symbol = ['id' => $definition['id'], 'kind' => $definition['kind'],
-        'source' => ['path' => $path, 'line' => substr_count(substr($source, 0, $offset), "\n") + 1],
+        'source' => ['path' => $path, 'line' => substr_count(substr($source, offset: 0, length: $offset), needle: "\n") + 1],
         'fingerprint' => 'sha256:' . hash('sha256', $source), 'signature' => $signature, 'effects' => $effects];
     if ($definition['kind'] === 'entity') {
         $symbol['shape'] = ['fields' => array_map(fn (array $field) => ['name' => $field['name'],
-            'type' => typeName($field['type']), 'required' => $field['required'] ?? false], $definition['fields'])];
+            'type' => type_name($field['type']), 'required' => $field['required'] ?? false], $definition['fields'])];
     }
     $symbols[] = $symbol;
 }
@@ -97,8 +97,8 @@ if (!is_dir($root . '/contracts')) { mkdir($root . '/contracts'); }
 file_put_contents($root . '/contracts/php-bindings.json', json_encode($declaration, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES | JSON_THROW_ON_ERROR) . "\n");
 require __DIR__ . '/reviewed-dependencies.php';
 $dependencies = [];
-foreach (workerDependencies() as $path => $metadata) {
-    $dependencies[] = ['path' => $path, ...$metadata, 'fingerprint' => dependencyHash($root, $path)];
+foreach (worker_dependencies() as $path => $metadata) {
+    $dependencies[] = ['path' => $path, ...$metadata, 'fingerprint' => dependency_hash($root, $path)];
 }
 file_put_contents($root . '/contracts/reviewed-dependencies.json', json_encode([
     'schema' => 'tablo/reviewed-dependencies/v1', 'dependencies' => $dependencies,

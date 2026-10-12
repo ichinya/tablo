@@ -23,20 +23,20 @@ final class WebhookTransportTest
         foreach(['8.8.8.8','1.1.1.1','2001:4860:4860::8888','2606:4700:4700::1111'] as $address){Assert::true(WebhookAddress::globallyRoutable($address));}
         $client=new class extends HttpClient{protected function resolve(string $host):array{return ['8.8.8.8','127.0.0.1'];}};
         $marker=bin2hex(random_bytes(20)); $error=null;
-        try{$client->postBefore('https://receiver.example/'.$marker,'{}','fixture:1',$marker,hrtime(true)+1000000000);}catch(WebhookFailure $caught){$error=$caught;}
+        try{$client->postBefore('https://receiver.example/'.$marker,'{}','fixture:1',$marker,hrtime(true)+1_000_000_000);}catch(WebhookFailure $caught){$error=$caught;}
         Assert::same($error->reason,'ssrf'); Assert::same($error->getPrevious(),null);
         $client=new class extends HttpClient{
             protected function resolve(string $host):array
             {
                 // A single Windows sleep may return before the requested duration.
-                $until=hrtime(true)+80000000;
+                $until=hrtime(true)+80_000_000;
                 do {usleep(1000);} while(hrtime(true)<$until);
                 return ['8.8.8.8'];
             }
         };
         $started=hrtime(true);
-        try{$client->postBefore('https://receiver.example/'.$marker,'{}','fixture:1',$marker,hrtime(true)+10000000);}catch(WebhookFailure $caught){$error=$caught;}
-        Assert::same($error->reason,'timeout'); Assert::true(hrtime(true)-$started>=80000000,'synchronous DNS exceeds curl deadline; parent supervision is required');
+        try{$client->postBefore('https://receiver.example/'.$marker,'{}','fixture:1',$marker,hrtime(true)+10_000_000);}catch(WebhookFailure $caught){$error=$caught;}
+        Assert::same($error->reason,'timeout'); Assert::true(hrtime(true)-$started>=80_000_000,'synchronous DNS exceeds curl deadline; parent supervision is required');
         // Inspect complete actual exception traces outside Testo's unbounded runner object graph.
         $directory=new TemporaryDirectory('tablo-webhook-trace-');
         try {
@@ -61,15 +61,23 @@ final class WebhookTransportTest
                 };
                 $url='https://receiver.example:'.$receiver->port.'/hook'; $failure=null; $status=null;
                 for($i=0;$i<($mode==='lost'?2:1);$i++){
-                    try{$status=$client->postBefore($url,$payload,'fixture:unavailable:1',$bearer,hrtime(true)+6000000000);}
+                    try{$status=$client->postBefore($url,$payload,'fixture:unavailable:1',$bearer,hrtime(true)+6_000_000_000);}
                     catch(WebhookFailure $error){$failure=$error->reason;Assert::same($error->getPrevious(),null);unset($error);}
                 }
                 $result=$receiver->result(); Assert::true($result['exact']); Assert::true($result['authorization']); Assert::true($result['same_key']);
                 Assert::same($result['count'],$mode==='lost'?2:1); Assert::same($result['redirect_targets'],0);
-                if(in_array($mode,['size','headers'],true)){Assert::same($failure,'size');}
-                elseif($mode==='lost'){Assert::same($failure,'invalid-response');}
-                else{Assert::same($status,$mode==='redirect'?302:($mode==='retry'?503:204));}
-            } finally {$receiver?->close();$receiver=$client=null;$directory->close();}
+                switch (true) {
+case (in_array($mode,['size','headers'],strict: true)):
+Assert::same($failure,'size');
+    break;
+case ($mode==='lost'):
+Assert::same($failure,'invalid-response');
+    break;
+default:
+Assert::same($status,$mode==='redirect'?302:(match (true) { ($mode==='retry') => 503, default => 204 }));
+    break;
+}
+            } finally {$receiver?->close();$client = null; $receiver = null;$directory->close();}
         }
     }
 }

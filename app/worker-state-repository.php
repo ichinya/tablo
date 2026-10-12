@@ -5,6 +5,8 @@ namespace Tablo;
 
 use PDO;
 
+// Pinned Lekalo requires lowercase physical source paths for this contracted owner.
+// @mago-expect lint:file-name
 final class WorkerStateRepository
 {
     public const FIELDS = ['latest_release', 'latest_commit', 'open_issues', 'open_prs'];
@@ -27,7 +29,7 @@ final class WorkerStateRepository
     public function generation(): ?string
     {
         $statement = $this->db->query('SELECT run_id FROM worker_runtime WHERE id = 1');
-        try { return $statement->fetchColumn() ?: null; }
+        try { $generation = $statement->fetchColumn(); return $generation ? $generation : null; }
         finally { $statement->closeCursor(); }
     }
 
@@ -58,7 +60,7 @@ final class WorkerStateRepository
         $statement->execute([$id, $revision]);
         try { $row = $statement->fetch(); }
         finally { $statement->closeCursor(); }
-        return array_intersect_key($row ?: array_fill_keys(self::FIELDS, 0), array_flip(self::FIELDS));
+        return array_intersect_key($row ? $row : array_fill_keys(self::FIELDS, value: 0), array_flip(self::FIELDS));
     }
 
     // SiteRepository owns the shared post-network result/history/credit transaction.

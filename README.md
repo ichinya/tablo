@@ -934,7 +934,7 @@ Capture фиксирует канонические контракты, source l
 это локальная декларация проекта, а не полноценный Phalcon target adapter
 или анализатор тел PHP. Runtime-семантика подтверждается native tests.
 Отдельный project-local manifest `contracts/reviewed-dependencies.json` фиксирует
-полные байты `app/client-address.php`, его владельца `Tablo\ClientAddress` и потребителя
+полные байты `app/ClientAddress.php`, его владельца `Tablo\ClientAddress` и потребителя
 `Tablo\Web::__construct`. Это зависимость Web, а не declaration команды login/setup:
 их фактический владелец остаётся Auth. `composer verify` проверяет этот manifest
 до contract update/attach и тестов; даже изменение комментария требует review и
@@ -1060,10 +1060,12 @@ Tablo дополнительно проверяет версию и наличи
 Одинаковые команды работают в PowerShell на Windows и в shell на Linux:
 
 ```powershell
+php tools/install-mago.php
 composer test
 php vendor/bin/testo run --suite=Unit
 php vendor/bin/testo run --suite=Network
 php vendor/bin/testo run --suite=Http
+composer lint
 composer verify
 ```
 
@@ -1183,3 +1185,44 @@ Settings provides one encrypted HTTPS webhook channel, disabled by default, for 
 unavailable, recovery and version-lag observations. Delivery follows accepted commits and
 is bounded best effort; receivers deduplicate stable event keys. See [settings, privacy,
 confirmation, retries and supervision limits](docs/notifications.md).
+
+### Проверка PHP с Mago
+
+Mago закреплён на **1.54.0**. Явная команда `php tools/install-mago.php` устанавливает
+архив из проверенного релиза в игнорируемый каталог `.ci/mago/`; поддерживаются
+Windows x64 и Linux x64 GNU. SHA-256 архива и исполняемого файла, а также реальный
+вывод `--version` проверяются при установке и при каждом попадании в кэш. Для
+офлайн-установки передайте `--archive=/полный/путь/к/архиву` с тем же закреплённым SHA-256.
+
+`composer lint` запускает все стандартные правила для PHP **8.2** и всех PHP-файлов
+в `app`, `bin`, `public`, `tests`, `tools`; любое замечание возвращает ненулевой код.
+Runner сверяет реальный список исходников Mago с полным физическим набором,
+проверяет конфигурацию и не принимает дополнительные аргументы, меняющие область проверки.
+`composer verify` сначала отказывает при изменении явно просмотренных зависимостей,
+затем запускает lint и полный прежний набор проверок модели, lock, bindings и Testo.
+Проверка ничего не скачивает и не обновляет fingerprints. После просмотра изменений
+выполните явный `php tools/capture-bindings.php` и проверьте diff обоих manifests;
+`tools/reviewed-dependency-map.json` перечисляет физические зависимости без новых доменных сущностей.
+CI выполняет явную установку и ту же проверку кэшированного релиза на каждой платформе.
+
+The gate retains all default rules. Its 23 reviewed, local expectations are explicit:
+one `no-ini-set` expectation on `RuntimeIni`'s checked configuration statement, and
+one class-adjacent `file-name` expectation in each of these 22 contracted owners:
+
+```text
+auth.php authentication-pages.php base-schema.php check-command.php
+check-history-repository.php git-hub-connection.php git-token-repository.php
+history-schema.php incident-repository.php incident-schema.php
+notification-delivery.php notification-outbox.php notification-projector.php
+notification-schema.php notification-settings.php periodic-worker.php
+schema-layout-upgrade.php settings-repository.php site-checker.php site-pages.php
+site-repository.php worker-state-repository.php
+```
+
+These actual files remain in `app/`, with their original PascalCase class names and
+implementations. The filename expectations are an intentional compatibility exception:
+the pinned Lekalo source-path grammar rejects uppercase filenames, while Mago's default
+single-class filename rule requires the class's case. Other files use the default naming
+rule. The adjacent expectations do not suppress independent violations; the gate still
+rejects a missing expectation or an independent `ini_set` violation. Composer's classmap
+uses the actual lowercase paths on both Windows and case-sensitive Linux.

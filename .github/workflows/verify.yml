@@ -50,6 +50,15 @@ jobs:
         with:
           path: .ci/lekalo-bin
           key: lekalo-${{ runner.os }}-${{ runner.arch }}-${{ env.LEKALO_REF }}
+      - name: Cache pinned Mago release
+        uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
+        with:
+          path: .ci/mago
+          key: mago-1.54.0-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('tools/mago-pin.json') }}
+      - name: Install and verify pinned Mago
+        run: |
+          php tools/install-mago.php
+          exit $LASTEXITCODE
       - name: Build Lekalo v0.6.4 (CLI 0.6.3)
         if: steps.lekalo-cache.outputs.cache-hit != 'true'
         run: |
@@ -64,6 +73,11 @@ jobs:
           Copy-Item -LiteralPath ".ci/lekalo-source/target/release/$binaryName" -Destination ".ci/lekalo-bin/$binaryName"
       - name: Verify contracts and Testo suites
         run: |
+          git rev-parse HEAD
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          git rev-parse 'HEAD^{tree}'
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          Get-FileHash -Algorithm SHA256 composer.lock, lekalo.lock, contracts/php-bindings.json, contracts/reviewed-dependencies.json, tools/reviewed-dependency-map.json, tools/mago-pin.json, mago.toml | Format-List
           $binaryName = if ($IsWindows) { 'lekalo.exe' } else { 'lekalo' }
           $env:LEKALO_BIN = Join-Path $PWD ".ci/lekalo-bin/$binaryName"
           $version = & $env:LEKALO_BIN --version

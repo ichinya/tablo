@@ -6,7 +6,7 @@ namespace Tablo\Tests\Unit;
 use PDO;
 use Tablo\Database;
 use Tablo\SharedKeyFailure;
-use Tablo\SiteRepository;
+use Tablo\SiteKeyState;
 use Tablo\TokenVault;
 use Tablo\Tests\Support\TemporaryDirectory;
 use Testo\Assert;
@@ -17,7 +17,7 @@ final class CompositionKeyTest
     #[Test]
     public function everyHistoricalCipherFamilyAuthenticatesBeforeMigrationAndWalWithoutReplacingKeys(): void
     {
-        $directory=new TemporaryDirectory('tablo-composition-key-'); $db=$vault=null;
+        $directory=new TemporaryDirectory('tablo-composition-key-'); $vault = null; $db = null;
         try {
             $key=$directory->path.'/selected.key'; $wrong=$directory->path.'/wrong.key';
             $bytes=random_bytes(32); file_put_contents($key,$bytes); file_put_contents($wrong,random_bytes(32));
@@ -41,9 +41,9 @@ final class CompositionKeyTest
                         private_cipher,created_at,expires_at,due_at,status) VALUES(1,'unavailable','original',1,0,0,'{}',?,1000,2000,1000,'pending')",
                 };
                 $db->prepare($sql)->execute([$cipher]);
-                Assert::true(SiteRepository::hasEstablishedKeyState($db),$family);
+                Assert::true(SiteKeyState::hasEstablishedKeyState($db),$family);
                 $schema=$db->query('SELECT sql FROM sqlite_schema ORDER BY name')->fetchAll();
-                $db=$vault=null; $before=hash_file('sha256',$path);
+                $vault = null; $db = null; $before=hash_file('sha256',$path);
                 $error=null;
                 try { Database::connect($path,new TokenVault($wrong,true)); }
                 catch (SharedKeyFailure $caught) { $error=$caught->getCode(); unset($caught); }
@@ -52,11 +52,11 @@ final class CompositionKeyTest
                 Assert::same(file_get_contents($key),$bytes);
                 $db=Database::connect($path,new TokenVault($key,true));
                 Assert::same((int)$db->query('PRAGMA user_version')->fetchColumn(),8);
-                Assert::true(SiteRepository::hasEstablishedKeyState($db),$family);
+                Assert::true(SiteKeyState::hasEstablishedKeyState($db),$family);
                 Assert::same(file_get_contents($key),$bytes);
                 Assert::false(is_file($directory->path.'/github-token.key'));
-                $db=$vault=null;
+                $vault = null; $db = null;
             }
-        } finally { $db=$vault=null; $directory->close(); }
+        } finally { $vault = null; $db = null; $directory->close(); }
     }
 }

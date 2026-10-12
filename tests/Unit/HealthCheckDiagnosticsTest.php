@@ -20,7 +20,7 @@ final class HealthCheckDiagnosticsTest
         $db->exec("UPDATE sites SET online=0,health_error_code='http',health_http_status=503,last_error='private-body' WHERE id=" . $id);
         $stderr = "PHP Fatal error: Uncaught RuntimeException: secret-value in fixture.php on line 42\n#0 fixture.php(42): check('secret-argument')";
         $message = HealthCheckDiagnostics::capture(['exit_code' => 1, 'stdout' => "1: attention\nsecret-output", 'stderr' => $stderr], $db);
-        $data = json_decode($message, true, 8, JSON_THROW_ON_ERROR);
+        $data = json_decode($message, associative: true, depth: 8, flags: JSON_THROW_ON_ERROR);
         Assert::same($data['exit_code'], 1);
         Assert::same($data['stdout_status'], ['1: attention']);
         Assert::same($data['stderr']['bytes'], strlen($stderr));

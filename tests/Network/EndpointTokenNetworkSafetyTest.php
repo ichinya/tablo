@@ -6,7 +6,7 @@ namespace Tablo\Tests\Network;
 use Tablo\HttpClient;
 use Tablo\HttpFailure;
 use Tablo\SiteChecker;
-use Tablo\SiteRepository;
+use Tablo\SiteInput;
 use Tablo\TokenVault;
 use Tablo\Tests\Support\EndpointFixture;
 use Tablo\Tests\Support\FakeProvider;
@@ -24,7 +24,7 @@ final class EndpointTokenNetworkSafetyTest
         $server = new RawHttpServer();
         $vault = new TokenVault($server->directory->path . '/key');
         try {
-            $site = [...SiteRepository::defaults(), 'repository' => 'fixture/public', 'health_path' => '', 'version_path' => '',
+            $site = [...SiteInput::defaults(), 'repository' => 'fixture/public', 'health_path' => '', 'version_path' => '',
                 'endpoint_token' => $vault->encrypt(EndpointFixture::tokenA())];
             foreach (['invalid-hex' => 'invalid-response', 'long-hex' => 'invalid-response', 'overflow-hex' => 'invalid-response',
                 'bad-separator' => 'invalid-response', 'incomplete' => 'invalid-response', 'reset' => 'network', 'large' => 'size'] as $mode => $reason) {
@@ -47,7 +47,7 @@ final class EndpointTokenNetworkSafetyTest
         try {
             $peer = new TestServer($directory, dirname(__DIR__) . '/endpoint-router.php');
             $caught = null;
-            try { (new HttpClient(true))->get(str_replace('http:', 'https:', $peer->base), $headers); }
+            try { (new HttpClient(true))->get(str_replace('http:', replace: 'https:', subject: $peer->base), $headers); }
             catch (HttpFailure $error) { $caught = $error->reason; unset($error); }
             Assert::same($caught, 'tls');
         } finally { $peer?->close(); $directory->close(); }
@@ -69,7 +69,7 @@ final class EndpointTokenNetworkSafetyTest
         try { $mixed->get('https://mixed.example/', $headers); } catch (HttpFailure $error) { $caught = $error->reason; unset($error); }
         Assert::same($caught, 'ssrf', 'controlled resolver proves every answer is checked before native HTTP');
         $slow = new class extends HttpClient {
-            protected function resolve(#[\SensitiveParameter] string $host): array { usleep(40000); return ['8.8.8.8']; }
+            protected function resolve(#[\SensitiveParameter] string $host): array { usleep(40_000); return ['8.8.8.8']; }
         };
         $caught = null;
         try { $slow->getBefore('https://deadline.example/', $headers, hrtime(true) + 10_000_000); }

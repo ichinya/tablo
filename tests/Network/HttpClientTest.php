@@ -66,7 +66,7 @@ final class HttpClientTest
         Assert::same($response['status'], 429);
         Assert::same($response['headers'], ['retry-after' => '3600', 'x-ratelimit-remaining' => '0',
             'x-ratelimit-resource' => 'search', 'x-ratelimit-reset' => '1900000000']);
-        Assert::false(str_contains(json_encode($response), 'synthetic-secret'));
+        Assert::false(str_contains(json_encode($response), \Tablo\Tests\Support\FixtureCredentials::value(label: 'synthetic-secret')));
         Assert::same($http->get($this->server->base . '/duplicate-headers')['headers'],
             ['retry-after' => null, 'x-ratelimit-remaining' => null, 'x-ratelimit-resource' => null]);
         Assert::same($http->get($this->server->base . '/up')['headers'], []);
@@ -77,7 +77,7 @@ final class HttpClientTest
     {
         $error = null;
         $start = hrtime(true);
-        try { (new HttpClient(true))->getBefore($this->server->base . '/short-delay', [], $start + 80000000); }
+        try { (new HttpClient(true))->getBefore($this->server->base . '/short-delay', [], $start + 80_000_000); }
         catch (HttpFailure $caught) { $error = $caught; }
         Assert::instanceOf($error, HttpFailure::class);
         Assert::same($error->reason, 'timeout');
@@ -87,20 +87,20 @@ final class HttpClientTest
             protected function resolve(#[\SensitiveParameter] string $host): array
             {
                 ++$this->resolutions;
-                usleep(80000);
+                usleep(80_000);
                 return ['8.8.8.8'];
             }
         };
         $start = hrtime(true);
         $error = null;
-        try { $resolver->getBefore('https://deadline.example', [], $start + 10000000); }
+        try { $resolver->getBefore('https://deadline.example', [], $start + 10_000_000); }
         catch (HttpFailure $caught) { $error = $caught; }
         Assert::instanceOf($error, HttpFailure::class);
         Assert::same($error->reason, 'timeout');
         Assert::same($resolver->resolutions, 1);
-        Assert::true(hrtime(true) - $start > 10000000, 'synchronous DNS can overrun scheduling deadline');
+        Assert::true(hrtime(true) - $start > 10_000_000, 'synchronous DNS can overrun scheduling deadline');
         try { $resolver->getBefore('https://deadline.example', [], hrtime(true) - 1); }
-        catch (HttpFailure) {}
+        catch (HttpFailure $discardedCleanup) { unset($discardedCleanup); }
         Assert::same($resolver->resolutions, 1, 'expired deadline does not start DNS');
     }
 
@@ -123,9 +123,9 @@ final class HttpClientTest
     {
         $socket = stream_socket_server('tcp://127.0.0.1:0', $number, $message);
         if ($socket === false) { throw new RuntimeException($message); }
-        $address = stream_socket_get_name($socket, false);
+        $address = stream_socket_get_name($socket, remote: false);
         fclose($socket);
-        foreach ([['http://' . $address, 'refused'], [str_replace('http:', 'https:', $this->server->base), 'tls']] as [$url, $reason]) {
+        foreach ([['http://' . $address, 'refused'], [str_replace('http:', replace: 'https:', subject: $this->server->base), 'tls']] as [$url, $reason]) {
             $error = null;
             try { (new HttpClient(true))->get($url); } catch (HttpFailure $caught) { $error = $caught; }
             Assert::instanceOf($error, HttpFailure::class);

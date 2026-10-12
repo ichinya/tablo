@@ -18,9 +18,12 @@ final class EndpointRedirectPrivacyTest
             Assert::false($result['stdout_leaked'] || $result['stderr_leaked']);
             Assert::same($result['stderr_bytes'], 0);
             foreach ($result['records'] as $row) {
-                if (isset($row['leaked'])) { Assert::false($row['leaked']); Assert::false($row['previous']); }
+                if (!(($row['leaked'] ?? null) !== null)) { continue; }
+ Assert::false($row['leaked']); Assert::false($row['previous']);
             }
-            if ($mode === 'redirect-native') {
+            switch (true) {
+case ($mode === 'redirect-native'):
+
                 foreach ([0, 2] as $index) {
                     $row = $result['records'][$index];
                     Assert::true($row['typed']); Assert::same($row['reason'], 'check-error');
@@ -28,11 +31,16 @@ final class EndpointRedirectPrivacyTest
                 }
                 Assert::true($result['records'][0]['original_typeerror'] && $result['records'][0]['original_leaked']);
                 Assert::true($result['records'][3]['raw_callback_leaked']);
-            } else {
+
+    break;
+default:
+
                 Assert::true($result['records'][8]['raw_control_leaked']);
                 Assert::true($result['records'][9]['private_previous_control_leaked']);
                 Assert::false($result['records'][9]['opaque_complete']);
-            }
+
+    break;
+}
         }
     }
 

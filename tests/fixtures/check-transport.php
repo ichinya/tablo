@@ -21,7 +21,7 @@ function curl_init(?string $url = null): \CurlHandle|false
 function json_encode(mixed $value, int $flags = 0, int $depth = 512): string|false
 {
     static $failed = false;
-    if (!$failed && in_array(getenv('TABLO_CHECK_INJECT'), ['encode', 'encode-after-store'], true)
+    if (!$failed && in_array(getenv('TABLO_CHECK_INJECT'), ['encode', 'encode-after-store'], strict: true)
         && is_array($value) && ($value['id'] ?? null) === 2
         && (getenv('TABLO_CHECK_INJECT') === 'encode' || ($value['persistence']['accepted'] ?? null) === true)) {
         $failed = true;

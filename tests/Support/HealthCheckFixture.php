@@ -39,7 +39,7 @@ trait HealthCheckFixture
     protected function uris(): array
     {
         $path = $this->endpoints->path . '/uris.jsonl';
-        return is_file($path) ? array_map(static fn (string $line): string => json_decode($line, true, 4, JSON_THROW_ON_ERROR), file($path, FILE_IGNORE_NEW_LINES)) : [];
+        return is_file($path) ? array_map(static fn (string $line): string => json_decode($line, associative: true, depth: 4, flags: JSON_THROW_ON_ERROR), file($path, FILE_IGNORE_NEW_LINES)) : [];
     }
 
     protected function check(string $mode, string $csrf, int $cliExit): void
@@ -48,9 +48,9 @@ trait HealthCheckFixture
             Assert::same($this->web->request('/sites/1/check', ['_csrf' => $csrf])['status'], 303);
             return;
         }
-        $root = dirname(__DIR__, 2);
+        $root = dirname(__DIR__, levels: 2);
         if ($mode === 'cli') {
-            $result = Subprocess::run([PHP_BINARY, '-d', 'auto_prepend_file=' . $root . '/tests/cli-github-fixture.php', $root . '/bin/check.php'],
+            $result = Subprocess::run([PHP_BINARY, '-d', 'auto_prepend_file=' . $root . '/tests/FixtureCliGitHubConnection.php', $root . '/bin/check.php'],
                 $this->endpoints, ['TABLO_DB' => $this->web->directory->path . '/test.sqlite', 'TABLO_ALLOW_PRIVATE_NETWORK' => '1']);
             $diagnostic = HealthCheckDiagnostics::capture($result, $this->web->database());
             Assert::same($result['exit_code'], $cliExit, $diagnostic);

@@ -8,6 +8,7 @@ use Tablo\GitHubConnection;
 use Tablo\GitTokenRepository;
 use Tablo\SiteChecker;
 use Tablo\SiteRepository;
+use Tablo\SiteInput;
 use Tablo\TokenVault;
 use Tablo\Tests\Support\FakeHttp;
 use Tablo\Tests\Support\MeasuredGitHubHttp;
@@ -40,28 +41,20 @@ final class GitHubSweepTest
                         for ($i = 0; $i < 20; ++$i) {
                             $token = $mode === 'distinct' ? $tokens->save(['name' => 'Token ' . $i, 'provider' => 'github',
                                 'token' => bin2hex(random_bytes(24))]) : $shared;
-                            $sites->save(array_replace(SiteRepository::defaults(), ['name' => 'Fixture ' . $i,
+                            $sites->save(array_replace(SiteInput::defaults(), ['name' => 'Fixture ' . $i,
                                 'url' => 'https://example.com', 'repository' => 'fixture/' . ($release ? 'release-' : 'no-release-') . ($i % $unique),
                                 'git_token_id' => $token, 'version_path' => '']));
                         }
                         $http = new MeasuredGitHubHttp($server->base);
                         $connection = new GitHubConnection($sites, $http);
                         $start = hrtime(true);
-                        foreach ($sites->all() as $site) {
-                            $state = (new SiteChecker(new FakeHttp([UnitFixtures::response()]), $connection->provider($site)))->check($site);
-                            Assert::same($state['online'], 1);
-                            Assert::same($state['last_error'], null);
-                            Assert::same($state['latest_release'], $release ? 'v1' : null);
-                            Assert::same($state['open_issues'], 2);
-                            Assert::same($state['open_prs'], 2);
-                            Assert::true($sites->storeCheck($site, $state));
-                        }
+                        (new GitHubSweepAssertions($sites, $connection))->acceptedSites(['release' => $release]);
                         $multiplier = $unique === 1 && $mode !== 'distinct' ? 1 : 20;
                         Assert::same($http->core, ($release ? 2 : 3) * $multiplier);
                         Assert::same($http->search, 2 * $multiplier);
                         $this->measurements[] = ['credential_mode' => $mode, 'unique_repositories' => $unique,
                             'has_release' => $release, 'sites' => 20, 'requests' => $http->core + $http->search,
-                            'core' => $http->core, 'search' => $http->search, 'elapsed_ms' => round((hrtime(true) - $start) / 1e6, 2)];
+                            'core' => $http->core, 'search' => $http->search, 'elapsed_ms' => round((hrtime(true) - $start) / 1e6, precision: 2)];
                         unset($connection, $http, $sites, $tokens, $vault, $db);
                     }
                 }

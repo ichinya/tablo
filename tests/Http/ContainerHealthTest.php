@@ -16,18 +16,18 @@ final class ContainerHealthTest
         curl_setopt_array($curl, [CURLOPT_RETURNTRANSFER => true, CURLOPT_HEADER => true, CURLOPT_PROXY => '',
             CURLOPT_TIMEOUT => 5, CURLOPT_CUSTOMREQUEST => $method, CURLOPT_HTTPHEADER => $headers,
             CURLOPT_REQUEST_TARGET => $path]);
-        if ($method === 'HEAD') { curl_setopt($curl, CURLOPT_NOBODY, true); }
+        if ($method === 'HEAD') { curl_setopt($curl, CURLOPT_NOBODY, value: true); }
         $raw = curl_exec($curl);
         Assert::true(is_string($raw));
         $size = curl_getinfo($curl, CURLINFO_HEADER_SIZE);
-        return ['status' => curl_getinfo($curl, CURLINFO_RESPONSE_CODE), 'headers' => substr($raw, 0, $size), 'body' => substr($raw, $size)];
+        return ['status' => curl_getinfo($curl, CURLINFO_RESPONSE_CODE), 'headers' => substr($raw, offset: 0, length: $size), 'body' => substr($raw, $size)];
     }
 
     #[Test]
     public function realIndexServesOnlyExactLocalGetWithoutInitializingStorage(): void
     {
         $directory = new TemporaryDirectory('tablo-container-health-http-');
-        $root = dirname(__DIR__, 2);
+        $root = dirname(__DIR__, levels: 2);
         $server = new TestServer($directory, $root . '/public/router.php', $root . '/public', [
             'TABLO_DB' => $directory->path . '/missing/tablo.sqlite',
             'TABLO_TOKEN_KEY_FILE' => $directory->path . '/missing.key',
@@ -71,10 +71,12 @@ final class ContainerHealthTest
     public function failedProductionAutoloadHasFixedUnavailableResponse(): void
     {
         $directory = new TemporaryDirectory('tablo-container-health-failure-');
-        $root = dirname(__DIR__, 2);
+        $root = dirname(__DIR__, levels: 2);
         mkdir($directory->path . '/public');
         copy($root . '/public/index.php', $directory->path . '/public/index.php');
         copy($root . '/public/router.php', $directory->path . '/public/router.php');
+        mkdir($directory->path . '/app');
+        copy($root . '/app/RuntimeIni.php', $directory->path . '/app/RuntimeIni.php');
         $server = new TestServer($directory, $directory->path . '/public/router.php', $directory->path . '/public');
         try {
             $response = self::request($server);

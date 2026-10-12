@@ -4,6 +4,8 @@ namespace Tablo;
 
 use PDO;
 
+// Pinned Lekalo requires lowercase physical source paths for this contracted owner.
+// @mago-expect lint:file-name
 final class NotificationDelivery
 {
     private static array $blockedLocks=[];
@@ -16,25 +18,13 @@ final class NotificationDelivery
     {
         $lock=new NotificationLock(); $claim=false; $outbox=new NotificationOutbox($this->db);
         try {
-            if ($this->db->inTransaction()) { return ['code'=>'storage-busy']; }
-            $settings=(new NotificationSettings($this->db,$this->vault))->get();
-            if ($settings['blocked']) { return ['code'=>'stop-unverified']; }
-            if (!$settings['enabled'] || !$settings['endpoint_present']
-                || !($settings['unavailable']||$settings['recovery']||$settings['version_lag'])) { return ['code'=>'off']; }
-            if ($stop!==null && $stop()) { return ['code'=>'stopped']; }
+            $refusal = NotificationDeliveryAdmission::refuse($this->db,$this->vault,$stop);
+            if ($refusal !== null) { return ['code'=>$refusal]; }
             if (!$lock->acquire($this->db)) { return ['code'=>'busy']; }
             $claim=$outbox->claim($now??time());
             if ($claim===false) { return ['code'=>'idle']; }
-            $this->vault->assertAvailable(SiteRepository::hasEstablishedKeyState($this->db));
-            $endpoint=$this->vault->decrypt($claim['settings']['endpoint_cipher']);
-            $bearer=$claim['settings']['bearer_cipher']===null?'':$this->vault->decrypt($claim['settings']['bearer_cipher']);
-            $payload=json_decode($claim['slot']['payload'],true,8,JSON_THROW_ON_ERROR);
-            if ($claim['slot']['private_cipher']!==null) {
-                $private=json_decode($this->vault->decrypt($claim['slot']['private_cipher']),true,8,JSON_THROW_ON_ERROR);
-                foreach(['display_name','site_origin'] as $key) { if(isset($private[$key])&&is_string($private[$key])){$payload[$key]=$private[$key];} }
-            }
-            $json=json_encode($payload,JSON_THROW_ON_ERROR|JSON_UNESCAPED_UNICODE|JSON_UNESCAPED_SLASHES);
-            $result=($this->supervisor??new WebhookSupervisor())->attempt($endpoint,$bearer,$json,$stop);
+            $request = NotificationPrivatePayload::prepare($this->db,$this->vault,$claim);
+            $result=($this->supervisor??new WebhookSupervisor())->attempt($request['endpoint'],$request['bearer'],$request['json'],$stop);
             if (!$result['stopped']) {
                 self::$blockedLocks[]=$lock;
                 $this->db->exec('UPDATE notification_settings SET blocked=1 WHERE id=1');
@@ -49,6 +39,6 @@ final class NotificationDelivery
                 try { $outbox->acknowledge($claim,['code'=>'network'],$now??time()); } catch (\Throwable) { return ['code'=>'ack-storage']; }
             }
             return ['code'=>'delivery-error'];
-        } finally { if (!in_array($lock,self::$blockedLocks,true)) { $lock->close(); } }
+        } finally { if (!in_array($lock,self::$blockedLocks,strict: true)) { $lock->close(); } }
     }
 }

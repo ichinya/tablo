@@ -4,6 +4,7 @@ declare(strict_types=1);
 namespace Tablo\Tests\Http;
 
 use Tablo\SiteRepository;
+use Tablo\SiteInput;
 use Tablo\Tests\Support\EndpointCheckFixture;
 use Tablo\Tests\Support\EndpointFixture;
 use Testo\Assert;
@@ -23,7 +24,7 @@ final class EndpointTokenRunnerTest
             $sites = new SiteRepository($this->web->database());
             foreach (['manual', 'cli', 'worker'] as $mode) {
                 foreach ([true, false] as $authorized) {
-                    $input = [...SiteRepository::defaults(), 'name' => 'Endpoint runner', 'url' => $this->peer->base . '/home///',
+                    $input = [...SiteInput::defaults(), 'name' => 'Endpoint runner', 'url' => $this->peer->base . '/home///',
                         'repository' => 'fixture/public', 'health_path' => $authorized ? '/up' : '', 'version_path' => $authorized ? '/version' : '',
                         'endpoint_token' => $authorized ? EndpointFixture::tokenA() : ''];
                     $id = $sites->save($input);
@@ -46,9 +47,10 @@ final class EndpointTokenRunnerTest
                     $sites->delete($id);
                 }
             }
-            foreach ($this->endpointRows() as $row) { if ($row['git']) { Assert::false($row['a'] || $row['b']); } }
+            foreach ($this->endpointRows() as $row) { if (!($row['git'])) { continue; }
+ Assert::false($row['a'] || $row['b']);  }
             foreach (file($this->web->directory->path . '/github-calls.log.endpoint-audit', FILE_IGNORE_NEW_LINES) as $line) {
-                Assert::false(json_decode($line, true, 4, JSON_THROW_ON_ERROR)['endpoint_leaked']);
+                Assert::false(json_decode($line, associative: true, depth: 4, flags: JSON_THROW_ON_ERROR)['endpoint_leaked']);
             }
             Assert::false(str_contains($this->peer->diagnostics(), EndpointFixture::tokenA()));
         } finally { $sites = null; $this->stopEndpoints(); }

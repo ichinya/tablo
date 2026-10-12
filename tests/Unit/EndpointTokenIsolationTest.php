@@ -21,7 +21,7 @@ final class EndpointTokenIsolationTest
     public function endpointCredentialsNeverSelectGitIdentityOrEnterGitMemoAndPreview(): void
     {
         $directory = new TemporaryDirectory('tablo-endpoint-git-');
-        $db = $vault = $sites = $connection = $old = null;
+        $old = null; $connection = null; $sites = null; $vault = null; $db = null;
         try {
             $db = Database::connect(':memory:');
             $vault = new TokenVault($directory->path . '/key');
@@ -32,7 +32,7 @@ final class EndpointTokenIsolationTest
             $http = new FakeHttp([UnitFixtures::response(200, '{"tag_name":"v1"}'),
                 UnitFixtures::response(200, '{"tag_name":"v2"}'),
                 UnitFixtures::response(200, '{"default_branch":"main"}'),
-                UnitFixtures::response(200, '[{"name":"main","commit":{"sha":"' . str_repeat('a', 40) . '"}}]')]);
+                UnitFixtures::response(200, '[{"name":"main","commit":{"sha":"' . str_repeat('a', times: 40) . '"}}]')]);
             $connection = new GitHubConnection($sites, $http);
             $old = $connection->provider($sites->find($one));
             Assert::same($old->getLatestRelease($base['repository']), 'v1');
@@ -51,6 +51,6 @@ final class EndpointTokenIsolationTest
                 Assert::false(str_contains(json_encode([$url, $headers]), EndpointFixture::tokenA()));
                 Assert::false(str_contains(json_encode([$url, $headers]), EndpointFixture::tokenB()));
             }
-        } finally { $old = $connection = $sites = $vault = $db = null; $directory->close(); }
+        } finally { $db = null; $vault = null; $sites = null; $connection = null; $old = null; $directory->close(); }
     }
 }

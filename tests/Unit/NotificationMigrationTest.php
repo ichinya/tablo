@@ -5,7 +5,7 @@ namespace Tablo\Tests\Unit;
 use Tablo\Database;
 use Tablo\Tests\Support\IncidentFixtures;
 use Tablo\Tests\Support\MigrationPdo;
-use Tablo\Tests\Support\NotificationFixture as F;
+
 use Testo\Assert;
 use Testo\Test;
 
@@ -24,7 +24,7 @@ final class NotificationMigrationTest
             'CREATE INDEX notification_due','CREATE INDEX notification_eligible','PRAGMA main.user_version = 8','COMMIT'] as $failure) {
             $db=self::predecessor(); $before=$db->query('SELECT name,type,sql FROM sqlite_schema ORDER BY name')->fetchAll();
             $db->failBefore=$failure;
-            Assert::instanceOf(IncidentFixtures::error(fn()=>Database::migrate($db)),\PDOException::class);
+            Assert::instanceOf(IncidentFixtures::error(static fn()=>Database::migrate($db)),\PDOException::class);
             Assert::same((int)$db->query('PRAGMA user_version')->fetchColumn(),6);
             Assert::same($db->query('SELECT name,type,sql FROM sqlite_schema ORDER BY name')->fetchAll(),$before);
             $db->failBefore=null; Database::migrate($db);
@@ -35,7 +35,7 @@ final class NotificationMigrationTest
             'CREATE INDEX notification_due ON sites(id)','CREATE INDEX notification_eligible ON sites(id)'] as $conflict) {
             $db=self::predecessor(); $db->exec($conflict);
             $before=$db->query('SELECT name,type,sql FROM sqlite_schema ORDER BY name')->fetchAll();
-            Assert::instanceOf(IncidentFixtures::error(fn()=>Database::migrate($db)),\RuntimeException::class);
+            Assert::instanceOf(IncidentFixtures::error(static fn()=>Database::migrate($db)),\RuntimeException::class);
             Assert::same((int)$db->query('PRAGMA user_version')->fetchColumn(),6);
             Assert::same($db->query('SELECT name,type,sql FROM sqlite_schema ORDER BY name')->fetchAll(),$before);
         }

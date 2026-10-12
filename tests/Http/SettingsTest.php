@@ -15,15 +15,15 @@ final class SettingsTest
         $web = new WebFixture();
         try {
             $csrf = $web->authenticate();
-            Assert::same($web->request('/settings', null, false)['status'], 303);
-            Assert::same($web->request('/settings', ['check_interval_minutes' => '1'], false)['status'], 303);
+            Assert::same($web->request(path: '/settings', data: null, options: new \Tablo\Tests\Support\WebRequestOptions(cookies: (false) ? \Tablo\Tests\Support\CookiePolicy::Retained : \Tablo\Tests\Support\CookiePolicy::Omitted))['status'], 303);
+            Assert::same($web->request(path: '/settings', data: ['check_interval_minutes' => '1'], options: new \Tablo\Tests\Support\WebRequestOptions(cookies: (false) ? \Tablo\Tests\Support\CookiePolicy::Retained : \Tablo\Tests\Support\CookiePolicy::Omitted))['status'], 303);
             $page = $web->request('/settings');
             Assert::same($page['status'], 200);
             Assert::true(str_contains($page['body'], 'name="check_interval_minutes" type="text" inputmode="numeric" value="10"'));
             foreach ([null, '', 'wrong', ['array']] as $token) {
                 Assert::same($web->request('/settings', ['_csrf' => $token, 'check_interval_minutes' => '1'])['status'], 419);
             }
-            foreach (['0', '-1', '1.5', '1e2', str_repeat('9', 100), ['bad'], '<script>secret</script>'] as $value) {
+            foreach (['0', '-1', '1.5', '1e2', str_repeat('9', times: 100), ['bad'], '<script>secret</script>'] as $value) {
                 $response = $web->request('/settings', ['_csrf' => $csrf, 'check_interval_minutes' => $value]);
                 Assert::same($response['status'], 422);
                 Assert::false(str_contains($response['body'], '<script>secret</script>'));

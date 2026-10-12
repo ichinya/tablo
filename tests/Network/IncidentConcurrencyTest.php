@@ -9,6 +9,7 @@ use Tablo\SiteRepository;
 use Tablo\TokenVault;
 use Tablo\Tests\Support\IncidentFixtures as F;
 use Tablo\Tests\Support\MigrationProcess;
+use Tablo\Tests\Support\MigrationPdo;
 use Tablo\Tests\Support\Subprocess;
 use Tablo\Tests\Support\TemporaryDirectory;
 use Tablo\Tests\Support\WorkerProcess;
@@ -21,27 +22,26 @@ final class IncidentConcurrencyTest
     public function waitingMigratorRechecksActualSchemaFiveWithoutReplayOrDuplicateDdl(): void
     {
         $directory = new TemporaryDirectory('tablo-incidents-upgrade-');
-        $first = $second = null;
+        $second = null; $first = null;
         try {
             $path = $directory->path . '/db.sqlite';
-            $db = Database::connect($path);
-            $sites = new SiteRepository($db);
-            $id = $sites->save(F::site());
-            F::accept($sites, $id, 0, '2020-01-01T00:00:00Z');
-            $db->exec('DROP TABLE notification_slots; DROP TABLE notification_checkpoints; DROP TABLE notification_settings;
-                DROP TABLE incident_checkpoints; DROP TABLE incidents; PRAGMA user_version=5');
+            $db = new MigrationPdo($path);
+            $db->exec(file_get_contents(dirname(__DIR__) . '/fixtures/historical-schema/history5.sql'));
+            $db->exec("INSERT INTO sites(id,name,url,repository) VALUES(1,'Historical','https://example.test/','fixture/public');
+                INSERT INTO check_history(id,site_id,config_revision,checked_at,online,version_status) VALUES(1,1,0,'2020-01-01T00:00:00Z',0,'skipped')");
             unset($sites, $db);
             $first = new MigrationProcess($directory, 'first', 'migrate-first', $path);
             $first->awaitSignal('first.locked');
             $second = new MigrationProcess($directory, 'second', 'migrate-second', $path);
             $second->awaitSignal('second.before-begin');
-            file_put_contents($directory->path . '/first.release', 'go');
+            file_put_contents($directory->path . '/first.release', data: 'go');
             $a = $first->wait();
             $b = $second->wait();
             Assert::same($a['code'], 0);
             Assert::same($b['code'], 0);
-            Assert::same(json_decode($a['stdout'], true)['ddl'], 9, 'four actual6 and five additive7 CREATE statements');
-            Assert::same(json_decode($b['stdout'], true)['ddl'], 0);
+            Assert::same(json_decode($a['stdout'], associative: true)['ddl'], 14,
+                'endpoint ALTER plus four history widening CREATE/ALTER statements plus four incident and five notification CREATE statements');
+            Assert::same(json_decode($b['stdout'], associative: true)['ddl'], 0);
             $db = Database::connect($path);
             Assert::same((int) $db->query('SELECT COUNT(*) FROM check_history')->fetchColumn(), 1);
             Assert::same($db->query('SELECT * FROM incidents')->fetchAll(), []);
@@ -67,7 +67,7 @@ final class IncidentConcurrencyTest
                 $children[] = $child;
                 $child->awaitOutput('Ready');
             }
-            file_put_contents($gate, 'go');
+            file_put_contents($gate, data: 'go');
             foreach ($children as $child) { Assert::same($child->wait()['exit_code'], 0); }
             Assert::same((int) $db->query('SELECT COUNT(*) FROM check_history')->fetchColumn(), 2);
             Assert::same((int) $db->query('SELECT COUNT(*) FROM incidents')->fetchColumn(), 1);
@@ -90,13 +90,9 @@ final class IncidentConcurrencyTest
             $late->awaitOutput('Ready');
             $delete = Subprocess::run([PHP_BINARY, $script, $path, (string) $id, 'delete'], $directory, []);
             Assert::same($delete['exit_code'], 0);
-            file_put_contents($nextGate, 'go');
+            file_put_contents($nextGate, data: 'go');
             $result = $late->wait();
-            Assert::same($result['exit_code'], 0);
-            Assert::true(str_contains($result['stdout'], '"result":false'));
-            Assert::same(array_column($db->query('SELECT site_id FROM incidents')->fetchAll(), 'site_id'), [$other]);
-            Assert::same(array_column($db->query('SELECT site_id FROM incident_checkpoints')->fetchAll(), 'site_id'), [$other]);
-            Assert::same($db->query('PRAGMA foreign_key_check')->fetchAll(), []);
+            (new IncidentWriterAssertions($db))->noResurrection($result, $other);
         } finally { foreach ($children as $child) { $child->close(); } unset($maintenance, $children, $child, $sites, $db); $directory->close(); }
     }
 
@@ -143,11 +139,11 @@ final class IncidentConcurrencyTest
             $writer->awaitSignal('writer.locked');
             $db->exec('PRAGMA busy_timeout=80');
             $before = F::rows($db);
-            $error = F::error(fn () => F::accept($sites, $id, 0, '2026-01-01T00:00:00Z'));
+            $error = F::error(static fn () => F::accept($sites, $id, 0, '2026-01-01T00:00:00Z'));
             Assert::same($error->errorInfo[1], 5);
             Assert::same(F::rows($db), $before);
             unset($error);
-            file_put_contents($directory->path . '/writer.release', 'go');
+            file_put_contents($directory->path . '/writer.release', data: 'go');
             Assert::same($writer->wait()['code'], 0);
             Assert::true(F::accept($sites, $id, 0, '2026-01-01T00:00:00Z'));
         } finally { $writer?->close(); unset($sites, $db); $directory->close(); }

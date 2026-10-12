@@ -34,18 +34,18 @@ final class IncidentReadTest
         Assert::same(count($third['rows']), 15);
         $ids = array_merge(array_column($first['rows'], 'id'), array_column($second['rows'], 'id'), array_column($third['rows'], 'id'));
         Assert::same(count(array_unique($ids)), 115);
-        Assert::false(in_array(231, $ids, true));
+        Assert::false(in_array(231, $ids, strict: true));
         Assert::same(count($read->page(limit: 100)['rows']), 100);
         $scoped = $read->page($id, 1);
         Assert::same($scoped['rows'][0]['site_id'], $id);
-        Assert::instanceOf(F::error(fn () => $read->page($other, 1, $scoped['next_cursor'])), \InvalidArgumentException::class);
+        Assert::instanceOf(F::error(static fn () => $read->page($other, 1, $scoped['next_cursor'])), \InvalidArgumentException::class);
         $before = F::rows($db);
         $db->exec('PRAGMA query_only=ON');
         $read->page($id, 1, $scoped['next_cursor']);
         Assert::same(F::rows($db), $before);
         $db->exec('PRAGMA query_only=OFF');
         $sites->delete($other);
-        Assert::instanceOf(F::error(fn () => $read->page($other)), \OutOfBoundsException::class);
+        Assert::instanceOf(F::error(static fn () => $read->page($other)), \OutOfBoundsException::class);
         Assert::same($read->page(cursor: $first['next_cursor'])['rows'][0]['site_id'], $id);
     }
 
@@ -56,16 +56,16 @@ final class IncidentReadTest
         $sites = new SiteRepository($db);
         $id = $sites->save(F::site());
         $read = new IncidentRepository($db);
-        foreach ([0, 101, -1] as $limit) { Assert::instanceOf(F::error(fn () => $read->page(limit: $limit)), \InvalidArgumentException::class); }
-        foreach (['', str_repeat('a', 257), 'a=', '%%%%', base64_encode('{}'), base64_encode('{"v":1,"site":null,"before":"1","ceiling":2}')]
-            as $cursor) { Assert::instanceOf(F::error(fn () => $read->page(cursor: $cursor)), \InvalidArgumentException::class); }
+        foreach ([0, 101, -1] as $limit) { Assert::instanceOf(F::error(static fn () => $read->page(limit: $limit)), \InvalidArgumentException::class); }
+        foreach (['', str_repeat('a', times: 257), 'a=', '%%%%', base64_encode('{}'), base64_encode('{"v":1,"site":null,"before":"1","ceiling":2}')]
+            as $cursor) { Assert::instanceOf(F::error(static fn () => $read->page(cursor: $cursor)), \InvalidArgumentException::class); }
         foreach (['{"v":1,"site":null,"before":1.0,"ceiling":2}', '{"v":1,"site":null,"before":-1,"ceiling":2}',
             '{"v":1,"site":null,"before":1,"ceiling":2,"extra":0}', '{"v":1,"v":1,"site":null,"before":1,"ceiling":2}',
             '{ "v":1,"site":null,"before":1,"ceiling":2}', '{"v":1,"site":[],"before":1,"ceiling":2}'] as $json) {
-            $cursor = rtrim(strtr(base64_encode($json), '+/', '-_'), '=');
-            Assert::instanceOf(F::error(fn () => $read->page(cursor: $cursor)), \InvalidArgumentException::class);
+            $cursor = rtrim(strtr(base64_encode($json), from: '+/', to: '-_'), characters: '=');
+            Assert::instanceOf(F::error(static fn () => $read->page(cursor: $cursor)), \InvalidArgumentException::class);
         }
-        Assert::instanceOf(F::error(fn () => $read->page(999)), \OutOfBoundsException::class);
+        Assert::instanceOf(F::error(static fn () => $read->page(999)), \OutOfBoundsException::class);
         foreach ([
             ['SELECT id FROM incidents WHERE site_id=1 AND end_reason IS NULL', 'incidents_unresolved'],
             ['SELECT * FROM incidents WHERE site_id=1 AND id<=20 AND id<10 ORDER BY id DESC LIMIT 51', 'incidents_site_id'],
@@ -76,7 +76,7 @@ final class IncidentReadTest
             Assert::false(str_contains($plan, 'TEMP B-TREE'));
         }
         F::accept($sites, $id, 0, '2026-01-01T00:00:00Z');
-        Assert::instanceOf(F::error(fn () => $db->exec("INSERT INTO incidents(id,site_id,config_revision,opened_at) VALUES(2,1,0,'2026-01-01T00:00:00Z')")), \PDOException::class);
+        Assert::instanceOf(F::error(static fn () => $db->exec("INSERT INTO incidents(id,site_id,config_revision,opened_at) VALUES(2,1,0,'2026-01-01T00:00:00Z')")), \PDOException::class);
         Assert::same(count($read->page()['rows']), 1, 'partial unique index rejects second unresolved');
     }
 }

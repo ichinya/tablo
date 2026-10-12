@@ -45,20 +45,7 @@ final class HistoryDiagnosticsTest
                 $state = (new SiteChecker($http, (new GitHubConnection($sites, $http))->provider($site)))->check($site);
                 Assert::true($sites->storeCheck($site, $state));
                 $row = $db->query('SELECT * FROM check_history WHERE site_id=' . $id)->fetch();
-                Assert::same($row['online'], $online, $repo . '/' . $health);
-                Assert::same($row['health_error_code'], $healthCode);
-                Assert::same($row['version_error_code'], $versionCode);
-                Assert::same($row['release_error_code'], $releaseCode);
-                Assert::same($row['commit_error_code'], $commitCode);
-                Assert::same($row['version_status'], $version === '' ? 'skipped' : ($versionCode === null ? 'ok' : 'error'));
-                if ($versionCode === 'http') { Assert::same($row['version_http_status'], 503); }
-                if ($releaseCode === 'access') { Assert::same($row['release_http_status'], 403); }
-                if ($version === 'version') { Assert::same($row['deployed_version'], 'v1'); Assert::same($row['deployed_commit'], 'abcdef1'); }
-                if ($repo === 'no-release') { Assert::same($row['latest_release'], null); Assert::same($row['release_error_code'], null); }
-                foreach (['synthetic-history-body-marker', 'synthetic-history-header-marker', $server->base,
-                    'last_error', 'github_token', 'git_token_id', 'worker_service'] as $private) {
-                    Assert::false(str_contains(json_encode($row), $private), $private);
-                }
+                HistoryDiagnosticAssertions::row($row, [$health, $version, $repo, $online, $healthCode, $versionCode, $releaseCode, $commitCode], $server->base);
                 Assert::same($sites->find($id)['online'], $online, 'Git/version failures do not change accepted health');
             }
             Assert::false(is_file($directory->path . '/never-created.key'));

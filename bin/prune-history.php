@@ -10,12 +10,12 @@ try {
         $retention = $_ENV['TABLO_HISTORY_RETENTION_DAYS'];
     }
     $days = Tablo\HistoryRetention::days($retention);
-    if ($argc > 2 || (isset($argv[1]) && (!preg_match('/^[1-9][0-9]*$/D', $argv[1])
+    if ($argc > 2 || ((($argv[1] ?? null) !== null) && (!preg_match('/^[1-9][0-9]*$/D', $argv[1])
         || filter_var($argv[1], FILTER_VALIDATE_INT) === false))) {
         throw new InvalidArgumentException('Invalid history arguments.');
     }
     $history = new Tablo\CheckHistoryRepository(Tablo\Database::connect());
-    echo json_encode($history->prune($days, isset($argv[1]) ? (int) $argv[1] : null), JSON_THROW_ON_ERROR) . PHP_EOL;
+    echo json_encode($history->prune($days, (($argv[1] ?? null) !== null) ? (int) $argv[1] : null), JSON_THROW_ON_ERROR) . PHP_EOL;
 } catch (OutOfBoundsException) {
     fwrite(STDERR, 'History site not found.' . PHP_EOL);
     exit(1);

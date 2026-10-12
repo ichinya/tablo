@@ -41,10 +41,7 @@ final class HistoryConcurrencyTest
             $token = $tokens->save(['name' => 'Shared', 'provider' => 'github', 'token' => bin2hex(random_bytes(24))]);
             (new NotificationSettings($db,$vault))->update(['revision'=>'0','enabled'=>'1','endpoint'=>'https://receiver.example/hook','unavailable'=>'1','recovery'=>'1']);
             $input = array_replace(UnitFixtures::site(), ['git_token_id' => $token, 'health_json_path' => '$.status', 'health_json_expected_value' => 'ok']);
-            $fields = ['name' => 'Changed', 'url' => 'https://other.example', 'repository' => 'other/project', 'branch' => 'other',
-                'health_path' => '/other', 'version_path' => '/other', 'version_json_path' => '$.other', 'health_check_mode' => 'json',
-                'health_json_path' => '$.other', 'health_json_operator' => '!=', 'health_json_expected_value' => 'different',
-                'comparison_mode' => 'branch', 'enabled' => 0, 'sort_order' => 9];
+            $fields = HistoryMutationCases::fields();
             $actions = array_merge(array_keys($fields), ['aba', 'manual', 'remove', 'shared', 'rename', 'delete']);
             foreach ($actions as $action) {
                 $id = $sites->save($input);
@@ -60,17 +57,7 @@ final class HistoryConcurrencyTest
                 Assert::same($sites->storeCheck($snapshot, $accepted ? $state : ['checked_at' => 'invalid', 'release_error_code' => 'raw-marker']), $accepted, $action);
                 Assert::same((new WorkerStateRepository($db,$sites))->settle($snapshot, $accepted
                     ? $state + ['worker_service' => ['latest_commit' => true]] : ['worker_service' => 'invalid']), $accepted, $action);
-                $statement = $db->prepare('SELECT COUNT(*) FROM check_history WHERE site_id=?');
-                $statement->execute([$id]);
-                Assert::same((int) $statement->fetchColumn(), $action === 'delete' ? 0 : ($accepted ? 3 : 1), $action);
-                $statement->closeCursor();
-                Assert::same($db->query('SELECT * FROM incidents WHERE site_id=' . $id)->fetch(), $action === 'delete' ? false : $incident, $action);
-                if (!$accepted) {
-                    Assert::same($db->query('SELECT * FROM incident_checkpoints WHERE site_id=' . $id)->fetch(), $action === 'delete' ? false : $checkpoint, $action);
-                    Assert::same($db->query('SELECT * FROM notification_checkpoints WHERE site_id=' . $id)->fetch(), $action === 'delete' ? false : $notification, $action);
-                }
-                Assert::same($db->query('SELECT * FROM notification_slots WHERE site_id=' . $id)->fetchAll(),[], $action);
-                if (!$accepted) { Assert::same((int) $db->query('SELECT COUNT(*) FROM worker_progress WHERE site_id=' . $id)->fetchColumn(), 0); }
+                (new HistoryProjectionAssertions($db))->settled($id, $action, [$checkpoint, $incident, $notification]);
             }
         } finally { unset($statement, $snapshot, $tokens, $sites, $vault, $db); $directory->close(); }
     }
@@ -91,13 +78,8 @@ final class HistoryConcurrencyTest
             $writer = new MigrationProcess($directory, 'writer', 'writer', $path);
             $writer->awaitSignal('writer.locked');
             $db->exec('PRAGMA busy_timeout=80');
-            $error = null;
-            try { $sites->storeCheck($snapshot, $state); } catch (\PDOException $caught) { $error = $caught->errorInfo[1]; }
-            Assert::same($error, 5);
-            Assert::same((int) $db->query('SELECT COUNT(*) FROM check_history')->fetchColumn(), 0);
-            Assert::same($sites->find($id)['checked_at'], null);
-            unset($caught);
-            file_put_contents($directory->path . '/writer.release', 'release');
+            (new HistoryWriterAssertions($db, $sites))->blocked($id, $snapshot, $state);
+            file_put_contents($directory->path . '/writer.release', data: 'release');
             Assert::same($writer->wait()['code'], 0);
             Assert::true($sites->storeCheck($snapshot, $state));
             $sites->storeCheck($snapshot, ['checked_at' => '2025-12-01T00:00:00Z']);
@@ -125,7 +107,7 @@ final class HistoryConcurrencyTest
     {
         $directory = new TemporaryDirectory('tablo-history-cli-');
         try {
-            $root = dirname(__DIR__, 2);
+            $root = dirname(__DIR__, levels: 2);
             $path = $directory->path . '/db.sqlite';
             $db = Database::connect($path);
             $sites = new SiteRepository($db);
@@ -136,23 +118,9 @@ final class HistoryConcurrencyTest
             $read = [PHP_BINARY, $root . '/bin/history.php', (string) $id, '2019-01-01T00:00:00Z', '2021-01-01T00:00:00Z'];
             $result = Subprocess::run($read, $directory, $env);
             Assert::same($result['exit_code'], 0);
-            Assert::same(count(json_decode($result['stdout'], true, 16, JSON_THROW_ON_ERROR)['rows']), 1);
+            Assert::same(count(json_decode($result['stdout'], associative: true, depth: 16, flags: JSON_THROW_ON_ERROR)['rows']), 1);
             Assert::same($result['stderr'], '');
-            foreach ([[PHP_BINARY, $root . '/bin/history.php', '999', $read[3], $read[4]],
-                [PHP_BINARY, $root . '/bin/history.php', '1', 'private-marker', $read[4]],
-                [...$read, '101'], [...$read, '50', 'private-marker']] as $bad) {
-                $result = Subprocess::run($bad, $directory, $env);
-                Assert::same($result['exit_code'], 1);
-                Assert::same($result['stdout'], '');
-                Assert::true(in_array($result['stderr'], ['History site not found.' . PHP_EOL, 'History read failed. Check arguments and local storage.' . PHP_EOL], true));
-            }
-            foreach (['0', '01', '3651', 'private-marker'] as $bad) {
-                $result = Subprocess::run([PHP_BINARY, $root . '/bin/prune-history.php'], $directory,
-                    $env + ['TABLO_HISTORY_RETENTION_DAYS' => $bad]);
-                Assert::same($result['exit_code'], 1);
-                Assert::same($result['stderr'], 'History prune failed. Check retention and local storage.' . PHP_EOL);
-                Assert::same((int) $db->query('SELECT COUNT(*) FROM check_history')->fetchColumn(), 1);
-            }
+            (new HistoryCliAssertions($directory, $db))->refused($read, $env);
             $unopened = $directory->path . '/never-created.sqlite';
             $result = Subprocess::run([PHP_BINARY, '-d', 'auto_prepend_file=' . $root . '/tests/fixtures/history-empty-retention.php', $root . '/bin/prune-history.php'], $directory,
                 array_replace($env, ['TABLO_DB' => $unopened, 'TABLO_HISTORY_RETENTION_DAYS' => '']));
@@ -161,7 +129,7 @@ final class HistoryConcurrencyTest
             $result = Subprocess::run([PHP_BINARY, $root . '/bin/prune-history.php', (string) $id], $directory,
                 $env + ['TABLO_HISTORY_RETENTION_DAYS' => '30']);
             Assert::same($result['exit_code'], 0);
-            Assert::same(json_decode($result['stdout'], true), ['deleted' => 1, 'capped' => false]);
+            Assert::same(json_decode($result['stdout'], associative: true), ['deleted' => 1, 'capped' => false]);
             Assert::same($sites->find($id), $before);
             Assert::false(is_file($env['TABLO_GITHUB_TOKEN_KEY']), 'read/prune never instantiate vault or recreate key');
         } finally { unset($before, $sites, $db); $directory->close(); }

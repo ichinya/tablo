@@ -41,7 +41,7 @@ final class WorkerMigrationTest
             Assert::same($after['config_revision'], 0);
             Assert::same($after['endpoint_token'], null);
             Assert::same($db->query('SELECT password_hash FROM users')->fetchColumn(), 'synthetic-preserved-hash');
-            Assert::same((int) $db->query('SELECT eligible_at FROM github_cooldowns')->fetchColumn(), 99999);
+            Assert::same((int) $db->query('SELECT eligible_at FROM github_cooldowns')->fetchColumn(), 99_999);
             Assert::same($db->query('PRAGMA foreign_key_check')->fetchAll(), []);
         }
     }

@@ -20,7 +20,7 @@ final class ProcessDiagnosticTest
 
     private static function receipt(string $path): array
     {
-        return json_decode(file_get_contents($path), true, flags: JSON_THROW_ON_ERROR);
+        return json_decode(file_get_contents($path), associative: true, flags: JSON_THROW_ON_ERROR);
     }
 
     #[Test]
@@ -84,7 +84,7 @@ final class ProcessDiagnosticTest
         $directory = new TemporaryDirectory('tablo-process-malformed-');
         $result = Subprocess::run(self::command('malformed'), $directory, []);
         $primary = null;
-        try { json_decode($result['stdout'], true, flags: JSON_THROW_ON_ERROR); }
+        try { json_decode($result['stdout'], associative: true, flags: JSON_THROW_ON_ERROR); }
         catch (JsonException $error) { $primary = $error; $directory->retainFailure($error); }
         finally { $directory->close(); }
         Assert::instanceOf($primary, JsonException::class);
@@ -97,16 +97,16 @@ final class ProcessDiagnosticTest
     public function flattenedNestedWorkHasTwoOwnedChildrenBeforeFixtureRelease(): void
     {
         $directory = new TemporaryDirectory('tablo-process-owners-');
-        $first = $second = null;
+        $second = null; $first = null;
         try {
             $first = new Subprocess(self::command('wait', $directory->path . '/release-first'), $directory);
             $second = new Subprocess(self::command('wait', $directory->path . '/release-second'), $directory);
             foreach ([$first, $second] as $child) { $child->awaitOutput('diagnostic stdout marker'); $child->send(''); }
-            file_put_contents($directory->path . '/release-first', 'release');
+            file_put_contents($directory->path . '/release-first', data: 'release');
             $one = $first->finish();
             Assert::true(self::receipt($one['files']['receipt'])['root_exit_observed']);
             // The second phase is a sibling owned by this parent, never an unowned grandchild.
-            file_put_contents($directory->path . '/release-second', 'release');
+            file_put_contents($directory->path . '/release-second', data: 'release');
             $two = $second->finish();
             Assert::true(self::receipt($two['files']['receipt'])['closed']);
             Assert::true(self::receipt($one['files']['receipt'])['pid'] !== self::receipt($two['files']['receipt'])['pid']);
@@ -127,11 +127,11 @@ final class ProcessDiagnosticTest
             $directory->retainFailure($primary);
             $directory->cleanup(static function (): void { throw new RuntimeException('synthetic cleanup secret'); });
             $records = array_map(self::receipt(...), glob($directory->path . '/failure-*.json'));
-            Assert::true(in_array('primary', array_column($records, 'kind'), true));
-            Assert::true(in_array('cleanup', array_column($records, 'kind'), true));
+            Assert::true(in_array('primary', array_column($records, 'kind'), strict: true));
+            Assert::true(in_array('cleanup', array_column($records, 'kind'), strict: true));
             Assert::false(str_contains(json_encode($records), 'synthetic primary secret'));
             $child->send('');
-            file_put_contents($directory->path . '/release', 'release');
+            file_put_contents($directory->path . '/release', data: 'release');
             Assert::same($child->finish()['exit_code'], 0);
         } finally { $child->close(); $directory->close(); }
         Assert::true(is_dir($directory->path), 'failed synthetic fixture remains retained');

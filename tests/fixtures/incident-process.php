@@ -1,7 +1,7 @@
 <?php
 declare(strict_types=1);
 
-require dirname(__DIR__, 2) . '/vendor/autoload.php';
+require dirname(__DIR__, levels: 2) . '/vendor/autoload.php';
 
 $db = \Tablo\Database::connect($argv[1]);
 $sites = new \Tablo\SiteRepository($db);
@@ -10,7 +10,7 @@ $gate = getenv('TABLO_INCIDENT_GATE');
 if ($gate) {
     echo "Ready\n";
     $deadline = microtime(true) + 6;
-    while (!is_file($gate) && microtime(true) < $deadline) { clearstatcache(); usleep(10000); }
+    while (!is_file($gate) && microtime(true) < $deadline) { clearstatcache(); usleep(10_000); }
     if (!is_file($gate)) { throw new RuntimeException('Incident fixture gate timeout.'); }
 }
 $result = match ($argv[3]) {

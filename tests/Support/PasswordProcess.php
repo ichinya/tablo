@@ -12,9 +12,8 @@ final class PasswordProcess
 
     public function __construct(TemporaryDirectory $directory, string $database, ?string $entrypoint = null, array $environment = [])
     {
-        $this->child = new Subprocess([PHP_BINARY, '-d', 'zend.exception_ignore_args=0',
-            $entrypoint ?? dirname(__DIR__, 2) . '/bin/admin-password.php', '--password-stdin'],
-            $directory, array_replace(['TABLO_DB' => $database], $environment), $directory->path);
+        $this->child = new Subprocess(command: [PHP_BINARY, '-d', 'zend.exception_ignore_args=0',
+            $entrypoint ?? dirname(__DIR__, levels: 2) . '/bin/admin-password.php', '--password-stdin'], directory: $directory, environment: array_replace(['TABLO_DB' => $database], $environment), options: new \Tablo\Tests\Support\CommandOptions(cwd: $directory->path));
         $this->child->awaitOutput('Installation:', timeout: 5);
     }
 

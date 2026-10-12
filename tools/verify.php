@@ -3,9 +3,10 @@ declare(strict_types=1);
 
 $root = dirname(__DIR__);
 chdir($root);
-$lekalo = getenv('LEKALO_BIN') ?: 'lekalo';
+$selectedLekalo = getenv('LEKALO_BIN');
+$lekalo = $selectedLekalo ? $selectedLekalo : 'lekalo';
 
-function runGate(array $command): void
+function run_gate(array $command): void
 {
     fwrite(STDOUT, '> ' . implode(' ', $command) . PHP_EOL);
     fflush(STDOUT);
@@ -27,7 +28,7 @@ function runGate(array $command): void
             $closed = proc_close($process);
             $process = null;
             $exit = !$initial['running'] && $initial['exitcode'] !== -1 ? $initial['exitcode']
-                : ($closed !== -1 ? $closed : null);
+                : (match (true) { ($closed !== -1) => $closed, default => null });
             foreach ([[$stdout, STDOUT], [$stderr, STDERR]] as [$capture, $output]) {
                 if (!rewind($capture) || stream_copy_to_stream($capture, $output) === false) {
                     throw new RuntimeException('Gate stream capture failed');
@@ -49,89 +50,121 @@ function runGate(array $command): void
 
 try {
     require __DIR__ . '/reviewed-dependencies.php';
-    verifyWorkerDependencies($root); // FIRST: refusal precedes any contract/native subprocess.
-    runGate([$lekalo, 'validate', '--no-cache']);
-    runGate([$lekalo, 'lock', '--check', '--offline']);
-    $declaration = json_decode(file_get_contents('contracts/php-bindings.json'), true, 64, JSON_THROW_ON_ERROR);
+    verify_worker_dependencies($root); // FIRST: refusal precedes any contract/native subprocess.
+    require __DIR__ . '/NativeTestAttachments.php';
+    $nativeMap = [];
+    run_gate([PHP_BINARY, 'tools/lint.php']);
+    run_gate([$lekalo, 'validate', '--no-cache']);
+    run_gate([$lekalo, 'lock', '--check', '--offline']);
+    $declaration = json_decode(file_get_contents('contracts/php-bindings.json'), associative: true, depth: 64, flags: JSON_THROW_ON_ERROR);
     foreach ($declaration['symbols'] as $symbol) {
         $path = $symbol['source']['path'];
         if (!is_file($path) || !hash_equals($symbol['fingerprint'], 'sha256:' . hash_file('sha256', $path))) {
             throw new RuntimeException('Unreviewed source drift: ' . $path . '. Review code/model changes and explicitly capture new bindings.');
         }
     }
-    runGate([$lekalo, 'contract', 'update', '--declaration', 'contracts/php-bindings.json']);
+    run_gate([$lekalo, 'contract', 'update', '--declaration', 'contracts/php-bindings.json']);
     foreach ($declaration['symbols'] as $symbol) {
-        if (in_array($symbol['kind'], ['command', 'query'], true)) {
+        if (!(in_array($symbol['kind'], ['command', 'query'], strict: true))) { continue; }
+
             $unitTests = match ($symbol['id']) {
-                'dashboard.change_admin_password' => 'tests/Unit/AdminPasswordTest.php,tests/Network/AdminPasswordTest.php,tests/Network/PasswordHelperTest.php,tests/Http/AdminPasswordTest.php',
-                'dashboard.setup' => 'tests/Unit/AuthTest.php,tests/Unit/PasswordServiceTest.php,tests/Unit/PasswordPrivacyTest.php,tests/Unit/AdminPasswordTest.php,tests/Network/AdminPasswordTest.php,tests/Http/AdminPasswordTest.php',
-                'dashboard.login' => 'tests/Unit/AuthTest.php,tests/Unit/ClientAddressTest.php,tests/Http/LoginProxyTest.php,tests/Http/AdminPasswordTest.php',
-                'dashboard.list_branches' => 'tests/Unit/GitHubProviderTest.php,tests/Unit/GitHubBudgetTest.php,tests/Network/HttpClientTest.php,tests/Network/GitHubSweepTest.php,tests/Http/GitHubBudgetTest.php',
-                'dashboard.check_site' => 'tests/Unit/SiteCheckerTest.php,tests/Unit/HealthChecksTest.php,tests/Unit/HealthUrlTest.php,tests/Unit/HealthFailurePolicyTest.php,tests/Unit/ExplicitHealthChecksTest.php,tests/Unit/HealthPersistenceTest.php,tests/Unit/HttpClientTest.php,tests/Unit/JsonChecksTest.php,tests/Network/HttpClientTest.php,tests/Unit/GitHubProviderTest.php,tests/Unit/GitHubBudgetTest.php,tests/Network/GitHubSweepTest.php,tests/Http/GitHubBudgetTest.php,tests/Network/HttpFramingTest.php,tests/Http/HttpFramingTest.php',
-                'dashboard.run_checks' => 'tests/Unit/CheckCommandTest.php,tests/Network/CheckCommandTest.php,tests/Unit/SiteCheckerTest.php,tests/Unit/SiteRepositoryTest.php,tests/Unit/GitHubBudgetTest.php,tests/Network/GitHubCorrectionsTest.php,tests/Network/ExternalKeyTest.php,tests/Unit/EnvironmentBootstrapTest.php,tests/Unit/ReviewedDependenciesTest.php,tests/Unit/CurlPlatformTest.php,tests/Network/EndpointTokenTransportTest.php,tests/Network/EndpointRedirectTest.php,tests/Network/EndpointRedirectPrivacyTest.php',
-                'dashboard.create_site', 'dashboard.update_site' => 'tests/Unit/SiteRepositoryTest.php,tests/Unit/JsonChecksTest.php,tests/Unit/HealthChecksTest.php,tests/Unit/HealthUrlTest.php,tests/Unit/HealthFailurePolicyTest.php,tests/Unit/ExplicitHealthChecksTest.php,tests/Unit/HealthPersistenceTest.php',
-                'dashboard.logout' => 'tests/Http/AdminPasswordTest.php',
+                'dashboard.change_admin_password' => 'tests/Unit/AdminPasswordTest.php,tests/Network/AdminPasswordTest.php,tests/Network/AdminPasswordSelectionTest.php,tests/Network/AdminPasswordStorageTest.php,tests/Network/AdminPasswordConflictTest.php,tests/Network/PasswordHelperTest.php,tests/Http/AdminPasswordTest.php,tests/Http/PasswordSessionAdmissionTest.php,tests/Http/PasswordLoginRaceTest.php,tests/Http/PasswordCommitVisibilityTest.php',
+                'dashboard.setup' => 'tests/Unit/AuthTest.php,tests/Unit/PasswordServiceTest.php,tests/Unit/PasswordPrivacyTest.php,tests/Unit/AdminPasswordTest.php,tests/Network/AdminPasswordTest.php,tests/Network/AdminPasswordSelectionTest.php,tests/Network/AdminPasswordStorageTest.php,tests/Network/AdminPasswordConflictTest.php,tests/Http/AdminPasswordTest.php,tests/Http/PasswordSessionAdmissionTest.php,tests/Http/PasswordLoginRaceTest.php,tests/Http/PasswordCommitVisibilityTest.php',
+                'dashboard.login' => 'tests/Unit/AuthTest.php,tests/Unit/ClientAddressTest.php,tests/Unit/ClientAddressAdmissionTest.php,tests/Unit/ClientAddressStartupTest.php,tests/Http/LoginProxyTest.php,tests/Http/LoginProxyBoundaryTest.php,tests/Http/LoginProxyStartupTest.php,tests/Http/AdminPasswordTest.php,tests/Http/PasswordSessionAdmissionTest.php,tests/Http/PasswordLoginRaceTest.php,tests/Http/PasswordCommitVisibilityTest.php',
+                'dashboard.list_branches' => 'tests/Unit/GitHubProviderTest.php,tests/Unit/GitHubBudgetTest.php,tests/Unit/GitHubCooldownPersistenceTest.php,tests/Unit/GitHubRequestBoundsTest.php,tests/Unit/GitHubMemoRotationTest.php,tests/Network/HttpClientTest.php,tests/Network/GitHubSweepTest.php,tests/Http/GitHubBudgetTest.php',
+                'dashboard.check_site' => 'tests/Unit/SiteCheckerTest.php,tests/Unit/HealthFailureEvidenceTest.php,tests/Unit/VersionFailureEvidenceTest.php,tests/Unit/HealthChecksTest.php,tests/Unit/HealthUrlTest.php,tests/Unit/HealthFailurePolicyTest.php,tests/Unit/ExplicitHealthChecksTest.php,tests/Unit/HealthPersistenceTest.php,tests/Unit/HttpClientTest.php,tests/Unit/JsonChecksTest.php,tests/Unit/JsonObservationTest.php,tests/Unit/JsonConfigurationTest.php,tests/Network/HttpClientTest.php,tests/Unit/GitHubProviderTest.php,tests/Unit/GitHubBudgetTest.php,tests/Unit/GitHubCooldownPersistenceTest.php,tests/Unit/GitHubRequestBoundsTest.php,tests/Unit/GitHubMemoRotationTest.php,tests/Network/GitHubSweepTest.php,tests/Http/GitHubBudgetTest.php,tests/Network/HttpFramingTest.php,tests/Http/HttpFramingTest.php',
+                'dashboard.run_checks' => 'tests/Unit/CheckCommandTest.php,tests/Network/CheckCommandTest.php,tests/Network/CheckCommandStderrTest.php,tests/Network/CheckCommandCasTest.php,tests/Network/CheckCommandAbortTest.php,tests/Network/CheckCommandKeyAdmissionTest.php,tests/Network/CheckCommandInputTest.php,tests/Unit/SiteCheckerTest.php,tests/Unit/HealthFailureEvidenceTest.php,tests/Unit/VersionFailureEvidenceTest.php,tests/Unit/SiteRepositoryTest.php,tests/Unit/SiteCredentialCrudTest.php,tests/Unit/SiteTokenRotationTest.php,tests/Unit/SiteHistoricalCrudTest.php,tests/Unit/GitHubBudgetTest.php,tests/Unit/GitHubCooldownPersistenceTest.php,tests/Unit/GitHubRequestBoundsTest.php,tests/Unit/GitHubMemoRotationTest.php,tests/Network/GitHubCorrectionsTest.php,tests/Network/GitHubEquivalentScopeTest.php,tests/Network/GitHubResponseAdmissionTest.php,tests/Network/ExternalKeyTest.php,tests/Unit/EnvironmentBootstrapTest.php,tests/Unit/ReviewedDependenciesTest.php,tests/Unit/CurlPlatformTest.php,tests/Network/EndpointTokenTransportTest.php,tests/Network/EndpointRedirectTest.php,tests/Network/RedirectRequestLineTest.php,tests/Network/RedirectAdmissionTest.php,tests/Network/RedirectOriginAdmissionTest.php,tests/Network/RedirectBudgetTest.php,tests/Network/EndpointRedirectPrivacyTest.php',
+                'dashboard.create_site', 'dashboard.update_site' => 'tests/Unit/SiteRepositoryTest.php,tests/Unit/SiteCredentialCrudTest.php,tests/Unit/SiteTokenRotationTest.php,tests/Unit/SiteHistoricalCrudTest.php,tests/Unit/JsonChecksTest.php,tests/Unit/JsonObservationTest.php,tests/Unit/JsonConfigurationTest.php,tests/Unit/HealthChecksTest.php,tests/Unit/HealthUrlTest.php,tests/Unit/HealthFailurePolicyTest.php,tests/Unit/ExplicitHealthChecksTest.php,tests/Unit/HealthPersistenceTest.php',
+                'dashboard.logout' => 'tests/Http/AdminPasswordTest.php,tests/Http/PasswordSessionAdmissionTest.php,tests/Http/PasswordLoginRaceTest.php,tests/Http/PasswordCommitVisibilityTest.php',
                 'dashboard.get_settings', 'dashboard.update_settings' => 'tests/Unit/SettingsRepositoryTest.php,tests/Http/SettingsTest.php,tests/Network/WorkerSettingsTest.php',
-                'dashboard.run_worker_pass' => 'tests/Unit/PeriodicWorkerTest.php,tests/Network/PeriodicWorkerTest.php,tests/Network/WorkerFairnessTest.php,tests/Unit/GitHubBudgetTest.php,tests/Network/GitHubSweepTest.php,tests/Network/GitHubCorrectionsTest.php,tests/Unit/SiteCheckerTest.php,tests/Http/HealthChecksTest.php,tests/Http/HomepageUrlTest.php,tests/Http/ExplicitHealthPathsTest.php,tests/Http/HealthPartialResultsTest.php,tests/Http/HealthInFlightTest.php,tests/Network/HttpFramingTest.php,tests/Http/HttpFramingTest.php',
-                'dashboard.request_worker_stop' => 'tests/Network/PeriodicWorkerTest.php,tests/Unit/PeriodicWorkerTest.php',
-                'dashboard.store_check', 'dashboard.settle_worker_check' => 'tests/Unit/CheckHistoryTest.php,tests/Unit/WorkerSettlementTest.php,tests/Network/HistoryConcurrencyTest.php,tests/Network/HistoryDiagnosticsTest.php,tests/Network/PeriodicWorkerTest.php,tests/Http/HealthChecksTest.php',
+                'dashboard.run_worker_pass' => 'tests/Unit/PeriodicWorkerTest.php,tests/Network/PeriodicWorkerTest.php,tests/Network/WorkerAbaAdmissionTest.php,tests/Network/WorkerProcessCustodyTest.php,tests/Network/WorkerStartupAdmissionTest.php,tests/Network/WorkerFairnessTest.php,tests/Network/WorkerSearchDebtTest.php,tests/Network/WorkerBudgetDebtTest.php,tests/Unit/GitHubBudgetTest.php,tests/Unit/GitHubCooldownPersistenceTest.php,tests/Unit/GitHubRequestBoundsTest.php,tests/Unit/GitHubMemoRotationTest.php,tests/Network/GitHubSweepTest.php,tests/Network/GitHubCorrectionsTest.php,tests/Network/GitHubEquivalentScopeTest.php,tests/Network/GitHubResponseAdmissionTest.php,tests/Unit/SiteCheckerTest.php,tests/Unit/HealthFailureEvidenceTest.php,tests/Unit/VersionFailureEvidenceTest.php,tests/Http/HealthChecksTest.php,tests/Http/HomepageUrlTest.php,tests/Http/ExplicitHealthPathsTest.php,tests/Http/HealthPartialResultsTest.php,tests/Http/HealthInFlightTest.php,tests/Network/HttpFramingTest.php,tests/Http/HttpFramingTest.php',
+                'dashboard.request_worker_stop' => 'tests/Network/PeriodicWorkerTest.php,tests/Network/WorkerAbaAdmissionTest.php,tests/Network/WorkerProcessCustodyTest.php,tests/Network/WorkerStartupAdmissionTest.php,tests/Unit/PeriodicWorkerTest.php',
+                'dashboard.store_check', 'dashboard.settle_worker_check' => 'tests/Unit/CheckHistoryTest.php,tests/Unit/WorkerSettlementTest.php,tests/Network/HistoryConcurrencyTest.php,tests/Network/HistoryDiagnosticsTest.php,tests/Network/PeriodicWorkerTest.php,tests/Network/WorkerAbaAdmissionTest.php,tests/Network/WorkerProcessCustodyTest.php,tests/Network/WorkerStartupAdmissionTest.php,tests/Http/HealthChecksTest.php',
                 'dashboard.read_history', 'dashboard.prune_history' => 'tests/Unit/HistoryReadRetentionTest.php,tests/Network/HistoryConcurrencyTest.php',
                 'dashboard.read_incidents' => 'tests/Unit/IncidentReadTest.php,tests/Unit/IncidentLifecycleTest.php,tests/Http/IncidentsTest.php,tests/Http/IncidentQualifiersTest.php',
-                'dashboard.get_notifications', 'dashboard.update_notifications' => 'tests/Unit/NotificationSettingsTest.php,tests/Http/NotificationSettingsTest.php',
+                'dashboard.get_notifications', 'dashboard.update_notifications' => 'tests/Unit/NotificationSettingsTest.php,tests/Unit/NotificationMetadataTest.php,tests/Unit/NotificationMetadataPrivacyTest.php,tests/Unit/NotificationMetadataAtomicityTest.php,tests/Unit/NotificationCredentialTest.php,tests/Http/NotificationSettingsTest.php',
                 'dashboard.project_notifications' => 'tests/Unit/NotificationSelectionTest.php,tests/Unit/NotificationAtomicityTest.php,tests/Unit/NotificationMigrationTest.php,tests/Network/NotificationPublicTest.php',
                 'dashboard.read_notification_status' => 'tests/Unit/NotificationOutboxTest.php,tests/Network/NotificationRaceTest.php,tests/Http/NotificationSettingsTest.php',
                 'dashboard.claim_notification', 'dashboard.ack_notification' => 'tests/Unit/NotificationOutboxTest.php,tests/Network/NotificationRaceTest.php',
                 'dashboard.deliver_notification' => 'tests/Unit/NotificationOutboxTest.php,tests/Network/WebhookSupervisorTest.php,tests/Network/WebhookTransportTest.php,tests/Network/NotificationPublicTest.php,tests/Network/NotificationRaceTest.php',
-                default => 'tests/Unit/SiteRepositoryTest.php',
+                default => 'tests/Unit/SiteRepositoryTest.php,tests/Unit/SiteCredentialCrudTest.php,tests/Unit/SiteTokenRotationTest.php,tests/Unit/SiteHistoricalCrudTest.php',
             };
-            if (in_array($symbol['id'], ['dashboard.setup', 'dashboard.login', 'dashboard.change_admin_password'], true)) {
-                $unitTests .= ',tests/Unit/PasswordServiceTest.php,tests/Unit/PasswordPrivacyTest.php,tests/Unit/AdminPasswordTest.php,tests/Network/AdminPasswordTest.php,tests/Network/PasswordHelperTest.php,tests/Http/AdminPasswordTest.php';
+            if (in_array($symbol['id'], ['dashboard.setup', 'dashboard.login', 'dashboard.change_admin_password'], strict: true)) {
+                $unitTests .= ',tests/Unit/PasswordServiceTest.php,tests/Unit/PasswordPrivacyTest.php,tests/Unit/AdminPasswordTest.php,tests/Network/AdminPasswordTest.php,tests/Network/AdminPasswordSelectionTest.php,tests/Network/AdminPasswordStorageTest.php,tests/Network/AdminPasswordConflictTest.php,tests/Network/PasswordHelperTest.php,tests/Http/AdminPasswordTest.php,tests/Http/PasswordSessionAdmissionTest.php,tests/Http/PasswordLoginRaceTest.php,tests/Http/PasswordCommitVisibilityTest.php';
             }
-            if (in_array($symbol['id'], ['dashboard.list_branches', 'dashboard.check_site', 'dashboard.create_site', 'dashboard.update_site'], true)) {
-                $unitTests .= ',tests/Unit/GitHubCredentialTest.php,tests/Network/GitHubCorrectionsTest.php,tests/Network/GitHubKeyCustodyTest.php,tests/Network/GitHubResponsePrivacyTest.php,tests/Network/GitHubTraceInspectorTest.php';
+            if (in_array($symbol['id'], ['dashboard.list_branches', 'dashboard.check_site', 'dashboard.create_site', 'dashboard.update_site'], strict: true)) {
+                $unitTests .= ',tests/Unit/GitHubCredentialTest.php,tests/Network/GitHubCorrectionsTest.php,tests/Network/GitHubEquivalentScopeTest.php,tests/Network/GitHubResponseAdmissionTest.php,tests/Network/GitHubKeyCustodyTest.php,tests/Network/GitHubKeyLivenessTest.php,tests/Network/GitHubKeyTraceTest.php,tests/Network/GitHubResponsePrivacyTest.php,tests/Network/GitHubClassifierPrivacyTest.php,tests/Network/GitHubTraceInspectorTest.php';
             }
             if ($symbol['id'] === 'dashboard.run_worker_pass') {
-                $unitTests .= ',tests/Unit/WorkerAdmissionTest.php,tests/Unit/WorkerSettlementTest.php,tests/Network/WorkerSharedFailureTest.php,tests/Http/WorkerDashboardTest.php,tests/Network/WorkerSettingsTest.php';
+                $unitTests .= ',tests/Unit/WorkerAdmissionTest.php,tests/Unit/WorkerSettlementTest.php,tests/Network/WorkerSharedFailureTest.php,tests/Network/WorkerKeyFailureTest.php,tests/Network/WorkerMetricFailureTest.php,tests/Http/WorkerDashboardTest.php,tests/Network/WorkerSettingsTest.php';
             }
-            if (in_array($symbol['id'], ['dashboard.check_site', 'dashboard.run_worker_pass', 'dashboard.create_site', 'dashboard.update_site', 'dashboard.list_branches'], true)) {
-                $unitTests .= ',tests/Unit/EndpointRedirectPolicyTest.php,tests/Network/EndpointRedirectTest.php,tests/Network/EndpointRedirectPrivacyTest.php,tests/Http/EndpointRedirectTest.php';
+            if (in_array($symbol['id'], ['dashboard.check_site', 'dashboard.run_worker_pass', 'dashboard.create_site', 'dashboard.update_site', 'dashboard.list_branches'], strict: true)) {
+                $unitTests .= ',tests/Unit/EndpointRedirectPolicyTest.php,tests/Unit/EndpointAddressPolicyTest.php,tests/Unit/EndpointRoutingPermissionTest.php,tests/Network/EndpointRedirectTest.php,tests/Network/RedirectRequestLineTest.php,tests/Network/RedirectAdmissionTest.php,tests/Network/RedirectOriginAdmissionTest.php,tests/Network/RedirectBudgetTest.php,tests/Network/EndpointRedirectPrivacyTest.php,tests/Http/EndpointRedirectTest.php';
             }
-            if (in_array($symbol['id'], ['dashboard.check_site', 'dashboard.run_worker_pass'], true)) {
+            if (in_array($symbol['id'], ['dashboard.check_site', 'dashboard.run_worker_pass'], strict: true)) {
                 $unitTests .= ',tests/Unit/CheckHistoryTest.php,tests/Network/HistoryConcurrencyTest.php,tests/Network/HistoryDiagnosticsTest.php';
             }
             if (in_array($symbol['id'], ['dashboard.store_check', 'dashboard.settle_worker_check', 'dashboard.check_site',
-                'dashboard.run_worker_pass', 'dashboard.prune_history', 'dashboard.delete_site'], true)) {
+                'dashboard.run_worker_pass', 'dashboard.prune_history', 'dashboard.delete_site'], strict: true)) {
                 $unitTests .= ',tests/Unit/IncidentLifecycleTest.php,tests/Unit/IncidentAtomicityTest.php,tests/Network/IncidentConcurrencyTest.php,tests/Network/IncidentPublicTest.php,tests/Http/IncidentsTest.php,tests/Http/IncidentQualifiersTest.php';
             }
-            if (in_array($symbol['id'], ['dashboard.store_check', 'dashboard.settle_worker_check', 'dashboard.check_site', 'dashboard.run_worker_pass', 'dashboard.delete_site'], true)) {
+            if (in_array($symbol['id'], ['dashboard.store_check', 'dashboard.settle_worker_check', 'dashboard.check_site', 'dashboard.run_worker_pass', 'dashboard.delete_site'], strict: true)) {
                 $unitTests .= ',tests/Unit/NotificationSelectionTest.php,tests/Unit/NotificationAtomicityTest.php,tests/Unit/NotificationOutboxTest.php,tests/Network/NotificationPublicTest.php,tests/Network/NotificationRaceTest.php';
             }
-            $tests = ($unitTests === '' ? '' : $unitTests . ',') . 'tests/Http/DashboardTest.php';
-            if (in_array($symbol['id'], ['dashboard.create_site', 'dashboard.update_site', 'dashboard.check_site', 'dashboard.run_worker_pass', 'dashboard.list_branches'], true)) {
+            $tests = ($unitTests === '' ? '' : $unitTests . ',') . 'tests/Http/DashboardTest.php,tests/Http/SiteFormAdmissionTest.php,tests/Http/AuthenticationSetupTest.php,tests/Http/AuthenticationLifecycleTest.php,tests/Http/SiteCredentialPageTest.php,tests/Http/SavedTokenPageTest.php';
+            if (in_array($symbol['id'], ['dashboard.create_site', 'dashboard.update_site', 'dashboard.check_site', 'dashboard.run_worker_pass', 'dashboard.list_branches'], strict: true)) {
                 $tests .= ',tests/Unit/EndpointTokenRepositoryTest.php,tests/Unit/EndpointTokenCheckerTest.php,tests/Unit/EndpointTokenMigrationTest.php,tests/Unit/EndpointTokenIsolationTest.php,tests/Network/EndpointTokenTransportTest.php,tests/Network/EndpointTokenStatusTest.php,tests/Network/EndpointTokenNetworkSafetyTest.php,tests/Network/EndpointTokenPrivacyTest.php,tests/Http/EndpointTokenCrudTest.php,tests/Http/EndpointTokenRunnerTest.php,tests/Http/EndpointTokenInFlightTest.php,tests/Http/EndpointTokenReflectionTest.php';
             }
-            if (in_array($symbol['id'], ['dashboard.create_site', 'dashboard.update_site', 'dashboard.check_site'], true)) {
+            if (in_array($symbol['id'], ['dashboard.create_site', 'dashboard.update_site', 'dashboard.check_site'], strict: true)) {
                 $tests .= ',tests/Http/JsonChecksTest.php,tests/Http/HealthChecksTest.php,tests/Http/HomepageUrlTest.php,tests/Http/ExplicitHealthPathsTest.php,tests/Http/HealthPartialResultsTest.php,tests/Http/HealthInFlightTest.php';
             }
             // Every HTTP action initializes the database before handling its own command/query.
             $tests .= ',tests/Unit/CurlPlatformTest.php';
-            $tests .= ',tests/Unit/DatabaseTest.php,tests/Unit/GitHubMigrationTest.php,tests/Unit/WorkerMigrationTest.php,tests/Network/DatabaseMigrationTest.php,tests/Network/DatabaseWalTest.php,tests/Network/FixtureCleanupTest.php';
-            $tests .= ',tests/Unit/DatabaseTest.php,tests/Unit/GitHubMigrationTest.php,tests/Unit/WorkerMigrationTest.php,tests/Unit/HistoryMigrationTest.php,tests/Network/DatabaseMigrationTest.php,tests/Network/DatabaseWalTest.php,tests/Network/FixtureCleanupTest.php';
+            $tests .= ',tests/Unit/DatabaseTest.php,tests/Unit/DatabaseHistoricalImportTest.php,tests/Unit/DatabaseDiagnosticsUpgradeTest.php,tests/Unit/DatabaseSchemaAdmissionTest.php,tests/Unit/DatabaseMigrationAtomicityTest.php,tests/Unit/DatabaseWalNegotiationTest.php,tests/Unit/DatabaseWalCleanupTest.php,tests/Unit/DatabaseWalClockTest.php,tests/Unit/GitHubMigrationTest.php,tests/Unit/WorkerMigrationTest.php,tests/Network/DatabaseMigrationTest.php,tests/Network/DatabaseMigrationLockTest.php,tests/Network/DatabaseMigrationCustodyTest.php,tests/Network/DatabaseWalTest.php,tests/Network/DatabaseWalHolderTest.php,tests/Network/FixtureCleanupTest.php';
+            $tests .= ',tests/Unit/DatabaseTest.php,tests/Unit/DatabaseHistoricalImportTest.php,tests/Unit/DatabaseDiagnosticsUpgradeTest.php,tests/Unit/DatabaseSchemaAdmissionTest.php,tests/Unit/DatabaseMigrationAtomicityTest.php,tests/Unit/DatabaseWalNegotiationTest.php,tests/Unit/DatabaseWalCleanupTest.php,tests/Unit/DatabaseWalClockTest.php,tests/Unit/GitHubMigrationTest.php,tests/Unit/WorkerMigrationTest.php,tests/Unit/HistoryMigrationTest.php,tests/Network/DatabaseMigrationTest.php,tests/Network/DatabaseMigrationLockTest.php,tests/Network/DatabaseMigrationCustodyTest.php,tests/Network/DatabaseWalTest.php,tests/Network/DatabaseWalHolderTest.php,tests/Network/FixtureCleanupTest.php';
             $tests .= ',tests/Unit/IncidentMigrationTest.php';
             $tests .= ',tests/Unit/NotificationMigrationTest.php';
-            $tests .= ',tests/Unit/CompositionSchemaTest.php,tests/Unit/CompositionSettlementTest.php,tests/Unit/CompositionKeyTest.php';
+            $tests .= ',tests/Unit/CompositionSchemaTest.php,tests/Unit/CompositionIdentityTest.php,tests/Unit/CompositionAdmissionTest.php,tests/Unit/CompositionMigrationAtomicityTest.php,tests/Unit/CompositionSettlementTest.php,tests/Unit/CompositionKeyTest.php';
             $tests .= ',tests/Unit/ExternalKeyTest.php,tests/Unit/ExternalKeyAuthenticationTest.php,tests/Unit/ExternalKeyCustodyTest.php,tests/Unit/WorkerKeySettlementTest.php,tests/Unit/WorkerConnectionOwnershipTest.php,tests/Network/ExternalKeyTest.php,tests/Http/ExternalKeyTest.php';
-            runGate([$lekalo, 'contract', 'attach', $symbol['id'], '--native-test', $tests, '--gate', 'native-php-tests']);
-        }
+            $tests .= ',tests/Unit/SchemaObservationRaceTest.php';
+            $tests .= ',tests/Unit/DatabasePathTest.php';
+            if (in_array($symbol['id'], ['dashboard.run_checks', 'dashboard.setup', 'dashboard.login',
+                'dashboard.change_admin_password', 'dashboard.run_worker_pass'], strict: true)) {
+                $tests .= ',tests/Unit/RuntimeIniTest.php';
+            }
+            if (in_array($symbol['id'], ['dashboard.check_site', 'dashboard.create_site', 'dashboard.update_site',
+                'dashboard.run_checks', 'dashboard.run_worker_pass'], strict: true)) {
+                $tests .= ',tests/Unit/JsonNumericTest.php';
+            }
+            if ($symbol['id'] === 'dashboard.run_worker_pass') {
+                $tests .= ',tests/Unit/AssertionResourceCustodyTest.php';
+            }
+            if (in_array($symbol['id'], ['dashboard.run_checks', 'dashboard.run_worker_pass'], strict: true)) {
+                $tests .= ',tests/Unit/ContainerHealthTest.php,tests/Network/ContainerHealthTest.php,tests/Http/ContainerHealthTest.php';
+            }
+            if ($symbol['id'] === 'dashboard.run_checks') {
+                $tests .= ',tests/Network/ProcessDiagnosticTest.php,tests/Unit/HealthCheckDiagnosticsTest.php';
+            }
+            if ($symbol['id'] === 'dashboard.list_sites') {
+                $tests .= ',tests/Unit/PresenterTest.php';
+            }
+            $testFiles = array_values(array_unique(explode(',', $tests)));
+            $selectors = Tablo\Tools\NativeTestAttachments::selectors($testFiles);
+            $nativeMap[$symbol['id']] = ['test_files' => $testFiles, 'native_selectors' => $selectors];
+            $tests = implode(',', $selectors);
+            run_gate([$lekalo, 'contract', 'attach', $symbol['id'], '--native-test', $tests, '--gate', 'native-php-tests']);
+
     }
-    runGate([$lekalo, 'contract', 'check', '--module', 'dashboard', '--no-cache']);
-    runGate([PHP_BINARY, 'vendor/bin/testo', 'run']);
+    run_gate([$lekalo, 'contract', 'check', '--module', 'dashboard', '--no-cache']);
+    run_gate([PHP_BINARY, 'vendor/bin/testo', 'run', '--path', 'tests/Unit', '--path', 'tests/Network', '--path', 'tests/Http']);
     if (!is_dir('artifacts')) { mkdir('artifacts'); }
+    file_put_contents('artifacts/native-test-map.json', json_encode($nativeMap,
+        JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES | JSON_THROW_ON_ERROR) . "\n");
     file_put_contents('artifacts/verification.json', json_encode([
-        'status' => 'passed', 'checked_at' => gmdate('c'), 'lekalo_lock' => hash_file('sha256', 'lekalo.lock'),
-        'composer_lock' => hash_file('sha256', 'composer.lock'), 'bindings' => hash_file('sha256', 'contracts/php-bindings.json'),
-        'reviewed_dependencies' => hash_file('sha256', 'contracts/reviewed-dependencies.json'),
-        'gates' => ['model-validation', 'lock-freshness', 'source-fingerprints', 'contract-conformance', 'native-logic-tests', 'real-http-client-tests', 'isolated-http-flow'],
+        'status' => 'passed', 'checked_at' => gmdate('c'), 'lekalo_lock' => hash_file('sha256', filename: 'lekalo.lock'),
+        'composer_lock' => hash_file('sha256', filename: 'composer.lock'), 'bindings' => hash_file('sha256', filename: 'contracts/php-bindings.json'),
+        'reviewed_dependencies' => hash_file('sha256', filename: 'contracts/reviewed-dependencies.json'),
+        'gates' => ['mago-lint', 'model-validation', 'lock-freshness', 'source-fingerprints', 'contract-conformance', 'native-logic-tests', 'real-http-client-tests', 'isolated-http-flow'],
     ], JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES) . "\n");
     echo "All gates passed.\n";
 } catch (Throwable $e) {

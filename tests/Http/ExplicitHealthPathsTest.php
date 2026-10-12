@@ -34,10 +34,10 @@ final class ExplicitHealthPathsTest
                     $this->check($mode, $csrf, 0);
                     $row = $this->web->database()->query('SELECT * FROM sites WHERE id=1')->fetch();
                     Assert::same($row['online'], 1);
-                    Assert::same($row['health_http_status'], str_contains($health, '201') ? 201 : (str_contains($health, '204') ? 204 : 200));
+                    Assert::same($row['health_http_status'], str_contains($health, '201') ? 201 : (match (true) { (str_contains($health, '204')) => 204, default => 200 }));
                     Assert::same($row['deployed_version'], '1.3.1');
                     Assert::same($row['url'], $this->server->base . $path);
-                    Assert::same(array_slice($this->uris(), $before, 2), [rtrim($path, '/') . $health, rtrim($path, '/') . $input['version_path']]);
+                    Assert::same(array_slice($this->uris(), $before, length: 2), [rtrim($path, characters: '/') . $health, rtrim($path, characters: '/') . $input['version_path']]);
                 }
             }
         }

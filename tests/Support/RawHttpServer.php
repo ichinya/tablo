@@ -28,7 +28,7 @@ final class RawHttpServer
                     return;
                 }
                 if (!proc_get_status($this->process)['running']) { break; }
-                usleep(20000);
+                usleep(20_000);
             } while (microtime(true) < $deadline);
             throw new RuntimeException('Raw HTTP fixture did not become ready');
         } catch (\Throwable $error) {
@@ -40,12 +40,12 @@ final class RawHttpServer
     public function close(): void
     {
         if (is_resource($this->process)) {
-            file_put_contents($this->directory->path . '/stop', '1');
+            file_put_contents($this->directory->path . '/stop', data: '1');
             $deadline = microtime(true) + 2;
-            while (proc_get_status($this->process)['running'] && microtime(true) < $deadline) { usleep(20000); }
-            if (proc_get_status($this->process)['running']) { proc_terminate($this->process, 9); }
+            while (proc_get_status($this->process)['running'] && microtime(true) < $deadline) { usleep(20_000); }
+            if (proc_get_status($this->process)['running']) { proc_terminate($this->process, signal: 9); }
             $deadline = microtime(true) + 2;
-            while (proc_get_status($this->process)['running'] && microtime(true) < $deadline) { usleep(20000); }
+            while (proc_get_status($this->process)['running'] && microtime(true) < $deadline) { usleep(20_000); }
             if (proc_get_status($this->process)['running']) { throw new RuntimeException('Raw HTTP fixture did not stop'); }
             proc_close($this->process);
             $this->process = null;

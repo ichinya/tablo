@@ -1,0 +1,22 @@
+{
+  "version": "1.54.0",
+  "version_output": "mago 1.54.0",
+  "platforms": {
+    "windows-x64": {
+      "asset": "mago-1.54.0-x86_64-pc-windows-msvc.zip",
+      "url": "https://github.com/carthage-software/mago/releases/download/1.54.0/mago-1.54.0-x86_64-pc-windows-msvc.zip",
+      "archive_sha256": "643649190f7aea27997245923ea4e7e2f298ab974bd593fcdca2c0278273ff6d",
+      "binary_sha256": "4af310eace98b20b093a63fd450a02630135e9c24116737f2b6ad85a2e30dfe2",
+      "member": "mago-1.54.0-x86_64-pc-windows-msvc/mago.exe",
+      "binary": "mago.exe"
+    },
+    "linux-x64-gnu": {
+      "asset": "mago-1.54.0-x86_64-unknown-linux-gnu.tar.gz",
+      "url": "https://github.com/carthage-software/mago/releases/download/1.54.0/mago-1.54.0-x86_64-unknown-linux-gnu.tar.gz",
+      "archive_sha256": "74c4d096eaeeefe91103cb4223e15d15e43ef4e324fd9c36471331cbbebeed2f",
+      "binary_sha256": "9d58d202c752990b0ae83a2303f16f9734daf569bc40ecefe8ee316e68236fc1",
+      "member": "mago-1.54.0-x86_64-unknown-linux-gnu/mago",
+      "binary": "mago"
+    }
+  }
+}

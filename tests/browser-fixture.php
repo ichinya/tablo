@@ -11,7 +11,7 @@ if (file_exists($path)) {
 $db = Tablo\Database::connect($path);
 $sites = new Tablo\SiteRepository($db);
 $token = (new Tablo\GitTokenRepository($db))->save([
-    'name' => 'Демонстрационный токен', 'provider' => 'github', 'token' => 'fixture-token',
+    'name' => 'Демонстрационный токен', 'provider' => 'github', 'token' => \Tablo\Tests\Support\FixtureCredentials::value(label: 'fixture-token'),
 ]);
 $rows = [
     ['Storefront', 'https://store.example.com', 'example/storefront', 'release', 1, 1, '1.3.1', 'v1.3.2', 'a1b2c3d', 4, 1, 87],
@@ -21,12 +21,12 @@ $rows = [
     ['Demo Project', 'https://demo.example.com', 'example/demo-project', 'branch', 0, null, null, null, null, null, null, null],
 ];
 foreach ($rows as [$name, $url, $repository, $mode, $enabled, $online, $version, $release, $commit, $issues, $prs, $ms]) {
-    $id = $sites->save(array_replace(Tablo\SiteRepository::defaults(), ['name' => $name, 'url' => $url,
+    $id = $sites->save(array_replace(Tablo\SiteInput::defaults(), ['name' => $name, 'url' => $url,
         'repository' => $repository, 'comparison_mode' => $mode, 'enabled' => $enabled,
         'git_token_id' => $token, 'version_path' => $mode === 'branch' ? '' : '/version']));
     $sites->storeCheck($sites->find($id), ['online' => $online, 'deployed_version' => $version,
         'latest_release' => $release, 'deployed_commit' => $commit,
-        'latest_commit' => $commit ? $commit . str_repeat('0', 33) : null,
+        'latest_commit' => $commit ? $commit . str_repeat('0', times: 33) : null,
         'open_issues' => $issues, 'open_prs' => $prs, 'response_time_ms' => $ms,
         'last_error' => $online === 0 ? 'Health: HTTP 503 (пример тестового состояния).' : null,
         'checked_at' => $enabled ? gmdate('Y-m-d\TH:i:s\Z') : null]);

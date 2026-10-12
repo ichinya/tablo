@@ -9,16 +9,9 @@ use Tablo\Tests\Support\TemporaryDirectory;
 use Testo\Assert;
 use Testo\Test;
 
-class TracePrivateState
-{
-    public function __construct(private string $marker) {}
-}
 
-final class TraceProtectedState extends TracePrivateState
-{
-    public string $uninitialized;
-    public function __construct(protected readonly string $marker) { parent::__construct('safe'); }
-}
+
+
 
 final class GitHubTraceInspectorTest
 {
@@ -56,7 +49,7 @@ final class GitHubTraceInspectorTest
     public function inspectSupportedActualArguments(): void
     {
         $original = ini_get('zend.exception_ignore_args');
-        ini_set('zend.exception_ignore_args', '0');
+        \Tablo\RuntimeIni::set('zend.exception_ignore_args', value: '0');
         try {
             $marker = bin2hex(random_bytes(24));
             $private = new TracePrivateState($marker);
@@ -86,13 +79,13 @@ final class GitHubTraceInspectorTest
             $previous = self::capture($protected);
             $wrapped = new \RuntimeException('Safe wrapper', previous: $previous);
             Assert::true(TraceInspector::inspect($wrapped, [$marker])['leaked'], 'previous arguments are inspected');
-        } finally { ini_set('zend.exception_ignore_args', $original); }
+        } finally { \Tablo\RuntimeIni::set('zend.exception_ignore_args', $original); }
     }
 
     public function inspectOpaqueObjectsAndCycles(): void
     {
         $original = ini_get('zend.exception_ignore_args');
-        ini_set('zend.exception_ignore_args', '0');
+        \Tablo\RuntimeIni::set('zend.exception_ignore_args', value: '0');
         try {
             $marker = bin2hex(random_bytes(24));
             foreach ([static fn (): string => $marker, new \DateTimeImmutable()] as $value) {
@@ -117,13 +110,13 @@ final class GitHubTraceInspectorTest
             Assert::true(TraceInspector::inspect(self::capture($cycle), [$marker])['leaked']);
             $array = [];
             $array['self'] = &$array;
-            foreach ([$array, array_fill(0, 10_001, 'safe')] as $value) {
+            foreach ([$array, array_fill(0, count: 10_001, value: 'safe')] as $value) {
                 $bounded = false;
                 try { TraceInspector::inspect(self::capture($value), [$marker]); }
                 catch (\RuntimeException $error) { $bounded = $error->getMessage() === 'Trace inspection bound exceeded'; }
                 Assert::true($bounded, 'array cycle and node exhaustion must fail loudly');
             }
             unset($value, $array, $cycle, $error);
-        } finally { ini_set('zend.exception_ignore_args', $original); }
+        } finally { \Tablo\RuntimeIni::set('zend.exception_ignore_args', $original); }
     }
 }

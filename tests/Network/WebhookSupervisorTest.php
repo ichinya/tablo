@@ -20,7 +20,7 @@ final class WebhookSupervisorTest
         $ok=(new WebhookSupervisor($root.'webhook-supervisor-ok.php'))->attempt('https://receiver.example/hook','',$payload);
         Assert::same($ok['code'],'sent'); Assert::same($ok['child_exit'],0);
         $started=hrtime(true);
-        $hang=(new WebhookSupervisor($root.'webhook-supervisor-hang.php',100))->attempt('https://receiver.example/hook',str_repeat('x',512),str_repeat('x',1024));
+        $hang=(new WebhookSupervisor($root.'webhook-supervisor-hang.php',100))->attempt('https://receiver.example/hook',str_repeat('x',times: 512),str_repeat('x',times: 1024));
         Assert::same($hang['code'],'timeout'); Assert::true($hang['stopped']);
         Assert::true((hrtime(true)-$started)/1e9<2.5,'100ms parent budget plus observed stop grace and OS overhead');
         $partial=(new WebhookSupervisor($root.'webhook-supervisor-partial.php'))->attempt('https://receiver.example/hook','',$payload);
@@ -37,7 +37,7 @@ final class WebhookSupervisorTest
         $stop=(new WebhookSupervisor($root.'webhook-supervisor-hang.php'))->attempt('https://receiver.example/hook','',$payload,
             static function()use(&$count):bool{return ++$count>=2;});
         Assert::same($stop['code'],'timeout'); Assert::true($stop['stopped']);
-        Assert::same((new WebhookSupervisor())->attempt(str_repeat('x',501),'',$payload)['code'],'size');
+        Assert::same((new WebhookSupervisor())->attempt(str_repeat('x',times: 501),'',$payload)['code'],'size');
     }
 
     #[Test]
@@ -46,10 +46,10 @@ final class WebhookSupervisorTest
         $directory=new TemporaryDirectory('tablo-webhook-shutdown-'); $socket=null;
         try {
             $socket=stream_socket_server('tcp://127.0.0.1:0',$errno,$message);
-            $port=(int)substr(strrchr(stream_socket_get_name($socket,false),':'),1); fclose($socket); $socket=null;
+            $port=(int)substr(strrchr(stream_socket_get_name($socket,remote: false),needle: ':'),offset: 1); fclose($socket); $socket=null;
             $started=hrtime(true);
-            $result=Subprocess::run([PHP_BINARY,dirname(__DIR__).'/fixtures/webhook-shutdown-parent.php'],$directory,[],input:json_encode([
-                'port'=>$port,'marker_path'=>$directory->path.'/ready']));
+            $result=Subprocess::run(command: [PHP_BINARY,dirname(__DIR__).'/fixtures/webhook-shutdown-parent.php'], directory: $directory, environment: [], options: new \Tablo\Tests\Support\CommandOptions(input: json_encode([
+                'port'=>$port,'marker_path'=>$directory->path.'/ready'])));
             Assert::same($result['exit_code'],0); Assert::same($result['stderr'],'');
             Assert::true(is_file($directory->path.'/ready'),'owned child listened before parent exit');
             $socket=stream_socket_server('tcp://127.0.0.1:'.$port,$errno,$message);

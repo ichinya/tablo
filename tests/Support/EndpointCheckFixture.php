@@ -25,13 +25,13 @@ trait EndpointCheckFixture
         $this->web?->close();
         $this->peer?->close();
         $this->endpointDirectory?->close();
-        $this->web = $this->peer = $this->endpointDirectory = null;
+        $this->endpointDirectory = null; $this->peer = null; $this->web = null;
     }
 
     private function endpointRows(): array
     {
         $path = $this->endpointDirectory->path . '/requests.jsonl';
-        return is_file($path) ? array_values(array_filter(array_map(static fn (string $line): array => json_decode($line, true, 8, JSON_THROW_ON_ERROR),
+        return is_file($path) ? array_values(array_filter(array_map(static fn (string $line): array => json_decode($line, associative: true, depth: 8, flags: JSON_THROW_ON_ERROR),
             file($path, FILE_IGNORE_NEW_LINES)), static fn (array $row): bool => array_key_exists('present', $row))) : [];
     }
 
@@ -42,8 +42,8 @@ trait EndpointCheckFixture
             return;
         }
         if ($mode === 'cli') {
-            $root = dirname(__DIR__, 2);
-            $result = Subprocess::run([PHP_BINARY, '-d', 'auto_prepend_file=' . $root . '/tests/cli-github-fixture.php', $root . '/bin/check.php'],
+            $root = dirname(__DIR__, levels: 2);
+            $result = Subprocess::run([PHP_BINARY, '-d', 'auto_prepend_file=' . $root . '/tests/FixtureCliGitHubConnection.php', $root . '/bin/check.php'],
                 $this->endpointDirectory, ['TABLO_DB' => $this->web->directory->path . '/test.sqlite', 'TABLO_ALLOW_PRIVATE_NETWORK' => '1',
                     'TABLO_TEST_GITHUB_LOG' => $this->web->directory->path . '/github-calls.log', 'TABLO_TEST_ENDPOINT_AUDIT' => '1']);
             Assert::same($result['exit_code'], $cliExit, HealthCheckDiagnostics::capture($result, $this->web->database()));

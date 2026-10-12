@@ -7,6 +7,8 @@ use InvalidArgumentException;
 use OutOfBoundsException;
 use PDO;
 
+// Pinned Lekalo requires lowercase physical source paths for this contracted owner.
+// @mago-expect lint:file-name
 final class IncidentRepository
 {
     public function __construct(private readonly PDO $db) {}
@@ -22,11 +24,7 @@ final class IncidentRepository
             } finally { $statement->closeCursor(); }
         }
         $position = $cursor === null ? null : IncidentCursor::decode($cursor, $siteId);
-        if ($position === null) {
-            $statement = $this->db->query('SELECT MAX(id) FROM incidents');
-            try { $ceiling = (int) $statement->fetchColumn(); }
-            finally { $statement->closeCursor(); }
-        } else { $ceiling = $position['ceiling']; }
+        $ceiling = IncidentPageCeiling::read($this->db,$position);
         $sql = 'SELECT i.*, s.name AS site_name, s.enabled AS site_enabled, s.config_revision AS current_revision,
             c.watermark AS last_observed_at FROM incidents i JOIN sites s ON s.id = i.site_id
             JOIN incident_checkpoints c ON c.site_id = i.site_id WHERE i.id <= :ceiling';

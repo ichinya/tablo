@@ -18,8 +18,7 @@ final class PasswordPrivacyTest
             // Capture COMPLETE arguments in a bare process without recursively
             // expanding the Testo runner and its entire prior assertion history.
             foreach (['password-privacy.php', 'password-hash-failure.php'] as $fixture) {
-                $result = Subprocess::run([PHP_BINARY, '-d', 'zend.exception_ignore_args=0', dirname(__DIR__) . '/fixtures/' . $fixture],
-                    $directory, ['TABLO_DB' => $directory->path . '/fixture.sqlite'], timeout: 15);
+                $result = Subprocess::run(command: [PHP_BINARY, '-d', 'zend.exception_ignore_args=0', dirname(__DIR__) . '/fixtures/' . $fixture], directory: $directory, environment: ['TABLO_DB' => $directory->path . '/fixture.sqlite'], options: new \Tablo\Tests\Support\CommandOptions(timeout: 15));
                 Assert::same($result['exit_code'], 0, $result['stderr']);
                 Assert::true(str_contains($result['stdout'], 'redacted'));
             }

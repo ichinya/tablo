@@ -13,5 +13,5 @@ if ($mode === 'wait') {
     fflush(STDOUT);
     while (!is_file($argv[2])) { usleep(20_000); }
 }
-if ($mode === 'malformed') { fwrite(STDOUT, "{malformed\n"); }
+if ($mode === 'malformed') { fwrite(STDOUT, data: "{malformed\n"); }
 exit($mode === 'nonzero' ? 7 : 0);

@@ -5,6 +5,8 @@ namespace Tablo;
 
 use PDO;
 
+// Pinned Lekalo requires lowercase physical source paths for this contracted owner.
+// @mago-expect lint:file-name
 final class NotificationSchema
 {
     // Additive, prospective installation. No old row/history/incident is replayed.

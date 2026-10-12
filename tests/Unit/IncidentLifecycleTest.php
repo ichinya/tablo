@@ -58,9 +58,9 @@ final class IncidentLifecycleTest
         Assert::false($sites->storeCheck($snapshot, ['checked_at' => 'invalid']));
         Assert::false(F::accept($sites, $id, 1, '2026-01-01T00:01:00Z'));
         $row = IncidentPresenter::row((new IncidentRepository($db))->page()['rows'][0], strtotime('2026-01-01T00:20:00Z'));
-        Assert::true(in_array('На паузе', $row['qualifiers'], true));
-        Assert::true(in_array('Конфигурация изменена; ожидается новая проверка', $row['qualifiers'], true));
-        Assert::true(in_array('Нет новых наблюдений', $row['qualifiers'], true));
+        Assert::true(in_array('На паузе', $row['qualifiers'], strict: true));
+        Assert::true(in_array('Конфигурация изменена; ожидается новая проверка', $row['qualifiers'], strict: true));
+        Assert::true(in_array('Нет новых наблюдений', $row['qualifiers'], strict: true));
         Assert::same($db->query('SELECT * FROM incidents')->fetch(), $before);
         $sites->save(F::site(), $id);
         Assert::false($sites->storeCheck($snapshot, ['checked_at' => 'invalid', 'health_error_code' => 'private']));
@@ -98,7 +98,7 @@ final class IncidentLifecycleTest
         Assert::same((int) $db->query('SELECT last_history_id FROM incident_checkpoints')->fetchColumn(), 4);
         F::accept($sites, $id, 1, '2024-03-01T00:01:00Z');
         Assert::same(IncidentPresenter::row($read->page()['rows'][0])['interval_seconds'], null);
-        Assert::same(F::error(fn () => F::accept($sites, $id, 0, '2025-02-29T00:00:00Z'))->getMessage(), 'Invalid check history snapshot.');
+        Assert::same(F::error(static fn () => F::accept($sites, $id, 0, '2025-02-29T00:00:00Z'))->getMessage(), 'Invalid check history snapshot.');
     }
 
     #[Test]
@@ -111,10 +111,9 @@ final class IncidentLifecycleTest
         F::accept($sites, $id, 0, '2020-01-01T00:00:00Z');
         $row = $db->query('SELECT * FROM check_history')->fetch();
         F::accept($sites, $other, 0, '2020-01-01T00:00:00Z');
-        $method = new \ReflectionMethod(SiteRepository::class, 'projectIncident');
         $before = F::rows($db);
         $db->exec('BEGIN IMMEDIATE');
-        $method->invoke($sites, $row['id'], $row);
+        (new \Tablo\IncidentProjector($db))->accepted($row['id'], $row);
         $db->exec('COMMIT');
         Assert::same(F::rows($db), $before);
         Assert::same((new CheckHistoryRepository($db))->pruneBatch('2021-01-01T00:00:00Z'), 2);

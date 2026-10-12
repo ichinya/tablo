@@ -52,7 +52,7 @@ final class WorkerSettlementTest
             }
             $db->beginTransaction();
             $db->exec('UPDATE installation_settings SET check_interval_minutes = 7');
-            try { $state->settle($snapshot, $result); Assert::true(false); } catch (PDOException) {}
+            try { $state->settle($snapshot, $result); Assert::true(false); } catch (PDOException $discardedCleanup) { unset($discardedCleanup); }
             Assert::true($db->inTransaction(), 'failed BEGIN leaves caller-owned transaction intact');
             Assert::same((int) $db->query('SELECT check_interval_minutes FROM installation_settings')->fetchColumn(), 7);
             $db->rollBack();
@@ -76,7 +76,7 @@ final class WorkerSettlementTest
             $token = $tokens->save(['name' => 'Shared', 'provider' => 'github', 'token' => bin2hex(random_bytes(24))]);
             $input = array_replace(UnitFixtures::site(), ['repository' => 'fixture/project', 'git_token_id' => $token]);
             $state = new WorkerStateRepository($db);
-            $result = ['checked_at' => '2026-01-01T00:00:00Z', 'worker_service' => array_fill_keys($state::FIELDS, true)];
+            $result = ['checked_at' => '2026-01-01T00:00:00Z', 'worker_service' => array_fill_keys($state::FIELDS, value: true)];
             foreach (['edit', 'disable', 'delete', 'aba', 'rotation', 'individual', 'name', 'cipher'] as $action) {
                 $id = $sites->save($input);
                 $snapshot = $sites->find($id);
@@ -84,7 +84,7 @@ final class WorkerSettlementTest
                     'edit' => $sites->save($input, $id),
                     'disable' => $sites->save(array_replace($input, ['enabled' => 0]), $id),
                     'delete' => $sites->delete($id),
-                    'aba' => (function () use ($sites, $input, $id): void {
+                    'aba' => (static function () use ($sites, $input, $id): void {
                         $sites->save(array_replace($input, ['enabled' => 0]), $id); $sites->save($input, $id);
                     })(),
                     'rotation' => $tokens->save(['name' => 'Shared', 'provider' => 'github', 'token' => bin2hex(random_bytes(24))], $token),

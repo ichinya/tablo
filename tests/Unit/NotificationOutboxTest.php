@@ -41,7 +41,7 @@ final class NotificationOutboxTest
             $f->configure(); $f->accept(0,0); $f->accept(0,60); $out=new NotificationOutbox($f->db);
             $old=$out->claim(1060); $f->accept(1,61); $f->accept(0,62); $f->accept(0,122);
             $slots=$f->slots(); Assert::same(count($slots),2);
-            $unavailable=array_values(array_filter($slots,fn(array $s):bool=>$s['event']==='unavailable'))[0];
+            $unavailable=array_values(array_filter($slots,static fn(array $s):bool=>$s['event']==='unavailable'))[0];
             Assert::same($unavailable['coalesced'],1); Assert::same($unavailable['attempts'],0);
             Assert::true($unavailable['event_id']!==$old['slot']['event_id']);
             Assert::false($out->acknowledge($old,['code'=>'sent','http_status'=>204],1122));
@@ -76,7 +76,7 @@ final class NotificationOutboxTest
             $f->configure(); $f->accept(0,0); $f->accept(0,60); $out=new NotificationOutbox($f->db);
             Assert::false($out->claim(4660)); Assert::same($f->slots()[0]['status'],'expired');
             $f->accept(1,70); $f->accept(0,100); $f->accept(0,160); $claim=$out->claim(1160);
-            $f->sites->save(array_replace($f->sites->find($f->id),['name'=>'Changed']),$f->id);
+            $f->sites->save(array_replace(\Tablo\SiteProjection::publicSite($f->sites->find($f->id)),['name'=>'Changed']),$f->id);
             Assert::false($out->acknowledge($claim,['code'=>'sent','http_status'=>204],1161));
             $f->accept(0,200); $f->accept(0,260); $fresh=$out->claim(1260);
             Assert::false($out->acknowledge($claim,['code'=>'sent','http_status'=>204],1261));
@@ -98,6 +98,6 @@ final class NotificationOutboxTest
             Assert::instanceOf($error,\Tablo\ValidationException::class);
             Assert::same((new \Tablo\NotificationSettings($f->db,$f->vault))->get()['enabled'],1);
             $lock->close(); $f->configure(['enabled'=>'0']); Assert::same($delivery->runOne()['code'],'off');
-        } finally { $lock?->close(); $lock=$delivery=null; $f->close(); }
+        } finally { $lock?->close(); $delivery = null; $lock = null; $f->close(); }
     }
 }

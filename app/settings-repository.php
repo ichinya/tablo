@@ -6,6 +6,8 @@ namespace Tablo;
 use PDO;
 use RuntimeException;
 
+// Pinned Lekalo requires lowercase physical source paths for this contracted owner.
+// @mago-expect lint:file-name
 final class SettingsRepository
 {
     public function __construct(private readonly PDO $db) {}
@@ -16,7 +18,7 @@ final class SettingsRepository
         try { $value = $statement->fetchColumn(); }
         finally { $statement->closeCursor(); }
         if ($value === false) { return 10; }
-        if (!is_int($value) || $value < 1 || $value > intdiv(PHP_INT_MAX, 60)) {
+        if (!is_int($value) || $value < 1 || $value > intdiv(PHP_INT_MAX, num2: 60)) {
             throw new RuntimeException('Invalid worker interval.');
         }
         return $value;
@@ -24,11 +26,11 @@ final class SettingsRepository
 
     public function updateInterval(mixed $input): void
     {
-        $value = is_string($input) ? ltrim($input, '0') : '';
-        $maximum = (string) intdiv(PHP_INT_MAX, 60);
+        $value = is_string($input) ? ltrim($input, characters: '0') : '';
+        $maximum = (string) intdiv(PHP_INT_MAX, num2: 60);
         if (!is_string($input) || !preg_match('/^[0-9]+$/D', $input) || $value === ''
             || strlen($value) > strlen($maximum) || (strlen($value) === strlen($maximum) && strcmp($value, $maximum) > 0)) {
-            throw new ValidationException(['check_interval_minutes' => 'Укажите положительное целое число минут.']);
+            throw ValidationException::field(field: 'check_interval_minutes', message: 'Укажите положительное целое число минут.');
         }
         $statement = $this->db->prepare('INSERT INTO installation_settings (id, check_interval_minutes) VALUES (1, ?)
             ON CONFLICT(id) DO UPDATE SET check_interval_minutes = excluded.check_interval_minutes');

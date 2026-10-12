@@ -88,15 +88,15 @@ final class EnvironmentBootstrapTest
     {
         $directory = $this->createProject();
         try {
-            $key = str_replace('\\', '/', $directory->path) . '/dotenv-key';
-            $override = str_replace('\\', '/', $directory->path) . '/process-key';
+            $key = str_replace('\\', replace: '/', subject: $directory->path) . '/dotenv-key';
+            $override = str_replace('\\', replace: '/', subject: $directory->path) . '/process-key';
             file_put_contents($key, random_bytes(32)); file_put_contents($override, random_bytes(32));
             file_put_contents($directory->path . '/.env', 'TABLO_TOKEN_KEY_FILE="' . $key . '"' . "\n", FILE_APPEND);
             foreach (['empty' => '', 'unset' => $key, 'override' => $override] as $mode => $expected) {
                 $result = $this->run($directory, ['TABLO_TEST_KEY_MODE' => $mode, 'TABLO_TOKEN_KEY_FILE' => $override,
                     'TABLO_TEST_EXPECTED_KEY_PATH' => $expected], ['external']);
                 Assert::same($result['exit_code'], 0);
-                $data = json_decode($result['stdout'], true, 16, JSON_THROW_ON_ERROR);
+                $data = json_decode($result['stdout'], associative: true, depth: 16, flags: JSON_THROW_ON_ERROR);
                 Assert::same($data, ['matches' => true, 'legacy' => $mode === 'empty', 'roundtrip' => true], $mode . ':' . json_encode($data));
             }
         } finally { $directory->close(); }
@@ -110,7 +110,8 @@ final class EnvironmentBootstrapTest
             foreach (['app', 'bin', 'public', 'vendor'] as $name) { mkdir($directory->path . '/' . $name); }
             copy($root . '/app/bootstrap.php', $directory->path . '/app/bootstrap.php');
             copy($root . '/bin/check.php', $directory->path . '/bin/check.php');
-            copy($root . '/app/check-diagnostics.php', $directory->path . '/app/check-diagnostics.php');
+            copy($root . '/app/CheckDiagnostics.php', $directory->path . '/app/CheckDiagnostics.php');
+            copy($root . '/app/RuntimeIni.php', $directory->path . '/app/RuntimeIni.php');
             $autoload = var_export($root . '/vendor/autoload.php', return: true);
             file_put_contents($directory->path . '/vendor/autoload.php', data: '<?php return require ' . $autoload . ';');
             $path = str_replace('\\', replace: '/', subject: $directory->path);

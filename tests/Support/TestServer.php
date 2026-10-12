@@ -17,31 +17,28 @@ final class TestServer
         array $environment = [], string $host = '127.0.0.1')
     {
         $socketHost = str_contains($host, ':') ? '[' . $host . ']' : $host;
-        $socket = stream_socket_server('tcp://' . $socketHost . ':0', $errno, $error);
-        if ($socket === false) { throw new RuntimeException('Cannot allocate test port: ' . $error); }
-        $this->port = (int) substr(strrchr(stream_socket_get_name($socket, false), ':'), 1);
-        fclose($socket);
+        $this->port = ServerPort::allocate($socketHost);
         $this->base = 'http://' . $socketHost . ':' . $this->port;
         $this->log = $directory->path . '/server.log';
         // Keep PHP's independent error-log writer separate from proc_open streams.
         $this->errorLog = $directory->path . '/php-errors.log';
         // PHP parses -d as INI: runner short paths containing '~' require a quoted value.
-        $errorLogOption = 'error_log="' . str_replace('\\', '/', $this->errorLog) . '"';
+        $errorLogOption = 'error_log="' . str_replace('\\', replace: '/', subject: $this->errorLog) . '"';
         $command = [PHP_BINARY, '-d', 'display_errors=0', '-d', 'log_errors=1', '-d', $errorLogOption,
             '-S', $socketHost . ':' . $this->port];
         if ($documentRoot !== null) { array_push($command, '-t', $documentRoot); }
         $command[] = $router;
         try {
             $this->process = proc_open($command, [0 => ['pipe', 'r'], 1 => ['file', $this->log, 'a'],
-                2 => ['file', $this->log, 'a']], $pipes, dirname(__DIR__, 2), array_replace(getenv(), $environment));
+                2 => ['file', $this->log, 'a']], $pipes, dirname(__DIR__, levels: 2), array_replace(getenv(), $environment));
             if (!is_resource($this->process)) { throw new RuntimeException('Cannot start test server'); }
             fclose($pipes[0]);
             $deadline = microtime(true) + 5;
             do {
                 if (!proc_get_status($this->process)['running']) { break; }
-                $connection = @fsockopen($socketHost, $this->port, $errno, $error, .1);
+                $connection = \Tablo\NativeWarning::ignore(function () use (&$socketHost, &$errno, &$error) { return fsockopen($socketHost, $this->port, $errno, $error, timeout: .1); });
                 if ($connection !== false) { fclose($connection); return; }
-                usleep(50000);
+                usleep(50_000);
             } while (microtime(true) < $deadline);
             throw new RuntimeException('Test server did not become ready');
         } catch (\Throwable $error) {
@@ -62,8 +59,8 @@ final class TestServer
         if (proc_get_status($this->process)['running']) {
             proc_terminate($this->process);
             $deadline = microtime(true) + 2;
-            while (proc_get_status($this->process)['running'] && microtime(true) < $deadline) { usleep(20000); }
-            if (proc_get_status($this->process)['running']) { proc_terminate($this->process, 9); }
+            while (proc_get_status($this->process)['running'] && microtime(true) < $deadline) { usleep(20_000); }
+            if (proc_get_status($this->process)['running']) { proc_terminate($this->process, signal: 9); }
         }
         proc_close($this->process);
         $this->process = null;

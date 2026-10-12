@@ -6,39 +6,26 @@ namespace Tablo;
 use Closure;
 use PDO;
 
+// Pinned Lekalo requires lowercase physical source paths for this contracted owner.
+// @mago-expect lint:file-name
 final class PeriodicWorker
 {
     private readonly SiteRepository $sites;
     private readonly SettingsRepository $settings;
     private readonly WorkerStateRepository $state;
-    private readonly NotificationDelivery $notifications;
-    private readonly Closure $connection;
     private readonly Closure $clock;
     private readonly Closure $sleep;
     private readonly Closure $output;
-    private readonly TokenVault $vault;
     private bool $stop = false;
-
-    public function __construct(
-        private readonly PDO $db,
-        private readonly HttpClient $http,
-        #[\SensitiveParameter] ?Closure $connection = null,
-        ?Closure $clock = null,
-        ?Closure $sleep = null,
-        ?Closure $output = null,
-        #[\SensitiveParameter] ?TokenVault $vault = null,
-    ) {
-        $this->vault = $vault ?? TokenVault::forDatabase($db);
-        $this->sites = new SiteRepository($db, $this->vault);
-        $this->settings = new SettingsRepository($db);
-        $this->state = new WorkerStateRepository($db, $this->sites);
-        $this->notifications = new NotificationDelivery($db,$this->vault);
-        $sites = $this->sites;
-        $this->connection = $connection ?? static fn (): GitHubConnection => new GitHubConnection($sites, $http, worker: true);
-        $this->clock = $clock ?? static fn (): float => hrtime(true) / 1e9;
-        $this->sleep = $sleep ?? static fn (float $seconds): mixed => usleep((int) ceil($seconds * 1e6));
-        $this->output = $output ?? static fn (string $message): int|false => fwrite(STDOUT, $message . PHP_EOL);
+    private readonly WorkerRuntime $runtime;
+    public function __construct(private readonly PDO $db,private readonly HttpClient $http,?WorkerHooks $hooks=null,#[\SensitiveParameter] ?TokenVault $vault=null)
+    {
+        $this->runtime = new WorkerRuntime($db,$http,$hooks,$vault);
+        $this->sites=$this->runtime->sites; $this->state=$this->runtime->state; $this->settings=$this->runtime->settings;
+        $this->clock=$this->runtime->clock; $this->sleep=$this->runtime->sleep; $this->output=$this->runtime->output;
     }
+
+
 
     public function stop(): void { $this->stop = true; }
 
@@ -65,21 +52,16 @@ final class PeriodicWorker
                 }
             }
             ($this->output)('Worker stopped.');
-            return 0;
         } catch (\Throwable $error) {
             $failure = $error;
-            throw $error;
         } finally {
-            try {
-                try { if ($generation !== null) { $this->state->finish($generation); } }
-                catch (\Throwable $error) { if ($failure === null) { throw $error; } }
-            }
-            finally {
-                try { $lock->close(); }
-                catch (\Throwable $error) { if ($failure === null) { throw $error; } }
-            }
+            $failure = (new WorkerRunCleanup($this->state))->finishRun($generation, $lock, $failure);
         }
+        if ($failure !== null) { throw $failure; }
+        return 0;
     }
+
+
 
     private function stopping(string $generation): bool
     {
@@ -87,60 +69,11 @@ final class PeriodicWorker
     }
 
     // One finite serial pass; a connection owns the aggregate policy/memo for this pass only.
-    public function runPass(?string $generation = null): void
-    {
-        $this->sites->assertWorkerKeyAvailable();
-        $connection = ($this->connection)();
-        $priorities = [];
-        foreach ($this->sites->enabledIds() as $position => $id) {
-            $site = $this->sites->find($id);
-            if ($site === null || !$site['enabled']) { continue; }
-            try {
-                $eligible = $connection->provider(SiteRepository::withoutEndpointCredential($site))->eligibleResources();
-                $turns = $this->state->turns($id, $site['config_revision']);
-                $available = array_filter($turns, static fn (string $field): bool =>
-                    $eligible[in_array($field, ['open_issues', 'open_prs'], true) ? 'search' : 'core'], ARRAY_FILTER_USE_KEY);
-                $priority = $available === [] ? PHP_INT_MAX : min($available);
-            } catch (\PDOException | SharedKeyFailure $error) { throw $error; }
-            catch (\Throwable) { $priority = PHP_INT_MAX; }
-            $priorities[] = [$id, $priority, $position];
-        }
-        usort($priorities, static fn (array $left, array $right): int => [$left[1], $left[2]] <=> [$right[1], $right[2]]);
-        foreach ($priorities as [$id]) {
-            if ($this->stop || ($generation !== null && $this->state->stopping($generation))) { break; }
-            try {
-                $this->sites->assertWorkerKeyAvailable();
-                $site = $this->sites->find($id);
-                if ($site === null || !$site['enabled']) { continue; }
-                try {
-                    $provider = $connection->provider(SiteRepository::withoutEndpointCredential($site));
-                    $order = $this->fieldOrder($site, $provider);
-                } catch (\PDOException | SharedKeyFailure $error) { throw $error; }
-                catch (\Throwable) {
-                    $provider = new UnavailableRepositoryProvider();
-                    $order = WorkerStateRepository::FIELDS;
-                    ($this->output)('Worker credentials unavailable.');
-                }
-                $result = (new SiteChecker($this->http, $provider, $this->vault))->check($site, $order);
-                $this->sites->assertWorkerKeyAvailable();
-                $stored = $this->state->settle($site, $result);
-                ($this->output)($stored ? 'Worker site checked.' : 'Worker site changed.');
-            } catch (\PDOException | SharedKeyFailure $error) { throw $error; }
-            catch (\Throwable) { ($this->output)('Worker site failed.'); }
-        }
-        $delivery=$this->notifications->runOne(fn (): bool => $this->stop || ($generation!==null && $this->state->stopping($generation)));
-        if (!in_array($delivery['code'],['off','idle'],true)) { ($this->output)('Worker notification: '.$delivery['code'].'.'); }
-    }
 
-    private function fieldOrder(#[\SensitiveParameter] array $site, GitHubProvider $provider): array
+
+
+    public function runPass(?string $generation=null): void
     {
-        $turns = $this->state->turns($site['id'], $site['config_revision']);
-        $eligible = $provider->eligibleResources();
-        $order = WorkerStateRepository::FIELDS;
-        $key = static fn (string $field): array => [
-            (int) !$eligible[in_array($field, ['open_issues', 'open_prs'], true) ? 'search' : 'core'],
-            $turns[$field], array_search($field, WorkerStateRepository::FIELDS, true)];
-        usort($order, static fn (string $left, string $right): int => $key($left) <=> $key($right));
-        return $order;
+        (new WorkerPass($this->runtime,$this->http,fn (): bool => $this->stop || ($generation !== null && $this->state->stopping($generation))))->runPass();
     }
 }

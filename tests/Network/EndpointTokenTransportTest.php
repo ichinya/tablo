@@ -5,7 +5,7 @@ namespace Tablo\Tests\Network;
 
 use Tablo\HttpClient;
 use Tablo\SiteChecker;
-use Tablo\SiteRepository;
+use Tablo\SiteInput;
 use Tablo\TokenVault;
 use Tablo\Tests\Support\EndpointFixture;
 use Tablo\Tests\Support\FakeProvider;
@@ -20,7 +20,7 @@ final class EndpointTokenTransportTest
     public function nativeHeadersAreExactPerSiteForDifferentAndSharedUrlsInBothOrders(): void
     {
         $directory = new TemporaryDirectory('tablo-endpoint-wire-');
-        $server = $vault = $checker = null;
+        $checker = null; $vault = null; $server = null;
         try {
             $server = new TestServer($directory, dirname(__DIR__) . '/fixtures/endpoint-token-router.php', environment: ['TABLO_ENDPOINT_FIXTURE' => $directory->path]);
             $vault = new TokenVault($directory->path . '/key');
@@ -30,7 +30,7 @@ final class EndpointTokenTransportTest
             foreach (['different', 'shared'] as $paths) {
                 foreach (['ab', 'ba'] as $order) {
                     foreach (str_split($order) as $siteId) {
-                        $site = [...SiteRepository::defaults(), 'url' => $server->base . '/' . ($paths === 'shared' ? 'shared' : $siteId),
+                        $site = [...SiteInput::defaults(), 'url' => $server->base . '/' . ($paths === 'shared' ? 'shared' : $siteId),
                             'repository' => 'fixture/public', 'health_path' => '/up', 'version_path' => '/version', 'endpoint_token' => $siteId === 'a' ? $a : $b];
                         $state = $checker->check($site);
                         Assert::same($state['online'], 1);
@@ -42,7 +42,7 @@ final class EndpointTokenTransportTest
                     }
                 }
             }
-            $site = [...SiteRepository::defaults(), 'url' => $server->base . '/anonymous/', 'repository' => 'fixture/public', 'health_path' => '', 'version_path' => ''];
+            $site = [...SiteInput::defaults(), 'url' => $server->base . '/anonymous/', 'repository' => 'fixture/public', 'health_path' => '', 'version_path' => ''];
             $before = count(self::rows($directory));
             $state = $checker->check($site);
             $rows = self::rows($directory);
@@ -51,12 +51,12 @@ final class EndpointTokenTransportTest
             Assert::false($rows[$before]['present']);
             Assert::same($state['online'], 1);
             Assert::same(count($rows), 17);
-        } finally { $checker = $vault = null; $server?->close(); $directory->close(); }
+        } finally { $vault = null; $checker = null; $server?->close(); $directory->close(); }
     }
 
     private static function rows(TemporaryDirectory $directory): array
     {
         $file = $directory->path . '/requests.jsonl';
-        return is_file($file) ? array_map(static fn (string $line): array => json_decode($line, true, 8, JSON_THROW_ON_ERROR), file($file, FILE_IGNORE_NEW_LINES)) : [];
+        return is_file($file) ? array_map(static fn (string $line): array => json_decode($line, associative: true, depth: 8, flags: JSON_THROW_ON_ERROR), file($file, FILE_IGNORE_NEW_LINES)) : [];
     }
 }

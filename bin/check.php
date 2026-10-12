@@ -1,34 +1,35 @@
 <?php
 declare(strict_types=1);
+require_once dirname(__DIR__) . '/app/RuntimeIni.php';
 
 // This helper has no autoload dependencies, including for early help/refusals.
-require_once dirname(__DIR__) . '/app/check-diagnostics.php';
+require_once dirname(__DIR__) . '/app/CheckDiagnostics.php';
 
 // Mode detection and the emergency document require no autoloaded code.
-$json = in_array('--json', $argv ?? [], true);
+$json = in_array('--json', $argv ?? [], strict: true);
 $earlyJson = static function (string $status, string $reason): void {
     $exit = $status === 'success' ? 0 : 1;
     echo '{"schema_version":"tablo/check/v1","run":{"status":"' . $status . '","reason":"' . $reason
         . '","exit_code":' . $exit . ',"started_at":null,"finished_at":null},"sites":[]}' . "\n";
 };
-ini_set('display_errors', '0');
-ini_set('log_errors', '0');
+\Tablo\RuntimeIni::set('display_errors', value: '0');
+\Tablo\RuntimeIni::set('log_errors', value: '0');
 set_error_handler(static function (int $severity): bool {
     if (!(error_reporting() & $severity)) { return true; }
     throw new RuntimeException('Check operation failed.');
 });
 try {
     if ($json) {
-        $arguments = array_slice($argv, 1);
+        $arguments = array_slice($argv, offset: 1);
         if (count(array_keys($arguments, '--json', true)) !== 1
             || count(array_keys($arguments, '--help', true)) > 1
             || array_diff($arguments, ['--json', '--help']) !== []) {
-            $earlyJson('fatal', 'invalid-arguments');
+            $earlyJson(status: 'fatal', reason: 'invalid-arguments');
             Tablo\CheckDiagnostics::write("Usage: php bin/check.php [--json [--help]]\n");
             exit(1);
         }
-        if (in_array('--help', $arguments, true)) {
-            $earlyJson('success', 'help');
+        if (in_array('--help', $arguments, strict: true)) {
+            $earlyJson(status: 'success', reason: 'help');
             Tablo\CheckDiagnostics::write("Usage: php bin/check.php [--json [--help]]\n");
             exit(0);
         }
@@ -43,7 +44,7 @@ try {
         : new Tablo\GitHubConnection($sites, new Tablo\HttpClient());
     exit((new Tablo\CheckCommand($sites, $github,
         new Tablo\HttpClient(getenv('TABLO_ALLOW_PRIVATE_NETWORK') === '1'), $vault,
-        new Tablo\NotificationDelivery($db, $vault)))->run($json));
+        new Tablo\NotificationDelivery($db, $vault)))->run($json ? Tablo\CheckFormat::Json : Tablo\CheckFormat::Text));
 } catch (Throwable $error) {
     if ($json) {
         $reason = match (true) {
@@ -52,7 +53,7 @@ try {
             $error instanceof Tablo\InstallationException => 'installation-failed',
             default => 'bootstrap-failed',
         };
-        $earlyJson('fatal', $reason);
+        $earlyJson(status: 'fatal', reason: $reason);
     }
     Tablo\CheckDiagnostics::write("Check failed. Check installation configuration and local storage.\n");
     if ($error instanceof Tablo\InstallationException && $error->getCode() === Tablo\InstallationException::UNSUPPORTED_CURL) {

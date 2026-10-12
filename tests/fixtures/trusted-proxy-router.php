@@ -12,7 +12,8 @@ if (getenv('TABLO_FIXTURE_INTERNAL') === '1') {
 $headers = ['X-Forwarded-For: ' . $chain];
 foreach (['CONTENT_TYPE' => 'Content-Type', 'HTTP_COOKIE' => 'Cookie', 'HTTP_FORWARDED' => 'Forwarded',
     'HTTP_X_REAL_IP' => 'X-Real-IP', 'HTTP_CLIENT_IP' => 'Client-IP', 'HTTP_X_FORWARDED_PROTO' => 'X-Forwarded-Proto'] as $key => $name) {
-    if (array_key_exists($key, $_SERVER)) { $headers[] = $name . ': ' . $_SERVER[$key]; }
+    if (!(array_key_exists($key, $_SERVER))) { continue; }
+ $headers[] = $name . ': ' . $_SERVER[$key];
 }
 file_put_contents(getenv('TABLO_FIXTURE_OBSERVATIONS'), json_encode([
     'peer' => $peer, 'outbound_source' => getenv('TABLO_FIXTURE_SOURCE'), 'xff' => $chain,
@@ -27,11 +28,11 @@ $raw = curl_exec($curl);
 if ($raw === false) { http_response_code(502); echo 'Fixture proxy transport failed.'; return; }
 $size = curl_getinfo($curl, CURLINFO_HEADER_SIZE);
 http_response_code(curl_getinfo($curl, CURLINFO_RESPONSE_CODE));
-foreach (explode("\r\n", substr($raw, 0, $size)) as $line) {
+foreach (explode("\r\n", substr($raw, offset: 0, length: $size)) as $line) {
     if (!str_contains($line, ':')) { continue; }
-    $name = strtolower(explode(':', $line, 2)[0]);
-    if (!in_array($name, ['connection', 'transfer-encoding', 'content-length', 'date'], true)) {
-        header($line, false);
+    $name = strtolower(explode(':', $line, limit: 2)[0]);
+    if (!in_array($name, ['connection', 'transfer-encoding', 'content-length', 'date'], strict: true)) {
+        header($line, replace: false);
     }
 }
 echo substr($raw, $size);

@@ -5,12 +5,13 @@ namespace Tablo\Tests\Support;
 
 use PDO;
 use Tablo\SiteRepository;
+use Tablo\SiteInput;
 
 final class IncidentFixtures
 {
     public static function site(): array
     {
-        return array_replace(SiteRepository::defaults(), ['name' => 'Service', 'url' => 'https://example.com', 'repository' => 'example/service']);
+        return array_replace(SiteInput::defaults(), ['name' => 'Service', 'url' => 'https://example.com', 'repository' => 'example/service']);
     }
 
     public static function accept(SiteRepository $sites, int $id, ?int $online, string $time, array $extra = []): bool

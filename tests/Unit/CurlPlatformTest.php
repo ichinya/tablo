@@ -10,7 +10,7 @@ use Tablo\Tests\Support\TemporaryDirectory;
 use Testo\Assert;
 use Testo\Test;
 
-require_once dirname(__DIR__) . '/fixtures/curl-platform-simulation.php';
+require_once dirname(__DIR__) . '/fixtures/Capabilities.php';
 
 final class CurlPlatformTest
 {
@@ -20,13 +20,13 @@ final class CurlPlatformTest
         $directory = new TemporaryDirectory('tablo-curl-simulation-');
         try {
             mkdir($directory->path . '/app');
-            $source = file_get_contents(dirname(__DIR__, 2) . '/app/bootstrap.php');
+            $source = file_get_contents(dirname(__DIR__, levels: 2) . '/app/bootstrap.php');
             $source = str_replace('declare(strict_types=1);',
-                'declare(strict_types=1); namespace Tablo\\Tests\\CurlPlatformSimulation;', $source);
+                replace: 'declare(strict_types=1); namespace Tablo\\Tests\\CurlPlatformSimulation;', subject: $source);
             file_put_contents($directory->path . '/app/bootstrap.php', $source);
-            foreach ([[true, true, 0x071d00, false], [true, true, 0x073600, false],
-                [true, true, 0x073700, true], [true, true, 0x081100, true],
-                [true, false, 0x081100, false], [false, true, 0x081100, false],
+            foreach ([[true, true, 0x07_1d00, false], [true, true, 0x07_3600, false],
+                [true, true, 0x07_3700, true], [true, true, 0x08_1100, true],
+                [true, false, 0x08_1100, false], [false, true, 0x08_1100, false],
                 [true, true, null, false]] as [$available, $option, $version, $supported]) {
                 Capabilities::$available = $available;
                 Capabilities::$option = $option;

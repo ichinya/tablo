@@ -6,7 +6,7 @@ namespace Tablo\Tests\Network;
 use Tablo\HttpClient;
 use Tablo\HttpFailure;
 use Tablo\SiteChecker;
-use Tablo\SiteRepository;
+use Tablo\SiteInput;
 use Tablo\Tests\Support\FakeProvider;
 use Tablo\Tests\Support\RawHttpServer;
 use Testo\Assert;
@@ -29,7 +29,7 @@ final class HttpFramingTest
                 Assert::same(curl_errno($curl), $mode === 'incomplete' ? CURLE_PARTIAL_FILE : CURLE_RECV_ERROR, $mode);
                 unset($curl);
                 foreach (['', '/up'] as $path) {
-                    $site = array_replace(SiteRepository::defaults(), ['url' => $server->base . '/' . $mode,
+                    $site = array_replace(SiteInput::defaults(), ['url' => $server->base . '/' . $mode,
                         'health_path' => $path, 'version_path' => '/version', 'repository' => 'fixture/public']);
                     $state = (new SiteChecker(new HttpClient(allowPrivate: true), new FakeProvider()))->check($site);
                     Assert::same($state['online'], null, $mode);
@@ -39,7 +39,7 @@ final class HttpFramingTest
                     Assert::same($state['deployed_version'], '1.3.1', $mode);
                     Assert::same($state['deployed_commit'], 'a61de82', $mode);
                     Assert::same($state['open_issues'], 4, $mode);
-                    Assert::same($state['latest_commit'], str_repeat('a', 40), $mode);
+                    Assert::same($state['latest_commit'], str_repeat('a', times: 40), $mode);
                     Assert::same($state['last_error'], 'Health: ' . HttpFailure::MESSAGES[$reason], $mode);
                 }
             }
@@ -77,11 +77,11 @@ final class HttpFramingTest
             Assert::same($failure->reason, 'timeout');
             Assert::true(microtime(true) - $started < 8, 'HTTP deadline remains bounded');
             $deadline = microtime(true) + 1;
-            while (!is_file($directory . '/disconnected') && microtime(true) < $deadline) { usleep(20000); clearstatcache(); }
+            while (!is_file($directory . '/disconnected') && microtime(true) < $deadline) { usleep(20_000); clearstatcache(); }
             Assert::same(file_get_contents($directory . '/disconnected'), '1', 'Client released the TCP connection');
         } finally { $server->close(); }
         Assert::false(is_dir($directory));
-        $socket = stream_socket_server(str_replace('http:', 'tcp:', $base), $errno, $error);
+        $socket = stream_socket_server(str_replace('http:', replace: 'tcp:', subject: $base), $errno, $error);
         Assert::true(is_resource($socket), 'Owned peer exited and released its port');
         if (is_resource($socket)) { fclose($socket); }
     }

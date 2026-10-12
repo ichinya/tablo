@@ -38,7 +38,7 @@ final class MigrationPdo extends PDO
             return parent::exec('SELECT * FROM injected_migration_failure');
         }
         if ($this->failAfterFirstCreate && str_starts_with($statement, 'CREATE TABLE')) {
-            parent::exec(explode(';', $statement, 2)[0] . ';');
+            parent::exec(explode(';', $statement, limit: 2)[0] . ';');
             return parent::exec('SELECT * FROM injected_migration_failure');
         }
         $result = parent::exec($statement);

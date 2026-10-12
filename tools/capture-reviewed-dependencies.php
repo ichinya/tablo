@@ -5,7 +5,7 @@ declare(strict_types=1);
 require __DIR__ . '/reviewed-dependencies.php';
 $root = dirname(__DIR__);
 $files = [];
-foreach (requiredReviewedDependencies() as $path => $ownership) {
+foreach (required_reviewed_dependencies() as $path => $ownership) {
     if (!is_file($root . '/' . $path)) { throw new RuntimeException('Missing reviewed dependency: ' . $path); }
     $files[] = ['path' => $path, ...$ownership, 'fingerprint' => 'sha256:' . hash_file('sha256', $root . '/' . $path)];
 }

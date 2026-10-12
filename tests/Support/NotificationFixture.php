@@ -32,8 +32,8 @@ final class NotificationFixture
     public function accept(?int $online,int $seconds,array $extra=[]): bool
     {
         $this->now=1000+$seconds;
-        return IncidentFixtures::accept($this->sites,$this->id,$online,gmdate('Y-m-d\TH:i:s\Z',1767225600+$seconds),$extra);
+        return IncidentFixtures::accept($this->sites,$this->id,$online,gmdate('Y-m-d\TH:i:s\Z',1_767_225_600+$seconds),$extra);
     }
     public function slots(): array { return $this->db->query('SELECT * FROM notification_slots ORDER BY event')->fetchAll(); }
-    public function close(): void { $this->sites=$this->vault=$this->db=null; $this->directory->close(); }
+    public function close(): void { $this->db = null; $this->vault = null; $this->sites = null; $this->directory->close(); }
 }

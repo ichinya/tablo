@@ -10,11 +10,11 @@ use Testo\Test;
 
 final class ContainerHealthTest
 {
-    private static function client(string $path, string $directory, array $extra = [], bool $disableCurl = false): array
+    private static function client(string $path, string $directory, array $extra = [], \Tablo\Tests\Support\CurlAvailability $curl = \Tablo\Tests\Support\CurlAvailability::Enabled): array
     {
-        $argv = $disableCurl ? [PHP_BINARY, '-d', 'disable_functions=curl_init', $path] : [PHP_BINARY, $path];
+        $argv = $curl === \Tablo\Tests\Support\CurlAvailability::Disabled ? [PHP_BINARY, '-d', 'disable_functions=curl_init', $path] : [PHP_BINARY, $path];
         $process = proc_open($argv, [0 => ['pipe', 'r'], 1 => ['file', $directory . '/client.out', 'w'],
-            2 => ['file', $directory . '/client.err', 'w']], $pipes, null, array_replace(getenv(), $extra));
+            2 => ['file', $directory . '/client.err', 'w']], $pipes, cwd: null, env_vars: array_replace(getenv(), $extra));
         Assert::true(is_resource($process));
         fclose($pipes[0]);
         $started = microtime(true);
@@ -25,7 +25,7 @@ final class ContainerHealthTest
     #[Test]
     public function realCurlRejectsIncorrectResponsesAndBoundsTransfer(): void
     {
-        $source = file_get_contents(dirname(__DIR__, 2) . '/deploy/healthcheck.php');
+        $source = file_get_contents(dirname(__DIR__, levels: 2) . '/deploy/healthcheck.php');
         foreach (['ok' => 0, 'redirect' => 1, 'login' => 1, 'static' => 1, 'raw-php' => 1, 'large-body' => 1, 'large-header' => 1, 'delayed-body' => 1] as $mode => $exit) {
             $directory = new TemporaryDirectory('tablo-container-health-client-');
             $router = $directory->path . '/router.php';
@@ -46,7 +46,7 @@ PHP);
             $server = new TestServer($directory, $router, environment: ['HEALTH_FIXTURE_MODE' => $mode, 'HEALTH_FIXTURE_LOG' => $log]);
             try {
                 // Only the test transport is remapped. Options/callbacks/exits execute the real client and ext-curl.
-                $shim = ' namespace HealthClientFixture; use \\CurlHandle; use \\RuntimeException; use \\Throwable; function curl_init(string $url) { if ($url !== "http://127.0.0.1:80/_tablo/health") { throw new RuntimeException(); } return \\curl_init(' . var_export($server->base . '/_tablo/health', true) . '); }';
+                $shim = ' namespace HealthClientFixture; use \\CurlHandle; use \\RuntimeException; use \\Throwable; function curl_init(string $url) { if ($url !== "http://127.0.0.1:80/_tablo/health") { throw new RuntimeException(); } return \\curl_init(' . var_export($server->base . '/_tablo/health', return: true) . '); }';
                 $client = $directory->path . '/client.php';
                 file_put_contents($client, str_replace('declare(strict_types=1);', 'declare(strict_types=1);' . $shim, $source));
                 [$actual, $out, $err, $elapsed] = self::client($client, $directory->path, ['HTTP_PROXY' => 'http://127.0.0.1:1', 'http_proxy' => 'http://127.0.0.1:1', 'ALL_PROXY' => 'http://127.0.0.1:1', 'NO_PROXY' => '']);
@@ -54,7 +54,7 @@ PHP);
                 Assert::same($out, $exit === 0 ? "healthy\n" : "unavailable\n", $mode);
                 Assert::same($err, '', $mode);
                 Assert::true($elapsed < 4, 'bounded client wall time');
-                $request = json_decode(file_get_contents($log), true);
+                $request = json_decode(file_get_contents($log), associative: true);
                 Assert::same($request, ['method' => 'GET', 'target' => '/_tablo/health', 'cookie' => false, 'credentials' => false]);
             } finally { $server->close(); $directory->close(); }
         }
@@ -67,12 +67,12 @@ PHP);
         try {
             // -n does not remove compiled curl. Prove function absence before executing the fixed client.
             $precondition = $directory->path . '/precondition.php';
-            file_put_contents($precondition, '<?php echo function_exists("curl_init") ? "present" : "absent";');
-            [$probeExit, $probeOut, $probeErr] = self::client($precondition, $directory->path, disableCurl: true);
+            file_put_contents($precondition, data: '<?php echo function_exists("curl_init") ? "present" : "absent";');
+            [$probeExit, $probeOut, $probeErr] = self::client($precondition, $directory->path, curl: \Tablo\Tests\Support\CurlAvailability::Disabled);
             Assert::same($probeExit, 0);
             Assert::same($probeOut, 'absent');
             Assert::same($probeErr, '');
-            [$exit, $out, $err] = self::client(dirname(__DIR__, 2) . '/deploy/healthcheck.php', $directory->path, disableCurl: true);
+            [$exit, $out, $err] = self::client(dirname(__DIR__, levels: 2) . '/deploy/healthcheck.php', $directory->path, curl: \Tablo\Tests\Support\CurlAvailability::Disabled);
             Assert::same($exit, 1);
             Assert::same($out, "unavailable\n");
             Assert::same($err, '');

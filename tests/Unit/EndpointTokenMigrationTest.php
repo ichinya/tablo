@@ -60,7 +60,7 @@ final class EndpointTokenMigrationTest
     public function injectedExternalKeyAuthenticatesEndpointOnlyStateBeforeAnyMigration(): void
     {
         $directory = new TemporaryDirectory('tablo-endpoint-external-');
-        $db = $vault = $sites = null;
+        $sites = null; $vault = null; $db = null;
         try {
             $key = $directory->path . '/key';
             $wrong = $directory->path . '/wrong';
@@ -75,7 +75,7 @@ final class EndpointTokenMigrationTest
             // present: wrong selected key must refuse before any transition or WAL changes.
             $db->exec('PRAGMA user_version=4');
             $cipherHash = hash('sha256', $sites->find(1)['endpoint_token']);
-            $db = $sites = $vault = null;
+            $vault = null; $sites = null; $db = null;
             $before = hash_file('sha256', $path);
             $failed = false;
             try { Database::connect($path, new TokenVault($wrong, true)); }
@@ -87,6 +87,6 @@ final class EndpointTokenMigrationTest
             Assert::same((int) $db->query('PRAGMA user_version')->fetchColumn(), 4);
             Assert::same(hash('sha256', $db->query('SELECT endpoint_token FROM sites')->fetchColumn()), $cipherHash);
             Assert::false(is_file($directory->path . '/github-token.key'));
-        } finally { $sites = $db = $vault = null; $directory->close(); }
+        } finally { $vault = null; $db = null; $sites = null; $directory->close(); }
     }
 }

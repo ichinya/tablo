@@ -1,8 +1,9 @@
 <?php
 declare(strict_types=1);
+require_once dirname(__DIR__) . '/app/RuntimeIni.php';
 
-ini_set('display_errors', '0');
-ini_set('log_errors', '0');
+\Tablo\RuntimeIni::set('display_errors', value: '0');
+\Tablo\RuntimeIni::set('log_errors', value: '0');
 set_error_handler(static function (int $severity): bool {
     if (!(error_reporting() & $severity)) { return true; }
     throw new RuntimeException('Application initialization failed.');
@@ -13,10 +14,10 @@ if ($target === '/_tablo/health' || str_starts_with($target, '/_tablo/health?') 
     header('Cache-Control: no-store');
     header('X-Content-Type-Options: nosniff');
     // Socket peer only: forwarded headers/trusted proxy configuration are irrelevant.
-    if (!in_array($_SERVER['REMOTE_ADDR'] ?? '', ['127.0.0.1', '::1'], true)
-        || !in_array($_SERVER['HTTP_HOST'] ?? '', ['127.0.0.1', '127.0.0.1:80'], true)
+    if (!in_array($_SERVER['REMOTE_ADDR'] ?? '', ['127.0.0.1', '::1'], strict: true)
+        || !in_array($_SERVER['HTTP_HOST'] ?? '', ['127.0.0.1', '127.0.0.1:80'], strict: true)
         || $target !== '/_tablo/health'
-        || (isset($_SERVER['THE_REQUEST']) && !preg_match('~^\S+ /_tablo/health HTTP/[0-9.]+$~D', $_SERVER['THE_REQUEST']))) {
+        || ((($_SERVER['THE_REQUEST'] ?? null) !== null) && !preg_match('~^\S+ /_tablo/health HTTP/[0-9.]+$~D', $_SERVER['THE_REQUEST']))) {
         http_response_code(404);
         echo "not found\n";
         return;
@@ -43,13 +44,13 @@ if ($target === '/_tablo/health' || str_starts_with($target, '/_tablo/health?') 
             return $deferredResponse ? "unavailable\n" : '';
         }
         return '';
-    }, 4096);
+    }, chunk_size: 4096);
     try {
         require dirname(__DIR__) . '/vendor/autoload.php';
         $available = Tablo\ContainerHealth::available();
-    } catch (Throwable) {
+    } catch (Throwable $discardedCleanup) {
         // No exception paths, configuration or secrets in HTTP or health logs.
-    }
+     unset($discardedCleanup); }
     $cleaning = true;
     // Bound cleanup even if a dependency creates many or non-removable buffers.
     for ($discarded = 0; ob_get_level() > $initialDepth && $discarded < 32; ++$discarded) {

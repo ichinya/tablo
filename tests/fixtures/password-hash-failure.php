@@ -2,6 +2,7 @@
 declare(strict_types=1);
 
 namespace Tablo {
+    require_once dirname(__DIR__, levels: 2) . '/app/RuntimeIni.php';
     function password_hash(#[\SensitiveParameter] string $password, string|int|null $algorithm): string
     {
         // Deliberately hostile implementation error; actual PasswordService must
@@ -10,8 +11,8 @@ namespace Tablo {
     }
 }
 namespace {
-    require dirname(__DIR__, 2) . '/vendor/autoload.php';
-    ini_set('zend.exception_ignore_args', '0');
+    require dirname(__DIR__, levels: 2) . '/vendor/autoload.php';
+    \Tablo\RuntimeIni::set('zend.exception_ignore_args', value: '0');
     $db = \Tablo\Database::connect(':memory:');
     $auth = new \Tablo\Auth($db);
     $db->prepare('INSERT INTO users(id,password_hash) VALUES(1,?)')
@@ -25,7 +26,7 @@ namespace {
         try { $action(); exit(2); }
         catch (\Throwable $error) {
             for ($current = $error; $current !== null; $current = $current->getPrevious()) {
-                $complete = print_r($current, true) . print_r($current->getTrace(), true);
+                $complete = print_r($current, return: true) . print_r($current->getTrace(), return: true);
                 if (str_contains($complete, 'synthetic-private')) { exit(3); }
             }
         }

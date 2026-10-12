@@ -6,6 +6,8 @@ namespace Tablo\Tests\Unit;
 use Tablo\Database;
 use Tablo\SharedKeyFailure;
 use Tablo\SiteRepository;
+use Tablo\SiteKeyState;
+use Tablo\EndpointCredential;
 use Tablo\TokenVault;
 use Tablo\ValidationException;
 use Tablo\WorkerStateRepository;
@@ -21,36 +23,36 @@ final class EndpointTokenRepositoryTest
     public function validatesExactBytesTypesAndConflictingIntentBeforeKeyCreation(): void
     {
         $directory = new TemporaryDirectory('tablo-endpoint-validation-');
-        $db = $sites = $vault = null;
+        $vault = null; $sites = null; $db = null;
         try {
             $db = Database::connect(':memory:');
             $vault = new TokenVault($directory->path . '/key');
             $sites = new SiteRepository($db, $vault);
-            foreach ([null, [], 0, 1.0, true, new \stdClass(), ' ', "x y", " x", "x ", "x\t", "x\r", "x\n", "x\0", chr(127), chr(128), str_repeat(chr(90), 513)] as $invalid) {
+            foreach ([null, [], 0, 1.0, true, new \stdClass(), ' ', "x y", " x", "x ", "x\t", "x\r", "x\n", "x\0", chr(127), chr(128), str_repeat(chr(90), times: 513)] as $invalid) {
                 $caught = false;
                 try { $sites->save([...UnitFixtures::site(), 'endpoint_token' => $invalid]); }
-                catch (ValidationException $error) { $caught = isset($error->errors['endpoint_token']); }
+                catch (ValidationException $error) { $caught = (($error->errors['endpoint_token'] ?? null) !== null); }
                 Assert::true($caught, 'invalid endpoint credential must fail with a fixed field error');
                 Assert::false(is_file($directory->path . '/key'));
                 Assert::same((int) $db->query('SELECT count(*) FROM sites')->fetchColumn(), 0);
             }
             $caught = false;
-            try { $sites->save([...UnitFixtures::site(), 'endpoint_token' => EndpointFixture::tokenA(), 'remove_endpoint_token' => '1']); }
-            catch (ValidationException $error) { $caught = isset($error->errors['endpoint_token']); }
+            try { $sites->save([...UnitFixtures::site(), 'endpoint_token' => EndpointFixture::tokenA(), 'remove_endpoint_token' => \Tablo\FormCheckbox::VALUE]); }
+            catch (ValidationException $error) { $caught = (($error->errors['endpoint_token'] ?? null) !== null); }
             Assert::true($caught);
             Assert::false(is_file($directory->path . '/key'));
-            $allPrintable = implode('', array_map('chr', range(33, 126)));
-            Assert::true(hash_equals(SiteRepository::validateEndpointToken($allPrintable), $allPrintable));
-            Assert::same(strlen(SiteRepository::validateEndpointToken(str_repeat(chr(90), 512))), 512);
-            Assert::same(SiteRepository::validateEndpointToken(''), '');
-        } finally { $sites = $db = $vault = null; $directory->close(); }
+            $allPrintable = implode('', array_map('chr', range(33, end: 126)));
+            Assert::true(hash_equals(EndpointCredential::validateEndpointToken($allPrintable), $allPrintable));
+            Assert::same(strlen(EndpointCredential::validateEndpointToken(str_repeat(chr(90), times: 512))), 512);
+            Assert::same(EndpointCredential::validateEndpointToken(''), '');
+        } finally { $vault = null; $db = null; $sites = null; $directory->close(); }
     }
 
     #[Test]
     public function preservesBlankCiphertextReplacesRemovesAndRejectsStaleSettlementIncludingAba(): void
     {
         $directory = new TemporaryDirectory('tablo-endpoint-repository-');
-        $db = $sites = $vault = $worker = null;
+        $worker = null; $vault = null; $sites = null; $db = null;
         try {
             $db = Database::connect(':memory:');
             $vault = new TokenVault($directory->path . '/key');
@@ -73,7 +75,7 @@ final class EndpointTokenRepositoryTest
             Assert::true($worker->settle($snapshot, $result));
             Assert::same($worker->turns($id, $snapshot['config_revision'])['latest_release'], 1);
             foreach ([['endpoint_token' => EndpointFixture::tokenB()], ['endpoint_token' => EndpointFixture::tokenA()],
-                ['url' => 'https://other.example/'], ['url' => $input['url']], ['remove_endpoint_token' => '1'],
+                ['url' => 'https://other.example/'], ['url' => $input['url']], ['remove_endpoint_token' => \Tablo\FormCheckbox::VALUE],
                 ['endpoint_token' => EndpointFixture::tokenA()], ['enabled' => '0'], ['enabled' => '1']] as $change) {
                 $snapshot = $sites->find($id);
                 $sites->save(array_replace($input, $change), $id);
@@ -90,14 +92,14 @@ final class EndpointTokenRepositoryTest
             $sites->delete($id);
             Assert::false($worker->settle($snapshot, $result));
             Assert::same((int) $db->query('SELECT count(*) FROM worker_progress')->fetchColumn(), 0);
-        } finally { $worker = $sites = $db = $vault = null; $directory->close(); }
+        } finally { $vault = null; $db = null; $sites = null; $worker = null; $directory->close(); }
     }
 
     #[Test]
     public function endpointOnlyDisabledCiphertextRetainsEstablishedKeyCustody(): void
     {
         $directory = new TemporaryDirectory('tablo-endpoint-key-');
-        $db = $sites = $vault = $fresh = null;
+        $fresh = null; $vault = null; $sites = null; $db = null;
         try {
             $db = Database::connect(':memory:');
             $keyPath = $directory->path . '/key';
@@ -107,7 +109,7 @@ final class EndpointTokenRepositoryTest
             $id = $sites->save($input);
             $original = file_get_contents($keyPath);
             $cipher = $sites->find($id)['endpoint_token'];
-            Assert::true(SiteRepository::hasEstablishedKeyState($db));
+            Assert::true(SiteKeyState::hasEstablishedKeyState($db));
             foreach ([null, chr(88), random_bytes(32)] as $replacement) {
                 unlink($keyPath);
                 if ($replacement !== null) { file_put_contents($keyPath, $replacement); }
@@ -131,6 +133,6 @@ final class EndpointTokenRepositoryTest
             Assert::false(is_file($keyPath));
             file_put_contents($keyPath, $original);
             Assert::true(hash_equals($vault->decrypt($cipher), EndpointFixture::tokenA()));
-        } finally { $fresh = $sites = $db = $vault = null; $directory->close(); }
+        } finally { $vault = null; $db = null; $sites = null; $fresh = null; $directory->close(); }
     }
 }

@@ -14,7 +14,7 @@ final class FakeProvider implements RepositoryProvider
         if ($this->fail) { throw new RuntimeException('rate limit'); }
         return 'v1.3.2';
     }
-    public function getLatestCommit(string $repository, string $branch): string { return str_repeat('a', 40); }
+    public function getLatestCommit(string $repository, string $branch): string { return str_repeat('a', times: 40); }
     public function getOpenIssuesCount(string $repository): int { return 4; }
     public function getOpenPullRequestsCount(string $repository): int { return 1; }
 }

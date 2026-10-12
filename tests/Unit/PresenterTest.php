@@ -28,7 +28,7 @@ final class PresenterTest
         Assert::true(Presenter::site($site)['comparison'] === 'Доступно обновление', 'older release');
         $site['deployed_version'] = '1.4.0';
         Assert::true(Presenter::site($site)['comparison'] === 'Версия новее релиза', 'newer shown update');
-        $site['comparison_mode'] = 'branch'; $site['deployed_commit'] = 'a61de82'; $site['latest_commit'] = 'a61de82' . str_repeat('0', 33);
+        $site['comparison_mode'] = 'branch'; $site['deployed_commit'] = 'a61de82'; $site['latest_commit'] = 'a61de82' . str_repeat('0', times: 33);
         Assert::true(Presenter::site($site)['comparison_tone'] === 'green', 'short SHA not accepted');
         Assert::true(Presenter::site($site)['deployed_label'] === 'a61de82', 'branch comparison displayed a release instead of SHA');
         $site['enabled'] = 0;
