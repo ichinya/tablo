@@ -4261,6 +4261,13 @@
       "Composer verify"
     ]
   },
+  "tests/Support/SharedDeadlineProbe.php": {
+    "owner": "Tablo\\Tests\\Support\\SharedDeadlineProbe",
+    "consumers": [
+      "Composer lint",
+      "Composer verify"
+    ]
+  },
   "tests/Support/StderrCapture.php": {
     "owner": "Tablo\\Tests\\Support\\StderrCapture",
     "consumers": [

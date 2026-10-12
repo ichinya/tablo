@@ -8,7 +8,7 @@
                 "Composer verify",
                 "Reviewed dependency capture"
             ],
-            "fingerprint": "sha256:32a9841f61af87a1985adeb290c402b2bbb318a5801686f506b47f6e0aa127b3"
+            "fingerprint": "sha256:e1c901b87dc645892ee73df258670be3a784b223b6c4adc3ae2e03a7dfb924d5"
         },
         {
             "path": "tools/reviewed-dependencies.php",
@@ -3426,7 +3426,7 @@
                 "Composer lint",
                 "Composer verify"
             ],
-            "fingerprint": "sha256:abe5851ad003019b76cb92f537e4f8fb1308e58904f755c6445e1b52ee60c8fa"
+            "fingerprint": "sha256:467dbb61603bbc127f5e29b6d10832039f24ea88dba5840c568b7a69d688aaaa"
         },
         {
             "path": "tests/fixtures/settings-process.php",
@@ -4768,7 +4768,7 @@
                 "Composer lint",
                 "Composer verify"
             ],
-            "fingerprint": "sha256:f330520e7d26ac2190962e0d352c8dc5c54db041624cd465d9f8711431ab781e"
+            "fingerprint": "sha256:b09b23777997eefdd851f5ffa01c0b9121c3716a765d8a25d9164870cec77e66"
         },
         {
             "path": "tests/Network/RedirectOriginAdmissionTest.php",
@@ -5494,6 +5494,15 @@
                 "Composer verify"
             ],
             "fingerprint": "sha256:4b89fc8ac3fcb483360735a1b8a78d1e5cb6b028295f43bcaac2fabfe38bab5b"
+        },
+        {
+            "path": "tests/Support/SharedDeadlineProbe.php",
+            "owner": "Tablo\\Tests\\Support\\SharedDeadlineProbe",
+            "consumers": [
+                "Composer lint",
+                "Composer verify"
+            ],
+            "fingerprint": "sha256:22f859f905c4402f2b56d5ad0997d084dc8409a90da6d54465b8bb18dae5727e"
         },
         {
             "path": "tests/Support/StderrCapture.php",

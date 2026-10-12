@@ -124,6 +124,12 @@ case ($path === '/budget/combined'):
 case ($path === '/budget/tiny-chunks'):
  $chunked = true; $body = str_repeat('x', times: 200_000);
     break;
+case ($path === '/held/start'):
+ // The client must expire while this response is held; close signals the owned stop latch.
+ $holdUntil = hrtime(true) + 3_000_000_000;
+ while (!is_file($directory . '/stop') && hrtime(true) < $holdUntil) { clearstatcache(); usleep(1_000); }
+ $status = 302; $location = '/held/unreachable';
+    break;
 case ($path === '/delay/start'):
  usleep(100_000); $status = 302; $location = '/delay/final';
     break;
