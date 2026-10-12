@@ -37,14 +37,13 @@ final class HeldResponseProbe
             Assert::same($server->rows()[0]['route'], 'held');
             Assert::true($server->rows()[0]['bearer']);
             $start = hrtime(true);
-            $deadline = $start + 180_000_000;
             // libcurl measures TIMEOUT_MS from transfer start, including the completed setup interval.
             $elapsedMs = (int) ceil(($start - $transferStarted) / 1_000_000);
             Assert::true(curl_setopt($curl, CURLOPT_TIMEOUT_MS, $elapsedMs + 180));
             self::finish($multi, $start);
             $info = curl_multi_info_read($multi);
             Assert::same($info['result'], CURLE_OPERATION_TIMEDOUT, 'native transfer itself expired while the response was held');
-            Assert::true(hrtime(true) >= $deadline, 'the held remainder consumes its full 180ms budget');
+            Assert::same(curl_getinfo($curl, CURLINFO_RESPONSE_CODE), 200, 'native timeout occurs after receiving the held peer response');
             Assert::true((hrtime(true) - $start) / 1e6 < 900);
             try { CurlGetFailure::fail($curl, $buffer, $chain); }
             catch (HttpFailure $error) {

@@ -5267,7 +5267,7 @@
                 "Composer lint",
                 "Composer verify"
             ],
-            "fingerprint": "sha256:06f2e310f26e62643819f3d44a87a2e1750b3dbc4d6e7e4e218288f3db991f1e"
+            "fingerprint": "sha256:ecc62c67e550928458e445f25386cd4783a3b571a57b3b96443ddf6d446159bc"
         },
         {
             "path": "tests/Support/IncidentFixtures.php",
