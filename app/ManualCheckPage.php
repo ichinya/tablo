@@ -14,11 +14,11 @@ final class ManualCheckPage extends WebPage
             if (!$site) {
                 return $this->notFound();
             }
+            WebSession::recordActivity();
             if (!$site['enabled']) {
                 $_SESSION['notice'] = 'Проверки этого сайта на паузе.';
                 return $this->redirect('/');
             }
-            WebSession::recordActivity();
             $snapshot = WebSession::release();
             $result = null;
             $notice = '';

@@ -1692,7 +1692,7 @@
                 "Composer verify",
                 "Composer analyze"
             ],
-            "fingerprint": "sha256:c4dfd5abca060e1d26d66f69b639c4485ef23ac9edb0644ea40f79b010263419"
+            "fingerprint": "sha256:07cf162077382038db37f65a2574c1b2e98e3dc89e704aebac6b71e9a481ceee"
         },
         {
             "path": "app/MonotonicTime.php",
@@ -5188,7 +5188,7 @@
             "consumers": [
                 "Administrator session policy native controls"
             ],
-            "fingerprint": "sha256:b5876147d26400455ea151f33cf0b99693b77d17762d511f7c85158a1cd821b8"
+            "fingerprint": "sha256:fed2a16f641d6a3fc9e6a6d8a7d39701e9d86cea663658b5cacc49918022fa9f"
         },
         {
             "path": "tests/Http/SessionClockAction.php",
