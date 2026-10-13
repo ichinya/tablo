@@ -18,6 +18,7 @@ final class SchemaLayout
         6 => [[false, true, true, false]],
         7 => [[false, true, true, true]],
         8 => [[true, true, true, true]],
+        9 => [[true, true, true, true]],
     ];
     /** @return Layout */
     public static function observe(PDO $db, int $version): array
@@ -41,7 +42,7 @@ final class SchemaLayout
         $valid = in_array($features, self::LINEAGES[$version], strict: true);
         if (!$valid) { SchemaShape::refuse(); }
         SchemaShape::assert($db, SchemaReference::reference($version, ['endpoint' => $endpoint]), $version);
-        if ($present['history'] && $version !== Database::CURRENT_SCHEMA_VERSION) { HistorySchema::validateHistoryDependencies($db, $objects); }
+        if ($present['history'] && $version < 8) { HistorySchema::validateHistoryDependencies($db, $objects); }
         if (SchemaShape::rows($db, 'PRAGMA main.foreign_key_check') !== []) { SchemaShape::refuse(); }
         return ['version' => $version, 'endpoint' => $endpoint, ...$present];
     }

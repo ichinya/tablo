@@ -5,7 +5,7 @@
         "version": "0.1.0"
     },
     "project": "tablo",
-    "revision": "sha256:499c97fe317edefbc9a0777b3a7f280c336d6ddd2769486870fd72c696227c0a",
+    "revision": "sha256:6edc7bb9dd46280f80666cefc9da229d4191b21e10ab8e5d90db96d79f3ceb0c",
     "symbols": [
         {
             "id": "dashboard.change_admin_password",
@@ -110,9 +110,9 @@
             "kind": "command",
             "source": {
                 "path": "app/site-pages.php",
-                "line": 39
+                "line": 40
             },
-            "fingerprint": "sha256:538e9d7e0bcf9971a1912714a4fe0e08813a398ce7179c962bb656bda7aa9b5f",
+            "fingerprint": "sha256:708312b5aa97d42c8cddba8b5f48aa080b5f7877b42cf514cabb2cede22c5623",
             "signature": {
                 "inputs": [
                     {
@@ -144,9 +144,9 @@
             "kind": "command",
             "source": {
                 "path": "app/site-pages.php",
-                "line": 39
+                "line": 40
             },
-            "fingerprint": "sha256:538e9d7e0bcf9971a1912714a4fe0e08813a398ce7179c962bb656bda7aa9b5f",
+            "fingerprint": "sha256:708312b5aa97d42c8cddba8b5f48aa080b5f7877b42cf514cabb2cede22c5623",
             "signature": {
                 "inputs": [
                     {
@@ -412,7 +412,7 @@
                 "path": "app/schema-layout-upgrade.php",
                 "line": 25
             },
-            "fingerprint": "sha256:1187b2aeea487b733340b04bdaeb5aa54bf009127f05f0c39a82713c87fef0dd",
+            "fingerprint": "sha256:45dcde750d1bb87481c5e199ddfd20e18cc6915a98ad99f743da23cfc4cd4387",
             "signature": null,
             "effects": [],
             "shape": {
@@ -782,7 +782,7 @@
                 "path": "app/settings-repository.php",
                 "line": 15
             },
-            "fingerprint": "sha256:9a170e2a93d27b1e4ae1412962a73c8ad0d7844c23a949af1a6b1ea9ecc9eca3",
+            "fingerprint": "sha256:596c0c3de75fc78d3d036e34a6821c2286be3bbd76e8bb6e8b33f04842f01939",
             "signature": {
                 "inputs": [],
                 "output": "dashboard.number",
@@ -799,11 +799,58 @@
                 "path": "app/settings-repository.php",
                 "line": 31
             },
-            "fingerprint": "sha256:9a170e2a93d27b1e4ae1412962a73c8ad0d7844c23a949af1a6b1ea9ecc9eca3",
+            "fingerprint": "sha256:596c0c3de75fc78d3d036e34a6821c2286be3bbd76e8bb6e8b33f04842f01939",
             "signature": {
                 "inputs": [
                     {
                         "name": "check_interval_minutes",
+                        "type": "dashboard.text",
+                        "required": true
+                    }
+                ],
+                "output": null,
+                "reads": []
+            },
+            "effects": [
+                {
+                    "kind": "create",
+                    "subject": "dashboard.installation_settings"
+                },
+                {
+                    "kind": "update",
+                    "subject": "dashboard.installation_settings"
+                }
+            ]
+        },
+        {
+            "id": "dashboard.get_idle_timeout",
+            "kind": "query",
+            "source": {
+                "path": "app/settings-repository.php",
+                "line": 45
+            },
+            "fingerprint": "sha256:596c0c3de75fc78d3d036e34a6821c2286be3bbd76e8bb6e8b33f04842f01939",
+            "signature": {
+                "inputs": [],
+                "output": "dashboard.number",
+                "reads": [
+                    "dashboard.installation_settings"
+                ]
+            },
+            "effects": []
+        },
+        {
+            "id": "dashboard.update_idle_timeout",
+            "kind": "command",
+            "source": {
+                "path": "app/settings-repository.php",
+                "line": 48
+            },
+            "fingerprint": "sha256:596c0c3de75fc78d3d036e34a6821c2286be3bbd76e8bb6e8b33f04842f01939",
+            "signature": {
+                "inputs": [
+                    {
+                        "name": "session_idle_timeout_minutes",
                         "type": "dashboard.text",
                         "required": true
                     }
@@ -918,10 +965,10 @@
             "id": "dashboard.installation_settings",
             "kind": "entity",
             "source": {
-                "path": "app/base-schema.php",
-                "line": 70
+                "path": "app/schema-layout-upgrade.php",
+                "line": 35
             },
-            "fingerprint": "sha256:85c63322c2ba6c83fcd6162b5cb93dc6986c80f65410541db96a188c4d2f1e27",
+            "fingerprint": "sha256:45dcde750d1bb87481c5e199ddfd20e18cc6915a98ad99f743da23cfc4cd4387",
             "signature": null,
             "effects": [],
             "shape": {
@@ -933,6 +980,11 @@
                     },
                     {
                         "name": "check_interval_minutes",
+                        "type": "dashboard.number",
+                        "required": true
+                    },
+                    {
+                        "name": "session_idle_timeout_minutes",
                         "type": "dashboard.number",
                         "required": true
                     }

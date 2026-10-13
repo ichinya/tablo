@@ -52,7 +52,7 @@ final class IncidentMigrationTest
     public function additiveDdlVersionAndCommitFailuresOrConflictsRollBackOriginalSchemaAndData(): void
     {
         foreach (['CREATE TABLE incidents', 'CREATE UNIQUE INDEX incidents_unresolved', 'CREATE INDEX incidents_site_id',
-            'CREATE TABLE incident_checkpoints', 'PRAGMA main.user_version = 8', 'COMMIT'] as $failure) {
+            'CREATE TABLE incident_checkpoints', 'PRAGMA main.user_version = 9', 'COMMIT'] as $failure) {
             $db = self::predecessor();
             $schema = \Tablo\SqlStatement::checked($db->query('SELECT name,type,sql FROM sqlite_schema ORDER BY name'))->fetchAll();
             $site = \Tablo\SqlStatement::checked($db->query('SELECT * FROM sites'))->fetchAll();

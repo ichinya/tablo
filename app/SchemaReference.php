@@ -16,11 +16,12 @@ final class SchemaReference
         if ($version >= 3) { BaseSchema::migrateToVersionThree($db); }
         if ($version >= 4) { BaseSchema::migrateToVersionFour($db); }
         if ($features['endpoint']) { $db->exec('ALTER TABLE sites ADD COLUMN endpoint_token TEXT'); }
-        if ($version >= 5 && (!$features['endpoint'] || $version === Database::CURRENT_SCHEMA_VERSION)) {
-            HistorySchema::migrateToVersionFive($db, $version === Database::CURRENT_SCHEMA_VERSION ? HistoryCodeDomain::Redirect : HistoryCodeDomain::Legacy);
+        if ($version >= 5 && (!$features['endpoint'] || $version >= 8)) {
+            HistorySchema::migrateToVersionFive($db, $version >= 8 ? HistoryCodeDomain::Redirect : HistoryCodeDomain::Legacy);
         }
         if ($version >= 6) { foreach (IncidentSchema::STATEMENTS as $statement) { $db->exec($statement); } }
         if ($version >= 7) { NotificationSchema::migrate($db); }
+        if ($version >= 9) { SchemaLayoutUpgrade::addSessionSettings($db); }
         return $db;
     }
 }

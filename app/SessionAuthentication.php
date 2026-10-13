@@ -8,7 +8,7 @@ final class SessionAuthentication
 
     public static function refresh(Auth $auth, SessionSetupState $setup): void
     {
-        if ((($_SESSION['authenticated_at'] ?? null) !== null) || (($_SESSION['auth_fingerprint'] ?? null) !== null)) {
+        if (array_intersect(['authenticated_at', 'last_activity_at', 'session_observed_at', 'auth_fingerprint'], array_keys($_SESSION)) !== []) {
             self::validate($auth, $setup, $_SESSION['auth_fingerprint'] ?? null);
         }
     }

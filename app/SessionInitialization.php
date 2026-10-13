@@ -21,8 +21,7 @@ final class SessionInitialization
             'lifetime' => 0, 'path' => '/', 'httponly' => true, 'samesite' => 'Strict',
             'secure' => getenv('TABLO_COOKIE_SECURE') === '1' || (!!($_SERVER['HTTPS'] ?? null) && $_SERVER['HTTPS'] !== 'off'),
         ]);
-        session_start();
+        if (!session_start()) { throw new \RuntimeException('Cannot start session.'); }
         $_SESSION['csrf'] ??= bin2hex(random_bytes(32));
-        SessionExpiry::expire();
     }
 }

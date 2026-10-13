@@ -1,6 +1,17 @@
 {% extends "layout.volt" %}
 {% block content %}
 <section class="panel">
+<h2>Сессия администратора</h2>
+<p>По умолчанию — 30 минут бездействия. Допустимо от 1 до 720 минут; отключить таймаут нельзя. Переходы по страницам и отправка допустимых форм продлевают только окно неактивности. Автоматические запросы его не продлевают. Через 12 часов после входа потребуется новый вход.</p>
+<form method="post" action="/settings/session-timeout">
+<input type="hidden" name="_csrf" value="{{ csrf }}">
+<label for="session-idle-timeout">Таймаут неактивности в минутах</label>
+<input id="session-idle-timeout" name="session_idle_timeout_minutes" type="text" inputmode="numeric" maxlength="16384" value="{{ session_idle_timeout_minutes }}" required>
+{% if errors['session_idle_timeout_minutes'] is defined %}<p class="field-error">{{ errors['session_idle_timeout_minutes'] }}</p>{% endif %}
+<button class="button primary" type="submit">Сохранить таймаут</button>
+</form>
+</section>
+<section class="panel">
 <h2>Уведомления webhook</h2>
 {% if notifications['blocked'] %}<p class="field-error">Остановка дочернего процесса не подтверждена. Доставка заблокирована; требуется проверка процесса оператором.</p>{% endif %}
 <p>По умолчанию выключены. Включение, смена адреса, Bearer или событий действуют для будущих переходов. Сохранение без изменений и выбор приватных полей сохраняют текущие события.</p>

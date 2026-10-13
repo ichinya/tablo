@@ -51,6 +51,10 @@ final class WebFixture
         if (!is_string($raw)) { throw new RuntimeException('HTTP fixture request failed: ' . curl_error($curl) . "\n" . $this->server->diagnostics()); }
         $size = FixtureValue::integer(curl_getinfo($curl, CURLINFO_HEADER_SIZE));
         $status = FixtureValue::integer(curl_getinfo($curl, CURLINFO_RESPONSE_CODE));
+        SessionEvidence::record('http-request', ['fixture' => $this->directory->path, 'path' => $path,
+            'method' => $data === null ? 'GET' : 'POST', 'inputKeys' => $data === null ? [] : array_keys($data),
+            'inputSha256' => hash('sha256', json_encode($data, JSON_THROW_ON_ERROR)), 'status' => $status,
+            'jar' => $options->jar, 'headers' => $options->headers]);
         return ['status' => $status, 'headers' => substr($raw, offset: 0, length: $size), 'body' => substr($raw, $size)];
     }
 

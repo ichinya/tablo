@@ -12,11 +12,12 @@ final class SettingsPages extends WebPage
     public function register(Micro $app): void
     {
         $web = $this;
-        $app->get('/settings', new WebAction($web->settings(...)));
-        $app->post('/settings', new WebAction($web->saveSettings(...)));
-        $app->post('/settings/notifications', new WebAction($web->saveNotifications(...)));
+        $app->get('/settings', new WebAction($web->settings(...), SessionActivity::HumanPage));
+        $app->post('/settings', new WebAction($web->saveSettings(...), SessionActivity::DeliberateForm));
+        $app->post('/settings/session-timeout', new WebAction($web->saveSessionTimeout(...), SessionActivity::DeliberateForm));
+        $app->post('/settings/notifications', new WebAction($web->saveNotifications(...), SessionActivity::DeliberateForm));
     }
-    private function settings(array $errors = [], mixed $submitted = null, int $status = 200): Response
+    private function settings(array $errors = [], mixed $submitted = null, int $status = 200, ?string $idleSubmitted = null): Response
     {
         $notificationSite=null;
         if ((($_GET['notification_site_id'] ?? null) !== null) && $_GET['notification_site_id']!=='') {
@@ -31,9 +32,11 @@ final class SettingsPages extends WebPage
             'notification_status' => $notificationSite===null?$this->notificationOutbox->status():$this->notificationOutbox->statusForSite($notificationSite),
             'notification_site_id' => $notificationSite,
             'notification_status_truncated' => $notificationSite===null && $this->notificationOutbox->statusTruncated(),
-            'check_interval_minutes' => $submitted ?? $this->installation->get()], $status);
+            'check_interval_minutes' => $submitted ?? $this->installation->get(),
+            'session_idle_timeout_minutes' => $idleSubmitted ?? $this->installation->getIdleTimeout()], $status);
     }    private function saveSettings(): Response
     {
+        WebSession::recordActivity();
         try {
             $this->installation->updateInterval($_POST['check_interval_minutes'] ?? null);
             $_SESSION['notice'] = 'Интервал проверок сохранён.';
@@ -41,16 +44,28 @@ final class SettingsPages extends WebPage
         } catch (ValidationException $error) {
             return $this->settings($error->errors, $this->input('check_interval_minutes'), 422);
         }
-    }    private function saveNotifications(): Response
+    }
+
+    private function saveSessionTimeout(): Response
     {
-        session_write_close();
+        WebSession::recordActivity();
+        try {
+            $this->installation->updateIdleTimeout($_POST['session_idle_timeout_minutes'] ?? null);
+            $_SESSION['notice'] = 'Таймаут неактивности сохранён.';
+            return $this->redirect('/settings');
+        } catch (ValidationException $error) {
+            return $this->settings($error->errors, null, 422, $this->input('session_idle_timeout_minutes'));
+        }
+    }
+
+    private function saveNotifications(): Response
+    {
+        WebSession::recordActivity();
         try {
             $this->notifications->update($_POST);
-            session_start();
             $_SESSION['notice']='Настройки уведомлений сохранены.';
             return $this->redirect('/settings');
         } catch (\Throwable $error) {
-            session_start();
             $errors=$error instanceof ValidationException?$error->errors:['notifications'=>'Не удалось сохранить настройки уведомлений.'];
             return $this->settings($errors,null,422);
         }

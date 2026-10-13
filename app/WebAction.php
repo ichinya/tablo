@@ -9,10 +9,17 @@ use Phalcon\Http\Response;
 final class WebAction
 {
     /** @param \Closure(mixed...): Response $handler The registered route arguments stay heterogeneous. */
-    public function __construct(private readonly \Closure $handler) {}
+    public function __construct(private readonly \Closure $handler,
+        private readonly SessionActivity $activity = SessionActivity::Automatic,
+        public readonly SessionResponse $response = SessionResponse::Html) {}
 
     public function __invoke(mixed ...$arguments): Response
     {
-        return ($this->handler)(...$arguments);
+        WebSession::classify($this->activity);
+        try {
+            $response = ($this->handler)(...$arguments);
+            if ($this->activity === SessionActivity::HumanPage && $response->getStatusCode() === 200) { WebSession::recordActivity(); }
+            return $response;
+        } finally { WebSession::classify(SessionActivity::Automatic); }
     }
 }

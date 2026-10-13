@@ -30,7 +30,7 @@ final class NotificationCredentialTest
                 $key=$f->directory->path.'/github-token.key'; $path=$f->directory->path.'/db.sqlite';
                 $f->db = null; $f->vault = null; $f->sites = null;
                 $external=new TokenVault($key,true); $db=Database::connect($path,$external);
-                Assert::same((int)\Tablo\SqlStatement::checked($db->query('PRAGMA user_version'))->fetchColumn(),8);
+                Assert::same((int)\Tablo\SqlStatement::checked($db->query('PRAGMA user_version'))->fetchColumn(),\Tablo\Database::CURRENT_SCHEMA_VERSION);
                 $external = null; $db = null; file_put_contents($key,random_bytes(32)); $external=new TokenVault($key,true);
                 Assert::instanceOf(IncidentFixtures::error(static fn()=>Database::connect($path,$external)),SharedKeyFailure::class);
             } finally { $external = null; $db = null; $f->close(); }

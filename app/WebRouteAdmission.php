@@ -5,7 +5,7 @@ namespace Tablo;
 
 final class WebRouteAdmission
 {
-    public static function admit(PageResponse $page,string $path, SessionSetupState $setup): ?\Phalcon\Http\Response
+    public static function admit(PageResponse $page,string $path, SessionSetupState $setup, SessionResponse $response = SessionResponse::Html): ?\Phalcon\Http\Response
     {
         $needsSetup = $setup === SessionSetupState::Required;
         if (!$needsSetup && $path === '/setup') {
@@ -16,7 +16,7 @@ final class WebRouteAdmission
             return $page->redirect('/setup');
         }
         if (!$public && !(($_SESSION['authenticated_at'] ?? null) !== null)) {
-            return $page->redirect('/login');
+            return $response === SessionResponse::Json ? $page->json(['error' => 'Authentication required.'], 401) : $page->redirect('/login');
         }
         return null;
     }

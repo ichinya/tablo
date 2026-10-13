@@ -24,8 +24,15 @@ final class SchemaLayoutUpgrade
             }
             if (!$layout['endpoint']) { $db->exec('ALTER TABLE sites ADD COLUMN endpoint_token TEXT'); }
             if (!$layout['history']) { HistorySchema::migrateToVersionFive($db, HistoryCodeDomain::Redirect); }
-            if ($layout['history'] && $layout['version'] !== Database::CURRENT_SCHEMA_VERSION) { HistorySchema::widenHistory($db); }
+            if ($layout['history'] && $layout['version'] < 8) { HistorySchema::widenHistory($db); }
             if (!$layout['incidents']) { foreach (IncidentSchema::STATEMENTS as $statement) { $db->exec($statement); } }
             if (!$layout['notifications']) { NotificationSchema::migrate($db); }
+            if ($layout['version'] < 9) { self::addSessionSettings($db); }
+    }
+
+    public static function addSessionSettings(\PDO $db): void
+    {
+        $db->exec("ALTER TABLE installation_settings ADD COLUMN session_idle_timeout_minutes INTEGER NOT NULL DEFAULT 30
+            CHECK (typeof(session_idle_timeout_minutes) = 'integer' AND session_idle_timeout_minutes BETWEEN 1 AND 720)");
     }
 }

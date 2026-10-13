@@ -14,27 +14,28 @@ final class SitePages extends WebPage
     public function register(Micro $app): void
     {
         $web = $this;
-        $app->get('/sites/new', new WebAction(static fn () => (new SiteFormPage($web->tokens,$web->page))->form(SiteInput::defaults())));
-        $app->post('/sites/new', new WebAction($web->save(...)));
-        $app->post('/sites/branches', new WebAction((new SiteBranchesPage($web->sites,$web->github,$web->page))->branches(...)));
+        $app->get('/sites/new', new WebAction(static fn () => (new SiteFormPage($web->tokens,$web->page))->form(SiteInput::defaults()), SessionActivity::HumanPage));
+        $app->post('/sites/new', new WebAction($web->save(...), SessionActivity::DeliberateForm));
+        $app->post('/sites/branches', new WebAction((new SiteBranchesPage($web->sites,$web->github,$web->page))->branches(...), SessionActivity::DeliberateForm, SessionResponse::Json));
         $app->get('/sites/{id:[0-9]+}/edit', new WebAction(static function ($id) use ($web) {
             $site = $web->sites->find((int) $id);
             return $site ? (new SiteFormPage($web->tokens,$web->page))->form($site, (int) $id) : $web->notFound();
-        }));
-        $app->post('/sites/{id:[0-9]+}/edit', new WebAction(static fn ($id) => $web->save((int) $id)));
+        }, SessionActivity::HumanPage));
+        $app->post('/sites/{id:[0-9]+}/edit', new WebAction(static fn ($id) => $web->save((int) $id), SessionActivity::DeliberateForm));
         $app->get('/sites/{id:[0-9]+}/delete', new WebAction(static function ($id) use ($web) {
             $site = $web->sites->find((int) $id);
             return $site ? $web->render('delete', ['title' => 'Удалить сайт', 'site' => SiteProjection::publicSite($site)]) : $web->notFound();
-        }));
+        }, SessionActivity::HumanPage));
         $app->post('/sites/{id:[0-9]+}/delete', new WebAction(static function ($id) use ($web) {
             if (!$web->sites->find((int) $id)) {
                 return $web->notFound();
             }
+            WebSession::recordActivity();
             $web->sites->delete((int) $id);
             $_SESSION['notice'] = 'Сайт удалён.';
             return $web->redirect('/');
-        }));
-        $app->post('/sites/{id:[0-9]+}/check', new WebAction(static fn ($id) => $web->manual->check((int) $id)));
+        }, SessionActivity::DeliberateForm));
+        $app->post('/sites/{id:[0-9]+}/check', new WebAction(static fn ($id) => $web->manual->check((int) $id), SessionActivity::DeliberateForm));
     }
     private function save(?int $id = null): Response
     {
@@ -42,9 +43,10 @@ final class SitePages extends WebPage
         if ($id !== null && !$existing) {
             return $this->notFound();
         }
+        WebSession::recordActivity();
         try {
-            SiteInput::normalize($_POST); // Reject invalid endpoint input before any Git request.
-            $this->github->validate(SiteProjection::withoutEndpointCredential($_POST), SiteProjection::gitCredentials($existing));
+            $refusal = (new SiteSaveValidation($this->github))->validate($existing);
+            if ($refusal !== null) { return $refusal; }
             $this->sites->save($_POST, $id);
             $_SESSION['notice'] = $id === null ? 'Сайт добавлен. Запустите первую проверку.' : 'Настройки сохранены. Запустите новую проверку.';
             return $this->redirect('/');

@@ -30,7 +30,7 @@ final class CompositionMigrationPdo extends PDO
     public function exec(string $statement): int|false
     {
         $result = parent::exec($statement);
-        if ($this->deferCommitFailure && $statement === 'PRAGMA main.user_version = 8') {
+        if ($this->deferCommitFailure && $statement === 'PRAGMA main.user_version = 9') {
             parent::exec('INSERT INTO migration_commit_control VALUES(-1)');
         }
         return $result;

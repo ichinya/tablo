@@ -12,20 +12,21 @@ final class TokenPages extends WebPage
     public function register(Micro $app): void
     {
         $web = $this;
-        $app->get('/settings/tokens/new', new WebAction(static fn () => $web->tokenForm(['name' => '', 'provider' => 'github'])));
-        $app->post('/settings/tokens/new', new WebAction($web->saveToken(...)));
+        $app->get('/settings/tokens/new', new WebAction(static fn () => $web->tokenForm(['name' => '', 'provider' => 'github']), SessionActivity::HumanPage));
+        $app->post('/settings/tokens/new', new WebAction($web->saveToken(...), SessionActivity::DeliberateForm));
         $app->get('/settings/tokens/{id:[0-9]+}/edit', new WebAction(static function ($id) use ($web) {
             $token = $web->tokens->find((int) $id);
             return $token ? $web->tokenForm($token, (int) $id) : $web->notFound();
-        }));
-        $app->post('/settings/tokens/{id:[0-9]+}/edit', new WebAction(static fn ($id) => $web->saveToken((int) $id)));
+        }, SessionActivity::HumanPage));
+        $app->post('/settings/tokens/{id:[0-9]+}/edit', new WebAction(static fn ($id) => $web->saveToken((int) $id), SessionActivity::DeliberateForm));
         $app->get('/settings/tokens/{id:[0-9]+}/delete', new WebAction(static function ($id) use ($web) {
             $token = $web->tokens->find((int) $id);
             return $token ? $web->render('token-delete', ['title' => 'Удалить токен', 'token' => $token]) : $web->notFound();
-        }));
+        }, SessionActivity::HumanPage));
         $app->post('/settings/tokens/{id:[0-9]+}/delete', new WebAction(static function ($id) use ($web) {
             $token = $web->tokens->find((int) $id);
             if (!$token) { return $web->notFound(); }
+            WebSession::recordActivity();
             try {
                 $web->tokens->delete((int) $id);
                 $_SESSION['notice'] = 'Токен удалён.';
@@ -33,7 +34,7 @@ final class TokenPages extends WebPage
             } catch (ValidationException $e) {
                 return $web->render('token-delete', ['title' => 'Удалить токен', 'token' => $token, 'errors' => $e->errors], 422);
             }
-        }));
+        }, SessionActivity::DeliberateForm));
     }
     private function tokenForm(#[\SensitiveParameter] array $token, ?int $id = null, array $errors = [], int $status = 200): Response
     {
@@ -43,6 +44,7 @@ final class TokenPages extends WebPage
     }    private function saveToken(?int $id = null): Response
     {
         if ($id !== null && !$this->tokens->find($id)) { return $this->notFound(); }
+        WebSession::recordActivity();
         try {
             $this->tokens->save($_POST, $id);
             $_SESSION['notice'] = $id === null ? 'Токен добавлен.' : 'Токен обновлён.';

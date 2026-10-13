@@ -367,6 +367,22 @@
                 "dashboard.deliver_notification",
                 "dashboard.read_notification_status"
             ]
+        },
+        {
+            "id": "dashboard.session_idle_policy",
+            "kind": "scenario",
+            "version": 1,
+            "summary": "Real cookies/CSRF and internally controlled epochs prove inclusive idle/absolute expiry, immutable start, hostile/legacy/future/rollback timestamps, meaningful422 versus419/413/404, two independent sessions applying current settings, original-cookie/CSRF rejection and repeat login. Real enabled counted peer receives zero denied effects; independently handled peers prove native lock release and post-network logout/expiry/password/login/policy/rollback rejection. Explicit Automatic native handler boundary never refreshes idle. Schema8-to9 keeps accepted history/FK/transaction ownership and current no-DDL; failure rollback and missing singleton reads remain safe. Upgrade requires one re-login. Wall-time reversals unseen between observations remain undetectable.",
+            "covers": [
+                "dashboard.setup",
+                "dashboard.login",
+                "dashboard.logout",
+                "dashboard.get_idle_timeout",
+                "dashboard.update_idle_timeout",
+                "dashboard.installation_settings",
+                "dashboard.check_site",
+                "dashboard.list_branches"
+            ]
         }
     ]
 }

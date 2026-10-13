@@ -29,7 +29,7 @@ final class ProtectedRouteRevocationAssertions
             }
             foreach (['/sites/new', '/sites/branches', '/sites/1/edit', '/sites/1/delete', '/sites/1/check',
                 '/settings/tokens/new', '/settings/tokens/1/edit', '/settings/tokens/1/delete', '/logout'] as $route) {
-                Assert::same($this->web->request($route, ['_csrf' => $csrf, 'name' => 'hostile mutation'])['status'], 303);
+                Assert::same($this->web->request($route, ['_csrf' => $csrf, 'name' => 'hostile mutation'])['status'], $route === '/sites/branches' ? 401 : 303);
             }
             foreach (['sites', 'git_tokens'] as $table) { Assert::same(\Tablo\SqlStatement::checked($this->db->query('SELECT * FROM ' . $table))->fetchAll(), \Tablo\Tests\Support\FixtureValue::at($tables, $table)); }
 
