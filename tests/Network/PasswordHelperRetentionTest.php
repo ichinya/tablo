@@ -46,7 +46,12 @@ final class PasswordHelperRetentionTest
                 $receipt = self::receipt($evidence->path . '/final.receipt.json');
                 Assert::true($receipt['closed'] && $receipt['root_exit_observed']);
                 Assert::true($receipt['pid'] !== null);
-                Assert::true($receipt['exit_code'] !== null && $receipt['exit_code'] !== 0);
+                Assert::true($receipt['exit_code'] !== 0);
+                if ($receipt['exit_code'] === null) {
+                    $status = JsonRecord::checked(FixtureValue::at(self::helperRecord($evidence->path . '/final.receipt.json'), 'raw_status'));
+                    Assert::same(FixtureValue::at($status, 'signaled'), true);
+                    Assert::true(FixtureValue::integer(FixtureValue::at($status, 'termsig')) > 0);
+                }
                 Assert::true(in_array('termination-request-returned', array_column($receipt['events'], 'stage'), strict: true));
                 Assert::true(in_array('after-termination-wait', array_column($receipt['events'], 'stage'), strict: true));
                 $stdout = \Tablo\RequiredFile::bytes(file_get_contents($evidence->path . '/final.stdout'));
@@ -71,10 +76,8 @@ final class PasswordHelperRetentionTest
         foreach (['malformed', 'ok'] as $mode) {
             $directory = new TemporaryDirectory('tablo-helper-assertion-control-');
             $evidence = new PasswordHelperEvidence($directory, PasswordHelperCase::diagnostic($mode));
-            $dbPath = $directory->path . '/synthetic.sqlite';
-            $db = new PDO('sqlite:' . $dbPath);
-            $db->exec("CREATE TABLE synthetic_marker (value TEXT); INSERT INTO synthetic_marker VALUES ('retention-control')");
-            $db = null;
+            $fixtureDb = new \Tablo\Tests\Support\PasswordHelperDatabaseFixture($directory);
+            $dbPath = $fixtureDb->path;
             $result = Subprocess::run($evidence->case->argv, $directory, []);
             Assert::same($result['exit_code'], 0);
             $receipt = self::receipt($result['files']['receipt']);
@@ -104,9 +107,28 @@ final class PasswordHelperRetentionTest
             Assert::same(\Tablo\SqlStatement::checked($db->query('SELECT value FROM synthetic_marker'))->fetchColumn(), 'retention-control');
             $db->exec('COMMIT');
             $db = null;
+            $export = \Tablo\Tests\Support\PasswordHelperDatabaseExport::capture($fixtureDb, basename($evidence->path));
+            Assert::same(\Tablo\RequiredFile::digest($export['path']), FixtureValue::at($hashes, 0));
+            Assert::same($export['bytes'], strlen(\Tablo\RequiredFile::bytes(file_get_contents($dbPath))));
+            \Tablo\Tests\Support\PasswordHelperEvidenceFiles::record($evidence->path . '/private-database-metadata.json',
+                ['classification' => 'Private export verified; DB body excluded from helper artifact', 'sha256' => $export['sha256'], 'bytes' => $export['bytes']]);
+            if ($mode === 'ok') { self::assertReplacementRefused($fixtureDb, $export['path'], basename($evidence->path)); }
             $directory->close();
-            Assert::same(\Tablo\RequiredFile::digest($dbPath), FixtureValue::at($hashes, 0));
+            Assert::same(\Tablo\RequiredFile::digest($export['path']), FixtureValue::at($hashes, 0));
         }
     }
 
+    private static function assertReplacementRefused(\Tablo\Tests\Support\PasswordHelperDatabaseFixture $original, string $export, string $case): void
+    {
+        $replacementDirectory = new TemporaryDirectory('tablo-helper-provenance-control-');
+        $replacement = new \Tablo\Tests\Support\PasswordHelperDatabaseFixture($replacementDirectory, 'replacement');
+        $replacementCopy = \Tablo\Tests\Support\PasswordHelperDatabaseExport::capture($replacement, $case);
+        file_put_contents($original->path, \Tablo\RequiredFile::bytes(file_get_contents($replacement->path)));
+        try {
+            try { \Tablo\Tests\Support\PasswordHelperDatabaseExport::capture($original, $case); Assert::fail('Changed database provenance must refuse export'); }
+            catch (RuntimeException $error) { Assert::true(str_contains($error->getMessage(), 'provenance bytes changed')); }
+            Assert::same(\Tablo\RequiredFile::digest($export), $original->sha256, 'original bytes survive rejected replacement');
+            Assert::same(\Tablo\RequiredFile::digest($replacementCopy['path']), $replacement->sha256, 'exact failed synthetic replacement input remains private');
+        } finally { $replacementDirectory->close(); }
+    }
 }

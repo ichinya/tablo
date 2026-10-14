@@ -7376,5 +7376,35 @@
       "tests/Network/PasswordHelperRetentionTest.php",
       "Native dashboard.setup/login/change_admin_password attachment"
     ]
+  },
+  "tests/Support/PasswordHelperDatabaseFixture.php": {
+    "owner": "Tablo\\Tests\\Support\\PasswordHelperDatabaseFixture",
+    "consumers": [
+      "Composer lint",
+      "Composer analyze",
+      "Composer verify",
+      "tests/Network/PasswordHelperRetentionTest.php",
+      "Private explicitly seeded synthetic database preservation; excluded from default helper artifact"
+    ]
+  },
+  "tests/Support/PasswordHelperDatabaseTarget.php": {
+    "owner": "Tablo\\Tests\\Support\\PasswordHelperDatabaseTarget",
+    "consumers": [
+      "Composer lint",
+      "Composer analyze",
+      "Composer verify",
+      "tests/Network/PasswordHelperRetentionTest.php",
+      "Private explicitly seeded synthetic database preservation; excluded from default helper artifact"
+    ]
+  },
+  "tests/Support/PasswordHelperDatabaseExport.php": {
+    "owner": "Tablo\\Tests\\Support\\PasswordHelperDatabaseExport",
+    "consumers": [
+      "Composer lint",
+      "Composer analyze",
+      "Composer verify",
+      "tests/Network/PasswordHelperRetentionTest.php",
+      "Private explicitly seeded synthetic database preservation; excluded from default helper artifact"
+    ]
   }
 }

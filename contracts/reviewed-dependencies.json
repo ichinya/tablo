@@ -8,7 +8,7 @@
                 "Composer verify",
                 "Reviewed dependency capture"
             ],
-            "fingerprint": "sha256:c1e9d3da1177ef8e88477e9eb985c218f660b7166533898caf2369f1eb163f94"
+            "fingerprint": "sha256:f7424ca83ab50e61fb660df16bd6f24581918e6e90fb7b35ddd02780020bfdae"
         },
         {
             "path": "tools/reviewed-dependencies.php",
@@ -9117,7 +9117,7 @@
                 "tests/Network/PasswordHelperRetentionTest.php",
                 "Native dashboard.setup/login/change_admin_password attachment"
             ],
-            "fingerprint": "sha256:7321474a00d1e831bd796b348f853586cc736e5f4660ad1839b52d535e66186b"
+            "fingerprint": "sha256:e678988f32134b3322410bc25af5c9413ee8a1d1347f0c1a88ff60c98da93f29"
         },
         {
             "path": "tests/Support/PasswordHelperCapture.php",
@@ -9230,6 +9230,42 @@
                 "Native dashboard.setup/login/change_admin_password attachment"
             ],
             "fingerprint": "sha256:364900353e21acc3969eb6d441f762a17b383b4205f6d2ca6c6d201b64ab62ef"
+        },
+        {
+            "path": "tests/Support/PasswordHelperDatabaseFixture.php",
+            "owner": "Tablo\\Tests\\Support\\PasswordHelperDatabaseFixture",
+            "consumers": [
+                "Composer lint",
+                "Composer analyze",
+                "Composer verify",
+                "tests/Network/PasswordHelperRetentionTest.php",
+                "Private explicitly seeded synthetic database preservation; excluded from default helper artifact"
+            ],
+            "fingerprint": "sha256:78a6be89ab5405d8e5bf91c0a040c2be1b104f0dc01da20befa68ecf0b7866b0"
+        },
+        {
+            "path": "tests/Support/PasswordHelperDatabaseTarget.php",
+            "owner": "Tablo\\Tests\\Support\\PasswordHelperDatabaseTarget",
+            "consumers": [
+                "Composer lint",
+                "Composer analyze",
+                "Composer verify",
+                "tests/Network/PasswordHelperRetentionTest.php",
+                "Private explicitly seeded synthetic database preservation; excluded from default helper artifact"
+            ],
+            "fingerprint": "sha256:3c4ff87df78ce9b29f3f83a527dad81c76982d9da1af8c3d39720cd1d7c0c771"
+        },
+        {
+            "path": "tests/Support/PasswordHelperDatabaseExport.php",
+            "owner": "Tablo\\Tests\\Support\\PasswordHelperDatabaseExport",
+            "consumers": [
+                "Composer lint",
+                "Composer analyze",
+                "Composer verify",
+                "tests/Network/PasswordHelperRetentionTest.php",
+                "Private explicitly seeded synthetic database preservation; excluded from default helper artifact"
+            ],
+            "fingerprint": "sha256:777c59211aefc2fa9e61e221842f89aae0bfaafa4902b7e8606b4a1591b5d4e2"
         }
     ]
 }
