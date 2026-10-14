@@ -14,6 +14,7 @@ final class SubprocessState
     public ?int $pid = null;
     public bool $running = false;
     public bool $closed = false;
+    public readonly ?PasswordHelperEvidence $evidence;
     /** @var list<array{utc: string, stage: string, ...}> */
     public array $events = [];
     /** @var list<string> */
@@ -25,6 +26,8 @@ final class SubprocessState
     {
         $name = $directory->path . '/command-' . bin2hex(random_bytes(12));
         $this->files = ['stdout' => $name . '.out', 'stderr' => $name . '.err', 'receipt' => $name . '.json'];
+        $this->evidence = PasswordHelperEvidence::active($directory);
+        $this->secrets = $this->evidence?->case->secrets ?? [];
     }
     /** @param array{utc?: string, stage?: string, ...} $detail */
     public function event(string $stage, array $detail = []): void
@@ -32,7 +35,12 @@ final class SubprocessState
         $event = ['utc' => gmdate('c'), 'stage' => $stage, ...$detail];
         $event['utc'] = FixtureValue::string($event['utc']);
         $event['stage'] = FixtureValue::string($event['stage']);
+        if ($this->evidence !== null) {
+            $event['monotonic_ns'] = hrtime(true);
+            $this->secrets = array_values(array_unique([...$this->secrets, ...$this->evidence->case->secrets]));
+        }
         $this->events[] = $event;
+        $this->evidence?->observe($this);
     }
 
     /** @return resource */

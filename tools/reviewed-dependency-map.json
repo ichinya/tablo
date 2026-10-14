@@ -3599,7 +3599,9 @@
   "tests/fixtures/session-cookie-client.php": {
     "owner": "Owned shared native libcurl cookie client",
     "consumers": [
-      "Original session snapshot and real browser cookie ordering controls"
+      "Original session snapshot and real browser cookie ordering controls",
+      "tests/Http/SessionCookieRaceTest.php",
+      "Synthetic shared-cookie new-login CSRF old-response race"
     ]
   },
   "tests/fixtures/session-request.php": {
@@ -4828,7 +4830,10 @@
     "consumers": [
       "Composer lint",
       "Composer verify",
-      "Composer analyze"
+      "Composer analyze",
+      "tests/Network/PasswordHelperTest.php",
+      "tests/Network/PasswordHelperDiagnosticsTest.php",
+      "tests/Network/PasswordHelperRetentionTest.php"
     ]
   },
   "tests/Network/PasswordHelperTest.php": {
@@ -5302,7 +5307,9 @@
     "consumers": [
       "Composer lint",
       "Composer verify",
-      "Composer analyze"
+      "Composer analyze",
+      "tests/Http/SessionCookieRaceTest.php",
+      "Synthetic shared-cookie new-login CSRF old-response race"
     ]
   },
   "tests/Support/FixtureFailureEvidence.php": {
@@ -5696,7 +5703,10 @@
     "consumers": [
       "Composer lint",
       "Composer verify",
-      "Composer analyze"
+      "Composer analyze",
+      "tests/Network/PasswordHelperTest.php",
+      "tests/Network/PasswordHelperDiagnosticsTest.php",
+      "tests/Network/PasswordHelperRetentionTest.php"
     ]
   },
   "tests/Support/SubprocessCompletion.php": {
@@ -5744,7 +5754,10 @@
     "consumers": [
       "Composer lint",
       "Composer verify",
-      "Composer analyze"
+      "Composer analyze",
+      "tests/Network/PasswordHelperTest.php",
+      "tests/Network/PasswordHelperDiagnosticsTest.php",
+      "tests/Network/PasswordHelperRetentionTest.php"
     ]
   },
   "tests/Support/SubprocessReceipt.php": {
@@ -5752,7 +5765,10 @@
     "consumers": [
       "Composer lint",
       "Composer verify",
-      "Composer analyze"
+      "Composer analyze",
+      "tests/Network/PasswordHelperTest.php",
+      "tests/Network/PasswordHelperDiagnosticsTest.php",
+      "tests/Network/PasswordHelperRetentionTest.php"
     ]
   },
   "tests/Support/SubprocessReceiptData.php": {
@@ -5792,7 +5808,10 @@
     "consumers": [
       "Composer lint",
       "Composer verify",
-      "Composer analyze"
+      "Composer analyze",
+      "tests/Network/PasswordHelperTest.php",
+      "tests/Network/PasswordHelperDiagnosticsTest.php",
+      "tests/Network/PasswordHelperRetentionTest.php"
     ]
   },
   "tests/Support/TemporaryDirectory.php": {
@@ -7001,7 +7020,10 @@
   "tools/admin-password.ps1": {
     "owner": "PowerShell protected input helper",
     "consumers": [
-      "Local or Docker administrator password CLI stdin"
+      "Local or Docker administrator password CLI stdin",
+      "tests/Network/PasswordHelperTest.php",
+      "tests/Network/PasswordHelperDiagnosticsTest.php",
+      "tests/Network/PasswordHelperRetentionTest.php"
     ]
   },
   "tools/analyze.php": {
@@ -7233,6 +7255,126 @@
       "dashboard.get_notifications",
       "dashboard.update_notifications",
       "dashboard.read_notification_status"
+    ]
+  },
+  "tests/Network/PasswordHelperDiagnosticsTest.php": {
+    "owner": "Tablo\\Tests\\Network\\PasswordHelperDiagnosticsTest",
+    "consumers": [
+      "Composer lint",
+      "Composer analyze",
+      "Composer verify",
+      "tests/Network/PasswordHelperTest.php",
+      "tests/Network/PasswordHelperDiagnosticsTest.php",
+      "tests/Network/PasswordHelperRetentionTest.php",
+      "Native dashboard.setup/login/change_admin_password attachment"
+    ]
+  },
+  "tests/Network/PasswordHelperRetentionTest.php": {
+    "owner": "Tablo\\Tests\\Network\\PasswordHelperRetentionTest",
+    "consumers": [
+      "Composer lint",
+      "Composer analyze",
+      "Composer verify",
+      "tests/Network/PasswordHelperTest.php",
+      "tests/Network/PasswordHelperDiagnosticsTest.php",
+      "tests/Network/PasswordHelperRetentionTest.php",
+      "Native dashboard.setup/login/change_admin_password attachment"
+    ]
+  },
+  "tests/Support/PasswordHelperCapture.php": {
+    "owner": "Tablo\\Tests\\Support\\PasswordHelperCapture",
+    "consumers": [
+      "Composer lint",
+      "Composer analyze",
+      "Composer verify",
+      "tests/Network/PasswordHelperTest.php",
+      "tests/Network/PasswordHelperDiagnosticsTest.php",
+      "tests/Network/PasswordHelperRetentionTest.php",
+      "Native dashboard.setup/login/change_admin_password attachment"
+    ]
+  },
+  "tests/Support/PasswordHelperCase.php": {
+    "owner": "Tablo\\Tests\\Support\\PasswordHelperCase",
+    "consumers": [
+      "Composer lint",
+      "Composer analyze",
+      "Composer verify",
+      "tests/Network/PasswordHelperTest.php",
+      "tests/Network/PasswordHelperDiagnosticsTest.php",
+      "tests/Network/PasswordHelperRetentionTest.php",
+      "Native dashboard.setup/login/change_admin_password attachment"
+    ]
+  },
+  "tests/Support/PasswordHelperEvidence.php": {
+    "owner": "Tablo\\Tests\\Support\\PasswordHelperEvidence",
+    "consumers": [
+      "Composer lint",
+      "Composer analyze",
+      "Composer verify",
+      "tests/Network/PasswordHelperTest.php",
+      "tests/Network/PasswordHelperDiagnosticsTest.php",
+      "tests/Network/PasswordHelperRetentionTest.php",
+      "Native dashboard.setup/login/change_admin_password attachment"
+    ]
+  },
+  "tests/Support/PasswordHelperEvidenceFiles.php": {
+    "owner": "Tablo\\Tests\\Support\\PasswordHelperEvidenceFiles",
+    "consumers": [
+      "Composer lint",
+      "Composer analyze",
+      "Composer verify",
+      "tests/Network/PasswordHelperTest.php",
+      "tests/Network/PasswordHelperDiagnosticsTest.php",
+      "tests/Network/PasswordHelperRetentionTest.php",
+      "Native dashboard.setup/login/change_admin_password attachment"
+    ]
+  },
+  "tests/Support/PasswordHelperEvidenceStart.php": {
+    "owner": "Tablo\\Tests\\Support\\PasswordHelperEvidenceStart",
+    "consumers": [
+      "Composer lint",
+      "Composer analyze",
+      "Composer verify",
+      "tests/Network/PasswordHelperTest.php",
+      "tests/Network/PasswordHelperDiagnosticsTest.php",
+      "tests/Network/PasswordHelperRetentionTest.php",
+      "Native dashboard.setup/login/change_admin_password attachment"
+    ]
+  },
+  "tests/Support/PasswordHelperFailureState.php": {
+    "owner": "Tablo\\Tests\\Support\\PasswordHelperFailureState",
+    "consumers": [
+      "Composer lint",
+      "Composer analyze",
+      "Composer verify",
+      "tests/Network/PasswordHelperTest.php",
+      "tests/Network/PasswordHelperDiagnosticsTest.php",
+      "tests/Network/PasswordHelperRetentionTest.php",
+      "Native dashboard.setup/login/change_admin_password attachment"
+    ]
+  },
+  "tests/fixtures/helper-diagnostic.php": {
+    "owner": "php-script:tests/fixtures/helper-diagnostic.php",
+    "consumers": [
+      "Composer lint",
+      "Composer analyze",
+      "Composer verify",
+      "tests/Network/PasswordHelperTest.php",
+      "tests/Network/PasswordHelperDiagnosticsTest.php",
+      "tests/Network/PasswordHelperRetentionTest.php",
+      "Native dashboard.setup/login/change_admin_password attachment"
+    ]
+  },
+  "tests/fixtures/password-helper-input.ps1": {
+    "owner": "powershell-script:tests/fixtures/password-helper-input.ps1",
+    "consumers": [
+      "Composer lint",
+      "Composer analyze",
+      "Composer verify",
+      "tests/Network/PasswordHelperTest.php",
+      "tests/Network/PasswordHelperDiagnosticsTest.php",
+      "tests/Network/PasswordHelperRetentionTest.php",
+      "Native dashboard.setup/login/change_admin_password attachment"
     ]
   }
 }

@@ -126,6 +126,7 @@ try {
                 default => 'tests/Unit/SiteRepositoryTest.php,tests/Unit/SiteCredentialCrudTest.php,tests/Unit/SiteTokenRotationTest.php,tests/Unit/SiteHistoricalCrudTest.php',
             };
             if (in_array($symbol['id'], ['dashboard.setup', 'dashboard.login', 'dashboard.change_admin_password'], strict: true)) {
+                $unitTests .= ',tests/Network/PasswordHelperDiagnosticsTest.php,tests/Network/PasswordHelperRetentionTest.php';
                 $unitTests .= ',tests/Unit/PasswordServiceTest.php,tests/Unit/PasswordPrivacyTest.php,tests/Unit/AdminPasswordTest.php,tests/Network/AdminPasswordTest.php,tests/Network/AdminPasswordSelectionTest.php,tests/Network/AdminPasswordStorageTest.php,tests/Network/AdminPasswordConflictTest.php,tests/Network/PasswordHelperTest.php,tests/Http/AdminPasswordTest.php,tests/Http/PasswordSessionAdmissionTest.php,tests/Http/PasswordLoginRaceTest.php,tests/Http/PasswordCommitVisibilityTest.php';
             }
             if (in_array($symbol['id'], ['dashboard.list_branches', 'dashboard.check_site', 'dashboard.create_site', 'dashboard.update_site'], strict: true)) {

@@ -6,7 +6,8 @@ param(
     [ValidateSet('unicode', 'min', 'max', 'short', 'long', 'startFailure', 'cancel', 'encodingFailure')]
     [string] $Scenario = 'unicode',
     [ValidateSet('Native', 'Docker', 'DockerStopped')]
-    [string] $Mode = 'Native'
+    [string] $Mode = 'Native',
+    [string] $ObservationPath = ''
 )
 
 $ErrorActionPreference = 'Stop'
@@ -51,7 +52,15 @@ if ($Scenario -eq 'startFailure') {
     }
 }
 
-& $Helper -Mode $Mode
+if ($ObservationPath -ne '') {
+    $fixtureObserverPath = $ObservationPath
+    $fixtureObserver = {
+        param([hashtable] $Record)
+        $fixtureLine = ($Record | ConvertTo-Json -Depth 5 -Compress) + [Environment]::NewLine
+        [IO.File]::AppendAllText($fixtureObserverPath, $fixtureLine, (New-Object Text.UTF8Encoding($false, $true)))
+    }.GetNewClosure()
+    & $Helper -Mode $Mode -Observation $fixtureObserver
+} else { & $Helper -Mode $Mode }
 $fixtureExit = $LASTEXITCODE
 $fixtureAfter = [Console]::InputEncoding
 $fixtureMetadata = @{
@@ -67,4 +76,17 @@ $fixtureMetadata = @{
     hasStandardInputEncoding = ($null -ne [Diagnostics.ProcessStartInfo].GetProperty('StandardInputEncoding'))
 }
 [Console]::Out.WriteLine('HELPER_METADATA=' + ($fixtureMetadata | ConvertTo-Json -Compress))
+if ($ObservationPath -ne '') {
+    try {
+        & $fixtureObserver @{
+            stage = 'fixture-preexit'
+            utc = [DateTime]::UtcNow.ToString('o')
+            monotonicTicks = [Diagnostics.Stopwatch]::GetTimestamp()
+            monotonicFrequency = [Diagnostics.Stopwatch]::Frequency
+            wrapperPid = $PID
+            helperExit = $fixtureExit
+            closure = 'UNKNOWN; fixture is still running'
+        }
+    } catch { [Console]::Error.WriteLine('HELPER_OBSERVER_FAILURE=' + $_.Exception.GetType().FullName) }
+}
 exit $fixtureExit

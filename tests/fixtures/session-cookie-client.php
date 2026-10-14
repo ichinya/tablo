@@ -72,7 +72,7 @@ curl_multi_add_handle($multi, $manual);
 session_cookie_wait($multi, $barrier . '/entered');
 file_put_contents($clock, (string) (Tablo\Tests\Support\SessionFixture::START + 1), LOCK_EX);
 $login = session_cookie_handle($second . '/login', $jar, $share, ['_csrf' => $csrf,
-    'password' => Tablo\Tests\Support\FixtureCredentials::value('fixture-password')]);
+    'password' => Tablo\Tests\Support\FixtureCredentials::syntheticPassword()]);
 curl_multi_add_handle($multi, $login);
 session_cookie_finish($multi, $login);
 $loginStatus = (int) curl_getinfo($login, CURLINFO_RESPONSE_CODE);

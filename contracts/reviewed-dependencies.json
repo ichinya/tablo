@@ -8,7 +8,7 @@
                 "Composer verify",
                 "Reviewed dependency capture"
             ],
-            "fingerprint": "sha256:7ae23581b7b38081f5719161dcdbb5fe27b43817f98e729649977756aca61535"
+            "fingerprint": "sha256:c1e9d3da1177ef8e88477e9eb985c218f660b7166533898caf2369f1eb163f94"
         },
         {
             "path": "tools/reviewed-dependencies.php",
@@ -43,7 +43,7 @@
             "consumers": [
                 "Hosted pinned contract and native PHP gates"
             ],
-            "fingerprint": "sha256:bc37b277f8de73e31b9ee18c28a93a56e804844a866a1b1a07310b9385290915"
+            "fingerprint": "sha256:c7b2bf08096b58f6e200bc38cefebf82965fe69e348b68a184b645f1e923fa2c"
         },
         {
             "path": "app/AddressRange.php",
@@ -4520,9 +4520,11 @@
             "path": "tests/fixtures/session-cookie-client.php",
             "owner": "Owned shared native libcurl cookie client",
             "consumers": [
-                "Original session snapshot and real browser cookie ordering controls"
+                "Original session snapshot and real browser cookie ordering controls",
+                "tests/Http/SessionCookieRaceTest.php",
+                "Synthetic shared-cookie new-login CSRF old-response race"
             ],
-            "fingerprint": "sha256:03f5b1301b8e0e279e6ccb399d9f1189fb1b7de6bebcd6d6d2a818afc7af8207"
+            "fingerprint": "sha256:5a1e14503c426440e81d28eb9200e2017f0f4c24082c5d9055ad6a8b356a1ed8"
         },
         {
             "path": "tests/fixtures/session-request.php",
@@ -6061,9 +6063,12 @@
             "consumers": [
                 "Composer lint",
                 "Composer verify",
-                "Composer analyze"
+                "Composer analyze",
+                "tests/Network/PasswordHelperTest.php",
+                "tests/Network/PasswordHelperDiagnosticsTest.php",
+                "tests/Network/PasswordHelperRetentionTest.php"
             ],
-            "fingerprint": "sha256:c3e97497deddea8447e90059c2765fe0d81307e9044ed0f47341fdf83f758cc0"
+            "fingerprint": "sha256:4daae26c64c731d93fdcb5468754777963f6bf2ddf17e98b07d80cc7b28291bf"
         },
         {
             "path": "tests/Network/PasswordHelperTest.php",
@@ -6073,7 +6078,7 @@
                 "Composer verify",
                 "Composer analyze"
             ],
-            "fingerprint": "sha256:b12603411acc15ad283ea7ccf057f0ebe85049481564e7173e9f5c6f4edfaf54"
+            "fingerprint": "sha256:b7a4fcdefa66c6d4d3b6e9a87b78414d971f46dd59f14122cc7ddbb6ca2cec6a"
         },
         {
             "path": "tests/Network/PeriodicWorkerTest.php",
@@ -6653,9 +6658,11 @@
             "consumers": [
                 "Composer lint",
                 "Composer verify",
-                "Composer analyze"
+                "Composer analyze",
+                "tests/Http/SessionCookieRaceTest.php",
+                "Synthetic shared-cookie new-login CSRF old-response race"
             ],
-            "fingerprint": "sha256:da77c48ec1e3c7c81b80b2bd4f213dcbbc2394bb7a8598685558b0c9bf132c57"
+            "fingerprint": "sha256:2c87c00f57fe990a016fce3d7237763f61f2f42b8e3dbbc08163c012e038a9f1"
         },
         {
             "path": "tests/Support/FixtureFailureEvidence.php",
@@ -7147,9 +7154,12 @@
             "consumers": [
                 "Composer lint",
                 "Composer verify",
-                "Composer analyze"
+                "Composer analyze",
+                "tests/Network/PasswordHelperTest.php",
+                "tests/Network/PasswordHelperDiagnosticsTest.php",
+                "tests/Network/PasswordHelperRetentionTest.php"
             ],
-            "fingerprint": "sha256:57e37684db16a762ab702e72bc78be5ccb3eb8cac6cad303f5c412993edae89f"
+            "fingerprint": "sha256:44269fc0191e3bf59c5fc481e4f1283bb3fabcd139dac4b1e813c04f1fce495a"
         },
         {
             "path": "tests/Support/SubprocessCompletion.php",
@@ -7207,9 +7217,12 @@
             "consumers": [
                 "Composer lint",
                 "Composer verify",
-                "Composer analyze"
+                "Composer analyze",
+                "tests/Network/PasswordHelperTest.php",
+                "tests/Network/PasswordHelperDiagnosticsTest.php",
+                "tests/Network/PasswordHelperRetentionTest.php"
             ],
-            "fingerprint": "sha256:df809709c1e984d0cd984e35111885d1516f57112f46b93bb91e93cd82cbc23a"
+            "fingerprint": "sha256:0d8f7468faaea449d5ecc42310b8e60464064ef7325be2adaf462345c7162d78"
         },
         {
             "path": "tests/Support/SubprocessReceipt.php",
@@ -7217,9 +7230,12 @@
             "consumers": [
                 "Composer lint",
                 "Composer verify",
-                "Composer analyze"
+                "Composer analyze",
+                "tests/Network/PasswordHelperTest.php",
+                "tests/Network/PasswordHelperDiagnosticsTest.php",
+                "tests/Network/PasswordHelperRetentionTest.php"
             ],
-            "fingerprint": "sha256:3b3c2d14873d21c8d8d7d5e4cce413cefc3bc1bd8d882881a7ec4ff82db444d8"
+            "fingerprint": "sha256:b4193a0db0120f08e8c5ab8261a277c9d5e65145d7d69b7b77d228f2d39938b3"
         },
         {
             "path": "tests/Support/SubprocessReceiptData.php",
@@ -7267,9 +7283,12 @@
             "consumers": [
                 "Composer lint",
                 "Composer verify",
-                "Composer analyze"
+                "Composer analyze",
+                "tests/Network/PasswordHelperTest.php",
+                "tests/Network/PasswordHelperDiagnosticsTest.php",
+                "tests/Network/PasswordHelperRetentionTest.php"
             ],
-            "fingerprint": "sha256:a85f5548364da107e7ba9eb40b7a1f4a4ca261bafd0e8186609097a5945437a0"
+            "fingerprint": "sha256:ff5cc43316815dc6ffa038115b5367a139fa5767601428b14c08fc4ede122910"
         },
         {
             "path": "tests/Support/TemporaryDirectory.php",
@@ -8778,9 +8797,12 @@
             "path": "tools/admin-password.ps1",
             "owner": "PowerShell protected input helper",
             "consumers": [
-                "Local or Docker administrator password CLI stdin"
+                "Local or Docker administrator password CLI stdin",
+                "tests/Network/PasswordHelperTest.php",
+                "tests/Network/PasswordHelperDiagnosticsTest.php",
+                "tests/Network/PasswordHelperRetentionTest.php"
             ],
-            "fingerprint": "sha256:7a4409d6eb9e6fe10d2c422911a194c4f9c0281208f8fad6e3a11378fba19292"
+            "fingerprint": "sha256:a8cbadf46d3191d8305e7570aeeea9110201040e838f8c8322e29c0ba3338b8f"
         },
         {
             "path": "tools/analyze.php",
@@ -9041,7 +9063,7 @@
                 "Composer verify",
                 "Composer analyze"
             ],
-            "fingerprint": "sha256:82aada86e27768d7f24a117444d5993827f3186e3db6bbad796b9e4e4f63630e"
+            "fingerprint": "sha256:2c5d500960b3f61353c1088fdc577d6c9f5dbd29e560ca03f9c24af58fef8b97"
         },
         {
             "path": "views/incidents.volt",
@@ -9068,6 +9090,146 @@
                 "dashboard.read_notification_status"
             ],
             "fingerprint": "sha256:711033976bba63bb91ff6314f3770aede52e47bc97838a0000642243e2ffebac"
+        },
+        {
+            "path": "tests/Network/PasswordHelperDiagnosticsTest.php",
+            "owner": "Tablo\\Tests\\Network\\PasswordHelperDiagnosticsTest",
+            "consumers": [
+                "Composer lint",
+                "Composer analyze",
+                "Composer verify",
+                "tests/Network/PasswordHelperTest.php",
+                "tests/Network/PasswordHelperDiagnosticsTest.php",
+                "tests/Network/PasswordHelperRetentionTest.php",
+                "Native dashboard.setup/login/change_admin_password attachment"
+            ],
+            "fingerprint": "sha256:76a3996b7fcbdaf57d43c3dcd363118b4f23011d48193353e93f59cbd82060ec"
+        },
+        {
+            "path": "tests/Network/PasswordHelperRetentionTest.php",
+            "owner": "Tablo\\Tests\\Network\\PasswordHelperRetentionTest",
+            "consumers": [
+                "Composer lint",
+                "Composer analyze",
+                "Composer verify",
+                "tests/Network/PasswordHelperTest.php",
+                "tests/Network/PasswordHelperDiagnosticsTest.php",
+                "tests/Network/PasswordHelperRetentionTest.php",
+                "Native dashboard.setup/login/change_admin_password attachment"
+            ],
+            "fingerprint": "sha256:7321474a00d1e831bd796b348f853586cc736e5f4660ad1839b52d535e66186b"
+        },
+        {
+            "path": "tests/Support/PasswordHelperCapture.php",
+            "owner": "Tablo\\Tests\\Support\\PasswordHelperCapture",
+            "consumers": [
+                "Composer lint",
+                "Composer analyze",
+                "Composer verify",
+                "tests/Network/PasswordHelperTest.php",
+                "tests/Network/PasswordHelperDiagnosticsTest.php",
+                "tests/Network/PasswordHelperRetentionTest.php",
+                "Native dashboard.setup/login/change_admin_password attachment"
+            ],
+            "fingerprint": "sha256:4291f44d06ae97678e7e3a83e98fe05828475cbff268aab366c36777dfd44d8e"
+        },
+        {
+            "path": "tests/Support/PasswordHelperCase.php",
+            "owner": "Tablo\\Tests\\Support\\PasswordHelperCase",
+            "consumers": [
+                "Composer lint",
+                "Composer analyze",
+                "Composer verify",
+                "tests/Network/PasswordHelperTest.php",
+                "tests/Network/PasswordHelperDiagnosticsTest.php",
+                "tests/Network/PasswordHelperRetentionTest.php",
+                "Native dashboard.setup/login/change_admin_password attachment"
+            ],
+            "fingerprint": "sha256:2971f15474d65568d804bf9735329990bcf59edf056e8e660a9b0c44878c8f32"
+        },
+        {
+            "path": "tests/Support/PasswordHelperEvidence.php",
+            "owner": "Tablo\\Tests\\Support\\PasswordHelperEvidence",
+            "consumers": [
+                "Composer lint",
+                "Composer analyze",
+                "Composer verify",
+                "tests/Network/PasswordHelperTest.php",
+                "tests/Network/PasswordHelperDiagnosticsTest.php",
+                "tests/Network/PasswordHelperRetentionTest.php",
+                "Native dashboard.setup/login/change_admin_password attachment"
+            ],
+            "fingerprint": "sha256:da765b9cafa02d87b2972f90a0150c9bc08b273786e045002c2c8c55ef1d883c"
+        },
+        {
+            "path": "tests/Support/PasswordHelperEvidenceFiles.php",
+            "owner": "Tablo\\Tests\\Support\\PasswordHelperEvidenceFiles",
+            "consumers": [
+                "Composer lint",
+                "Composer analyze",
+                "Composer verify",
+                "tests/Network/PasswordHelperTest.php",
+                "tests/Network/PasswordHelperDiagnosticsTest.php",
+                "tests/Network/PasswordHelperRetentionTest.php",
+                "Native dashboard.setup/login/change_admin_password attachment"
+            ],
+            "fingerprint": "sha256:64c8e5f36e6883133d4d82823fc1f4d7bca63cde15ead6e596b67991486f9bfc"
+        },
+        {
+            "path": "tests/Support/PasswordHelperEvidenceStart.php",
+            "owner": "Tablo\\Tests\\Support\\PasswordHelperEvidenceStart",
+            "consumers": [
+                "Composer lint",
+                "Composer analyze",
+                "Composer verify",
+                "tests/Network/PasswordHelperTest.php",
+                "tests/Network/PasswordHelperDiagnosticsTest.php",
+                "tests/Network/PasswordHelperRetentionTest.php",
+                "Native dashboard.setup/login/change_admin_password attachment"
+            ],
+            "fingerprint": "sha256:2d830f9c442a6ca022745b90f1451f3b63bd02a61c5061714c51098589352ba3"
+        },
+        {
+            "path": "tests/Support/PasswordHelperFailureState.php",
+            "owner": "Tablo\\Tests\\Support\\PasswordHelperFailureState",
+            "consumers": [
+                "Composer lint",
+                "Composer analyze",
+                "Composer verify",
+                "tests/Network/PasswordHelperTest.php",
+                "tests/Network/PasswordHelperDiagnosticsTest.php",
+                "tests/Network/PasswordHelperRetentionTest.php",
+                "Native dashboard.setup/login/change_admin_password attachment"
+            ],
+            "fingerprint": "sha256:52fbc290b77c66d71ab6ec2529d874b8f78fd5f38b7f7a841c5116d0ae00cd6a"
+        },
+        {
+            "path": "tests/fixtures/helper-diagnostic.php",
+            "owner": "php-script:tests/fixtures/helper-diagnostic.php",
+            "consumers": [
+                "Composer lint",
+                "Composer analyze",
+                "Composer verify",
+                "tests/Network/PasswordHelperTest.php",
+                "tests/Network/PasswordHelperDiagnosticsTest.php",
+                "tests/Network/PasswordHelperRetentionTest.php",
+                "Native dashboard.setup/login/change_admin_password attachment"
+            ],
+            "fingerprint": "sha256:525e1825d7b1d1aca45f600e37e83a2af30b3bd0a7a4499a902083fc22032585"
+        },
+        {
+            "path": "tests/fixtures/password-helper-input.ps1",
+            "owner": "powershell-script:tests/fixtures/password-helper-input.ps1",
+            "consumers": [
+                "Composer lint",
+                "Composer analyze",
+                "Composer verify",
+                "tests/Network/PasswordHelperTest.php",
+                "tests/Network/PasswordHelperDiagnosticsTest.php",
+                "tests/Network/PasswordHelperRetentionTest.php",
+                "Native dashboard.setup/login/change_admin_password attachment"
+            ],
+            "fingerprint": "sha256:364900353e21acc3969eb6d441f762a17b383b4205f6d2ca6c6d201b64ab62ef"
         }
     ]
 }

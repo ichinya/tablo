@@ -30,6 +30,19 @@ jobs:
       COMPOSER_PROCESS_TIMEOUT: '1800'
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - name: Start dedicated synthetic helper evidence
+        env:
+          HELPER_MATRIX_OS: ${{ matrix.os }}
+          HELPER_MATRIX_PHP: ${{ matrix.php }}
+        run: |
+          $helperDirectory = Join-Path $env:RUNNER_TEMP 'tablo-helper-diagnostics'
+          New-Item -ItemType Directory -Path $helperDirectory -ErrorAction Stop | Out-Null
+          $head = git rev-parse HEAD
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          $tree = git rev-parse 'HEAD^{tree}'
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          $manifest = @{ schema = 'tablo/helper-diagnostics/v1'; status = 'NOTRUN unless case-started evidence exists'; utc = [DateTime]::UtcNow.ToString('o'); run = $env:GITHUB_RUN_ID; attempt = $env:GITHUB_RUN_ATTEMPT; job = $env:GITHUB_JOB; os = $env:HELPER_MATRIX_OS; php = $env:HELPER_MATRIX_PHP; head = $head; tree = $tree }
+          [IO.File]::WriteAllText((Join-Path $helperDirectory 'started.json'), ($manifest | ConvertTo-Json), [Text.UTF8Encoding]::new($false))
       - uses: shivammathur/setup-php@b604ade2a87db23f8871b7182e69ec5e75effb45 # v2
         with:
           php-version: ${{ matrix.php }}
@@ -84,9 +97,25 @@ jobs:
           if ($LASTEXITCODE -ne 0 -or $version.Trim() -ne 'lekalo 0.6.3') { throw 'Unexpected Lekalo CLI version' }
           $env:TABLO_TRACE_ISOLATION_REPORT = Join-Path $env:RUNNER_TEMP 'tablo-trace-inner.jsonl'
           $env:TABLO_RESPONSE_PRIVACY_REPORT = Join-Path $env:RUNNER_TEMP 'tablo-response-inner.jsonl'
+          $env:TABLO_HELPER_DIAGNOSTICS_DIRECTORY = Join-Path $env:RUNNER_TEMP 'tablo-helper-diagnostics'
           composer verify
           $verifyExit = $LASTEXITCODE
-          foreach ($reportPath in @($env:TABLO_TRACE_ISOLATION_REPORT, $env:TABLO_RESPONSE_PRIVACY_REPORT)) {
-            if (Test-Path -LiteralPath $reportPath) { Get-Content -LiteralPath $reportPath }
-          }
           exit $verifyExit
+      - name: Print existing privacy evidence
+        if: always()
+        run: |
+          foreach ($reportName in @('tablo-trace-inner.jsonl', 'tablo-response-inner.jsonl')) {
+            $reportPath = Join-Path $env:RUNNER_TEMP $reportName
+            if (Test-Path -LiteralPath $reportPath) { Get-Content -LiteralPath $reportPath -ErrorAction Stop }
+          }
+      - name: Retain synthetic helper diagnostics
+        if: always()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2, Node24
+        with:
+          name: helper-diagnostics-${{ github.run_id }}-${{ github.run_attempt }}-${{ matrix.os }}-php-${{ matrix.php }}
+          path: ${{ runner.temp }}/tablo-helper-diagnostics
+          if-no-files-found: error
+          include-hidden-files: false
+          overwrite: false
+          archive: true
+          retention-days: 7

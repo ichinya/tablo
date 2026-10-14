@@ -19,6 +19,11 @@ final class SubprocessReceipt
         $receipt = ['pid' => $state->pid, 'exit_code' => $state->exitCode, 'root_exit_observed' => $state->pid !== null && !$state->running,
             'closed' => $state->closed, 'ownership' => 'direct-child-only', 'stream_eof' => 'not used; file backed',
             'events' => $state->events, 'streams' => []];
+        if ($state->evidence !== null) {
+            $receipt += ['controller_pid' => getmypid(), 'direct_parent_pid' => getmypid(),
+                'raw_status' => $state->evidence->lastStatus, 'case' => $state->evidence->case->identity,
+                'nested_closure' => 'UNKNOWN; independent native observation required'];
+        }
         foreach (['stdout', 'stderr'] as $stream) {
             $path = $state->files[$stream] ?? throw new RuntimeException('Missing direct test child stream path');
             $receipt['streams'][$stream] = ['path' => $path, 'sha256' => \Tablo\RequiredFile::digest($path)];
@@ -32,5 +37,6 @@ final class SubprocessReceipt
         try { fwrite($file, json_encode($receipt, JSON_THROW_ON_ERROR | JSON_PRETTY_PRINT) . "\n"); }
         finally { fclose($file); }
         chmod($state->files['receipt'], permissions: 0o600);
+        $state->evidence?->closed($state);
     }
 }
