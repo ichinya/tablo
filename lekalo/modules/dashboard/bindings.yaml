@@ -110,6 +110,14 @@
             "method": "POST",
             "path": "/settings",
             "invokes": "dashboard.update_settings"
+        },
+        {
+            "id": "dashboard.incidents_endpoint",
+            "kind": "endpoint",
+            "version": 1,
+            "method": "GET",
+            "path": "/incidents",
+            "invokes": "dashboard.read_incidents"
         }
     ]
 }

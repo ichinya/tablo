@@ -47,8 +47,10 @@ final class HistoryConcurrencyTest
             foreach ($actions as $action) {
                 $id = $sites->save($input);
                 $snapshot = $sites->find($id);
-                $state = ['online' => 1, 'checked_at' => '2026-01-01T00:00:00Z'];
+                $state = ['online' => 0, 'checked_at' => '2026-01-01T00:00:00Z'];
                 Assert::true($sites->storeCheck($snapshot, $state));
+                $checkpoint = $db->query('SELECT * FROM incident_checkpoints WHERE site_id=' . $id)->fetch();
+                $incident = $db->query('SELECT * FROM incidents WHERE site_id=' . $id)->fetch();
                 self::child($directory, $path, $id, array_key_exists($action, $fields) ? 'field' : $action,
                     array_key_exists($action, $fields) ? [$action, json_encode($fields[$action], JSON_THROW_ON_ERROR)] : []);
                 $accepted = $action === 'rename';
@@ -59,6 +61,10 @@ final class HistoryConcurrencyTest
                 $statement->execute([$id]);
                 Assert::same((int) $statement->fetchColumn(), $action === 'delete' ? 0 : ($accepted ? 3 : 1), $action);
                 $statement->closeCursor();
+                Assert::same($db->query('SELECT * FROM incidents WHERE site_id=' . $id)->fetch(), $action === 'delete' ? false : $incident, $action);
+                if (!$accepted) {
+                    Assert::same($db->query('SELECT * FROM incident_checkpoints WHERE site_id=' . $id)->fetch(), $action === 'delete' ? false : $checkpoint, $action);
+                }
                 if (!$accepted) { Assert::same((int) $db->query('SELECT COUNT(*) FROM worker_progress WHERE site_id=' . $id)->fetchColumn(), 0); }
             }
         } finally { unset($statement, $snapshot, $tokens, $sites, $vault, $db); $directory->close(); }

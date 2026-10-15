@@ -56,7 +56,7 @@
             "consumers": [
                 "dashboard.run_worker_pass"
             ],
-            "fingerprint": "sha256:492f4a11f4509e4a5b537a2fabdefdf01372ea3802e9edbf0002f9c78ca36523"
+            "fingerprint": "sha256:4f28d04e4295d926efe606f90fb6d132ebc912f092edb65f41ee450b0e9b01b8"
         },
         {
             "path": "tools/capture-bindings.php",
@@ -64,7 +64,7 @@
             "consumers": [
                 "dashboard.run_worker_pass"
             ],
-            "fingerprint": "sha256:a2f72813e5aa3ae7b17fae2be305ea7a5a92ab2099184a79c5c871ce802d936c"
+            "fingerprint": "sha256:625c06be9e6de3e840a141eba60ae889188127846e8dca38d1bbd538b74300fc"
         },
         {
             "path": "tools/reviewed-dependencies.php",
@@ -72,7 +72,7 @@
             "consumers": [
                 "dashboard.run_worker_pass"
             ],
-            "fingerprint": "sha256:c4a8c9ff34e1eb63ab2554166e0e8ec32b06ab98ab10786cd037c84f57b8c3a6"
+            "fingerprint": "sha256:e56b768ea9834e9430125650df763c84deeb03e2a8e72f3e74a76c1cac47ca5b"
         },
         {
             "path": "app/check-history-snapshot.php",
@@ -119,6 +119,71 @@
                 "dashboard.prune_history"
             ],
             "fingerprint": "sha256:008cc7f25b7c36196a0fef1e5c263de74aafe03c10ff38af558e10e989c4b2d4"
+        },
+        {
+            "path": "app/incident-presenter.php",
+            "owner": "Tablo\\IncidentPresenter",
+            "consumers": [
+                "dashboard.read_incidents"
+            ],
+            "fingerprint": "sha256:0fb0087a9224287beef2c5bf717713bd5bb6a3fd01a20fab5c509d87f93ac4da"
+        },
+        {
+            "path": "app/incident-repository.php",
+            "owner": "Tablo\\IncidentRepository",
+            "consumers": [
+                "dashboard.read_incidents"
+            ],
+            "fingerprint": "sha256:20e51a2c24935984fef094ea84c23f30bf54c00fcb0432fab9c3c5c3258d4f2a"
+        },
+        {
+            "path": "app/incident-cursor.php",
+            "owner": "Tablo\\IncidentCursor",
+            "consumers": [
+                "dashboard.read_incidents"
+            ],
+            "fingerprint": "sha256:c4b3e18f25e09f6286f6f19cc5037c62094ddebd546cbea177f9940058bf6f17"
+        },
+        {
+            "path": "app/site-repository.php",
+            "owner": "Tablo\\SiteRepository",
+            "consumers": [
+                "dashboard.store_check",
+                "dashboard.settle_worker_check"
+            ],
+            "fingerprint": "sha256:cf4739064e6902f7bed73da68adf5032c90fbb25c10f79ef24c03ffeb516318b"
+        },
+        {
+            "path": "app/web-application.php",
+            "owner": "Tablo\\Web",
+            "consumers": [
+                "dashboard.read_incidents"
+            ],
+            "fingerprint": "sha256:e01c71d81388874cfa16229ba53caf7f622d647ba3086b8b9542f8a79bc1f414"
+        },
+        {
+            "path": "views/incidents.volt",
+            "owner": "volt-template:views/incidents.volt",
+            "consumers": [
+                "dashboard.read_incidents"
+            ],
+            "fingerprint": "sha256:5f31c898f5d626a51c659d4ff608e1d2baf08d08650b01cca96a24c99d111d50"
+        },
+        {
+            "path": "views/layout.volt",
+            "owner": "volt-template:views/layout.volt",
+            "consumers": [
+                "dashboard.read_incidents"
+            ],
+            "fingerprint": "sha256:94241ebfb6d67e017d4bda3da04b8efa46e82c38bbcd897f2dcd95b6323a6be6"
+        },
+        {
+            "path": "public/assets/app.css",
+            "owner": "asset:public/assets/app.css",
+            "consumers": [
+                "dashboard.read_incidents"
+            ],
+            "fingerprint": "sha256:ade5a2c7fa8c388fd677a2b16c94336cbd066dfe661299a72b00c28768a5de53"
         }
     ]
 }

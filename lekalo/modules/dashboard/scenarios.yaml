@@ -195,6 +195,41 @@
                 "dashboard.prune_history",
                 "dashboard.check_history"
             ]
+        },
+        {
+            "id": "dashboard.incident_lifecycle",
+            "kind": "scenario",
+            "version": 1,
+            "summary": "Actual accepted manual/CLI/worker rows cover first/repeat/recovery/new opening, Unknown, pause/enabled ABA, all actual revisions/shared rotation/stale invalid/rename positive; equal/older/calendar times, internal consumed-ID no-op, immutable reasons, observation interval qualifications.",
+            "covers": [
+                "dashboard.store_check",
+                "dashboard.settle_worker_check",
+                "dashboard.run_worker_pass",
+                "dashboard.incident",
+                "dashboard.incident_checkpoint"
+            ]
+        },
+        {
+            "id": "dashboard.incident_atomicity_activation",
+            "kind": "scenario",
+            "version": 1,
+            "summary": "Actual schema6 prospective upgrade keeps pre16 current/history readable and seeds neither incident nor checkpoint. DDL/version/COMMIT/conflict/concurrent/future/fast-path coverage. Real opening/close/interruption/checkpoint/credit/deferredCOMMIT failures roll back all writes; failed BEGIN/caller tx/implicit rollback preserve ownership/first error/connection reuse. Actual pruner and separate writers/delete orders retain anchors or cascade, never resurrect.",
+            "covers": [
+                "dashboard.incident",
+                "dashboard.incident_checkpoint",
+                "dashboard.prune_history",
+                "dashboard.delete_site"
+            ]
+        },
+        {
+            "id": "dashboard.incident_authenticated_read",
+            "kind": "scenario",
+            "version": 1,
+            "summary": "Actual authenticated Volt rendered names/XSS/privacy/security/no-upstream and strict bounds/missing-site/canonical scope/ceiling pagination with deletion/recovery. Query-only repository and read mutation-refusal triggers; actual justified index EXPLAIN; neutral desktop/mobile screenshots.",
+            "covers": [
+                "dashboard.read_incidents",
+                "dashboard.incident"
+            ]
         }
     ]
 }

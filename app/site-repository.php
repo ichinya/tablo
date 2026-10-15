@@ -305,6 +305,8 @@ final class SiteRepository
                 . ') VALUES (' . implode(', ', array_fill(0, count($fields), '?')) . ')');
             try { $statement->execute(array_values($row)); }
             finally { $statement->closeCursor(); }
+            // Capture the real AUTOINCREMENT identity before any other INSERT.
+            $this->projectIncident((int) $this->db->lastInsertId(), $row);
             if ($worker) {
                 $service = $state['worker_service'] ?? null;
                 if (!is_array($service) || array_diff(array_keys($service), WorkerStateRepository::FIELDS) !== []
@@ -321,6 +323,52 @@ final class SiteRepository
             catch (\Throwable) { /* Preserve the first validation/SQL/COMMIT/cleanup error. */ }
             throw $error;
         }
+    }
+
+    // Private, constant-size projection of the just-accepted row in persistCheck's transaction.
+    // No replay/import/reset entry point; consumed IDs are idempotent even after retention.
+    private function projectIncident(int $historyId, array $row): void
+    {
+        $siteId = $row['site_id'];
+        $checkpoint = $this->db->prepare('SELECT * FROM incident_checkpoints WHERE site_id = ?');
+        try { $checkpoint->execute([$siteId]); $previous = $checkpoint->fetch(); }
+        finally { $checkpoint->closeCursor(); }
+        if ($previous !== false && $historyId <= $previous['last_history_id']) { return; }
+        $epochChanged = $previous !== false && $previous['config_revision'] !== $row['config_revision'];
+        if ($epochChanged) {
+            $statement = $this->db->prepare("UPDATE incidents SET end_reason = 'config-changed', interruption_history_id = ?
+                WHERE site_id = ? AND end_reason IS NULL");
+            try { $statement->execute([$historyId, $siteId]); }
+            finally { $statement->closeCursor(); }
+        }
+        $watermark = $previous === false || $epochChanged ? $row['checked_at'] : $previous['watermark'];
+        $older = $row['checked_at'] < $watermark;
+        $statement = $this->db->prepare('SELECT id FROM incidents WHERE site_id = ? AND end_reason IS NULL');
+        try { $statement->execute([$siteId]); $openId = $statement->fetchColumn(); }
+        finally { $statement->closeCursor(); }
+        if ($openId === false && $row['online'] === 0) {
+            $statement = $this->db->prepare('INSERT INTO incidents
+                (id, site_id, config_revision, opened_at, health_error_code, health_http_status, uncertain, clock_invalid)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?)');
+            try { $statement->execute([$historyId, $siteId, $row['config_revision'], $row['checked_at'],
+                $row['health_error_code'], $row['health_http_status'], (int) $older, (int) $older]); }
+            finally { $statement->closeCursor(); }
+        } elseif ($openId !== false) {
+            if ($row['online'] === 1 && !$older) {
+                $statement = $this->db->prepare("UPDATE incidents SET end_reason = 'recovered', recovery_history_id = ?, recovered_at = ? WHERE id = ?");
+                $values = [$historyId, $row['checked_at'], $openId];
+            } else {
+                $statement = $this->db->prepare('UPDATE incidents SET uncertain = MAX(uncertain, ?), clock_invalid = MAX(clock_invalid, ?) WHERE id = ?');
+                $values = [(int) ($row['online'] === null || $older), (int) $older, $openId];
+            }
+            try { $statement->execute($values); }
+            finally { $statement->closeCursor(); }
+        }
+        $statement = $this->db->prepare('INSERT INTO incident_checkpoints (site_id, last_history_id, config_revision, watermark)
+            VALUES (?, ?, ?, ?) ON CONFLICT(site_id) DO UPDATE SET last_history_id = excluded.last_history_id,
+            config_revision = excluded.config_revision, watermark = excluded.watermark');
+        try { $statement->execute([$siteId, $historyId, $row['config_revision'], max($watermark, $row['checked_at'])]); }
+        finally { $statement->closeCursor(); }
     }
 
     private function updateCheck(#[\SensitiveParameter] array $site, array $state): bool

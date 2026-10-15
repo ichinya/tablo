@@ -54,6 +54,20 @@
             "returns": {
                 "ref": "dashboard.history_page"
             }
+        },
+        {
+            "id": "dashboard.read_incidents",
+            "kind": "query",
+            "version": 1,
+            "description": "Authenticated read-only GET, optional positive existing site filter, default50/limit1..100, LIMIT+1, DESC stable opening ID, fixed first-page MAX(id) ceiling. Strict canonical scope-bound cursor cap256; arrays/coercions/overflow/malformed422, missing/deletedsite404. Escaped current names and finite opening reason/status, observed UTC/recovery/interval and uncertainty/pause/stale/current-revision/clock qualifiers. No COUNTall, history replay/rebuild, DB mutation, HTTP or private payload. Recovery/deletion may alter later pages; no snapshot/count guarantee.",
+            "reads": [
+                "dashboard.incident",
+                "dashboard.incident_checkpoint",
+                "dashboard.site"
+            ],
+            "returns": {
+                "ref": "dashboard.incident_page"
+            }
         }
     ]
 }

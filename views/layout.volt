@@ -19,6 +19,7 @@
         <nav aria-label="Основная навигация">
             <a class="nav-link {% if title == 'Обзор сайтов' %}active{% endif %}" href="/"><svg><use href="/assets/icons.svg#grid"></use></svg>Обзор сайтов</a>
             <a class="nav-link {% if title == 'Добавить сайт' %}active{% endif %}" href="/sites/new"><svg><use href="/assets/icons.svg#plus"></use></svg>Добавить сайт</a>
+            <a class="nav-link {% if title == 'Инциденты' %}active{% endif %}" href="/incidents"><svg><use href="/assets/icons.svg#grid"></use></svg>Инциденты</a>
             <a class="nav-link {% if title == 'Настройки' or title == 'Добавить токен' or title == 'Настройки токена' or title == 'Удалить токен' %}active{% endif %}" href="/settings"><svg><use href="/assets/icons.svg#settings"></use></svg>Настройки</a>
         </nav>
         <div class="sidebar-bottom"><div class="private-note"><svg><use href="/assets/icons.svg#shield"></use></svg><strong>Только ваше</strong><p>Сайты и настройки хранятся<br>в вашей установке Tablo.</p></div><div class="sidebar-version"><span class="tiny-dot"></span>Локальная установка<span>v0.1</span></div></div>

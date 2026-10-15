@@ -19,6 +19,14 @@ function workerDependencies(): array
         'app/history-retention.php' => ['owner' => 'Tablo\\HistoryRetention', 'consumers' => ['dashboard.prune_history']],
         'bin/history.php' => ['owner' => 'php-script:bin/history.php', 'consumers' => ['dashboard.read_history']],
         'bin/prune-history.php' => ['owner' => 'php-script:bin/prune-history.php', 'consumers' => ['dashboard.prune_history']],
+        'app/incident-presenter.php' => ['owner' => 'Tablo\IncidentPresenter', 'consumers' => ['dashboard.read_incidents']],
+        'app/incident-repository.php' => ['owner' => 'Tablo\IncidentRepository', 'consumers' => ['dashboard.read_incidents']],
+        'app/incident-cursor.php' => ['owner' => 'Tablo\IncidentCursor', 'consumers' => ['dashboard.read_incidents']],
+        'app/site-repository.php' => ['owner' => 'Tablo\SiteRepository', 'consumers' => ['dashboard.store_check', 'dashboard.settle_worker_check']],
+        'app/web-application.php' => ['owner' => 'Tablo\Web', 'consumers' => ['dashboard.read_incidents']],
+        'views/incidents.volt' => ['owner' => 'volt-template:views/incidents.volt', 'consumers' => ['dashboard.read_incidents']],
+        'views/layout.volt' => ['owner' => 'volt-template:views/layout.volt', 'consumers' => ['dashboard.read_incidents']],
+        'public/assets/app.css' => ['owner' => 'asset:public/assets/app.css', 'consumers' => ['dashboard.read_incidents']],
     ];
 }
 

@@ -14,6 +14,7 @@ final class Web
     private readonly SiteRepository $sites;
     private readonly GitTokenRepository $tokens;
     private readonly SettingsRepository $installation;
+    private readonly IncidentRepository $incidents;
     private readonly Auth $auth;
     private readonly GitHubConnection $github;
     private readonly Simple $view;
@@ -45,6 +46,7 @@ final class Web
         $this->sites = new SiteRepository($db);
         $this->tokens = new GitTokenRepository($db);
         $this->installation = new SettingsRepository($db);
+        $this->incidents = new IncidentRepository($db);
         $this->auth = new Auth($db);
         $this->github = new GitHubConnection($this->sites, $githubHttp ?? new HttpClient());
         $di = new FactoryDefault();
@@ -130,6 +132,7 @@ final class Web
             return $web->redirect('/login');
         });
         $app->get('/', fn () => $web->dashboard());
+        $app->get('/incidents', fn () => $web->incidentList());
         $app->get('/settings', fn () => $web->settings());
         $app->post('/settings', fn () => $web->saveSettings());
         $app->get('/settings/tokens/new', fn () => $web->tokenForm(['name' => '', 'provider' => 'github']));
@@ -329,6 +332,34 @@ final class Web
         $notice = $_SESSION['notice'] ?? '';
         unset($_SESSION['notice']);
         return $this->render('dashboard', ['title' => 'Обзор сайтов', 'sites' => $sites, 'stats' => $stats, 'notice' => $notice]);
+    }
+
+    private function incidentList(): Response
+    {
+        try {
+            $siteId = array_key_exists('site_id', $_GET) ? self::incidentInteger($_GET['site_id'], PHP_INT_MAX) : null;
+            $limit = array_key_exists('limit', $_GET) ? self::incidentInteger($_GET['limit'], 100) : 50;
+            $cursor = $_GET['cursor'] ?? null;
+            if ($cursor !== null && !is_string($cursor)) { throw new \InvalidArgumentException('Invalid incident query.'); }
+            $page = $this->incidents->page($siteId, $limit, $cursor);
+            $next = $page['next_cursor'] === null ? null : '/incidents?' . http_build_query(
+                array_filter(['site_id' => $siteId, 'limit' => $limit, 'cursor' => $page['next_cursor']], static fn ($value) => $value !== null));
+            return $this->render('incidents', ['title' => 'Инциденты', 'incidents' => array_map([IncidentPresenter::class, 'row'], $page['rows']),
+                'site_filter' => $siteId ?? '', 'next_page' => $next]);
+        } catch (\OutOfBoundsException) { return $this->notFound(); }
+        catch (\InvalidArgumentException) {
+            return $this->render('error', ['title' => 'Некорректный запрос', 'message' => 'Проверьте фильтр и ссылку на страницу инцидентов.'], 422);
+        }
+    }
+
+    private static function incidentInteger(mixed $value, int $maximum): int
+    {
+        if (!is_string($value) || !preg_match('/^[1-9][0-9]*$/D', $value)
+            || strlen($value) > strlen((string) $maximum)
+            || (strlen($value) === strlen((string) $maximum) && strcmp($value, (string) $maximum) > 0)) {
+            throw new \InvalidArgumentException('Invalid incident query.');
+        }
+        return (int) $value;
     }
 
     private function notFound(): Response

@@ -39,6 +39,9 @@ $mapping = [
     'settle_worker_check' => ['app/worker-state-repository.php', 'public function settle'],
     'read_history' => ['app/check-history-repository.php', 'public function page'],
     'prune_history' => ['app/check-history-repository.php', 'public function prune('],
+    'incident' => ['app/sqlite-database.php', 'CREATE TABLE incidents'],
+    'incident_checkpoint' => ['app/sqlite-database.php', 'CREATE TABLE incident_checkpoints'],
+    'read_incidents' => ['app/incident-repository.php', 'public function page'],
 ];
 function typeName(array $type): string
 {
