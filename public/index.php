@@ -12,6 +12,9 @@ try {
     (new Tablo\Web())->run();
 } catch (Throwable $e) {
     error_log('Tablo initialization or operation failed. Check installation configuration and local storage.');
+    if ($e instanceof Tablo\InstallationException && $e->getCode() === Tablo\InstallationException::UNSUPPORTED_CURL) {
+        error_log(Tablo\InstallationException::CURL_DIAGNOSTIC);
+    }
     if ($e instanceof Tablo\SharedKeyFailure && $e->getCode() === Tablo\SharedKeyFailure::UNVERIFIED) {
         error_log(Tablo\SharedKeyFailure::UNVERIFIED_DIAGNOSTIC);
     }

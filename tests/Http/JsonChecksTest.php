@@ -88,26 +88,33 @@ final class JsonChecksTest
         $csrf = $this->web->authenticate();
         $input = $this->input($csrf);
         Assert::same($this->web->request('/sites/new', $input)['status'], 303);
-        foreach ([
-            [[], 1, 0],
-            [['health_json_expected_value' => 'error'], 0, 1],
-            [['health_json_path' => '$.missing'], null, 1],
-        ] as [$settings, $online, $exit]) {
-            Assert::same($this->web->request('/sites/1/edit', array_replace($input, $settings))['status'], 303);
-            Assert::same($this->web->request('/sites/1/check', ['_csrf' => $csrf])['status'], 303);
-            $query = 'SELECT online,deployed_version,deployed_commit,latest_release,latest_commit,open_issues,open_prs,last_error FROM sites WHERE id=1';
-            $manual = $this->web->database()->query($query)->fetch();
-            Assert::same($manual['online'], $online);
-            Assert::same($manual['deployed_version'], '1.2.3');
-            $root = dirname(__DIR__, 2);
-            $result = Subprocess::run([PHP_BINARY, '-d', 'auto_prepend_file=' . $root . '/tests/cli-github-fixture.php',
-                $root . '/bin/check.php'], $this->web->directory, [
-                    'TABLO_DB' => $this->web->directory->path . '/test.sqlite', 'TABLO_ALLOW_PRIVATE_NETWORK' => '1',
-                ]);
-            Assert::same($result['exit_code'], $exit, 'native CLI: ' . $result['stderr']);
-            Assert::same($result['stderr'], '', 'CLI is quiet on stderr');
-            Assert::true(str_contains($result['stdout'], $exit === 0 ? '1: ok' : '1: attention'));
-            Assert::same($this->web->database()->query($query)->fetch(), $manual, 'same checker in actual CLI and HTTP');
+        try {
+            foreach ([
+                [[], 1, 0],
+                [['health_json_expected_value' => 'error'], 0, 1],
+                [['health_json_path' => '$.missing'], null, 1],
+            ] as [$settings, $online, $exit]) {
+                Assert::same($this->web->request('/sites/1/edit', array_replace($input, $settings))['status'], 303);
+                Assert::same($this->web->request('/sites/1/check', ['_csrf' => $csrf])['status'], 303);
+                $query = 'SELECT online,deployed_version,deployed_commit,latest_release,latest_commit,open_issues,open_prs,last_error FROM sites WHERE id=1';
+                $manual = $this->web->database()->query($query)->fetch();
+                $diagnostic = $this->web->database()->query('SELECT health_http_status,health_error_code FROM sites WHERE id=1')->fetch();
+                Assert::same($manual['online'], $online, 'persisted health classification: ' . json_encode($diagnostic, JSON_THROW_ON_ERROR));
+                Assert::same($manual['deployed_version'], '1.2.3');
+                $root = dirname(__DIR__, 2);
+                $result = Subprocess::run([PHP_BINARY, '-d', 'auto_prepend_file=' . $root . '/tests/cli-github-fixture.php',
+                    $root . '/bin/check.php'], $this->web->directory, [
+                        'TABLO_DB' => $this->web->directory->path . '/test.sqlite', 'TABLO_ALLOW_PRIVATE_NETWORK' => '1',
+                    ]);
+                Assert::same($result['exit_code'], $exit, 'native CLI: ' . $result['stderr']);
+                Assert::same($result['stderr'], '', 'CLI is quiet on stderr');
+                Assert::true(str_contains($result['stdout'], $exit === 0 ? '1: ok' : '1: attention'));
+                Assert::same($this->web->database()->query($query)->fetch(), $manual, 'same checker in actual CLI and HTTP');
+            }
+        } catch (\Throwable $error) {
+            $this->web->directory->retainFailure($error);
+            $this->endpoints->retainFailure($error);
+            throw $error;
         }
     }
 }

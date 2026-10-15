@@ -692,7 +692,7 @@
             "kind": "scalar",
             "version": 1,
             "base": "string",
-            "description": "Validated diagnostic whitelist: http, json-condition, timeout, refused, dns, ssrf, tls, size, invalid-response, invalid-url, network, check-error. Null means no health failure or no current diagnostic."
+            "description": "Validated diagnostic whitelist: http, json-condition, timeout, refused, dns, ssrf, tls, size, invalid-response, invalid-url, network, check-error, redirect-location-missing, redirect-location-invalid, redirect-origin, redirect-cycle, redirect-limit. Null means no health failure or no current diagnostic."
         },
         {
             "id": "dashboard.github_cooldown",

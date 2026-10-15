@@ -14,6 +14,13 @@ final class WorkerHttp extends HttpClient
 
     public function __construct(private readonly string $base) { $this->real = new HttpClient(true); }
 
+    public function getEndpoint(#[\SensitiveParameter] string $url, #[\SensitiveParameter] array $headers = [],
+        int $maxRedirects = 3, ?int $deadline = null): array
+    {
+        $this->calls[] = parse_url($url, PHP_URL_PATH);
+        return $this->real->getEndpoint($url, $headers, $maxRedirects, $deadline);
+    }
+
     public function get(#[\SensitiveParameter] string $url, #[\SensitiveParameter] array $headers = []): array
     {
         $path = parse_url($url, PHP_URL_PATH);

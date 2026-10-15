@@ -163,6 +163,9 @@ final class WorkerSharedFailureTest
                     private readonly \Tablo\HttpClient $real;
                     public function __construct(private \PDO $db, private string $base, private string $key, private string $kind)
                     { $this->real = new \Tablo\HttpClient(true); }
+                    public function getEndpoint(#[\SensitiveParameter] string $url, #[\SensitiveParameter] array $headers = [],
+                        int $maxRedirects = 3, ?int $deadline = null): array
+                    { return $this->real->getEndpoint($url, $headers, $maxRedirects, $deadline); }
                     public function get(#[\SensitiveParameter] string $url, #[\SensitiveParameter] array $headers = []): array
                     {
                         $api = str_starts_with($url, 'https://api.github.com');

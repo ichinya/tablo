@@ -5,7 +5,7 @@
         "version": "0.1.0"
     },
     "project": "tablo",
-    "revision": "sha256:2cc41eba45ab6091b7fc758bac9f0ed71f4e9de0499a6bd3934160df595ffb81",
+    "revision": "sha256:d70e750026c5dc4830a01d80bc54cac6fb594cdbc8eca077bf43d051420261bf",
     "symbols": [
         {
             "id": "dashboard.change_admin_password",
@@ -211,7 +211,7 @@
                 "path": "app/site-checker.php",
                 "line": 11
             },
-            "fingerprint": "sha256:94dd5aa80b3419a9ae006b1e96fed25d632d8049e91bd7877118cf41ca1fbba7",
+            "fingerprint": "sha256:b136481f9b3e30a5e77c2d17f09f83bf8fa4ee30a3942f2919c1e3fb1789c980",
             "signature": {
                 "inputs": [
                     {

@@ -34,6 +34,8 @@ final class PeriodicWorkerTest
             $http = new class($path, $time) extends HttpClient {
                 public int $health = 0;
                 public function __construct(private string $path, private float &$time) {}
+                public function getEndpoint(#[\SensitiveParameter] string $url, #[\SensitiveParameter] array $headers = [],
+                    int $maxRedirects = 3, ?int $deadline = null): array { return $this->get($url, $headers); }
                 public function get(#[\SensitiveParameter] string $url, #[\SensitiveParameter] array $headers = []): array
                 {
                     if (!str_starts_with($url, 'https://api.github.com')) {
@@ -110,6 +112,8 @@ final class PeriodicWorkerTest
             (new \Tablo\TokenVault($directory->path . '/github-token.key'))->encrypt(bin2hex(random_bytes(24)));
             $db->exec("UPDATE sites SET github_token = 'invalid-fixture-ciphertext' WHERE id = 1");
             $http = new class extends HttpClient {
+                public function getEndpoint(#[\SensitiveParameter] string $url, #[\SensitiveParameter] array $headers = [],
+                    int $maxRedirects = 3, ?int $deadline = null): array { return $this->get($url, $headers); }
                 public function get(#[\SensitiveParameter] string $url, #[\SensitiveParameter] array $headers = []): array
                 {
                     if (str_contains($url, '/project2/')) { throw new \RuntimeException('synthetic-private-provider'); }

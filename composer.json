@@ -9,6 +9,7 @@
     "ext-openssl": "*",
     "ext-pdo": "*",
     "ext-pdo_sqlite": "*",
+    "lib-curl": ">=7.55.0",
     "phalcon/phalcon": "^6.0@RC",
     "phalcon/volt": "^1.0@dev",
     "vlucas/phpdotenv": "^5.6"

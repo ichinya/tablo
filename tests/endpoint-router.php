@@ -36,6 +36,15 @@ if (preg_match('~^/homepage/(200|201|204|301|302|404|500|503)$~D', $path, $match
     return;
 }
 switch ($path) {
+    case '/redirect-health':
+        header('Location: /up', true, 301);
+        break;
+    case '/redirect-version':
+        header('Location: /version', true, 308);
+        break;
+    case '/redirect-missing':
+        http_response_code(302);
+        break;
     case '/rate-headers':
         http_response_code(429);
         header('rEtRy-AfTeR: 3600');
