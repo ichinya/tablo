@@ -340,9 +340,9 @@
             "kind": "entity",
             "source": {
                 "path": "app/sqlite-database.php",
-                "line": 339
+                "line": 403
             },
-            "fingerprint": "sha256:6e460c1e9e64cfe80e4b3aad737daafd47a40d160dfbc7ca1a298ee5493cfdca",
+            "fingerprint": "sha256:c56b7b237183ddb391a04561a8a7a330d33f1ca7ae01dcbd25a8f8f149b4cfe2",
             "signature": null,
             "effects": [],
             "shape": {
@@ -565,9 +565,9 @@
             "kind": "entity",
             "source": {
                 "path": "app/sqlite-database.php",
-                "line": 328
+                "line": 392
             },
-            "fingerprint": "sha256:6e460c1e9e64cfe80e4b3aad737daafd47a40d160dfbc7ca1a298ee5493cfdca",
+            "fingerprint": "sha256:c56b7b237183ddb391a04561a8a7a330d33f1ca7ae01dcbd25a8f8f149b4cfe2",
             "signature": null,
             "effects": [],
             "shape": {
@@ -819,9 +819,9 @@
             "kind": "entity",
             "source": {
                 "path": "app/sqlite-database.php",
-                "line": 342
+                "line": 406
             },
-            "fingerprint": "sha256:6e460c1e9e64cfe80e4b3aad737daafd47a40d160dfbc7ca1a298ee5493cfdca",
+            "fingerprint": "sha256:c56b7b237183ddb391a04561a8a7a330d33f1ca7ae01dcbd25a8f8f149b4cfe2",
             "signature": null,
             "effects": [],
             "shape": {
@@ -844,9 +844,9 @@
             "kind": "entity",
             "source": {
                 "path": "app/sqlite-database.php",
-                "line": 347
+                "line": 411
             },
-            "fingerprint": "sha256:6e460c1e9e64cfe80e4b3aad737daafd47a40d160dfbc7ca1a298ee5493cfdca",
+            "fingerprint": "sha256:c56b7b237183ddb391a04561a8a7a330d33f1ca7ae01dcbd25a8f8f149b4cfe2",
             "signature": null,
             "effects": [],
             "shape": {
@@ -879,9 +879,9 @@
             "kind": "entity",
             "source": {
                 "path": "app/sqlite-database.php",
-                "line": 353
+                "line": 417
             },
-            "fingerprint": "sha256:6e460c1e9e64cfe80e4b3aad737daafd47a40d160dfbc7ca1a298ee5493cfdca",
+            "fingerprint": "sha256:c56b7b237183ddb391a04561a8a7a330d33f1ca7ae01dcbd25a8f8f149b4cfe2",
             "signature": null,
             "effects": [],
             "shape": {

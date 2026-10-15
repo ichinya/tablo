@@ -14,6 +14,120 @@ use Testo\Assert;
 use Testo\Test;
 use Throwable;
 
+final class DatabaseWalNegotiationTest
+{
+    private static function negotiate(PDO $db, string $owner = Database::class): ?\Throwable
+    {
+        try { (new \ReflectionMethod($owner, 'ensureWal'))->invoke(null, $db); }
+        catch (\Throwable $error) { return $error; }
+        return null;
+    }
+
+    #[Test]
+    public function walRetriesOnlyGenuineBusyCodesAndReleasesEachStatement(): void
+    {
+        foreach ([5, 261, 773] as $code) {
+            foreach (['prepare', 'execute', 'fetch'] as $stage) {
+                $db = new DatabaseWalPdo();
+                $db->plan['failure'] = DatabaseWalPdo::error($code);
+                $db->plan['failureStage'] = $stage;
+                Assert::same(self::negotiate($db), null);
+                Assert::same($db->timeout, 5000);
+                Assert::same($db->setters, 2);
+                Assert::true($db->allReleased());
+                Assert::same($db->timeouts, [0, 5000]);
+            }
+        }
+        foreach ([null, '5', 6, 8, 10, 17, 517, 1029] as $code) {
+            $db = new DatabaseWalPdo();
+            $error = DatabaseWalPdo::error($code);
+            $db->plan['failure'] = $error;
+            Assert::same(self::negotiate($db), $error);
+            Assert::same($db->setters, 1);
+            Assert::same($db->timeout, 5000);
+            Assert::true($db->allReleased());
+        }
+    }
+
+    #[Test]
+    public function walCleanupAndRestoreFailuresNeverRetryOrMaskPrimaryFailure(): void
+    {
+        foreach ([true, false] as $throwCleanup) {
+            $db = new DatabaseWalPdo();
+            $primary = DatabaseWalPdo::error(5);
+            $db->plan['failure'] = $primary;
+            $db->plan['cleanupFailure'] = $throwCleanup ? new \RuntimeException('Synthetic cleanup failure') : false;
+            $db->plan['restoreFailure'] = new \RuntimeException('Synthetic restore failure');
+            Assert::same(self::negotiate($db), $primary);
+            Assert::same($db->setters, 1);
+            Assert::same($db->timeouts, [0, 5000]);
+            Assert::true($db->allReleased());
+        }
+        $db = new DatabaseWalPdo();
+        $db->plan['restoreFailure'] = new \RuntimeException('Synthetic restore failure');
+        Assert::same(self::negotiate($db), $db->plan['restoreFailure']);
+        $db = new DatabaseWalPdo();
+        $db->plan['cleanupFailure'] = new \RuntimeException('Synthetic cleanup failure');
+        Assert::same(self::negotiate($db), $db->plan['cleanupFailure']);
+        Assert::same($db->setters, 0);
+        Assert::same($db->timeout, 5000);
+        $db = new DatabaseWalPdo();
+        $db->plan['initialFailure'] = DatabaseWalPdo::error(5);
+        Assert::same(self::negotiate($db), $db->plan['initialFailure']);
+        Assert::same($db->setters, 0);
+        Assert::same($db->timeouts, [0, 5000]);
+    }
+
+    #[Test]
+    public function walReadsActualModeAndImmediatelyRefusesUnsupportedMode(): void
+    {
+        $db = new DatabaseWalPdo();
+        $db->plan['mode'] = 'wal';
+        Assert::same(self::negotiate($db), null);
+        Assert::same($db->setters, 0);
+        Assert::same($db->sql, ['PRAGMA main.journal_mode']);
+        $db = new DatabaseWalPdo();
+        $db->plan['returnedMode'] = 'delete';
+        Assert::same(self::negotiate($db)?->getMessage(), 'SQLite WAL is required for file databases; use writable local storage.');
+        Assert::same($db->setters, 1);
+        Assert::same($db->timeout, 5000);
+        Assert::true($db->allReleased());
+    }
+
+    #[Test]
+    public function walDeadlineClipsBackoffAndChecksAgainAfterSchedulerWake(): void
+    {
+        $owner = 'Tablo\\Tests\\Support\\WalClock\\Database';
+        if (!class_exists($owner, false)) {
+            $source = file_get_contents(dirname(__DIR__, 2) . '/app/sqlite-database.php');
+            if (substr_count($source, 'namespace Tablo;') !== 1) { throw new \RuntimeException('Clock copy namespace changed'); }
+            $directory = new TemporaryDirectory('tablo-wal-clock-');
+            try {
+                $copy = str_replace('namespace Tablo;', 'namespace Tablo\\Tests\\Support\\WalClock;', $source);
+                file_put_contents($directory->path . '/owner.php', $copy);
+                require $directory->path . '/owner.php';
+            } finally { $directory->close(); }
+        }
+        foreach ([0, 30_000_000] as $overshoot) {
+            \Tablo\Tests\Support\WalClock\Clock::reset($overshoot);
+            $db = new DatabaseWalPdo();
+            $db->plan['failure'] = DatabaseWalPdo::error(5);
+            $db->plan['repeatFailure'] = true;
+            Assert::same(self::negotiate($db, $owner), $db->plan['failure']);
+            Assert::same($db->timeout, 5000);
+            $sleeps = \Tablo\Tests\Support\WalClock\Clock::$sleeps;
+            Assert::same(array_slice(array_column($sleeps, 'microseconds'), 0, 3), [5000, 10000, 20000]);
+            foreach ($sleeps as $sleep) {
+                Assert::true($sleep['microseconds'] <= 25000);
+                Assert::true($sleep['before'] + $sleep['microseconds'] * 1000 <= 5_000_000_000);
+            }
+            foreach ($db->attemptTimes as $time) { Assert::true($time < 5_000_000_000); }
+            Assert::true($db->allReleased());
+        }
+    }
+
+}
+
 final class DatabaseTest
 {
     private static function schema(bool $historic = false): string
@@ -334,5 +448,84 @@ final class DatabaseTest
         $db->exec('ROLLBACK');
         Assert::same((int) $db->query('PRAGMA user_version')->fetchColumn(), 0);
         Assert::same($db->query('SELECT name FROM sqlite_schema')->fetchAll(), []);
+    }
+}
+
+/** Focused statement double; real process tests prove actual connect contention. */
+final class DatabaseWalPdo extends PDO
+{
+    public int $timeout = 5000;
+    public array $timeouts = [];
+    public array $sql = [];
+    public array $statements = [];
+    public array $attemptTimes = [];
+    public int $setters = 0;
+    public array $plan = ['mode' => 'delete', 'returnedMode' => 'wal', 'failure' => null, 'failureStage' => 'execute',
+        'repeatFailure' => false, 'cleanupFailure' => null, 'restoreFailure' => null, 'initialFailure' => null];
+
+    public function __construct() {}
+
+    public static function error(mixed $code): \PDOException
+    {
+        $error = new \PDOException('Synthetic HY000 database is locked', 5);
+        $error->errorInfo = ['HY000', $code, null];
+        return $error;
+    }
+
+    public function exec(string $statement): int|false
+    {
+        $this->timeout = $statement === 'PRAGMA busy_timeout = 0' ? 0 : 5000;
+        $this->timeouts[] = $this->timeout;
+        if ($this->timeout === 0 && $this->plan['initialFailure'] !== null) { throw $this->plan['initialFailure']; }
+        if ($this->timeout === 5000 && $this->plan['restoreFailure'] !== null) { throw $this->plan['restoreFailure']; }
+        return 0;
+    }
+
+    public function prepare(string $query, array $options = []): \PDOStatement|false
+    {
+        Assert::same($this->timeout, 0);
+        Assert::true($this->allReleased(), 'Statement remained strongly reachable before next prepare');
+        $this->sql[] = $query;
+        $this->attemptTimes[] = \Tablo\Tests\Support\WalClock\Clock::$now;
+        $setter = $query === 'PRAGMA main.journal_mode = WAL';
+        if ($setter) { $this->setters++; }
+        $failure = $setter && ($this->setters === 1 || $this->plan['repeatFailure']) ? $this->plan['failure'] : null;
+        if ($failure !== null && $this->plan['failureStage'] === 'prepare') { throw $failure; }
+        $statement = new DatabaseWalStatement($this, $setter, $failure);
+        $this->statements[] = \WeakReference::create($statement);
+        return $statement;
+    }
+
+    public function allReleased(): bool
+    {
+        foreach ($this->statements as $reference) { if ($reference->get() !== null) { return false; } }
+        return true;
+    }
+}
+
+final class DatabaseWalStatement extends \PDOStatement
+{
+    public function __construct(private readonly DatabaseWalPdo $db, private readonly bool $setter, private readonly ?\PDOException $failure) {}
+
+    public function execute(?array $params = null): bool
+    {
+        if ($this->failure !== null && $this->db->plan['failureStage'] === 'execute') { throw $this->failure; }
+        return true;
+    }
+
+    public function fetchColumn(int $column = 0): mixed
+    {
+        if ($this->failure !== null && $this->db->plan['failureStage'] === 'fetch') { throw $this->failure; }
+        return $this->setter ? $this->db->plan['returnedMode'] : $this->db->plan['mode'];
+    }
+
+    public function closeCursor(): bool
+    {
+        // In primary-error controls, fail only on the failing setter's cleanup.
+        if ($this->db->plan['cleanupFailure'] !== null && ($this->db->plan['failure'] === null || $this->failure !== null)) {
+            if ($this->db->plan['cleanupFailure'] === false) { return false; }
+            throw $this->db->plan['cleanupFailure'];
+        }
+        return true;
     }
 }
