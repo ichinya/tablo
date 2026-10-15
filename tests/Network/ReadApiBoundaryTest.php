@@ -52,6 +52,60 @@ function public_api_missing_dependencies_and_ordinary_output_are_fixed_without_d
     }
 }
 
+#[Test]
+function schema_transition_after_connection_admission_is_checked_inside_the_actual_api_snapshot(): void
+{
+    foreach ([\Tablo\Database::CURRENT_SCHEMA_VERSION, \Tablo\Database::CURRENT_SCHEMA_VERSION - 1, \Tablo\Database::CURRENT_SCHEMA_VERSION + 1] as $version) {
+        $directory = new TemporaryDirectory('tablo-read-api-schema-transition-'); $server = null; $db = null; $tokens = null;
+        try {
+            $root = dirname(__DIR__, levels: 2); $copy = $directory->path . '/source'; mkdir($copy . '/public', permissions: 0o700, recursive: true); mkdir($copy . '/app');
+            $files = read_api_copy_boundary_sources($root, $copy);
+            $path = $directory->path . '/current.sqlite';
+            $db = new \PDO('sqlite:' . $path, options: [\PDO::ATTR_ERRMODE => \PDO::ERRMODE_EXCEPTION]);
+            \Tablo\Database::migrate($db); A::administrator($db); A::insert($db);
+            $tokens = new ReadApiTokenRepository($db); $fingerprint = ReadApiTokenRepository::administrator($db); Assert::notNull($fingerprint);
+            $secret = $tokens->rotate($fingerprint, static fn (): bool => true); $before = A::snapshot($db);
+            read_api_commit_schema_on_open($copy, $version);
+            mkdir($copy . '/vendor'); file_put_contents($copy . '/vendor/autoload.php', read_api_fault_autoload($root, $copy, $files, fault: 'complete'));
+            $router = $directory->path . '/router.php'; file_put_contents($router, data: '<?php require __DIR__ . "/source/public/index.php";');
+            $server = new TestServer($directory, $router, $copy . '/public', ['TABLO_DB' => $path]);
+            $response = read_api_boundary_request($server, $secret);
+            Assert::same(json_decode(\Tablo\RequiredFile::bytes(file_get_contents($copy . '/app/transition.json')), associative: true, flags: JSON_THROW_ON_ERROR),
+                ['admitted' => \Tablo\Database::CURRENT_SCHEMA_VERSION, 'committed' => $version]);
+            if ($version === \Tablo\Database::CURRENT_SCHEMA_VERSION) {
+                Assert::same($response['status'], 200); ReadApiFixture::headers($response);
+                Assert::same(array_column(A::page($response['body'])['data'], 'id'), ['1']);
+            }
+            if ($version !== \Tablo\Database::CURRENT_SCHEMA_VERSION) { ReadApiFixture::error($response, 500, 'unavailable'); }
+            $expected = $before; $expected['version'] = [['user_version' => $version]];
+            Assert::same(A::snapshot($db), $expected);
+            Assert::false(is_dir($copy . '/storage'));
+            Assert::false(str_contains($server->diagnostics(), $secret));
+        } catch (\Throwable $error) { $directory->retainFailure($error); throw $error; }
+        finally {
+            unset($tokens, $db);
+            $directory->cleanup(static function () use ($server, $directory): void {
+                $server?->close();
+                if ($server !== null) { \Tablo\Tests\Support\read_api_fixture_close_port($server->port); }
+                $directory->close();
+            });
+        }
+    }
+}
+
+function read_api_commit_schema_on_open(string $copy, int $version): void
+{
+    // The real open/version/query_only admission still runs. Commit on another
+    // native connection immediately before open returns, without a scheduling race.
+    $connection = \Tablo\RequiredFile::bytes(file_get_contents($copy . '/app/ReadApiConnection.php'));
+    $hook = '$admitted = SchemaVersion::schemaVersion($db);'
+        . '$writer = new \\PDO("sqlite:" . ExistingConnection::resolvePath(null), options: [\\PDO::ATTR_ERRMODE => \\PDO::ERRMODE_EXCEPTION]);'
+        . '$writer->exec("PRAGMA main.user_version = ' . $version . '"); $writer = null;'
+        . 'file_put_contents(__DIR__ . "/transition.json", json_encode(["admitted" => $admitted, "committed" => ' . $version . '], JSON_THROW_ON_ERROR));';
+    Assert::same(substr_count($connection, needle: 'return $db;'), 1);
+    file_put_contents($copy . '/app/ReadApiConnection.php', str_replace('return $db;', $hook . 'return $db;', $connection));
+}
+
 /** @return list<string> */
 function read_api_copy_boundary_sources(string $root, string $copy): array
 {

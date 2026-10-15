@@ -1953,9 +1953,9 @@
             "kind": "query",
             "source": {
                 "path": "app/read-api-repository.php",
-                "line": 394
+                "line": 396
             },
-            "fingerprint": "sha256:af14e4df823ddcf69d7d79d41ac7c1b04d32ff8ea0f9b751afe6d7e9f5fd2e94",
+            "fingerprint": "sha256:db6f80e2b1f86145e747795940368c302c51a3d6ceada92a1459a77ca7dc315b",
             "signature": {
                 "inputs": [],
                 "output": "dashboard.api_sites_response",
@@ -1970,9 +1970,9 @@
             "kind": "query",
             "source": {
                 "path": "app/read-api-repository.php",
-                "line": 406
+                "line": 408
             },
-            "fingerprint": "sha256:af14e4df823ddcf69d7d79d41ac7c1b04d32ff8ea0f9b751afe6d7e9f5fd2e94",
+            "fingerprint": "sha256:db6f80e2b1f86145e747795940368c302c51a3d6ceada92a1459a77ca7dc315b",
             "signature": {
                 "inputs": [],
                 "output": "optional(dashboard.api_site_response)",

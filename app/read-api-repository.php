@@ -374,6 +374,8 @@ function read_api_response(#[\SensitiveParameter] string $token, #[\SensitivePar
         $db = ReadApiConnection::open();
         $db->exec('BEGIN');
         try {
+            // Pin schema admission to the same snapshot as authentication and site reads.
+            if (SchemaVersion::schemaVersion($db) !== Database::CURRENT_SCHEMA_VERSION) { throw new \RuntimeException('Service unavailable.'); }
             ReadApiSchemaAdmission::authentication($db);
             if (!(new ReadApiTokenRepository($db))->authenticate($token)) { return ReadApiResponse::error('unauthorized'); }
             $body = file_get_contents('php://input', length: 1);

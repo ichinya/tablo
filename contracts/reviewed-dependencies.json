@@ -9298,7 +9298,7 @@
                 "Composer verify",
                 "Native read API tests"
             ],
-            "fingerprint": "sha256:af14e4df823ddcf69d7d79d41ac7c1b04d32ff8ea0f9b751afe6d7e9f5fd2e94"
+            "fingerprint": "sha256:db6f80e2b1f86145e747795940368c302c51a3d6ceada92a1459a77ca7dc315b"
         },
         {
             "path": "app/read-api-token-repository.php",
@@ -9446,7 +9446,7 @@
             "consumers": [
                 "Read API documentation and privacy review"
             ],
-            "fingerprint": "sha256:83e510c3bfdfede433fee95abc9d89e33bf61bdf0285152b1d0b2144a88fc519"
+            "fingerprint": "sha256:94eb953eced6ba2aa41af36cceda9e7f95f83bd4088dfaef70a3e69b8171781b"
         },
         {
             "path": "tests/fixtures/read-api-router.php",
@@ -9534,7 +9534,7 @@
                 "Composer verify",
                 "Native read API tests"
             ],
-            "fingerprint": "sha256:7dcdace65a87404fdb61c69d6880f23608663b4dbff606158e24b316d1b8c016"
+            "fingerprint": "sha256:2154447f21920532f4a6ccce81a2d67e90e41389e15294431f23e6a69535faca"
         },
         {
             "path": "tests/Support/ReadApiAssertions.php",
