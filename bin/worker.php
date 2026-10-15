@@ -1,16 +1,17 @@
 <?php
 declare(strict_types=1);
+require_once dirname(__DIR__) . '/app/RuntimeIni.php';
 
 // Even bootstrap, filesystem warnings and DB diagnostics stay inside the fixed boundary.
-ini_set('display_errors', '0');
-ini_set('log_errors', '0');
+\Tablo\RuntimeIni::set('display_errors', value: '0');
+\Tablo\RuntimeIni::set('log_errors', value: '0');
 set_error_handler(static function (int $severity): bool {
     if (!(error_reporting() & $severity)) { return true; }
     throw new RuntimeException('Worker operation failed.');
 });
 try {
     if ($argc > 2 || ($argc === 2 && $argv[1] !== '--stop')) {
-        fwrite(STDERR, "Usage: php bin/worker.php [--stop]\n");
+        fwrite(STDERR, data: "Usage: php bin/worker.php [--stop]\n");
         exit(64);
     }
     require dirname(__DIR__) . '/vendor/autoload.php';
@@ -34,7 +35,7 @@ try {
     // Windows portable --stop is supported; no unexercised console-event promise.
     exit($worker->run());
 } catch (Throwable $error) {
-    fwrite(STDERR, "Worker failed. Check installation configuration and local storage.\n");
+    fwrite(STDERR, data: "Worker failed. Check installation configuration and local storage.\n");
     if ($error instanceof Tablo\InstallationException && $error->getCode() === Tablo\InstallationException::UNSUPPORTED_CURL) {
         fwrite(STDERR, Tablo\InstallationException::CURL_DIAGNOSTIC . "\n");
     }

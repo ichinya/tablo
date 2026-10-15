@@ -7,7 +7,7 @@ use Tablo\Database;
 use Tablo\GitHubClock;
 use Tablo\GitHubCooldownRepository;
 use Tablo\GitHubCredential;
-use Tablo\GitHubFailure;
+
 use Tablo\GitHubProvider;
 use Tablo\GitHubRequestPolicy;
 use Tablo\SiteChecker;
@@ -51,11 +51,11 @@ final class WorkerAdmissionTest
         Assert::same($policy->admissions(), 4);
         $stale = new GitHubProvider(new FakeHttp([]), policy: $policy, credential: new GitHubCredential(current: static fn (): bool => false));
         $result = (new SiteChecker(new FakeHttp([UnitFixtures::response()]), $stale))->check($site, $order);
-        Assert::same($result['worker_service'], array_fill_keys($order, false));
+        Assert::same($result['worker_service'], array_fill_keys($order, value: false));
         Assert::same($policy->admissions(), 4);
         $zero = new GitHubProvider(new FakeHttp([]), policy: new GitHubRequestPolicy(maxRequests: 0));
         $result = (new SiteChecker(new FakeHttp([UnitFixtures::response()]), $zero))->check($site, $order);
-        Assert::same($result['worker_service'], array_fill_keys($order, false));
+        Assert::same($result['worker_service'], array_fill_keys($order, value: false));
         Assert::same($result['online'], 1);
     }
 }

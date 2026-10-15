@@ -46,18 +46,15 @@ final class PeriodicWorkerTest
                         return UnitFixtures::response(200, '{"version":"v1"}');
                     }
                     return UnitFixtures::response(200, str_contains($url, '/search/') ? '{"total_count":0,"incomplete_results":false}'
-                        : (str_contains($url, '/branches/') ? '{"name":"main","commit":{"sha":"' . str_repeat('a', 40) . '"}}' : '{"tag_name":"v1"}'));
+                        : (match (true) { (str_contains($url, '/branches/')) => '{"name":"main","commit":{"sha":"' . str_repeat('a', times: 40) . '"}}', default => '{"tag_name":"v1"}' }));
                 }
             };
-            $worker = new PeriodicWorker($db, $http,
-                connection: function () use (&$starts, &$time, $sites, $http): GitHubConnection {
+            $worker = new PeriodicWorker($db, $http, hooks: new \Tablo\WorkerHooks(connection: static function () use (&$starts, &$time, $sites, $http): GitHubConnection {
                     $starts[] = $time;
                     return new GitHubConnection($sites, $http);
-                }, clock: static function () use (&$time): float { return $time; },
-                sleep: static function (float $seconds) use (&$time, &$sleeps): void { $sleeps[] = $seconds; $time += $seconds; },
-                output: static function (string $message) use (&$worker, &$starts): void {
+                }, clock: static function () use (&$time): float { return $time; }, sleep: static function (float $seconds) use (&$time, &$sleeps): void { $sleeps[] = $seconds; $time += $seconds; }, output: static function (string $message) use (&$worker, &$starts): void {
                     if ($message === 'Worker pass complete.' && count($starts) === 2) { $worker->stop(); }
-                });
+                }));
             Assert::same($worker->run(), 0);
             Assert::same(count($starts), 2);
             Assert::true(abs($starts[1] - $starts[0] - 300) < 0.001, 'two 90s HTTP checks then committed 120s completion wait');
@@ -86,7 +83,7 @@ final class PeriodicWorkerTest
             foreach (['aba', 'edit', 'rotation', 'individual', 'reselect', 'delete'] as $action) {
                 $snapshot = $sites->find($id);
                 match ($action) {
-                    'aba' => (function () use ($sites, $input, $id): void { $sites->save(array_replace($input, ['enabled' => 0]), $id); $sites->save($input, $id); })(),
+                    'aba' => (static function () use ($sites, $input, $id): void { $sites->save(array_replace($input, ['enabled' => 0]), $id); $sites->save($input, $id); })(),
                     'edit' => $sites->save($input, $id),
                     'rotation' => $tokens->save(['name' => 'Renamed', 'provider' => 'github', 'token' => bin2hex(random_bytes(24))], $token),
                     'individual' => $sites->save(array_replace($input, ['git_token_id' => '', 'github_token' => bin2hex(random_bytes(24))]), $id),
@@ -119,11 +116,11 @@ final class PeriodicWorkerTest
                     if (str_contains($url, '/project2/')) { throw new \RuntimeException('synthetic-private-provider'); }
                     if (str_contains($url, 'example.com/2')) { throw new \RuntimeException('synthetic-private-check'); }
                     return UnitFixtures::response(200, str_contains($url, '/search/') ? '{"total_count":0,"incomplete_results":false}'
-                        : (str_contains($url, '/branches/') ? '{"name":"main","commit":{"sha":"' . str_repeat('a', 40) . '"}}' : '{"tag_name":"v1"}'));
+                        : (match (true) { (str_contains($url, '/branches/')) => '{"name":"main","commit":{"sha":"' . str_repeat('a', times: 40) . '"}}', default => '{"tag_name":"v1"}' }));
                 }
             };
             $logs = [];
-            $worker = new PeriodicWorker($db, $http, output: static function (string $message) use (&$logs): void { $logs[] = $message; });
+            $worker = new PeriodicWorker($db, $http, hooks: new \Tablo\WorkerHooks(output: static function (string $message) use (&$logs): void { $logs[] = $message; }));
             $worker->runPass();
             Assert::true($sites->find(1)['checked_at'] !== null);
             Assert::same($sites->find(1)['online'], 1, 'unavailable credentials still allow health');
@@ -133,7 +130,7 @@ final class PeriodicWorkerTest
             Assert::true($sites->find(4)['checked_at'] !== null);
             Assert::false(str_contains(implode(' ', $logs), 'synthetic-private'));
             Assert::same($logs, ['Worker site checked.', 'Worker site checked.', 'Worker site checked.', 'Worker credentials unavailable.', 'Worker site checked.']);
-            Assert::same((new WorkerStateRepository($db))->turns(1, 0), array_fill_keys(WorkerStateRepository::FIELDS, 0));
+            Assert::same((new WorkerStateRepository($db))->turns(1, 0), array_fill_keys(WorkerStateRepository::FIELDS, value: 0));
             Assert::true(min((new WorkerStateRepository($db))->turns(3, 0)) > 0, 'accepted current result and service commit together');
             Assert::true(min((new WorkerStateRepository($db))->turns(2, 0)) > 0, 'admitted upstream failures receive credit');
         } finally { unset($worker, $http, $sites, $db); $directory->close(); }

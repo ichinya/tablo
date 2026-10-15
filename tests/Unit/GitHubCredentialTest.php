@@ -38,7 +38,7 @@ final class GitHubCredentialTest
                 Assert::same($vault->decrypt($ciphertext), 'low-entropy-fixture');
                 Assert::true(str_starts_with($ciphertext, 'v1:'));
                 Assert::true((bool) preg_match('/^credential:v1:[a-f0-9]{64}$/D', $scope));
-                Assert::false(str_contains($scope, hash('sha256', 'low-entropy-fixture')));
+                Assert::false(str_contains($scope, hash('sha256', data: 'low-entropy-fixture')));
                 Assert::false(str_contains($scope, 'low-entropy-fixture'));
                 Assert::same($vault->credentialScope('low-entropy-fixture'), $scope);
                 Assert::false(hash_equals($scope, $vault->credentialScope('different-fixture')));
@@ -49,7 +49,7 @@ final class GitHubCredentialTest
             Assert::false(hash_equals(TokenVault::forDatabase($db)->credentialScope('low-entropy-fixture'), $scope));
             Assert::true(hash_equals($defaultKey, file_get_contents($directory->path . '/github-token.key')));
             Assert::true(hash_equals($externalKey, file_get_contents($directory->path . '/external.key')));
-            file_put_contents($directory->path . '/external.key', 'corrupt-fixture');
+            file_put_contents($directory->path . '/external.key', data: 'corrupt-fixture');
             $failure = null;
             try { $vault->credentialScope('private-fixture'); } catch (\RuntimeException $caught) { $failure = $caught; }
             Assert::instanceOf($failure, \RuntimeException::class);
@@ -85,7 +85,7 @@ final class GitHubCredentialTest
             $tokens->save(['name' => 'Renamed', 'provider' => 'github'], $one);
             Assert::same($connection->provider($sites->find($first))->getLatestRelease('example/project'), 'v1');
             $tokens->save(['name' => 'Renamed', 'provider' => 'github', 'token' => $secret], $one);
-            self::changed(fn () => $old->getLatestRelease('example/project'));
+            self::changed(static fn () => $old->getLatestRelease('example/project'));
             Assert::same($connection->provider($sites->find($first))->getLatestRelease('example/project'), 'v3');
             Assert::same($connection->provider($sites->find($second))->getLatestRelease('example/project'), 'v2');
             Assert::same(count($http->requests), 3);
@@ -114,18 +114,18 @@ final class GitHubCredentialTest
             $old = $connection->provider($sites->find($id));
             Assert::same($old->getLatestRelease('example/project'), 'private');
             $sites->save($base + ['git_token_id' => $two], $id);
-            self::changed(fn () => $old->getLatestRelease('example/project'));
+            self::changed(static fn () => $old->getLatestRelease('example/project'));
             $snapshot = $sites->find($id);
             $loading = new class($sites, $base, $id) extends HttpClient {
                 public function __construct(private SiteRepository $sites, private array $base, private int $id) {}
                 public function get(#[\SensitiveParameter] string $url, #[\SensitiveParameter] array $headers = []): array
                 {
-                    $this->sites->save($this->base + ['git_token_id' => '', 'remove_github_token' => 1], $this->id);
+                    $this->sites->save($this->base + ['git_token_id' => '', 'remove_github_token' => \Tablo\FormCheckbox::INTEGER_VALUE], $this->id);
                     return UnitFixtures::response(200, '{"tag_name":"obsolete-private"}');
                 }
             };
             $provider = (new GitHubConnection($sites, $loading))->provider($snapshot);
-            self::changed(fn () => $provider->getLatestRelease('example/project'));
+            self::changed(static fn () => $provider->getLatestRelease('example/project'));
             Assert::false($sites->storeCheck($snapshot, ['latest_release' => 'obsolete-private']));
             Assert::same($connection->provider($sites->find($id))->getLatestRelease('example/project'), 'public');
             Assert::same(count($http->requests), 2);

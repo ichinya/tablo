@@ -58,7 +58,7 @@
             "id": "dashboard.login",
             "kind": "command",
             "version": 2,
-            "description": "Resolve canonical transport identity at Web login: default/untrusted peers ignore forwarding; exact trusted peers require a fully valid bounded right-to-left XFF chain and fail before Auth on invalid or all-trusted history. Verify administrator password with the persistent atomic five-failure/900-second limiter; regenerate session id and CSRF token on success. Verify under the existing atomic address throttle (five failures/900 seconds). Auth.loginSession returns an internal domain-separated fingerprint of the exact verified hash or its own committed replacement on rehash; Web binds that snapshot without recapture and rotates session/CSRF. Old snapshots fail at the next protected admission after credential change. Auth.login remains bool-compatible; timeout/cookie policy remains unchanged. Application runtime precondition: optional external raw32 key selection is read-only and preflighted before database/session/control/network effects; retained authenticated ciphertext witnesses key identity before migration, with no-witness and no-cipher bounds. Secret selection is configuration, never model input. Live key loss or replacement refuses admission and save without regeneration.",
+            "description": "Web resolves canonical socket/proxy address using the bounded right-to-left trusted XFF contract before Auth. Persistent atomic five-failure/900-second throttle precedes password verification. Auth.loginSession returns the fingerprint of the exact verified hash or its own committed rehash; Web binds that snapshot and rotates session ID/CSRF. Changed credentials invalidate old protected sessions without recapturing authority. Auth.login remains bool-compatible. External raw32 key selection is read-only, preflighted before database/session/network effects and authenticated against retained credential carriers before migration; live key loss/replacement refuses without regeneration. Cookie and timeout policy remain unchanged.",
             "input": [
                 {
                     "name": "password",
@@ -79,7 +79,7 @@
             "id": "dashboard.create_site",
             "kind": "command",
             "version": 4,
-            "description": "Authenticated CSRF-protected create; normalize GitHub URLs; reject invalid URL, branch, path, mode and sort order. Validate the actual GitHub branch using a supplied or saved token; encrypt token replacement, preserve blank token or explicitly remove it. Validate active bounded JSON paths, health mode, operator and finite numeric expected values; retain submitted values and report field errors. Persist JSON settings; unchanged legacy inputs default to HTTP and automatic version extraction. GitHub uses serial REST, safe typed access/rate/unavailable/budget/rotation failures and no retry/sleep. Primary core/search eligibility is stable-handle scoped; secondary is installation-shared and persisted across CLI/web. A 256-entry sweep-local semantic memo is isolated by credential revision and metric/branch; no-release requires repository access confirmation. Monitoring: five attempts/24s per site; branches: eleven attempts; connection: 100 attempts/120s scheduling budget. cURL is clamped; synchronous DNS can overrun and is checked before HTTP. Preserve partial metrics; reject credentials changed before/after load or cache hits. Authenticated preview initializes a missing private identity key only before reusable/per-site ciphertext or any key-derived cooldown state exists. Established missing keys fail before key creation and HTTP with backup-restoration guidance; corrupt/unreadable keys remain unchanged. Restoring/moving the original key preserves equivalence/decryption. Public connection input/site arrays redact complete key-error trace arguments with PHP 8.2 SensitiveParameter; argument capture stays enabled. External raw32 key preflight and lifetime custody are runtime preconditions; see external_key_custody scenario. Endpoint Bearer custody/blank keep/remove: endpoint_credentials scenario.",
+            "description": "Authenticated CSRF-protected Web creation validates canonical repository/configuration and private-network policy. Homepage bytes remain exact; empty health path uses strict HTTP200/no-follow with dormant JSON settings. Explicit local health/version paths retain query bytes, bounded JSON selector/operators and independent deployment metadata. Endpoint Bearer input is printable bounded ASCII, encrypted on the selected vault, stripped from public/Git projections, with blank form values and safe presence flags. Inline/saved Git token policy remains independent. Creation initializes config_revision and unknown current results, with no history/incident/outbox fabrication. Selected established key custody is checked before private writes; SQL native arguments retain SensitiveParameter/typed bindings. Endpoint and Git ciphertext remain internal; public validation errors do not reflect credentials.",
             "input": [
                 {
                     "name": "site",
@@ -99,7 +99,7 @@
             "id": "dashboard.update_site",
             "kind": "command",
             "version": 5,
-            "description": "Authenticated CSRF-protected update; clear obsolete check state on configuration change. Validate the actual GitHub branch using a supplied or saved token; encrypt token replacement, preserve blank token or explicitly remove it. Validate active bounded JSON paths, health mode, operator and finite numeric expected values; retain submitted values and report field errors. Persist JSON settings; unchanged legacy inputs default to HTTP and automatic version extraction. GitHub uses serial REST, safe typed access/rate/unavailable/budget/rotation failures and no retry/sleep. Primary core/search eligibility is stable-handle scoped; secondary is installation-shared and persisted across CLI/web. A 256-entry sweep-local semantic memo is isolated by credential revision and metric/branch; no-release requires repository access confirmation. Monitoring: five attempts/24s per site; branches: eleven attempts; connection: 100 attempts/120s scheduling budget. cURL is clamped; synchronous DNS can overrun and is checked before HTTP. Preserve partial metrics; reject credentials changed before/after load or cache hits. Authenticated preview initializes a missing private identity key only before reusable/per-site ciphertext or any key-derived cooldown state exists. Established missing keys fail before key creation and HTTP with backup-restoration guidance; corrupt/unreadable keys remain unchanged. Restoring/moving the original key preserves equivalence/decryption. Public connection input/site arrays redact complete key-error trace arguments with PHP 8.2 SensitiveParameter; argument capture stays enabled. Configuration revision rejects intervening edits and disable-enable ABA; saved-token rotation increments referenced revisions atomically, rename-only blank-token edit preserves snapshots. External raw32 key preflight and lifetime custody are runtime preconditions; see external_key_custody scenario. Endpoint Bearer custody/blank keep/remove: endpoint_credentials scenario.",
+            "description": "Authenticated CSRF-protected Web edit retains the creation validation and safe credential-free form contract. Blank inline/saved Git and endpoint inputs keep their original ciphertext; explicit replacement/removal updates only the selected carrier and preserves key custody. Endpoint plaintext is bounded printable ASCII, encrypted using the selected vault, and omitted from all public/Git projections. Relevant configuration or credential changes increment config_revision and invalidate obsolete current observations; rename-only saved-token edits preserve compatibility. Current results, history, incidents/checkpoints and notification slots are not replayed or backfilled by configuration saves. In-flight endpoint/configuration ABA is rejected by actual settlement CAS and receives no service credit. Git/provider/homepage/JSON-selector behavior and independent partial-result policy remain intact.",
             "input": [
                 {
                     "name": "id",
@@ -125,8 +125,8 @@
         {
             "id": "dashboard.delete_site",
             "kind": "command",
-            "version": 1,
-            "description": "Require confirmation page and authenticated CSRF-protected POST. GET does not delete. Application runtime precondition: optional external raw32 key selection is read-only and preflighted before database/session/control/network effects; retained authenticated ciphertext witnesses key identity before migration, with no-witness and no-cipher bounds. Secret selection is configuration, never model input. Live key loss or replacement refuses admission and save without regeneration.",
+            "version": 3,
+            "description": "Require confirmation page and authenticated CSRF-protected POST. GET does not delete. Application runtime precondition: optional external raw32 key selection is read-only and preflighted before database/session/control/network effects; retained authenticated ciphertext witnesses key identity before migration, with no-witness and no-cipher bounds. Secret selection is configuration, never model input. Live key loss or replacement refuses admission and save without regeneration. Require confirmation page and authenticated CSRF-protected POST. GET does not delete. Deleting a site cascades only its immutable check history. Application runtime precondition: optional external raw32 key selection is read-only and preflighted before database/session/control/network effects; retained authenticated ciphertext witnesses key identity before migration, with no-witness and no-cipher bounds. Secret selection is configuration, never model input. Live key loss or replacement refuses admission and save without regeneration.",
             "input": [
                 {
                     "name": "id",
@@ -137,14 +137,19 @@
                 }
             ],
             "effects": [
-                "dashboard.site_deleted"
+                "dashboard.site_deleted",
+                "dashboard.check_history_deleted",
+                "dashboard.incident_deleted",
+                "dashboard.incident_checkpoint_deleted",
+                "dashboard.notification_checkpoint_deleted",
+                "dashboard.notification_slot_deleted"
             ]
         },
         {
             "id": "dashboard.check_site",
             "kind": "command",
-            "version": 6,
-            "description": "Manual, CLI and worker checks preserve health/version and four independent Git fields with partial/null results and storage whitelists. Empty health requests exact saved URL with strict200/no-follow and inactive JSON; explicit paths join rtrim(base, /) with local path/query bytes. Explicit health/nonempty version permit only GET 301/302/303/307/308 with <=3 same-origin transitions/4 requests; canonical scheme/host/effective port excludes CNAME equivalence/downgrade. Public mode: fresh all-answer conservative IANA unicast checks and exact selected-address pin per hop. Explicit allowPrivate: native OS/cURL resolution including hosts/localhost on fresh handles. TLS verification enabled; proxy and auto-follow disabled. URI syntax/origin/cycle/limit fail before dereference, with missing/duplicate/malformed Location or userinfo/fragments rejected; no arbitrary caller headers or raw diagnostic secrets. One monotonic6s endpoint deadline clamped to outer budget; cumulative1MiB header+decoded-body/64KiB header quotas include interim/trailers, exclude chunk/TLS framing. DNS may overrun; no subsequent transfer after expiry. Fixed redirect failures Unknown/no intermediate status; final2xx/JSON predicates and version selectors/commit aliases remain. HTTP/false predicate Offline. All configuration/cipher/selected-token snapshots and config_revision reject edits/ABA/rotation/deletion/reselection; blank token rename remains compatible. Git generic no-follow retains5 requests/24s site,100/120s aggregate,256-entry validated memo, resource primary/shared secondary cooldown, exact-token HMAC/current checks before/after load, no sleep/retry/failure cache. Missing vault key fails before HTTP; SensitiveParameter guards and transient worker service metadata/storage omission remain. External key and endpoint Bearer lifetime custody are runtime preconditions; see external_key_custody/endpoint_credentials scenarios.",
+            "version": 7,
+            "description": "SiteChecker performs independent health, version and four Git observations with typed partial/null successes. Homepage uses exact URL, strict200 and no-follow. Explicit endpoints permit at most3 same-origin GET redirects/4 requests under one monotonic6s deadline, cumulative1MiB and64KiB header limits, with fixed redirect reasons and fresh per-hop DNS/address admission. Proxy/auto-follow are disabled; TLS stays verified. Selected endpoint Bearer stays private and reflected metadata is rejected. Git keeps5 requests/24s site,100/120s aggregate budgets,256-entry validated memo, resource cooldown and exact credential checks before/after admission. Version/Git UTF8, NUL, SHA and length validation occurs before history projection; independent successes survive. Actual SiteRepository persistCheck owns one BEGIN IMMEDIATE for endpoint/configuration/Git CAS current update, immutable history, prospective incidents/checkpoints, notification projection and worker credit. All commit or roll back together; stale/ABA results write nothing. No historical replay. Redirect reasons persist as Unknown; narrower incident domain admits confirmed Offline only. Same-epoch non-older Online recovers; uncertainty/clock qualifiers survive retention. Delivery follows accepted commit on the selected vault.",
             "input": [
                 {
                     "name": "id",
@@ -157,7 +162,11 @@
             "effects": [
                 "dashboard.site_updated",
                 "dashboard.github_cooldown_created",
-                "dashboard.github_cooldown_updated"
+                "dashboard.github_cooldown_updated",
+                "dashboard.incident_created",
+                "dashboard.incident_updated",
+                "dashboard.incident_checkpoint_created",
+                "dashboard.incident_checkpoint_updated"
             ]
         },
         {
@@ -365,8 +374,8 @@
         {
             "id": "dashboard.run_worker_pass",
             "kind": "command",
-            "version": 2,
-            "description": "One finite serial pass reloads enabled IDs and each current site. Fresh connection/policy retains bounded aggregate admission and cooldowns. Shared PDO or established-key custody failure propagates to the fixed fatal CLI boundary; per-site network/provider and malformed individual ciphertext continue. One short post-network transaction couples guarded current result and admitted resource service credit. Stale or disabled snapshots earn no credit; store/progress/COMMIT failure rolls back both. Lifetime canonical flock releases even when final state cleanup fails. Application runtime precondition: optional external raw32 key selection is read-only and preflighted before database/session/control/network effects; retained authenticated ciphertext witnesses key identity before migration, with no-witness and no-cipher bounds. Secret selection is configuration, never model input. Live key loss or replacement refuses admission and save without regeneration.",
+            "version": 5,
+            "description": "PeriodicWorker serially admits enabled sites using stop/generation checks, persistent fairness turns and actual resource eligibility. SiteChecker shares endpoint-aware health/version/Git policy and the resolved vault. Exact PDO identity is required before settlement; endpoint/configuration/Git snapshots guard the current update, history, prospective incident/notification projection and service credit in one owned transaction. Stale or disabled/deleted/ABA sites get no writes or credit. Primary-vs-cleanup error and shared storage/key failures remain distinct; individual site failure does not invent success. No historical backfill/replay. After accepted site commits, one isolated bounded notification candidate is observed with stop checks and the same selected vault. Delivery or acknowledgement races retain outbox claims/configuration custody without undoing accepted observations. One-shot CLI/manual routes preserve their separate ordering, text/JSON output and exits.",
             "input": [
                 {
                     "name": "generation",
@@ -383,7 +392,12 @@
                 "dashboard.github_cooldown_updated",
                 "dashboard.worker_runtime_updated",
                 "dashboard.worker_progress_created",
-                "dashboard.worker_progress_updated"
+                "dashboard.worker_progress_updated",
+                "dashboard.check_history_created",
+                "dashboard.incident_created",
+                "dashboard.incident_updated",
+                "dashboard.incident_checkpoint_created",
+                "dashboard.incident_checkpoint_updated"
             ]
         },
         {
@@ -440,7 +454,7 @@
             "id": "dashboard.run_checks",
             "kind": "command",
             "version": 1,
-            "description": "One finite ordered snapshot pass owned by CheckCommand::run uses the existing SiteChecker, GitHubConnection/policy and guarded storeCheck. Explicit JSON emits tablo/check/v1 scalar outcomes, actual store acceptance and before-check freshness; disabled rows make no requests/writes, stale results retain observations, fatal failure preserves prior safe fragments. Independent transient Version/Git reasons are captured at existing calls. Legacy text and exits remain compatible; JSON has early dependency-free argv/bootstrap refusal and safe diagnostics. No scheduler/fairness mutation, extra provider requests, secret/display-string serialization, database schema, notification or HTTP API.",
+            "description": "One finite ordered snapshot pass owned by CheckCommand::run uses the existing SiteChecker, GitHubConnection/policy and guarded storeCheck. Explicit JSON emits tablo/check/v1 scalar outcomes, actual store acceptance and before-check freshness; disabled rows make no requests/writes, stale results retain observations, fatal failure preserves prior safe fragments. Independent transient Version/Git reasons are captured at existing calls. Legacy text and exits remain compatible; JSON has early dependency-free argv/bootstrap refusal and safe diagnostics. No scheduler/fairness mutation or extra provider requests. Uses the composed guarded settlement; observes one post-pass notification candidate on the selected vault. JSON emits one safe document; notification output remains legacy-text only.",
             "input": [
                 {
                     "name": "json",
@@ -455,6 +469,348 @@
                 "dashboard.site_updated",
                 "dashboard.github_cooldown_created",
                 "dashboard.github_cooldown_updated"
+            ]
+        },
+        {
+            "id": "dashboard.check_history_created",
+            "kind": "effect",
+            "version": 1,
+            "operation": "create",
+            "entity": "dashboard.check_history"
+        },
+        {
+            "id": "dashboard.check_history_deleted",
+            "kind": "effect",
+            "version": 1,
+            "operation": "delete",
+            "entity": "dashboard.check_history"
+        },
+        {
+            "id": "dashboard.store_check",
+            "kind": "command",
+            "version": 3,
+            "description": "Actual manual/one-shot SiteRepository entry owns short BEGIN IMMEDIATE after network work. Immediately guarded UPDATE rowCount zero rolls back and returns false without history validation; one validates actual id/revision/time then INSERTs immutable history and COMMITs on the same PDO. Failed BEGIN leaves caller transaction untouched; validation/INSERT/COMMIT/cleanup failures preserve first error and roll back paired result/history. No network, sleep, separate connection or public bypass flag. Accepted row alone projects prospective incident/checkpoint inside the real private persistCheck transaction before credit/COMMIT. First Offline opens using actual history ID; repeat preserves opening; Unknown never recovers; same-epoch non-older Online closes, new epoch interrupts without recovery. Older/equal-second clock qualifiers and idempotent consumed IDs survive history retention. No old-history replay/current-state fabrication or public projection reset. Actual schema7 notification checkpoint and bounded outbox commit in this same owned transaction; delivery follows accepted commit.",
+            "input": [
+                {
+                    "name": "site",
+                    "type": {
+                        "ref": "dashboard.site"
+                    },
+                    "required": true
+                },
+                {
+                    "name": "state",
+                    "type": {
+                        "ref": "dashboard.check_result"
+                    },
+                    "required": true
+                }
+            ],
+            "effects": [
+                "dashboard.site_updated",
+                "dashboard.check_history_created",
+                "dashboard.incident_created",
+                "dashboard.incident_updated",
+                "dashboard.incident_checkpoint_created",
+                "dashboard.incident_checkpoint_updated",
+                "dashboard.notification_checkpoint_created",
+                "dashboard.notification_checkpoint_updated",
+                "dashboard.notification_slot_created",
+                "dashboard.notification_slot_updated"
+            ]
+        },
+        {
+            "id": "dashboard.settle_worker_check",
+            "kind": "command",
+            "version": 3,
+            "description": "Actual WorkerStateRepository::settle delegates ownership to SiteRepository shared short immediate transaction. Matching result plus validated history and only admitted field service credit/fairness turn commit together on the same PDO; stale/disabled/ABA/rotated/deleted zero appends and credits nothing. INSERT/credit/deferred COMMIT refusal rolls back the pair and original error wins. Caller BEGIN is refused untouched; PHP82 engine state governs implicit-rollback cleanup. Accepted row alone projects prospective incident/checkpoint inside the real private persistCheck transaction before credit/COMMIT. First Offline opens using actual history ID; repeat preserves opening; Unknown never recovers; same-epoch non-older Online closes, new epoch interrupts without recovery. Older/equal-second clock qualifiers and idempotent consumed IDs survive history retention. No old-history replay/current-state fabrication or public projection reset. Actual schema7 notification checkpoint and bounded outbox commit in this same owned transaction; delivery follows accepted commit.",
+            "input": [
+                {
+                    "name": "site",
+                    "type": {
+                        "ref": "dashboard.site"
+                    },
+                    "required": true
+                },
+                {
+                    "name": "state",
+                    "type": {
+                        "ref": "dashboard.check_result"
+                    },
+                    "required": true
+                }
+            ],
+            "effects": [
+                "dashboard.site_updated",
+                "dashboard.check_history_created",
+                "dashboard.worker_progress_created",
+                "dashboard.worker_progress_updated",
+                "dashboard.worker_runtime_updated",
+                "dashboard.incident_created",
+                "dashboard.incident_updated",
+                "dashboard.incident_checkpoint_created",
+                "dashboard.incident_checkpoint_updated",
+                "dashboard.notification_checkpoint_created",
+                "dashboard.notification_checkpoint_updated",
+                "dashboard.notification_slot_created",
+                "dashboard.notification_slot_updated"
+            ]
+        },
+        {
+            "id": "dashboard.prune_history",
+            "kind": "command",
+            "version": 1,
+            "description": "Trusted-local explicit prune captures one UTC cutoff before destructive work; strict checked_at<cutoff, optional exact existing site. Retention 1..3650 canonical decimal days default30; malformed/empty refuses before storage. Up to ten 500-row subquery DELETE batches ordered checked_at,id, each owned immediate transaction. Prior committed batches survive later refusal; cap honestly may leave rows. No COUNT all, network, retry, sleep, read-triggered/worker cleanup, VACUUM or WAL policy change; current site state unchanged.",
+            "input": [
+                {
+                    "name": "days",
+                    "type": {
+                        "ref": "dashboard.number"
+                    },
+                    "required": true
+                },
+                {
+                    "name": "site_id",
+                    "type": {
+                        "optional": {
+                            "ref": "dashboard.number"
+                        }
+                    }
+                },
+                {
+                    "name": "now",
+                    "type": {
+                        "optional": {
+                            "ref": "dashboard.timestamp"
+                        }
+                    }
+                }
+            ],
+            "effects": [
+                "dashboard.check_history_deleted"
+            ]
+        },
+        {
+            "id": "dashboard.incident_created",
+            "kind": "effect",
+            "version": 1,
+            "operation": "create",
+            "entity": "dashboard.incident"
+        },
+        {
+            "id": "dashboard.incident_updated",
+            "kind": "effect",
+            "version": 1,
+            "operation": "update",
+            "entity": "dashboard.incident"
+        },
+        {
+            "id": "dashboard.incident_deleted",
+            "kind": "effect",
+            "version": 1,
+            "operation": "delete",
+            "entity": "dashboard.incident"
+        },
+        {
+            "id": "dashboard.incident_checkpoint_created",
+            "kind": "effect",
+            "version": 1,
+            "operation": "create",
+            "entity": "dashboard.incident_checkpoint"
+        },
+        {
+            "id": "dashboard.incident_checkpoint_updated",
+            "kind": "effect",
+            "version": 1,
+            "operation": "update",
+            "entity": "dashboard.incident_checkpoint"
+        },
+        {
+            "id": "dashboard.incident_checkpoint_deleted",
+            "kind": "effect",
+            "version": 1,
+            "operation": "delete",
+            "entity": "dashboard.incident_checkpoint"
+        },
+        {
+            "id": "dashboard.notification_settings_updated",
+            "kind": "effect",
+            "version": 1,
+            "operation": "update",
+            "entity": "dashboard.notification_settings"
+        },
+        {
+            "id": "dashboard.notification_checkpoint_created",
+            "kind": "effect",
+            "version": 1,
+            "operation": "create",
+            "entity": "dashboard.notification_checkpoint"
+        },
+        {
+            "id": "dashboard.notification_checkpoint_updated",
+            "kind": "effect",
+            "version": 1,
+            "operation": "update",
+            "entity": "dashboard.notification_checkpoint"
+        },
+        {
+            "id": "dashboard.notification_checkpoint_deleted",
+            "kind": "effect",
+            "version": 1,
+            "operation": "delete",
+            "entity": "dashboard.notification_checkpoint"
+        },
+        {
+            "id": "dashboard.notification_slot_created",
+            "kind": "effect",
+            "version": 1,
+            "operation": "create",
+            "entity": "dashboard.notification_slot"
+        },
+        {
+            "id": "dashboard.notification_slot_updated",
+            "kind": "effect",
+            "version": 1,
+            "operation": "update",
+            "entity": "dashboard.notification_slot"
+        },
+        {
+            "id": "dashboard.notification_slot_deleted",
+            "kind": "effect",
+            "version": 1,
+            "operation": "delete",
+            "entity": "dashboard.notification_slot"
+        },
+        {
+            "id": "dashboard.update_notifications",
+            "kind": "command",
+            "version": 1,
+            "description": "Authenticated CSRF-protected settings POST delegates same-PDO encrypted update. Shared delivery mutex, revision CAS, blank keep/remove conflict/type/length safe422 and established-vault policy still apply to unchanged saves, which preserve revision, activation, checkpoint and queued bytes. Metadata-only privacy edits increment revision, preserve activation/debounce/handled identity, regenerate pending optional ciphertext in batches32 without extending due/expiry/attempts, update matching checkpoint channel revision and cancel old inflight claims with stale ACK fencing. Endpoint/Bearer replacement/removal, subscriptions and disable/re-enable cancel queued/inflight work and activate prospectively using durable committed check_history AUTOINCREMENT allocation; pruning cannot replay old incidents. No DNS/send/test button.",
+            "input": [
+                {
+                    "name": "input",
+                    "type": {
+                        "ref": "dashboard.notification_input"
+                    },
+                    "required": true
+                }
+            ],
+            "effects": [
+                "dashboard.notification_settings_updated",
+                "dashboard.notification_checkpoint_updated",
+                "dashboard.notification_slot_updated"
+            ]
+        },
+        {
+            "id": "dashboard.project_notifications",
+            "kind": "command",
+            "version": 1,
+            "description": "Actual accepted transaction callback after immutable history and actual16 incident projection, before admitted credit/COMMIT. Stale0 precedes callback. Prospective actual incident opening/recovery IDs, Unknown/late/epoch/pause qualifiers, two accepted confirmations60s sample+wall for unavailable/version; true recovery immediate with early pair cancellation. At most3 fixed slots/site; same event never recreated, newer kind coalesces visibly. No network.",
+            "input": [
+                {
+                    "name": "history_id",
+                    "type": {
+                        "ref": "dashboard.number"
+                    },
+                    "required": true
+                },
+                {
+                    "name": "row",
+                    "type": {
+                        "ref": "dashboard.check_history"
+                    },
+                    "required": true
+                },
+                {
+                    "name": "site",
+                    "type": {
+                        "ref": "dashboard.site"
+                    },
+                    "required": true
+                },
+                {
+                    "name": "wall",
+                    "type": {
+                        "ref": "dashboard.number"
+                    },
+                    "required": true
+                }
+            ],
+            "effects": [
+                "dashboard.notification_checkpoint_created",
+                "dashboard.notification_checkpoint_updated",
+                "dashboard.notification_slot_created",
+                "dashboard.notification_slot_updated"
+            ]
+        },
+        {
+            "id": "dashboard.claim_notification",
+            "kind": "command",
+            "version": 2,
+            "description": "Short owned BEGIN IMMEDIATE performs at most32 due stale/expired/exhausted/lost-lease maintenance updates, then one indexed eligible pending claim/token/30s lease and consumes attempt before returning. Invalid backlog is excluded from eligible selection even at maintenance cap. Remaining maintenance resumes on later invocations. At most38 SQL statements/pass; planner work depends on configured slots. TTL1h/max3, lost lease reschedules60/300s. Caller BEGIN refusal preserves caller; no network under SQL lock.",
+            "input": [
+                {
+                    "name": "now",
+                    "type": {
+                        "ref": "dashboard.number"
+                    },
+                    "required": true
+                }
+            ],
+            "effects": [
+                "dashboard.notification_slot_updated"
+            ]
+        },
+        {
+            "id": "dashboard.ack_notification",
+            "kind": "command",
+            "version": 1,
+            "description": "Finite typed result2xx validation then scoped conditional UPDATE by site/kind/event/token/attempt/channel/current site epoch/lease/expiry. Stale ACK returns false, cannot resurrect replaced/deleted work. Bounded retries60then300, max3, TTL1h.",
+            "input": [
+                {
+                    "name": "claimed",
+                    "type": {
+                        "ref": "dashboard.notification_claim"
+                    },
+                    "required": true
+                },
+                {
+                    "name": "result",
+                    "type": {
+                        "ref": "dashboard.notification_result"
+                    },
+                    "required": true
+                },
+                {
+                    "name": "now",
+                    "type": {
+                        "ref": "dashboard.number"
+                    },
+                    "required": true
+                }
+            ],
+            "effects": [
+                "dashboard.notification_slot_updated"
+            ]
+        },
+        {
+            "id": "dashboard.deliver_notification",
+            "kind": "command",
+            "version": 1,
+            "description": "Actual manual/CLI/periodic hook only after accepted commit. At most one candidate, OFF creates/sends nothing, vault selected explicitly, stable installation mutex. One minimal PHP child private stdin, parent10s monotonic plus1s observed stop grace and OS overhead; all-address public-unicast HTTPS pin/TLS, no proxy/redirect, bounded request/response. Delivery error isolated from accepted check/next site; uncertain stop durably blocks. Lost remote/local ACK can duplicate same receiver key; bounded best effort.",
+            "input": [
+                {
+                    "name": "now",
+                    "type": {
+                        "optional": {
+                            "ref": "dashboard.number"
+                        }
+                    }
+                }
+            ],
+            "effects": [
+                "dashboard.notification_slot_updated",
+                "dashboard.notification_settings_updated"
             ]
         }
     ]

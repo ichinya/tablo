@@ -11,15 +11,15 @@ function hash_equals(#[\SensitiveParameter] string $known, #[\SensitiveParameter
     // Confirmation, old fingerprint, then the just-written replacement hash.
     if (++$calls === 3 && $matches) {
         $barrier = getenv('TABLO_TEST_WRITE_BARRIER');
-        file_put_contents($barrier . '/written', 'ready');
+        file_put_contents($barrier . '/written', data: 'ready');
         $deadline = microtime(true) + 10;
         while (!is_file($barrier . '/release') && microtime(true) < $deadline) {
             clearstatcache();
-            usleep(20000);
+            usleep(20_000);
         }
         if (!is_file($barrier . '/release')) { throw new \RuntimeException('Fixture barrier timed out.'); }
     }
     return $matches;
 }
 
-require dirname(__DIR__, 2) . '/bin/admin-password.php';
+require dirname(__DIR__, levels: 2) . '/bin/admin-password.php';

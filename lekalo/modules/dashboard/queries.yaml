@@ -41,6 +41,59 @@
             "returns": {
                 "ref": "dashboard.number"
             }
+        },
+        {
+            "id": "dashboard.read_history",
+            "kind": "query",
+            "version": 1,
+            "description": "Trusted-local read validates positive existing site, calendar-valid canonicalizable half-open [from,to), default50 limit1..100. DESC checked_at,id keyset with integer LIMIT+1, bounded cursor validates scope and retains first-page global MAX(id) ceiling excluding later inserts. Retention/deletion may reduce pages; no durable snapshot/fixed count. No HTTP, Git, key creation, cleanup or transaction between pages.",
+            "reads": [
+                "dashboard.site",
+                "dashboard.check_history"
+            ],
+            "returns": {
+                "ref": "dashboard.history_page"
+            }
+        },
+        {
+            "id": "dashboard.read_incidents",
+            "kind": "query",
+            "version": 1,
+            "description": "Authenticated read-only GET, optional positive existing site filter, default50/limit1..100, LIMIT+1, DESC stable opening ID, fixed first-page MAX(id) ceiling. Strict canonical scope-bound cursor cap256; arrays/coercions/overflow/malformed422, missing/deletedsite404. Escaped current names and finite opening reason/status, observed UTC/recovery/interval and uncertainty/pause/stale/current-revision/clock qualifiers. No COUNTall, history replay/rebuild, DB mutation, HTTP or private payload. Recovery/deletion may alter later pages; no snapshot/count guarantee.",
+            "reads": [
+                "dashboard.incident",
+                "dashboard.incident_checkpoint",
+                "dashboard.site"
+            ],
+            "returns": {
+                "ref": "dashboard.incident_page"
+            }
+        },
+        {
+            "id": "dashboard.get_notifications",
+            "kind": "query",
+            "version": 1,
+            "description": "Presence-only authenticated settings query; no decrypt, DNS or sends.",
+            "reads": [
+                "dashboard.notification_settings"
+            ],
+            "returns": {
+                "ref": "dashboard.notification_metadata"
+            }
+        },
+        {
+            "id": "dashboard.read_notification_status",
+            "kind": "query",
+            "version": 1,
+            "description": "Safe status projection LIMIT50 with an explicit bounded truncation probe; authenticated settings GET can filter an integer site ID to reach every site's at most3 retained slots. Finite codes, counts/coalescing and observed times, never endpoint/token/name/cipher/payload. GET performs no outbox/settings mutation or delivery.",
+            "reads": [
+                "dashboard.notification_slot"
+            ],
+            "returns": {
+                "list": {
+                    "ref": "dashboard.notification_status"
+                }
+            }
         }
     ]
 }

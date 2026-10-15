@@ -10,37 +10,47 @@ if ($fixture) {
         return;
     }
     if ($path === '/barrier/') {
-        file_put_contents($fixture . '/entered', 'ready');
+        file_put_contents($fixture . '/entered', data: 'ready');
         $deadline = microtime(true) + 8;
-        while (!is_file($fixture . '/release') && microtime(true) < $deadline) { clearstatcache(); usleep(10000); }
+        while (!is_file($fixture . '/release') && microtime(true) < $deadline) { clearstatcache(); usleep(10_000); }
     }
-    if (in_array($path, ['/', '/app/', '/app///', '/a//b///', '/%2Fapp/%7E///', '/barrier/'], true)) {
+    if (in_array($path, ['/', '/app/', '/app///', '/a//b///', '/%2Fapp/%7E///', '/barrier/'], strict: true)) {
         header('Content-Type: text/html');
         echo '<html>Exact homepage</html>';
         return;
     }
     if (preg_match('~^(/app|/a//b|/%2Fapp/%7E)/(up|json-health|version)$~D', $path, $joined)) {
         header('Content-Type: application/json');
-        if ($joined[2] === 'up') { http_response_code((int) ($_GET['status'] ?? 204)); echo '{}'; }
-        elseif ($joined[2] === 'json-health') { echo '{"result":"ok"}'; }
-        elseif (isset($_GET['bad'])) { echo 'not JSON'; }
-        else { echo '{"version":"1.3.1","commit":"a61de82"}'; }
+        switch (true) {
+case ($joined[2] === 'up'):
+ http_response_code((int) ($_GET['status'] ?? 204)); echo '{}';
+    break;
+case ($joined[2] === 'json-health'):
+ echo '{"result":"ok"}';
+    break;
+case (($_GET['bad'] ?? null) !== null):
+ echo 'not JSON';
+    break;
+default:
+ echo '{"version":"1.3.1","commit":"a61de82"}';
+    break;
+}
         return;
     }
 }
 if (preg_match('~^/homepage/(200|201|204|301|302|404|500|503)$~D', $path, $match)) {
     http_response_code((int) $match[1]);
     header('Content-Type: text/html');
-    if (in_array((int) $match[1], [301, 302], true)) { header('Location: /up'); }
+    if (in_array((int) $match[1], [301, 302], strict: true)) { header('Location: /up'); }
     echo '<html><body>Fixture homepage</body></html>';
     return;
 }
 switch ($path) {
     case '/redirect-health':
-        header('Location: /up', true, 301);
+        header('Location: /up', replace: true, response_code: 301);
         break;
     case '/redirect-version':
-        header('Location: /version', true, 308);
+        header('Location: /version', replace: true, response_code: 308);
         break;
     case '/redirect-missing':
         http_response_code(302);
@@ -56,19 +66,19 @@ switch ($path) {
         echo '{}';
         break;
     case '/duplicate-headers':
-        header('Retry-After: 1', false);
-        header('Retry-After: 9999', false);
+        header('Retry-After: 1', replace: false);
+        header('Retry-After: 9999', replace: false);
         header('X-RateLimit-Remaining: invalid');
         header('X-RateLimit-Resource: synthetic-secret');
         echo '{}';
         break;
     case '/short-delay':
-        usleep(300000);
+        usleep(300_000);
         echo '{}';
         break;
     case '/up':
         header('Content-Type: application/json');
-        if ($fixture && isset($_GET['status'])) { http_response_code((int) $_GET['status']); }
+        if ($fixture && (($_GET['status'] ?? null) !== null)) { http_response_code((int) $_GET['status']); }
         echo '{"status":"ok"}';
         break;
     case '/version':
@@ -84,10 +94,10 @@ switch ($path) {
         echo '{"build":{"version":"1.2.3"},"sha":"abcdef1"}';
         break;
     case '/redirect':
-        header('Location: /up', true, 302);
+        header('Location: /up', replace: true, response_code: 302);
         break;
     case '/large':
-        echo str_repeat('x', 1048577);
+        echo str_repeat('x', times: 1_048_577);
         break;
     case '/slow':
         sleep(10);

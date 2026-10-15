@@ -4,8 +4,8 @@
         {
             "id": "dashboard",
             "kind": "module",
-            "version": 2,
-            "description": "One local administrator, site CRUD and explicit health/version/GitHub checks. State is stored on sites; no history in v0.1. Foreground periodic worker, installation interval and bounded generation/scheduling metadata; no queue or check history."
+            "version": 4,
+            "description": "One local administrator, guarded accepted history/incidents and one default-OFF encrypted webhook channel. Cohesive prospective checkpoint/three slots/site, bounded observed best-effort delivery after actual accepted transaction. No queue daemon or delivery guarantee."
         }
     ]
 }

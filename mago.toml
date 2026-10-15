@@ -1,0 +1,9 @@
+version = "1.54.0"
+php-version = "8.2"
+
+[source]
+paths = ["app", "bin", "public", "tests", "tools"]
+excludes = ["vendor", "storage", "artifacts", ".lekalo"]
+
+[linter]
+minimum-fail-level = "note"

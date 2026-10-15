@@ -1,18 +1,19 @@
 <?php
 declare(strict_types=1);
+require_once dirname(__DIR__, levels: 2) . '/app/RuntimeIni.php';
 
-ini_set('display_errors', '0');
-ini_set('log_errors', '0');
+\Tablo\RuntimeIni::set('display_errors', value: '0');
+\Tablo\RuntimeIni::set('log_errors', value: '0');
 try {
-    require dirname(__DIR__, 2) . '/vendor/autoload.php';
+    require dirname(__DIR__, levels: 2) . '/vendor/autoload.php';
     $control = new \Tablo\Tests\Network\GitHubTraceInspectorTest();
     match ($argv[1] ?? '') {
         'supported' => $control->inspectSupportedActualArguments(),
         'opaque' => $control->inspectOpaqueObjectsAndCycles(),
         default => throw new \RuntimeException('Invalid control mode'),
     };
-    fwrite(STDOUT, "Trace control passed.\n");
+    fwrite(STDOUT, data: "Trace control passed.\n");
 } catch (\Throwable) {
-    fwrite(STDERR, "Trace control failed.\n");
+    fwrite(STDERR, data: "Trace control failed.\n");
     exit(1);
 }

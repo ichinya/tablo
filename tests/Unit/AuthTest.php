@@ -11,7 +11,6 @@ use Tablo\Tests\Support\TemporaryDirectory;
 
 use Testo\Assert;
 use Testo\Test;
-use Tablo\Tests\Support\UnitFixtures;
 
 final class AuthTest
 {
@@ -21,14 +20,14 @@ final class AuthTest
         $db = Database::connect(':memory:');
         $auth = new Auth($db);
         Assert::true($auth->needsSetup(), 'setup required');
-        UnitFixtures::rejects(fn () => $auth->setup('short', 'short'), 'short password accepted');
-        UnitFixtures::rejects(fn () => $auth->setup('fixture-password', 'different'), 'mismatch accepted');
-        $auth->setup('fixture-password', 'fixture-password');
+        (new \Tablo\Tests\Support\FixtureRejection(\Closure::fromCallable(static fn () => $auth->setup('short', 'short'))))->verify('short password accepted');
+        (new \Tablo\Tests\Support\FixtureRejection(\Closure::fromCallable(static fn () => $auth->setup(\Tablo\Tests\Support\FixtureCredentials::value(label: 'fixture-password'), 'different'))))->verify('mismatch accepted');
+        $auth->setup(\Tablo\Tests\Support\FixtureCredentials::value(label: 'fixture-password'), \Tablo\Tests\Support\FixtureCredentials::value(label: 'fixture-password'));
         Assert::true(!$auth->needsSetup(), 'setup repeated');
         $hash = $db->query('SELECT password_hash FROM users')->fetchColumn();
-        Assert::true($hash !== 'fixture-password' && password_verify('fixture-password', $hash), 'password not hashed');
-        UnitFixtures::rejects(fn () => $auth->setup('another-password', 'another-password'), 'second administrator accepted');
-        Assert::true($auth->login('fixture-password', 'client'), 'valid login refused');
+        Assert::true($hash !== \Tablo\Tests\Support\FixtureCredentials::value(label: 'fixture-password') && password_verify(\Tablo\Tests\Support\FixtureCredentials::value(label: 'fixture-password'), $hash), 'password not hashed');
+        (new \Tablo\Tests\Support\FixtureRejection(\Closure::fromCallable(static fn () => $auth->setup('another-password', 'another-password'))))->verify('second administrator accepted');
+        Assert::true($auth->login(\Tablo\Tests\Support\FixtureCredentials::value(label: 'fixture-password'), 'client'), 'valid login refused');
     }
 
     #[Test]
@@ -36,14 +35,14 @@ final class AuthTest
     {
         $db = Database::connect(':memory:');
         $auth = new Auth($db);
-        $auth->setup('fixture-password', 'fixture-password');
+        $auth->setup(\Tablo\Tests\Support\FixtureCredentials::value(label: 'fixture-password'), \Tablo\Tests\Support\FixtureCredentials::value(label: 'fixture-password'));
         for ($i = 0; $i < 5; ++$i) {
             Assert::true(!(new Auth($db))->login('incorrect', 'client'), 'wrong password accepted');
         }
-        UnitFixtures::rejects(fn () => (new Auth($db))->login('fixture-password', 'client'), 'rate limit bypassed');
-        Assert::true($auth->login('fixture-password', 'other-client'), 'independent client blocked');
+        (new \Tablo\Tests\Support\FixtureRejection(\Closure::fromCallable(static fn () => (new Auth($db))->login(\Tablo\Tests\Support\FixtureCredentials::value(label: 'fixture-password'), 'client'))))->verify('rate limit bypassed');
+        Assert::true($auth->login(\Tablo\Tests\Support\FixtureCredentials::value(label: 'fixture-password'), 'other-client'), 'independent client blocked');
         $db->exec('UPDATE login_limits SET window_start = 0');
-        Assert::true($auth->login('fixture-password', 'client'), 'rate limit never expires');
+        Assert::true($auth->login(\Tablo\Tests\Support\FixtureCredentials::value(label: 'fixture-password'), 'client'), 'rate limit never expires');
     }
 
     #[Test]
@@ -51,13 +50,13 @@ final class AuthTest
     {
         $credential = bin2hex(random_bytes(16));
         $directory = new TemporaryDirectory('tablo-auth-proxy-');
-        $db = $auth = null;
+        $auth = null; $db = null;
         try {
             $path = $directory->path . '/auth.sqlite';
             $db = Database::connect($path);
             $auth = new Auth($db);
             $auth->setup($credential, $credential);
-            $auth = $db = null;
+            $db = null; $auth = null;
             $resolver = new ClientAddress('192.0.2.10');
             foreach (['2001:0DB8:0:0:0:0:0:0042', '2001:db8::42', '2001:DB8::42',
                 '2001:0db8:0000:0000:0000:0000:0000:0042', '2001:db8::42'] as $header) {
@@ -65,7 +64,7 @@ final class AuthTest
                 $auth = new Auth($db);
                 $address = $resolver->resolve(['REMOTE_ADDR' => '192.0.2.10', 'HTTP_X_FORWARDED_FOR' => $header]);
                 Assert::true(!$auth->login('incorrect', $address));
-                $auth = $db = null;
+                $db = null; $auth = null;
             }
             $db = Database::connect($path);
             $auth = new Auth($db);
@@ -76,7 +75,7 @@ final class AuthTest
             Assert::true(!$auth->login('incorrect', '2001:db8::43'));
             Assert::true($auth->login($credential, '2001:db8::43'));
             Assert::same($db->query('SELECT key, failures FROM login_limits')->fetchAll(), [
-                ['key' => hash('sha256', '2001:db8::42'), 'failures' => 5],
+                ['key' => hash('sha256', data: '2001:db8::42'), 'failures' => 5],
             ]);
             $db->exec('UPDATE login_limits SET window_start = ' . (time() - 899));
             $rejected = false;
@@ -85,7 +84,7 @@ final class AuthTest
             $db->exec('UPDATE login_limits SET window_start = ' . (time() - 901));
             Assert::true($auth->login($credential, '2001:db8::42'));
             Assert::same((int) $db->query('SELECT COUNT(*) FROM login_limits')->fetchColumn(), 0);
-        } finally { $auth = $db = null; $directory->close(); }
+        } finally { $db = null; $auth = null; $directory->close(); }
     }
 
     #[Test]
@@ -93,7 +92,7 @@ final class AuthTest
     {
         $credential = bin2hex(random_bytes(16));
         $directory = new TemporaryDirectory('tablo-auth-rollback-');
-        $db = $auth = null;
+        $auth = null; $db = null;
         try {
             $path = $directory->path . '/auth.sqlite';
             $db = Database::connect($path);
@@ -108,13 +107,13 @@ final class AuthTest
             Assert::same($db->query('SELECT key, failures FROM login_limits')->fetchAll(), [
                 ['key' => 'expired-sentinel', 'failures' => 3],
             ]);
-            $auth = $db = null;
+            $db = null; $auth = null;
             $db = Database::connect($path);
             $db->exec('DROP TRIGGER fixture_write_failure');
             $auth = new Auth($db);
             Assert::true(!$auth->login('incorrect', '198.51.100.42'));
             Assert::true($auth->login($credential, '198.51.100.42'));
             Assert::same((int) $db->query('SELECT COUNT(*) FROM login_limits')->fetchColumn(), 0);
-        } finally { $auth = $db = null; $directory->close(); }
+        } finally { $db = null; $auth = null; $directory->close(); }
     }
 }

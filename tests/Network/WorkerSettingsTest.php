@@ -16,7 +16,7 @@ final class WorkerSettingsTest
     public function concurrentPublicWritersExposeOnlyWholeCommittedIntervals(): void
     {
         $directory = new TemporaryDirectory('tablo-worker-settings-');
-        $first = $second = null;
+        $second = null; $first = null;
         try {
             $path = $directory->path . '/db.sqlite';
             $db = Database::connect($path);
@@ -26,14 +26,14 @@ final class WorkerSettingsTest
             $second = new WorkerProcess($directory, 'writer2', [PHP_BINARY, $fixture, '456'], ['TABLO_DB' => $path]);
             $reads = 0;
             while ($first->running() || $second->running()) {
-                Assert::true(in_array($settings->get(), [10, 123, 456], true));
+                Assert::true(in_array($settings->get(), [10, 123, 456], strict: true));
                 ++$reads;
                 usleep(1000);
             }
             Assert::true($reads > 0);
             Assert::same($first->wait()['exit_code'], 0);
             Assert::same($second->wait()['exit_code'], 0);
-            Assert::true(in_array($settings->get(), [123, 456], true));
+            Assert::true(in_array($settings->get(), [123, 456], strict: true));
         } finally { $first?->close(); $second?->close(); unset($settings, $db); $directory->close(); }
     }
 }

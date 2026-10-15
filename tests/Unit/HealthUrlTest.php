@@ -6,6 +6,7 @@ namespace Tablo\Tests\Unit;
 use Tablo\Database;
 use Tablo\SiteChecker;
 use Tablo\SiteRepository;
+use Tablo\SiteInput;
 use Tablo\Tests\Support\FakeHttp;
 use Tablo\Tests\Support\FakeProvider;
 use Tablo\Tests\Support\UnitFixtures;
@@ -33,12 +34,12 @@ final class HealthUrlTest
             $http = new FakeHttp([UnitFixtures::response(204), UnitFixtures::response(200, '{"version":"v1"}')]);
             $state = (new SiteChecker($http, new FakeProvider()))->check($sites->find($id));
             Assert::same($sites->find($id)['url'], $url);
-            Assert::same($http->requests, [[rtrim($url, '/') . $input['health_path'], []], [rtrim($url, '/') . $input['version_path'], []]]);
+            Assert::same($http->requests, [[rtrim($url, characters: '/') . $input['health_path'], []], [rtrim($url, characters: '/') . $input['version_path'], []]]);
             Assert::same($state['online'], 1);
             Assert::same($state['deployed_version'], 'v1');
         }
         foreach (['https://example.test/?q=%2F', 'https://example.test/#part', 'https://name:pass@example.test/'] as $url) {
-            UnitFixtures::rejects(fn () => SiteRepository::normalize(array_replace(UnitFixtures::site(), ['url' => $url])), 'base URL validation retained');
+            (new \Tablo\Tests\Support\FixtureRejection(\Closure::fromCallable(static fn () => SiteInput::normalize(array_replace(UnitFixtures::site(), ['url' => $url])))))->verify('base URL validation retained');
         }
     }
 }

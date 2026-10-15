@@ -15,13 +15,10 @@ final class WorkerMigrationTest
     {
         foreach (['ALTER TABLE sites ADD COLUMN config_revision', 'CREATE TABLE installation_settings',
             'INSERT INTO installation_settings', 'CREATE TABLE worker_runtime', 'INSERT INTO worker_runtime',
-            'CREATE TABLE worker_progress', 'PRAGMA main.user_version = 4', 'COMMIT', null] as $failure) {
+            'CREATE TABLE worker_progress', 'PRAGMA main.user_version = 8', 'COMMIT', null] as $failure) {
             $db = new MigrationPdo(':memory:');
-            $db->exec(file_get_contents(dirname(__DIR__, 2) . '/database/schema.sql'));
-            $db->exec("ALTER TABLE sites ADD COLUMN health_error_code TEXT;
-                ALTER TABLE sites ADD COLUMN health_http_status INTEGER;
-                CREATE TABLE github_cooldowns (scope TEXT,resource TEXT,eligible_at INTEGER,PRIMARY KEY(scope,resource));
-                PRAGMA user_version = 3;
+            $db->exec(file_get_contents(dirname(__DIR__) . '/fixtures/historical-schema/common3.sql'));
+            $db->exec("
                 INSERT INTO github_cooldowns VALUES ('saved:1','core',99999);
                 INSERT INTO users (id,password_hash) VALUES (1,'synthetic-preserved-hash');
                 INSERT INTO sites (name,url,repository,github_token,online,checked_at)
@@ -44,7 +41,7 @@ final class WorkerMigrationTest
             Assert::same($after['config_revision'], 0);
             Assert::same($after['endpoint_token'], null);
             Assert::same($db->query('SELECT password_hash FROM users')->fetchColumn(), 'synthetic-preserved-hash');
-            Assert::same((int) $db->query('SELECT eligible_at FROM github_cooldowns')->fetchColumn(), 99999);
+            Assert::same((int) $db->query('SELECT eligible_at FROM github_cooldowns')->fetchColumn(), 99_999);
             Assert::same($db->query('PRAGMA foreign_key_check')->fetchAll(), []);
         }
     }

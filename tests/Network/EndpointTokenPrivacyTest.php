@@ -18,12 +18,15 @@ final class EndpointTokenPrivacyTest
             Assert::false($result['stdout_leaked'] || $result['stderr_leaked']);
             Assert::same($result['stderr_bytes'], 0);
             foreach ($result['records'] as $row) {
-                if (array_key_exists('leaked', $row)) {
+                if (!(array_key_exists('leaked', $row))) { continue; }
+
                     Assert::false($row['leaked']);
                     Assert::false($row['previous']);
-                }
+
             }
-            if ($mode === 'native') {
+            switch (true) {
+case ($mode === 'native'):
+
                 $row = $result['records'][0];
                 Assert::true($row['typed'] && $row['reason'] === 'check-error');
                 Assert::true($row['original_typeerror'] && $row['original_leaked']);
@@ -32,12 +35,17 @@ final class EndpointTokenPrivacyTest
                 Assert::true($result['records'][2]['typed'] && $result['records'][2]['reason'] === 'check-error');
                 Assert::true($result['records'][2]['handle_released'] && $result['records'][2]['callback_released']);
                 Assert::true($result['records'][3]['raw_callback_typeerror'] && $result['records'][3]['raw_callback_leaked']);
-            } else {
+
+    break;
+default:
+
                 Assert::true($result['records'][8]['raw_control_leaked']);
                 Assert::true($result['records'][12]['raw_sql_control_leaked']);
                 Assert::true($result['records'][9]['private_previous_control_leaked']);
                 Assert::false($result['records'][9]['opaque_complete']);
-            }
+
+    break;
+}
         }
     }
 

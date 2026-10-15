@@ -18,6 +18,8 @@ services:
     build: .
     image: tablo-local
     command: ["php", "bin/worker.php"]
+    healthcheck:
+      disable: true
     user: www-data
     init: true
     stop_signal: SIGTERM

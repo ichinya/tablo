@@ -41,7 +41,7 @@ final class HttpClientTest
         Assert::false(str_contains($error->getMessage(), 'secret-host') || str_contains($error->getMessage(), 'private-token'));
         foreach ([[CURLE_OPERATION_TIMEOUTED, 0, 'timeout'], [CURLE_COULDNT_RESOLVE_HOST, 0, 'dns'],
             [CURLE_COULDNT_CONNECT, 111, 'refused'], [CURLE_COULDNT_CONNECT, 61, 'refused'],
-            [CURLE_COULDNT_CONNECT, 10061, 'refused'], [CURLE_COULDNT_CONNECT, 101, 'network'],
+            [CURLE_COULDNT_CONNECT, 10_061, 'refused'], [CURLE_COULDNT_CONNECT, 101, 'network'],
             [CURLE_SSL_CONNECT_ERROR, 0, 'tls'], [CURLE_SSL_CACERT, 0, 'tls'],
             [CURLE_SSL_CACERT_BADFILE, 0, 'tls'],
             [CURLE_GOT_NOTHING, 0, 'invalid-response'], [CURLE_FTP_WEIRD_SERVER_REPLY, 0, 'invalid-response'],

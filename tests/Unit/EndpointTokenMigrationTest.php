@@ -19,10 +19,10 @@ final class EndpointTokenMigrationTest
     #[Test]
     public function upgradeIsNullableAtomicAndCurrentOrFutureSchemasDoNoDdl(): void
     {
-        foreach (['ALTER TABLE sites ADD COLUMN endpoint_token', 'PRAGMA main.user_version = 5', 'COMMIT', null] as $failure) {
+        foreach (['ALTER TABLE sites ADD COLUMN endpoint_token', 'PRAGMA main.user_version = 8', 'COMMIT', null] as $failure) {
             $db = new MigrationPdo(':memory:');
-            Database::migrate($db);
-            $db->exec("ALTER TABLE sites DROP COLUMN endpoint_token; PRAGMA user_version=4;
+            $db->exec(file_get_contents(dirname(__DIR__) . '/fixtures/historical-schema/common4.sql'));
+            $db->exec("
                 INSERT INTO users(id,password_hash) VALUES(1,'synthetic-preserved');
                 INSERT INTO sites(name,url,repository,github_token,online,checked_at)
                 VALUES('Preserved','https://example.com/','fixture/public','synthetic-cipher',1,'2026-01-01T00:00:00Z')");
@@ -46,13 +46,13 @@ final class EndpointTokenMigrationTest
             $db->statements = [];
             Database::migrate($db);
             Assert::same(count(array_filter($db->statements, static fn (string $sql): bool => preg_match('/^(BEGIN|ALTER|CREATE|COMMIT)/', $sql) === 1)), 0);
-            $db->exec('PRAGMA user_version=6');
+            $db->exec('PRAGMA user_version=9');
             $db->statements = [];
             $failed = false;
             try { Database::migrate($db); } catch (\RuntimeException) { $failed = true; }
             Assert::true($failed);
             Assert::same(count(array_filter($db->statements, static fn (string $sql): bool => preg_match('/^(BEGIN|ALTER|CREATE|COMMIT)/', $sql) === 1)), 0);
-            Assert::same((int) $db->query('PRAGMA user_version')->fetchColumn(), 6);
+            Assert::same((int) $db->query('PRAGMA user_version')->fetchColumn(), 9);
         }
     }
 
@@ -60,7 +60,7 @@ final class EndpointTokenMigrationTest
     public function injectedExternalKeyAuthenticatesEndpointOnlyStateBeforeAnyMigration(): void
     {
         $directory = new TemporaryDirectory('tablo-endpoint-external-');
-        $db = $vault = $sites = null;
+        $sites = null; $vault = null; $db = null;
         try {
             $key = $directory->path . '/key';
             $wrong = $directory->path . '/wrong';
@@ -75,7 +75,7 @@ final class EndpointTokenMigrationTest
             // present: wrong selected key must refuse before any transition or WAL changes.
             $db->exec('PRAGMA user_version=4');
             $cipherHash = hash('sha256', $sites->find(1)['endpoint_token']);
-            $db = $sites = $vault = null;
+            $vault = null; $sites = null; $db = null;
             $before = hash_file('sha256', $path);
             $failed = false;
             try { Database::connect($path, new TokenVault($wrong, true)); }
@@ -87,6 +87,6 @@ final class EndpointTokenMigrationTest
             Assert::same((int) $db->query('PRAGMA user_version')->fetchColumn(), 4);
             Assert::same(hash('sha256', $db->query('SELECT endpoint_token FROM sites')->fetchColumn()), $cipherHash);
             Assert::false(is_file($directory->path . '/github-token.key'));
-        } finally { $sites = $db = $vault = null; $directory->close(); }
+        } finally { $vault = null; $db = null; $sites = null; $directory->close(); }
     }
 }

@@ -2,7 +2,7 @@
 declare(strict_types=1);
 
 // Fresh CLI process using the real connection, vault, persisted policy and cURL adapter.
-require dirname(__DIR__, 2) . '/vendor/autoload.php';
+require dirname(__DIR__, levels: 2) . '/vendor/autoload.php';
 $db = Tablo\Database::connect(getenv('TABLO_TEST_BUDGET_DB'));
 $vault = new Tablo\TokenVault(getenv('TABLO_TEST_BUDGET_KEY'));
 $sites = new Tablo\SiteRepository($db, $vault);

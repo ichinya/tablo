@@ -5,7 +5,7 @@ namespace Tablo\Tests\Network;
 
 use Tablo\HttpClient;
 use Tablo\SiteChecker;
-use Tablo\SiteRepository;
+use Tablo\SiteInput;
 use Tablo\TokenVault;
 use Tablo\Tests\Support\EndpointFixture;
 use Tablo\Tests\Support\FakeProvider;
@@ -20,21 +20,13 @@ final class EndpointTokenStatusTest
     public function credentialKeepsStrictHomeAndFinalExplicitJsonSemantics(): void
     {
         $directory = new TemporaryDirectory('tablo-endpoint-status-');
-        $server = $vault = $checker = null;
+        $checker = null; $vault = null; $server = null;
         try {
             $server = new TestServer($directory, dirname(__DIR__) . '/fixtures/endpoint-token-router.php', environment: ['TABLO_ENDPOINT_FIXTURE' => $directory->path]);
             $vault = new TokenVault($directory->path . '/key');
             $checker = new SiteChecker(new HttpClient(true), new FakeProvider(), $vault);
-            $site = [...SiteRepository::defaults(), 'url' => $server->base . '/home///', 'repository' => 'fixture/public', 'version_path' => '', 'endpoint_token' => $vault->encrypt(EndpointFixture::tokenA())];
-            foreach ([200, 201, 204, 301, 302, 401, 403, 404, 500] as $status) {
-                $home = $checker->check([...$site, 'url' => $server->base . '/home/' . $status . '///', 'health_path' => '']);
-                Assert::same($home['online'], (int) ($status === 200));
-                Assert::same($home['health_http_status'], $status);
-                $explicit = $checker->check([...$site, 'health_path' => '/up?status=' . $status]);
-                $final = in_array($status, [301, 302], true) ? 200 : $status;
-                Assert::same($explicit['online'], (int) ($final >= 200 && $final < 300));
-                Assert::same($explicit['health_http_status'], $final);
-            }
+            $site = [...SiteInput::defaults(), 'url' => $server->base . '/home///', 'repository' => 'fixture/public', 'version_path' => '', 'endpoint_token' => $vault->encrypt(EndpointFixture::tokenA())];
+            EndpointStatusAssertions::matrix($checker, $site, $server->base);
             $home = $checker->check([...$site, 'health_path' => '', 'health_check_mode' => 'json', 'health_json_path' => '$.missing']);
             Assert::same($home['online'], 1);
             $rows = self::rows($directory);
@@ -47,20 +39,14 @@ final class EndpointTokenStatusTest
                     'health_json_path' => $path, 'health_json_operator' => $operator, 'health_json_expected_value' => $expected]);
                 Assert::same($state['online'], 1);
             }
-            $large = $checker->check([...$site, 'url' => $server->base, 'health_path' => '/large']);
-            Assert::same($large['online'], null);
-            Assert::same($large['health_error_code'], 'size');
-            $badVersion = $checker->check([...$site, 'health_path' => '/up', 'version_path' => '/version?bad=1']);
-            Assert::same($badVersion['online'], 1);
-            Assert::same($badVersion['latest_release'], 'v1.3.2');
-            Assert::false(str_contains($badVersion['last_error'], EndpointFixture::tokenA()));
+            EndpointFailureAssertions::independent($checker, $site, $server->base);
             foreach (self::rows($directory) as $row) { Assert::true($row['a'] && !$row['b']); }
-        } finally { $checker = $vault = null; $server?->close(); $directory->close(); }
+        } finally { $vault = null; $checker = null; $server?->close(); $directory->close(); }
     }
 
     private static function rows(TemporaryDirectory $directory): array
     {
         $file = $directory->path . '/requests.jsonl';
-        return is_file($file) ? array_map(static fn (string $line): array => json_decode($line, true, 8, JSON_THROW_ON_ERROR), file($file, FILE_IGNORE_NEW_LINES)) : [];
+        return is_file($file) ? array_map(static fn (string $line): array => json_decode($line, associative: true, depth: 8, flags: JSON_THROW_ON_ERROR), file($file, FILE_IGNORE_NEW_LINES)) : [];
     }
 }

@@ -5,6 +5,7 @@ namespace Tablo\Tests\Http;
 
 use Tablo\HttpFailure;
 use Tablo\SiteRepository;
+use Tablo\SiteInput;
 use Tablo\Tests\Support\RawHttpServer;
 use Tablo\Tests\Support\Subprocess;
 use Tablo\Tests\Support\WebFixture;
@@ -24,11 +25,11 @@ final class HttpFramingTest
             $web->authenticate();
             $repository = new SiteRepository($web->database());
             foreach (['', '/up'] as $path) {
-                $id = $repository->save(array_replace(SiteRepository::defaults(), ['name' => 'CLI framing fixture',
+                $id = $repository->save(array_replace(SiteInput::defaults(), ['name' => 'CLI framing fixture',
                     'url' => $server->base . '/invalid-hex', 'health_path' => $path, 'version_path' => '',
                     'repository' => 'fixture/public', 'enabled' => 1]));
-                $root = dirname(__DIR__, 2);
-                $cli = Subprocess::run([PHP_BINARY, '-d', 'auto_prepend_file=' . $root . '/tests/cli-github-fixture.php',
+                $root = dirname(__DIR__, levels: 2);
+                $cli = Subprocess::run([PHP_BINARY, '-d', 'auto_prepend_file=' . $root . '/tests/FixtureCliGitHubConnection.php',
                     $root . '/bin/check.php'], $web->directory, ['TABLO_DB' => $web->directory->path . '/test.sqlite',
                         'TABLO_ALLOW_PRIVATE_NETWORK' => '1']);
                 Assert::same($cli['exit_code'], 1);
@@ -58,28 +59,15 @@ final class HttpFramingTest
             foreach (['invalid-hex' => 'invalid-response', 'reset' => 'network',
                 'incomplete' => 'invalid-response', 'valid' => null] as $mode => $reason) {
                 foreach (['', '/up'] as $path) {
-                    $id = $repository->save(array_replace(SiteRepository::defaults(), ['name' => 'Framing fixture',
+                    $id = $repository->save(array_replace(SiteInput::defaults(), ['name' => 'Framing fixture',
                         'url' => $server->base . '/' . $mode, 'health_path' => $path, 'version_path' => '/version',
                         'repository' => 'fixture/public', 'enabled' => 1]));
                     Assert::same($web->request('/sites/' . $id . '/check', ['_csrf' => $csrf])['status'], 303);
                     $query = 'SELECT online,health_error_code,health_http_status,response_time_ms,deployed_version,deployed_commit,latest_commit,open_issues,open_prs,last_error FROM sites WHERE id=' . $id;
                     $manual = $web->database()->query($query)->fetch();
-                    Assert::same($manual['online'], $reason === null ? 1 : null, $mode);
-                    Assert::same($manual['health_error_code'], $reason, $mode);
-                    Assert::same($manual['health_http_status'], $reason === null ? 200 : null, $mode);
-                    Assert::same($manual['deployed_version'], '1.3.1', $mode);
-                    Assert::same($manual['deployed_commit'], 'a61de82', $mode);
-                    Assert::same($manual['open_issues'], 2, $mode);
-                    Assert::same($manual['open_prs'], 2, $mode);
-                    Assert::same($manual['last_error'], $reason === null ? null : 'Health: ' . HttpFailure::MESSAGES[$reason], $mode);
-                    $panel = $web->request('/')['body'];
-                    if ($reason !== null) {
-                        Assert::same($manual['response_time_ms'], null, $mode);
-                        Assert::true(str_contains($panel, 'data-health-error="' . $reason . '"'), $mode);
-                        Assert::true(str_contains($panel, 'Нет данных'), $mode);
-                    }
-                    $root = dirname(__DIR__, 2);
-                    $cli = Subprocess::run([PHP_BINARY, '-d', 'auto_prepend_file=' . $root . '/tests/cli-github-fixture.php',
+                    $panel = (new FramingObservationAssertions($web))->manual($manual, $reason, $mode);
+                    $root = dirname(__DIR__, levels: 2);
+                    $cli = Subprocess::run([PHP_BINARY, '-d', 'auto_prepend_file=' . $root . '/tests/FixtureCliGitHubConnection.php',
                         $root . '/bin/check.php'], $web->directory, ['TABLO_DB' => $web->directory->path . '/test.sqlite',
                             'TABLO_ALLOW_PRIVATE_NETWORK' => '1']);
                     Assert::same($cli['exit_code'], $reason === null ? 0 : 1, $mode);

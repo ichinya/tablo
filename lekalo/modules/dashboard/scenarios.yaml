@@ -5,7 +5,7 @@
             "id": "dashboard.single_owner",
             "kind": "scenario",
             "version": 2,
-            "summary": "First setup creates id=1 only, duplicate setup is refused; password hash verifies and persistent failed-login rate limit denies the sixth attempt. Canonical IPv6/mapped identities share persistent keys; independent proxy clients, success reset, expiry and write rollback retain atomic limiter behavior.",
+            "summary": "First setup creates id=1 only, duplicate setup is refused; password hash verifies and persistent failed-login rate limit denies the sixth attempt. Canonical IPv6/mapped identities share persistent keys; independent proxy clients, success reset, expiry and write rollback retain atomic limiter behavior. First setup creates id=1 only, duplicate setup is refused; password hash verifies and persistent failed-login rate limit denies the sixth attempt. First setup creates id=1 only, duplicate setup is refused; password hash verifies and persistent failed-login rate limit denies the sixth attempt. Canonical IPv6/mapped identities share persistent keys; independent proxy clients, success reset, expiry and write rollback retain atomic limiter behavior.",
             "covers": [
                 "dashboard.setup",
                 "dashboard.login",
@@ -16,7 +16,7 @@
             "id": "dashboard.site_lifecycle",
             "kind": "scenario",
             "version": 1,
-            "summary": "Retain trimmed site URL bytes including trailing slashes; normalize GitHub URL, create, order, edit and delete; malformed input never persists; edit clears stale checks and an old in-flight result is refused.",
+            "summary": "Retain trimmed site URL bytes including trailing slashes; normalize GitHub URL, create, order, edit and delete; malformed input never persists; edit clears stale checks and an old in-flight result is refused. Normalize GitHub URL, create, order, edit and delete; malformed input never persists; edit clears stale checks and an old in-flight result is refused.",
             "covers": [
                 "dashboard.create_site",
                 "dashboard.update_site",
@@ -28,7 +28,7 @@
             "id": "dashboard.check_outcomes",
             "kind": "scenario",
             "version": 2,
-            "summary": "Empty health path checks the exact saved base URL with strict HTTP 200, no redirects and inactive JSON settings; explicit health/version paths trim only trailing base separators at the join and retain endpoint query bytes; explicit HTTP endpoints retain 2xx and JSON predicates. HTTP and false predicates are offline. DNS, timeout, refused, SSRF, TLS, size and invalid responses are unknown with persisted secret-free reasons and HTTP status. Manual, CLI and actual periodic worker checks agree; URL/endpoint/enable ABA refuses stale result and worker credit; independent version/Git failures never overwrite valid health. Schema 1 upgrades atomically to 2 without rewriting existing rows. Bounded endpoint redirects prove relative/root/dot/query/network-path references, canonical origin/default ports, each supported GET status, exact transition limits and cycles, missing/duplicate/hostile final Location, no interim/trailer routing, zero cross-origin credential requests, public fresh all-answer preflight/pin and explicit-private native localhost resolution with public refusal, aggregate body/header/remaining-deadline exhaustion and final JSON/partial outcomes. Typed redirect failures are Unknown with no intermediate HTTP status; native privacy/fatal controls retain hostile negatives and opaque bounds.",
+            "summary": "Empty health path checks the exact saved base URL with strict HTTP 200, no redirects and inactive JSON settings; explicit health/version paths trim only trailing base separators at the join and retain endpoint query bytes; explicit HTTP endpoints retain 2xx and JSON predicates. HTTP and false predicates are offline. DNS, timeout, refused, SSRF, TLS, size and invalid responses are unknown with persisted secret-free reasons and HTTP status. Manual, CLI and actual periodic worker checks agree; URL/endpoint/enable ABA refuses stale result and worker credit; independent version/Git failures never overwrite valid health. Schema 1 upgrades atomically to 2 without rewriting existing rows. Bounded endpoint redirects prove relative/root/dot/query/network-path references, canonical origin/default ports, each supported GET status, exact transition limits and cycles, missing/duplicate/hostile final Location, no interim/trailer routing, zero cross-origin credential requests, public fresh all-answer preflight/pin and explicit-private native localhost resolution with public refusal, aggregate body/header/remaining-deadline exhaustion and final JSON/partial outcomes. Typed redirect failures are Unknown with no intermediate HTTP status; native privacy/fatal controls retain hostile negatives and opaque bounds. Empty health path checks the base URL with strict HTTP 200 and ignores JSON settings; explicit HTTP endpoints retain 2xx and JSON predicates. HTTP and false predicates are offline. DNS, timeout, refused, SSRF, TLS, size and invalid responses are unknown with persisted secret-free reasons and HTTP status. Manual and CLI checks agree; independent version/Git failures never overwrite valid health. Schema 1 upgrades atomically to 2 without rewriting existing rows.",
             "covers": [
                 "dashboard.check_site",
                 "dashboard.site"
@@ -38,7 +38,7 @@
             "id": "dashboard.web_access",
             "kind": "scenario",
             "version": 2,
-            "summary": "HTTP smoke: setup, login, session rotation, protected routes, CRUD, CSRF rejection, XSS escaping, deletion confirmation, logout and persistent data. Browser smoke on desktop and mobile. Real socket ingress proves direct/untrusted spoof rejection, sanitizing edge client isolation, two-hop and untrusted-middle selection, duplicate-wire handling and trusted malformed-chain refusal; invalid config fails before runtime/DB/session side effects.",
+            "summary": "HTTP smoke: setup, login, session rotation, protected routes, CRUD, CSRF rejection, XSS escaping, deletion confirmation, logout and persistent data. Browser smoke on desktop and mobile. Real socket ingress proves direct/untrusted spoof rejection, sanitizing edge client isolation, two-hop and untrusted-middle selection, duplicate-wire handling and trusted malformed-chain refusal; invalid config fails before runtime/DB/session side effects. HTTP smoke: setup, login, session rotation, protected routes, CRUD, CSRF rejection, XSS escaping, deletion confirmation, logout and persistent data. Browser smoke on desktop and mobile. HTTP smoke: setup, login, session rotation, protected routes, CRUD, CSRF rejection, XSS escaping, deletion confirmation, logout and persistent data. Browser smoke on desktop and mobile. Real socket ingress proves direct/untrusted spoof rejection, sanitizing edge client isolation, two-hop and untrusted-middle selection, duplicate-wire handling and trusted malformed-chain refusal; invalid config fails before runtime/DB/session side effects.",
             "covers": [
                 "dashboard.setup",
                 "dashboard.login",
@@ -271,6 +271,101 @@
                 "dashboard.list_sites",
                 "dashboard.site",
                 "dashboard.github_cooldown"
+            ]
+        },
+        {
+            "id": "dashboard.history_atomic_settlement",
+            "kind": "scenario",
+            "version": 1,
+            "summary": "Execute actual manual store, public HTTP and one-shot CLI, real worker HTTP barriers and second-process writers. Every config/credential/revision/ABA/disabled/delete stale path has zero append/credit, rename-only is positive. History INSERT/progress/turn/deferred COMMIT refusal, caller BEGIN, contention, implicit rollback/cleanup first-error and connection reuse preserve result/history/credit pairing. Actual 0/4 upgrades, concurrent migration, conflicts/future version/fast path and failed DDL/version/COMMIT preserve predecessor bytes and empty history. Real local malformed/framed/JSON/version/Git failures preserve unknown/partial health and exclude raw markers.",
+            "covers": [
+                "dashboard.store_check",
+                "dashboard.settle_worker_check",
+                "dashboard.check_site",
+                "dashboard.run_worker_pass",
+                "dashboard.check_history"
+            ]
+        },
+        {
+            "id": "dashboard.history_read_retention",
+            "kind": "scenario",
+            "version": 1,
+            "summary": "Actual read/prune repository and CLIs prove same-second tie/repeated/late time, two sites/cascade, half-open ranges, bounds/cursor mismatch and ceiling excluding concurrent old insertion. EXPLAIN proves exact site/time ordering and cascade index. Prune equality, one cutoff, malformed/empty policy before opening DB, 500x10 cap, same-invocation later-batch refusal/resume and writer/new/old/delete interleavings preserve current state; reads are query-only and no key is recreated. Logical deletion has no shrink/secure erase promise.",
+            "covers": [
+                "dashboard.read_history",
+                "dashboard.prune_history",
+                "dashboard.check_history"
+            ]
+        },
+        {
+            "id": "dashboard.incident_lifecycle",
+            "kind": "scenario",
+            "version": 1,
+            "summary": "Actual accepted manual/CLI/worker rows cover first/repeat/recovery/new opening, Unknown, pause/enabled ABA, all actual revisions/shared rotation/stale invalid/rename positive; equal/older/calendar times, internal consumed-ID no-op, immutable reasons, observation interval qualifications.",
+            "covers": [
+                "dashboard.store_check",
+                "dashboard.settle_worker_check",
+                "dashboard.run_worker_pass",
+                "dashboard.incident",
+                "dashboard.incident_checkpoint"
+            ]
+        },
+        {
+            "id": "dashboard.incident_atomicity_activation",
+            "kind": "scenario",
+            "version": 1,
+            "summary": "Actual schema6 prospective upgrade keeps pre16 current/history readable and seeds neither incident nor checkpoint. DDL/version/COMMIT/conflict/concurrent/future/fast-path coverage. Real opening/close/interruption/checkpoint/credit/deferredCOMMIT failures roll back all writes; failed BEGIN/caller tx/implicit rollback preserve ownership/first error/connection reuse. Actual pruner and separate writers/delete orders retain anchors or cascade, never resurrect.",
+            "covers": [
+                "dashboard.incident",
+                "dashboard.incident_checkpoint",
+                "dashboard.prune_history",
+                "dashboard.delete_site"
+            ]
+        },
+        {
+            "id": "dashboard.incident_authenticated_read",
+            "kind": "scenario",
+            "version": 1,
+            "summary": "Actual authenticated Volt rendered names/XSS/privacy/security/no-upstream and strict bounds/missing-site/canonical scope/ceiling pagination with deletion/recovery. Query-only repository and read mutation-refusal triggers; actual justified index EXPLAIN; neutral desktop/mobile screenshots.",
+            "covers": [
+                "dashboard.read_incidents",
+                "dashboard.incident"
+            ]
+        },
+        {
+            "id": "dashboard.notification_settings_privacy",
+            "kind": "scenario",
+            "version": 1,
+            "summary": "Real authenticated CSRF/encrypted blank keep/replace/remove/conflict/type/length safe422. Endpoint-only/Bearer/private-slot established ciphertext witnesses extend actual13 startup/lifetime key policy; key-independent stop/password stays unchanged.",
+            "covers": [
+                "dashboard.update_notifications",
+                "dashboard.get_notifications",
+                "dashboard.notification_settings"
+            ]
+        },
+        {
+            "id": "dashboard.notification_atomicity",
+            "kind": "scenario",
+            "version": 1,
+            "summary": "Actual accepted current/history/incident/credit/checkpoint/slot SAMEPDO rollback including deferred COMMIT. Stale config/shared credential ABA/deletion zero, caller-owned BEGIN safe. OFF/unknown/paused/late/epoch/repeated identities do not fabricate events.",
+            "covers": [
+                "dashboard.project_notifications",
+                "dashboard.store_check",
+                "dashboard.settle_worker_check",
+                "dashboard.notification_checkpoint",
+                "dashboard.notification_slot"
+            ]
+        },
+        {
+            "id": "dashboard.notification_delivery",
+            "kind": "scenario",
+            "version": 1,
+            "summary": "Real child timeout/blocking read/partial exit/observed stop and owned loopback TLS POST/body/auth/key/caps/redirect/lost ACK controls. Claims unlock SQL before network, two workers one owner, stale tokens fenced, retry60/300 max3 TTL1h/coalescing visible; accepted state/next work survives delivery failure. Samehost controls are not external or production evidence.",
+            "covers": [
+                "dashboard.claim_notification",
+                "dashboard.ack_notification",
+                "dashboard.deliver_notification",
+                "dashboard.read_notification_status"
             ]
         }
     ]

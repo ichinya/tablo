@@ -31,6 +31,7 @@ final class WorkerSettlementTest
             $db->exec('CREATE TABLE commit_control (parent INTEGER REFERENCES sites(id) DEFERRABLE INITIALLY DEFERRED)');
             foreach ([
                 'store-control' => "BEFORE UPDATE OF checked_at ON sites BEGIN SELECT RAISE(ABORT, 'store-control'); END",
+                'history-control' => "BEFORE INSERT ON check_history BEGIN SELECT RAISE(ABORT, 'history-control'); END",
                 'progress-control' => "BEFORE INSERT ON worker_progress BEGIN SELECT RAISE(ABORT, 'progress-control'); END",
                 'turn-control' => "BEFORE UPDATE OF fairness_turn ON worker_runtime BEGIN SELECT RAISE(ABORT, 'turn-control'); END",
                 'FOREIGN KEY constraint failed' => 'AFTER UPDATE OF checked_at ON sites BEGIN INSERT INTO commit_control VALUES (-1); END',
@@ -43,6 +44,7 @@ final class WorkerSettlementTest
                 Assert::false($db->inTransaction());
                 Assert::same($sites->find($id)['checked_at'], null);
                 Assert::same((int) $db->query('SELECT COUNT(*) FROM worker_progress')->fetchColumn(), 0);
+                Assert::same((int) $db->query('SELECT COUNT(*) FROM check_history')->fetchColumn(), 0);
                 Assert::same((int) $db->query('SELECT fairness_turn FROM worker_runtime')->fetchColumn(), 0);
                 Assert::same((int) $db->query('SELECT COUNT(*) FROM commit_control')->fetchColumn(), 0);
                 unset($error, $caught);
@@ -50,11 +52,12 @@ final class WorkerSettlementTest
             }
             $db->beginTransaction();
             $db->exec('UPDATE installation_settings SET check_interval_minutes = 7');
-            try { $state->settle($snapshot, $result); Assert::true(false); } catch (PDOException) {}
+            try { $state->settle($snapshot, $result); Assert::true(false); } catch (PDOException $discardedCleanup) { unset($discardedCleanup); }
             Assert::true($db->inTransaction(), 'failed BEGIN leaves caller-owned transaction intact');
             Assert::same((int) $db->query('SELECT check_interval_minutes FROM installation_settings')->fetchColumn(), 7);
             $db->rollBack();
             Assert::true($state->settle($snapshot, $result));
+            Assert::same((int) $db->query('SELECT COUNT(*) FROM check_history')->fetchColumn(), 1);
             Assert::same($sites->find($id)['checked_at'], $result['checked_at']);
             Assert::same($state->turns($id, $snapshot['config_revision']),
                 ['latest_release' => 1, 'latest_commit' => 0, 'open_issues' => 2, 'open_prs' => 0]);
@@ -73,7 +76,7 @@ final class WorkerSettlementTest
             $token = $tokens->save(['name' => 'Shared', 'provider' => 'github', 'token' => bin2hex(random_bytes(24))]);
             $input = array_replace(UnitFixtures::site(), ['repository' => 'fixture/project', 'git_token_id' => $token]);
             $state = new WorkerStateRepository($db);
-            $result = ['checked_at' => '2026-01-01T00:00:00Z', 'worker_service' => array_fill_keys($state::FIELDS, true)];
+            $result = ['checked_at' => '2026-01-01T00:00:00Z', 'worker_service' => array_fill_keys($state::FIELDS, value: true)];
             foreach (['edit', 'disable', 'delete', 'aba', 'rotation', 'individual', 'name', 'cipher'] as $action) {
                 $id = $sites->save($input);
                 $snapshot = $sites->find($id);
@@ -81,7 +84,7 @@ final class WorkerSettlementTest
                     'edit' => $sites->save($input, $id),
                     'disable' => $sites->save(array_replace($input, ['enabled' => 0]), $id),
                     'delete' => $sites->delete($id),
-                    'aba' => (function () use ($sites, $input, $id): void {
+                    'aba' => (static function () use ($sites, $input, $id): void {
                         $sites->save(array_replace($input, ['enabled' => 0]), $id); $sites->save($input, $id);
                     })(),
                     'rotation' => $tokens->save(['name' => 'Shared', 'provider' => 'github', 'token' => bin2hex(random_bytes(24))], $token),

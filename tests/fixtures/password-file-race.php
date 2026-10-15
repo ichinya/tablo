@@ -13,4 +13,4 @@ namespace Tablo {
         return $value;
     }
 }
-namespace { require dirname(__DIR__, 2) . '/bin/admin-password.php'; }
+namespace { require dirname(__DIR__, levels: 2) . '/bin/admin-password.php'; }

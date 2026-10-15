@@ -1,10 +1,11 @@
 <?php
 declare(strict_types=1);
+require_once dirname(__DIR__, levels: 2) . '/app/RuntimeIni.php';
 
-require dirname(__DIR__, 2) . '/vendor/autoload.php';
-ini_set('zend.exception_ignore_args', '0');
+require dirname(__DIR__, levels: 2) . '/vendor/autoload.php';
+\Tablo\RuntimeIni::set('zend.exception_ignore_args', value: '0');
 $directory = new Tablo\Tests\Support\TemporaryDirectory('tablo-password-trace-');
-$db = $auth = $caught = null;
+$caught = null; $auth = null; $db = null;
 $checks = 0;
 try {
     $db = Tablo\Database::connect($directory->path . '/fixture.sqlite');
@@ -29,7 +30,7 @@ try {
         if ($caught === null) { throw new RuntimeException('No actual privacy exception'); }
         $complete = '';
         for ($error = $caught; $error !== null; $error = $error->getPrevious()) {
-            $complete .= print_r($error, true) . print_r($error->getTrace(), true);
+            $complete .= print_r($error, return: true) . print_r($error->getTrace(), return: true);
         }
         foreach (['fixture-private-password', 'fixture-private-confirmation', 'fixture-new-private-password',
             'private-trigger-text', $fingerprint, $hash] as $secret) {
@@ -45,13 +46,13 @@ try {
             ++$checks;
         }
     }
-    foreach (['connect', 'openExisting', 'resolvePath', 'validateExistingUri', 'refuseExistingFailure'] as $method) {
-        $parameter = (new ReflectionMethod(Tablo\Database::class, $method))->getParameters()[0];
+    foreach ([[Tablo\Database::class, 'connect'], [Tablo\Database::class, 'openExisting'], [Tablo\ExistingConnection::class, 'resolvePath'], [Tablo\ExistingConnection::class, 'validateExistingUri'], [Tablo\ExistingConnection::class, 'refuseExistingFailure']] as [$owner, $method]) {
+        $parameter = (new ReflectionMethod($owner, $method))->getParameters()[0];
         if (count($parameter->getAttributes(SensitiveParameter::class)) !== 1) { throw new RuntimeException('Sensitive connection wrapper missing'); }
         ++$checks;
     }
     echo 'Complete propagated/previous traces redacted; ' . $checks . " checks.\n";
 } finally {
-    $actions = $action = $error = $caught = $auth = $db = null;
+    $db = null; $auth = null; $caught = null; $error = null; $action = null; $actions = null;
     $directory->close();
 }

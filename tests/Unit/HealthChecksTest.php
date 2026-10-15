@@ -4,7 +4,7 @@ declare(strict_types=1);
 namespace Tablo\Tests\Unit;
 
 use Tablo\SiteChecker;
-use Tablo\SiteRepository;
+use Tablo\SiteInput;
 use Tablo\Tests\Support\FakeHttp;
 use Tablo\Tests\Support\FakeProvider;
 use Tablo\Tests\Support\UnitFixtures;
@@ -19,11 +19,11 @@ final class HealthChecksTest
         $input = array_replace(UnitFixtures::site(), ['url' => 'https://example.com/app', 'health_path' => '  ',
             'health_check_mode' => 'json', 'health_json_path' => 'not a path', 'health_json_operator' => '>',
             'health_json_expected_value' => 'not a number', 'version_path' => '']);
-        $site = SiteRepository::normalize($input);
+        $site = SiteInput::normalize($input);
         Assert::same($site['health_path'], '');
         $missing = $input;
         unset($missing['health_path']);
-        Assert::same(SiteRepository::normalize($missing)['health_path'], '');
+        Assert::same(SiteInput::normalize($missing)['health_path'], '');
         foreach ([200, 201, 204, 301, 302, 404, 500, 503] as $status) {
             $http = new FakeHttp([UnitFixtures::response($status, '<html>private-fixture</html>')]);
             $state = (new SiteChecker($http, new FakeProvider()))->check($site);
@@ -35,7 +35,7 @@ final class HealthChecksTest
             Assert::false(str_contains($state['last_error'] ?? '', 'private-fixture'));
         }
         foreach (['//evil.example', 'https://evil.example', '/bad#fragment', []] as $path) {
-            UnitFixtures::rejects(fn () => SiteRepository::normalize(array_replace($input, ['health_path' => $path])), 'nonempty endpoint must remain local and valid');
+            (new \Tablo\Tests\Support\FixtureRejection(\Closure::fromCallable(static fn () => SiteInput::normalize(array_replace($input, ['health_path' => $path])))))->verify('nonempty endpoint must remain local and valid');
         }
     }
 }

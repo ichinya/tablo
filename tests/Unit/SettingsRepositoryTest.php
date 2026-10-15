@@ -5,7 +5,6 @@ namespace Tablo\Tests\Unit;
 
 use Tablo\Database;
 use Tablo\SettingsRepository;
-use Tablo\Tests\Support\UnitFixtures;
 use Testo\Assert;
 use Testo\Test;
 
@@ -17,16 +16,16 @@ final class SettingsRepositoryTest
         $db = Database::connect(':memory:');
         $settings = new SettingsRepository($db);
         Assert::same($settings->get(), 10);
-        foreach (['1', '10', '0003', (string) intdiv(PHP_INT_MAX, 60)] as $raw) {
+        foreach (['1', '10', '0003', (string) intdiv(PHP_INT_MAX, num2: 60)] as $raw) {
             $settings->updateInterval($raw);
             Assert::same($settings->get(), (int) $raw);
             Database::migrate($db);
             Assert::same($settings->get(), (int) $raw);
         }
         foreach (['', '0', '00', '-1', '+1', '1.2', '1e3', ' 1', '1 ', '١', [], true, 2, null,
-            (string) PHP_INT_MAX, str_repeat('9', 100)] as $raw) {
-            UnitFixtures::rejects(fn () => $settings->updateInterval($raw), 'invalid raw interval');
-            Assert::same($settings->get(), intdiv(PHP_INT_MAX, 60));
+            (string) PHP_INT_MAX, str_repeat('9', times: 100)] as $raw) {
+            (new \Tablo\Tests\Support\FixtureRejection(\Closure::fromCallable(static fn () => $settings->updateInterval($raw))))->verify('invalid raw interval');
+            Assert::same($settings->get(), intdiv(PHP_INT_MAX, num2: 60));
         }
         $db->exec('DELETE FROM installation_settings');
         Assert::same($settings->get(), 10);

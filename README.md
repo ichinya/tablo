@@ -591,6 +591,46 @@ crash/recovery и освобождение файлов, включая удер
 
 ## Docker
 
+Образ проверяет локальное HTTP/PHP serving liveness через точный `GET /_tablo/health`
+с Host `127.0.0.1` (допускается `:80`) и исходным loopback `REMOTE_ADDR`. Успех —
+`200`, `text/plain; charset=utf-8`, `no-store`, `nosniff`, тело `ok\n`, без cookie.
+Проверка загружает production Composer autoload (включая чтение `.env`) и определения
+приложения/Phalcon, проверяет необходимые PHP extensions, но не создаёт Web, БД,
+vault, session или Volt runtime и не запускает проверки сайтов/GitHub. Она работает
+до и после setup. Повреждённая БД, отсутствующий ключ или недоступное хранилище
+могут сосуществовать с `healthy`: это не проверка DB readiness или periodic worker.
+
+Клиент обращается только к `http://127.0.0.1:80/_tablo/health`, игнорирует proxy
+окружения, не следует redirect, не передаёт credentials/cookie; connect timeout
+500 ms, весь transfer 2000 ms, максимум 16 bytes тела и 4096 bytes headers.
+Docker запускает его каждые 30 s с timeout 5 s, start period 20 s и retries 3.
+Прямой exit 0 означает успех, exit 1 — отказ; диагностика содержит только фиксированное
+`healthy` или `unavailable`. После последовательных отказов **работающий** контейнер
+становится `unhealthy` и возвращается в `healthy` при восстановлении HTTP/PHP.
+Остановленный контейнер имеет статус `exited` и больше не выполняет пробы.
+Restart policy не перезапускает контейнер только из-за `unhealthy`.
+У `tablo-worker` унаследованная HTTP-проверка отключена: worker не обслуживает Apache.
+
+```powershell
+docker compose ps
+docker inspect --format '{{json .State.Health}}' $(docker compose ps -q tablo)
+docker compose exec -T --user www-data tablo php /usr/local/bin/tablo-healthcheck.php
+```
+
+Reverse proxy обязан блокировать `/_tablo/health` и его варианты для внешних клиентов.
+Loopback proxy может сделать внешний запрос локальным для Apache; `REMOTE_ADDR`
+не удостоверяет исходного клиента. Forwarded headers и `TABLO_TRUSTED_PROXIES`
+не участвуют в допуске пробы. Неверный Host/peer или query/trailing path получает
+404; неверный метод точного локального URI — 405 с `Allow: GET`; ошибка загрузки
+production кода — фиксированный 503 `unavailable\n` без деталей конфигурации.
+Побочные headers/cookie или вывод при загрузке кода означают отказ; PHP headers
+восстанавливаются, вложенные buffers удаляются без затрагивания внешнего buffer
+(до 32 удалений, при блокировке сохранённый фильтр отдаёт отказ при завершении).
+Это граница обычных ошибок загрузки, не изоляция произвольного PHP: принудительная
+отправка HTTP headers, уничтожение фильтра с дальнейшим выводом, `exit` или
+вредоносные shutdown/output callbacks не дают гарантии фиксированного HTTP-ответа.
+Клиент по-прежнему требует точный успешный статус и тело в пределах своих лимитов.
+
 ```powershell
 docker compose up --build -d
 ```
@@ -894,7 +934,7 @@ Capture фиксирует канонические контракты, source l
 это локальная декларация проекта, а не полноценный Phalcon target adapter
 или анализатор тел PHP. Runtime-семантика подтверждается native tests.
 Отдельный project-local manifest `contracts/reviewed-dependencies.json` фиксирует
-полные байты `app/client-address.php`, его владельца `Tablo\ClientAddress` и потребителя
+полные байты `app/ClientAddress.php`, его владельца `Tablo\ClientAddress` и потребителя
 `Tablo\Web::__construct`. Это зависимость Web, а не declaration команды login/setup:
 их фактический владелец остаётся Auth. `composer verify` проверяет этот manifest
 до contract update/attach и тестов; даже изменение комментария требует review и
@@ -1020,10 +1060,12 @@ Tablo дополнительно проверяет версию и наличи
 Одинаковые команды работают в PowerShell на Windows и в shell на Linux:
 
 ```powershell
+php tools/install-mago.php
 composer test
 php vendor/bin/testo run --suite=Unit
 php vendor/bin/testo run --suite=Network
 php vendor/bin/testo run --suite=Http
+composer lint
 composer verify
 ```
 
@@ -1123,3 +1165,64 @@ primary cooldown через HMAC с private vault key; ротация handle с�
 `php bin/worker.php --stop` requests cooperative stop; observe exit before restarting.
 Docker Compose includes `tablo-worker` sharing the web image, local database and token key.
 See [launch, cadence, fairness, stop and storage limits](docs/periodic-worker.md).
+
+## Check history
+
+Accepted checks append bounded immutable history without changing the current dashboard state.
+Use `php bin/history.php SITE FROM TO [LIMIT [CURSOR]]` to read local pages and
+`php bin/prune-history.php [SITE]` to prune with `TABLO_HISTORY_RETENTION_DAYS` (default 30).
+See [atomic persistence, pagination and retention limits](docs/check-history.md).
+
+## Incidents
+
+Authenticated `/incidents` lists first observed Offline, recovery and qualified observation intervals.
+Tracking starts with newly accepted checks after installation; migration and reads never replay old
+history or fabricate incidents from current values. See [lifecycle, activation and paging boundaries](docs/incidents.md).
+
+## Notifications
+
+Settings provides one encrypted HTTPS webhook channel, disabled by default, for selected
+unavailable, recovery and version-lag observations. Delivery follows accepted commits and
+is bounded best effort; receivers deduplicate stable event keys. See [settings, privacy,
+confirmation, retries and supervision limits](docs/notifications.md).
+
+### Проверка PHP с Mago
+
+Mago закреплён на **1.54.0**. Явная команда `php tools/install-mago.php` устанавливает
+архив из проверенного релиза в игнорируемый каталог `.ci/mago/`; поддерживаются
+Windows x64 и Linux x64 GNU. SHA-256 архива и исполняемого файла, а также реальный
+вывод `--version` проверяются при установке и при каждом попадании в кэш. Для
+офлайн-установки передайте `--archive=/полный/путь/к/архиву` с тем же закреплённым SHA-256.
+
+`composer lint` запускает все стандартные правила для PHP **8.2** и всех PHP-файлов
+в `app`, `bin`, `public`, `tests`, `tools`; любое замечание возвращает ненулевой код.
+Runner сверяет реальный список исходников Mago с полным физическим набором,
+проверяет конфигурацию и не принимает дополнительные аргументы, меняющие область проверки.
+`composer verify` сначала отказывает при изменении явно просмотренных зависимостей,
+затем запускает lint и полный прежний набор проверок модели, lock, bindings и Testo.
+Проверка ничего не скачивает и не обновляет fingerprints. После просмотра изменений
+выполните явный `php tools/capture-bindings.php` и проверьте diff обоих manifests;
+`tools/reviewed-dependency-map.json` перечисляет физические зависимости без новых доменных сущностей.
+CI выполняет явную установку и ту же проверку кэшированного релиза на каждой платформе.
+
+The gate retains all default rules. Its 23 reviewed, local expectations are explicit:
+one `no-ini-set` expectation on `RuntimeIni`'s checked configuration statement, and
+one class-adjacent `file-name` expectation in each of these 22 contracted owners:
+
+```text
+auth.php authentication-pages.php base-schema.php check-command.php
+check-history-repository.php git-hub-connection.php git-token-repository.php
+history-schema.php incident-repository.php incident-schema.php
+notification-delivery.php notification-outbox.php notification-projector.php
+notification-schema.php notification-settings.php periodic-worker.php
+schema-layout-upgrade.php settings-repository.php site-checker.php site-pages.php
+site-repository.php worker-state-repository.php
+```
+
+These actual files remain in `app/`, with their original PascalCase class names and
+implementations. The filename expectations are an intentional compatibility exception:
+the pinned Lekalo source-path grammar rejects uppercase filenames, while Mago's default
+single-class filename rule requires the class's case. Other files use the default naming
+rule. The adjacent expectations do not suppress independent violations; the gate still
+rejects a missing expectation or an independent `ini_set` violation. Composer's classmap
+uses the actual lowercase paths on both Windows and case-sensitive Linux.

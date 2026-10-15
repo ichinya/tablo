@@ -5,6 +5,8 @@ namespace Tablo;
 
 use PDO;
 
+// Pinned Lekalo requires lowercase physical source paths for this contracted owner.
+// @mago-expect lint:file-name
 final class WorkerStateRepository
 {
     public const FIELDS = ['latest_release', 'latest_commit', 'open_issues', 'open_prs'];
@@ -27,7 +29,7 @@ final class WorkerStateRepository
     public function generation(): ?string
     {
         $statement = $this->db->query('SELECT run_id FROM worker_runtime WHERE id = 1');
-        try { return $statement->fetchColumn() ?: null; }
+        try { $generation = $statement->fetchColumn(); return $generation ? $generation : null; }
         finally { $statement->closeCursor(); }
     }
 
@@ -58,52 +60,15 @@ final class WorkerStateRepository
         $statement->execute([$id, $revision]);
         try { $row = $statement->fetch(); }
         finally { $statement->closeCursor(); }
-        return array_intersect_key($row ?: array_fill_keys(self::FIELDS, 0), array_flip(self::FIELDS));
+        return array_intersect_key($row ? $row : array_fill_keys(self::FIELDS, value: 0), array_flip(self::FIELDS));
     }
 
-    // One post-network transaction owns both the guarded current result and service credit.
+    // SiteRepository owns the shared post-network result/history/credit transaction.
     public function settle(#[\SensitiveParameter] array $site, array $result): bool
     {
-        // Reuse the pass lifetime; control-only construction must stay key-independent.
+        // Preserve external-key pass lifetime and actual history/incident/credit transaction owner.
         $this->sites ??= new SiteRepository($this->db);
         $this->sites->assertWorkerKeyAvailable();
-        // BEGIN outside the catch: a failed/nested BEGIN never rolls back caller-owned work.
-        $this->db->beginTransaction();
-        try {
-            if (!$site['enabled'] || !$this->sites->storeCheck($site, $result)) {
-                $this->db->rollBack();
-                return false;
-            }
-            $this->credit($site['id'], $site['config_revision'], $result['worker_service']);
-            $this->db->commit();
-            return true;
-        } catch (\Throwable $error) {
-            try { if ($this->db->inTransaction()) { $this->db->rollBack(); } }
-            catch (\Throwable) { /* Preserve the original settlement failure. */ }
-            throw $error;
-        }
-    }
-
-    private function credit(int $id, int $revision, array $service): void
-    {
-            $this->db->prepare('INSERT INTO worker_progress (site_id, config_revision)
-                SELECT id, config_revision FROM sites WHERE id = ? AND config_revision = ? AND enabled = 1
-                ON CONFLICT(site_id) DO UPDATE SET config_revision = excluded.config_revision,
-                latest_release = 0, latest_commit = 0, open_issues = 0, open_prs = 0
-                WHERE worker_progress.config_revision <> excluded.config_revision')->execute([$id, $revision]);
-            foreach (self::FIELDS as $field) {
-                if (!($service[$field] ?? false)) { continue; }
-                // Bounded counters: rare order-preserving scale-down keeps old debt ahead.
-                $turn = (int) $this->db->query('SELECT fairness_turn FROM worker_runtime WHERE id = 1')->fetchColumn();
-                if ($turn >= 1000000000) {
-                    $this->db->exec('UPDATE worker_progress SET latest_release = latest_release / 2,
-                        latest_commit = latest_commit / 2, open_issues = open_issues / 2, open_prs = open_prs / 2');
-                    $this->db->exec('UPDATE worker_runtime SET fairness_turn = fairness_turn / 2 WHERE id = 1');
-                }
-                $this->db->exec('UPDATE worker_runtime SET fairness_turn = fairness_turn + 1 WHERE id = 1');
-                $this->db->prepare('UPDATE worker_progress SET ' . $field . ' = (SELECT fairness_turn FROM worker_runtime WHERE id = 1)
-                    WHERE site_id = ? AND config_revision = ? AND EXISTS(SELECT 1 FROM sites
-                    WHERE id = ? AND config_revision = ? AND enabled = 1)')->execute([$id, $revision, $id, $revision]);
-            }
+        return $this->sites->settleWorkerCheck($site, $result);
     }
 }

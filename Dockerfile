@@ -40,5 +40,8 @@ RUN composer dump-autoload --no-dev --optimize \
     && chown -R www-data:www-data storage
 COPY deploy/apache.conf /etc/apache2/sites-available/000-default.conf
 COPY deploy/php.ini /usr/local/etc/php/conf.d/tablo.ini
+COPY deploy/healthcheck.php /usr/local/bin/tablo-healthcheck.php
+
+HEALTHCHECK --interval=30s --timeout=5s --start-period=20s --retries=3 CMD ["php", "/usr/local/bin/tablo-healthcheck.php"]
 
 EXPOSE 80

@@ -7,7 +7,6 @@ use Tablo\Auth;
 use Tablo\Database;
 use Tablo\GitHubConnection;
 use Tablo\GitHubFailure;
-use Tablo\GitTokenRepository;
 use Tablo\PeriodicWorker;
 use Tablo\SiteRepository;
 use Tablo\TokenVault;
@@ -27,7 +26,7 @@ final class ExternalKeyTest
     public function actualCommandsRefuseInvalidStartupButStopAndPasswordResetRemainIndependent(): void
     {
         $directory = new TemporaryDirectory('tablo-external-cli-');
-        $db = $state = $child = null;
+        $child = null; $state = null; $db = null;
         try {
             $path = $directory->path . '/db.sqlite';
             $key = $directory->path . '/key'; file_put_contents($key, random_bytes(32));
@@ -50,17 +49,16 @@ final class ExternalKeyTest
             Assert::same($result['exit_code'],0); Assert::same($result['stdout'],"Worker stop requested.\n");
             Assert::same($child->wait()['exit_code'],0);
             Assert::same((new WorkerStateRepository($db))->generation(),null);
-            $result = Subprocess::run([PHP_BINARY,'bin/admin-password.php','--password-stdin'],$directory,$env,
-                input:"replacement-password\nreplacement-password\n");
+            $result = Subprocess::run(command: [PHP_BINARY,'bin/admin-password.php','--password-stdin'], directory: $directory, environment: $env, options: new \Tablo\Tests\Support\CommandOptions(input: \Tablo\Tests\Support\FixtureCredentials::confirmationInput(label: 'replacement-password')));
             Assert::same($result['exit_code'],0);
-            Assert::true(password_verify('replacement-password',$db->query('SELECT password_hash FROM users')->fetchColumn()));
+            Assert::true(password_verify(\Tablo\Tests\Support\FixtureCredentials::value(label: 'replacement-password'),$db->query('SELECT password_hash FROM users')->fetchColumn()));
             Assert::false(is_file($key)); Assert::false(is_file($directory->path . '/github-token.key'));
             $preflight=Subprocess::run([PHP_BINARY,'bin/key-preflight.php'],$directory,$env); Assert::same($preflight['exit_code'],1);
             $result = Subprocess::run([PHP_BINARY,'bin/check.php'],$directory,$env); Assert::same($result['exit_code'],1);
             $result = Subprocess::run([PHP_BINARY,'bin/worker.php','--stop'],$directory,
                 ['TABLO_DB'=>$directory->path.'/never.sqlite','TABLO_TOKEN_KEY_FILE'=>$key]);
             Assert::same($result['exit_code'],1); Assert::false(is_file($directory->path.'/never.sqlite'));
-        } finally { $child?->close(); $child = $state = $db = null; $directory->close(); }
+        } finally { $child?->close(); $db = null; $state = null; $child = null; $directory->close(); }
     }
 
     #[Test]
@@ -68,53 +66,27 @@ final class ExternalKeyTest
     {
         $directory = new TemporaryDirectory('tablo-external-quota-');
         $environment = getenv('TABLO_TOKEN_KEY_FILE');
-        $server = $db = $sites = $vault = $connection = $worker = null;
+        $worker = null; $connection = null; $vault = null; $sites = null; $db = null; $server = null;
         try {
             putenv('TABLO_TOKEN_KEY_FILE');
             $server = new TestServer($directory,dirname(__DIR__).'/fixtures/github-budget-router.php');
-            $path=$directory->path.'/db.sqlite'; $db=Database::connect($path);
-            $vault=TokenVault::forDatabase($db); $secret=bin2hex(random_bytes(24));
-            $sites=new SiteRepository($db,$vault);
-            $id=$sites->save(array_replace(UnitFixtures::site(),['url'=>$server->base,'repository'=>'fixture/primary','health_path'=>'','version_path'=>'','github_token'=>$secret]));
-            (new GitTokenRepository($db,$vault))->save(['name'=>'Synthetic','provider'=>'github','token'=>$secret]);
-            $http=new MeasuredGitHubHttp($server->base); $connection=new GitHubConnection($sites,$http);
-            try { $connection->provider(null,['github_token'=>$secret])->getLatestRelease('fixture/primary'); }
-            catch (GitHubFailure $error) { Assert::same($error->reason,'rate-limit'); unset($error); }
-            Assert::same($http->core,1);
-            $before=$db->query('SELECT * FROM github_cooldowns ORDER BY scope,resource')->fetchAll();
-            Assert::true(count($before)>0); Assert::true(str_starts_with($before[0]['scope'],'credential:v1:'));
-            $cipher=$db->query('SELECT github_token FROM sites')->fetchColumn();
-            $connection=$sites=$vault=$db=null;
+            [$path, $db, $vault, $sites, $secret, $http, $connection, $before, $cipher] = (new ExternalQuotaFixture($directory, $server))->create();
+            $db = null; $vault = null; $sites = null; $connection = null;
             // Stopped writers: SQLite backup reads the complete logical WAL state.
-            $backup=new \PDO('sqlite:'.$path);
-            $backup->exec("VACUUM INTO '".str_replace("'","''",$directory->path.'/backup.sqlite')."'"); $backup=null;
-            copy($directory->path.'/github-token.key',$directory->path.'/key-backup');
-            rename($directory->path.'/github-token.key',$directory->path.'/external');
-            putenv('TABLO_TOKEN_KEY_FILE='.$directory->path.'/external');
+            ExternalBackupFixture::transfer($directory, $path);
             $db=Database::connect($path); $vault=TokenVault::forDatabase($db); $sites=new SiteRepository($db,$vault);
             $http=new MeasuredGitHubHttp($server->base); $connection=new GitHubConnection($sites,$http);
             foreach ([['github_token'=>$secret],['git_token_id'=>'1']] as $input) {
                 try { $connection->provider(null,$input)->getLatestRelease('fixture/primary'); }
                 catch (GitHubFailure $error) { Assert::same($error->reason,'rate-limit'); unset($error); }
             }
-            $worker=new PeriodicWorker($db,new \Tablo\HttpClient(true), connection:static fn()=>new GitHubConnection($sites,$http,worker:true),output:static function(string $message):void{},vault:$vault);
+            $worker=new PeriodicWorker($db, new \Tablo\HttpClient(true), hooks: new \Tablo\WorkerHooks(connection:static fn()=>new GitHubConnection($sites,$http,worker:true), output:static function(string $message):void{}), vault:$vault);
             $worker->runPass(); Assert::same($http->core,0); Assert::same($http->search,2, 'core cooldown does not deny independent search admission');
-            $after=$db->query("SELECT * FROM github_cooldowns WHERE scope LIKE 'credential:v1:%' ORDER BY scope,resource")->fetchAll();
-            Assert::same($after,$before, 'original private quota remains; equivalent site/saved handles may be materialized');
-            Assert::same($db->query('SELECT github_token FROM sites')->fetchColumn(),$cipher);
-            $worker=$connection=$sites=$vault=$db=null;
-            mkdir($directory->path.'/restore'); copy($directory->path.'/backup.sqlite',$directory->path.'/restore/db.sqlite');
-            copy($directory->path.'/key-backup',$directory->path.'/restore/key');
-            putenv('TABLO_TOKEN_KEY_FILE='.$directory->path.'/restore/key');
-            $db=Database::connect($directory->path.'/restore/db.sqlite');
-            Assert::same($db->query('SELECT * FROM github_cooldowns ORDER BY scope,resource')->fetchAll(),$before);
-            Assert::same(TokenVault::forDatabase($db)->decrypt($cipher),$secret); $db=null;
-            // Compatible schema4 rollback uses the original bytes and predecessor policy.
-            copy($directory->path.'/key-backup',$directory->path.'/restore/github-token.key');
-            putenv('TABLO_TOKEN_KEY_FILE='); $db=Database::connect($directory->path.'/restore/db.sqlite');
-            Assert::same(TokenVault::forDatabase($db)->decrypt($cipher),$secret);
+            (new ExternalQuotaAssertions($db))->preserved($before, $cipher);
+            $db = null; $vault = null; $sites = null; $connection = null; $worker = null;
+            (new ExternalRestoreAssertions($directory))->restored($before, $cipher, $secret);
         } finally {
-            $worker=$connection=$sites=$vault=$db=null; gc_collect_cycles(); $server?->close();
+            $db = null; $vault = null; $sites = null; $connection = null; $worker = null; gc_collect_cycles(); $server?->close();
             putenv($environment===false?'TABLO_TOKEN_KEY_FILE':'TABLO_TOKEN_KEY_FILE='.$environment); $directory->close();
         }
     }
@@ -123,27 +95,27 @@ final class ExternalKeyTest
     public function actualWorkerLiveKeyLossAtNetworkBoundaryStopsBeforeSettlement(): void
     {
         foreach (['missing','bad','different'] as $kind) {
-            $directory=new TemporaryDirectory('tablo-external-worker-'); $server=$db=$child=null;
+            $directory=new TemporaryDirectory('tablo-external-worker-'); $child = null; $db = null; $server = null;
             try {
                 $server=new TestServer($directory,dirname(__DIR__).'/fixtures/worker-router.php',environment:['TABLO_WORKER_FIXTURE'=>$directory->path]);
                 $path=$directory->path.'/db.sqlite'; $db=Database::connect($path); $vault=TokenVault::forDatabase($db);
                 $sites=new SiteRepository($db,$vault);
                 $sites->save(array_replace(UnitFixtures::site(),['url'=>$server->base,'health_path'=>'/barrier','version_path'=>'','github_token'=>bin2hex(random_bytes(24))]));
-                $key=$directory->path.'/external'; rename($directory->path.'/github-token.key',$key); $sites=$vault=null;
+                $key=$directory->path.'/external'; rename($directory->path.'/github-token.key',$key); $vault = null; $sites = null;
                 $child=new WorkerProcess($directory,$kind,[PHP_BINARY,'bin/worker.php'],['TABLO_DB'=>$path,'TABLO_TOKEN_KEY_FILE'=>$key,'TABLO_ALLOW_PRIVATE_NETWORK'=>'1']);
                 $deadline=microtime(true)+5;
-                while(!is_file($directory->path.'/entered') && $child->running() && microtime(true)<$deadline){clearstatcache();usleep(20000);}
+                while(!is_file($directory->path.'/entered') && $child->running() && microtime(true)<$deadline){clearstatcache();usleep(20_000);}
                 Assert::true(is_file($directory->path.'/entered'));
                 rename($key,$key.'.original');
                 if($kind!=='missing'){file_put_contents($key,$kind==='bad'?'bad':random_bytes(32));}
-                file_put_contents($directory->path.'/release','ready');
+                file_put_contents($directory->path.'/release',data: 'ready');
                 $result=$child->wait(); Assert::same($result['exit_code'],1);
                 Assert::false(str_contains($result['stdout'],'Worker pass complete.'));
                 Assert::false(str_contains($result['stderr'],$key));
                 Assert::same((int)$db->query('SELECT count(*) FROM sites WHERE checked_at IS NOT NULL')->fetchColumn(),0);
                 Assert::same((int)$db->query('SELECT count(*) FROM worker_progress')->fetchColumn(),0);
                 Assert::false(is_file($directory->path.'/github-token.key'));
-            } finally {$child?->close();$server?->close();$child=$server=$db=$sites=$vault=null;$directory->close();}
+            } finally {$child?->close();$server?->close();$vault = null; $sites = null; $db = null; $server = null; $child = null;$directory->close();}
         }
     }
 }

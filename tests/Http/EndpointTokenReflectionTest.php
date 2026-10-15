@@ -5,6 +5,7 @@ namespace Tablo\Tests\Http;
 
 use Tablo\HttpFailure;
 use Tablo\SiteRepository;
+use Tablo\SiteInput;
 use Tablo\Tests\Support\EndpointCheckFixture;
 use Tablo\Tests\Support\EndpointFixture;
 use Testo\Assert;
@@ -23,7 +24,7 @@ final class EndpointTokenReflectionTest
             $csrf = $this->web->authenticate();
             $sites = new SiteRepository($this->web->database());
             foreach (['manual', 'cli', 'worker'] as $mode) {
-                $id = $sites->save([...SiteRepository::defaults(), 'name' => 'Reflected endpoint',
+                $id = $sites->save([...SiteInput::defaults(), 'name' => 'Reflected endpoint',
                     'url' => $this->peer->base, 'repository' => 'fixture/public', 'health_path' => '/up',
                     'version_path' => '/version?reflect=1', 'endpoint_token' => EndpointFixture::tokenA()]);
                 $this->runEndpointCheck($mode, $id, $csrf, 1);

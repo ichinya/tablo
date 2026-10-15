@@ -27,7 +27,7 @@ final class ExternalKeyCustodyTest
     {
         $directory = new TemporaryDirectory('tablo-external-live-');
         $environment = getenv('TABLO_TOKEN_KEY_FILE');
-        $db = $sites = $vault = null;
+        $vault = null; $sites = null; $db = null;
         try {
             foreach ([false, true] as $external) {
                 putenv('TABLO_TOKEN_KEY_FILE');
@@ -36,18 +36,18 @@ final class ExternalKeyCustodyTest
                 $vault = new TokenVault($key); $vault->encrypt('synthetic');
                 $db = Database::connect(':memory:', $vault); $sites = new SiteRepository($db, $vault);
                 unlink($key);
-                self::refuses(fn () => $vault->encrypt('synthetic')); Assert::false(is_file($key));
-                self::refuses(fn () => $sites->save(UnitFixtures::site() + ['github_token' => bin2hex(random_bytes(24))])); Assert::false(is_file($key));
+                self::refuses(static fn () => $vault->encrypt('synthetic')); Assert::false(is_file($key));
+                self::refuses(static fn () => $sites->save(UnitFixtures::site() + ['github_token' => bin2hex(random_bytes(24))])); Assert::false(is_file($key));
                 foreach (['bad', random_bytes(32)] as $replacement) {
                     file_put_contents($key, $replacement);
-                    self::refuses(fn () => $vault->credentialScope('synthetic'));
-                    self::refuses(fn () => $sites->assertWorkerKeyAvailable());
+                    self::refuses(static fn () => $vault->credentialScope('synthetic'));
+                    self::refuses($sites->assertWorkerKeyAvailable(...));
                     Assert::same(file_get_contents($key), $replacement);
                 }
-                $sites = $vault = $db = null;
+                $db = null; $vault = null; $sites = null;
             }
         } finally {
-            $db = $sites = $vault = null;
+            $vault = null; $sites = null; $db = null;
             putenv($environment === false ? 'TABLO_TOKEN_KEY_FILE' : 'TABLO_TOKEN_KEY_FILE=' . $environment);
             $directory->close();
         }
@@ -56,11 +56,15 @@ final class ExternalKeyCustodyTest
     #[Test]
     public function newExternalPathAndSecretArgumentsAreRedactedInActualPropagatedTraces(): void
     {
+        if (getenv('TABLO_TEST_ISOLATED_TRACE') !== __FUNCTION__) {
+            \Tablo\Tests\Support\TraceTestIsolation::run(__FILE__, __FUNCTION__, minimumAssertions: 5);
+            return;
+        }
         $directory = new TemporaryDirectory('tablo-external-trace-');
         $environment = getenv('TABLO_TOKEN_KEY_FILE'); $ignore = ini_get('zend.exception_ignore_args');
-        $caught = $db = $vault = $repository = null;
+        $repository = null; $vault = null; $db = null; $caught = null;
         try {
-            ini_set('zend.exception_ignore_args','0'); putenv('TABLO_TOKEN_KEY_FILE');
+            \Tablo\RuntimeIni::set('zend.exception_ignore_args',value: '0'); putenv('TABLO_TOKEN_KEY_FILE');
             $marker = bin2hex(random_bytes(24)); $path = $directory->path . '/' . $marker;
             putenv('TABLO_TOKEN_KEY_FILE=' . $path);
             try { TokenVault::configured(); } catch (SharedKeyFailure $error) { $caught = $error; unset($error); }
@@ -74,14 +78,14 @@ final class ExternalKeyCustodyTest
             Assert::same(TraceInspector::inspect($caught, [$marker])['leaked'], false);
             $previous = new \RuntimeException('Safe wrapper', previous: $caught);
             Assert::same(TraceInspector::inspect($previous, [$marker])['leaked'], false);
-            $caught = $previous = $sites = null;
+            $sites = null; $previous = null; $caught = null;
             $repository = new GitTokenRepository($db, $vault); unlink($path);
             try { $repository->save(['name' => 'Synthetic','provider' => 'github','token' => $marker]); }
             catch (SharedKeyFailure $error) { $caught = $error; unset($error); }
             Assert::same(TraceInspector::inspect($caught, [$marker])['leaked'], false);
         } finally {
-            $caught = $db = $vault = $repository = null; gc_collect_cycles();
-            ini_set('zend.exception_ignore_args',$ignore);
+            $repository = null; $vault = null; $db = null; $caught = null; gc_collect_cycles();
+            \Tablo\RuntimeIni::set('zend.exception_ignore_args',$ignore);
             putenv($environment === false ? 'TABLO_TOKEN_KEY_FILE' : 'TABLO_TOKEN_KEY_FILE=' . $environment);
             $directory->close();
         }
@@ -91,7 +95,7 @@ final class ExternalKeyCustodyTest
     {
         $directory = new TemporaryDirectory('tablo-external-binary-');
         $environment = getenv('TABLO_TOKEN_KEY_FILE');
-        $db = $sites = $saved = $vault = null;
+        $vault = null; $saved = null; $sites = null; $db = null;
         try {
             putenv('TABLO_TOKEN_KEY_FILE');
             $key = $directory->path . '/github-token.key';
@@ -108,9 +112,9 @@ final class ExternalKeyCustodyTest
             $ciphertexts = [$db->query('SELECT github_token FROM sites')->fetchColumn(), $db->query('SELECT encrypted_token FROM git_tokens')->fetchColumn()];
             $external = $directory->path . '/raw key ' . bin2hex(random_bytes(5));
             rename($key, $external);
-            chmod($external, 0444);
+            chmod($external, permissions: 0o444);
             putenv('TABLO_TOKEN_KEY_FILE=' . $external);
-            $sites = $saved = $vault = $db = null;
+            $db = null; $vault = null; $saved = null; $sites = null;
             $vault = TokenVault::configured();
             $db = Database::connect($directory->path . '/db.sqlite', $vault);
             foreach ($ciphertexts as $ciphertext) { Assert::same($vault->decrypt($ciphertext), $secret); }
@@ -122,9 +126,9 @@ final class ExternalKeyCustodyTest
             Assert::same((int) $db->query('PRAGMA user_version')->fetchColumn(), Database::CURRENT_SCHEMA_VERSION);
             Assert::same([$db->query('SELECT github_token FROM sites')->fetchColumn(), $db->query('SELECT encrypted_token FROM git_tokens')->fetchColumn()], $ciphertexts);
         } finally {
-            $db = $sites = $saved = $vault = null;
+            $vault = null; $saved = null; $sites = null; $db = null;
             putenv($environment === false ? 'TABLO_TOKEN_KEY_FILE' : 'TABLO_TOKEN_KEY_FILE=' . $environment);
-            if (isset($external) && is_file($external)) { chmod($external, 0600); }
+            if ((($external ?? null) !== null) && is_file($external)) { chmod($external, permissions: 0o600); }
             $directory->close();
         }
     }

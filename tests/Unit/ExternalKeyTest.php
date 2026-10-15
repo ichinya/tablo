@@ -31,20 +31,20 @@ final class ExternalKeyTest
             if (DIRECTORY_SEPARATOR === '/') { $paths[] = '/dev/null'; }
             foreach ($paths as $path) {
                 putenv('TABLO_TOKEN_KEY_FILE=' . $path);
-                $message = self::refuses(fn () => Database::connect($directory->path . '/new/db.sqlite'));
+                $message = self::refuses(static fn () => Database::connect($directory->path . '/new/db.sqlite'));
                 Assert::false(str_contains($message, $directory->path));
                 Assert::false(is_dir($directory->path . '/new'));
                 Assert::false(is_file($directory->path . '/github-token.key'));
             }
             // Environment APIs cannot carry NUL; the direct external factory must also refuse it.
             putenv('TABLO_TOKEN_KEY_FILE');
-            self::refuses(fn () => new TokenVault("bad\0path", true));
+            self::refuses(static fn () => new TokenVault("bad\0path", true));
             if (DIRECTORY_SEPARATOR === '/') {
-                $key = $directory->path . '/permission'; file_put_contents($key, random_bytes(32)); chmod($key, 0000);
-                try { self::refuses(fn () => new TokenVault($key, true)); }
-                finally { chmod($key, 0600); }
+                $key = $directory->path . '/permission'; file_put_contents($key, random_bytes(32)); chmod($key, permissions: 0o000);
+                try { self::refuses(static fn () => new TokenVault($key, true)); }
+                finally { chmod($key, permissions: 0o600); }
                 $fifo = $directory->path . '/fifo';
-                if (function_exists('posix_mkfifo')) { posix_mkfifo($fifo, 0600); self::refuses(fn () => new TokenVault($fifo, true)); }
+                if (function_exists('posix_mkfifo')) { posix_mkfifo($fifo, permissions: 0o600); self::refuses(static fn () => new TokenVault($fifo, external: true)); }
             }
         } finally {
             putenv($environment === false ? 'TABLO_TOKEN_KEY_FILE' : 'TABLO_TOKEN_KEY_FILE=' . $environment);
@@ -58,12 +58,12 @@ final class ExternalKeyTest
         $directory = new TemporaryDirectory('tablo-external-selection-');
         $environment = getenv('TABLO_TOKEN_KEY_FILE');
         $cwd = getcwd();
-        $root = dirname(__DIR__, 2);
+        $root = dirname(__DIR__, levels: 2);
         $relative = 'artifacts/key-' . bin2hex(random_bytes(8));
         if (!is_dir($root . '/artifacts')) { mkdir($root . '/artifacts'); }
         try {
             putenv('TABLO_TOKEN_KEY_FILE='); Assert::same(TokenVault::configured(), null);
-            putenv('TABLO_TOKEN_KEY_FILE=0'); self::refuses(fn () => TokenVault::configured());
+            putenv('TABLO_TOKEN_KEY_FILE=0'); self::refuses(TokenVault::configured(...));
             $raw = random_bytes(32); file_put_contents($root . '/' . $relative, $raw);
             putenv('TABLO_TOKEN_KEY_FILE=' . $relative);
             $vault = TokenVault::configured(); $cipher = $vault->encrypt('synthetic');

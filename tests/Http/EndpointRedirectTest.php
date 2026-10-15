@@ -4,6 +4,7 @@ declare(strict_types=1);
 namespace Tablo\Tests\Http;
 
 use Tablo\SiteRepository;
+use Tablo\SiteInput;
 use Tablo\Tests\Support\HealthCheckFixture;
 use Testo\Assert;
 use Testo\Test;
@@ -18,7 +19,7 @@ final class EndpointRedirectTest
         $csrf = $this->web->authenticate();
         $db = $this->web->database(); $sites = new SiteRepository($db);
         try {
-            $input = [...SiteRepository::defaults(), 'name' => 'Redirect endpoint', 'url' => $this->server->base,
+            $input = [...SiteInput::defaults(), 'name' => 'Redirect endpoint', 'url' => $this->server->base,
                 'repository' => 'fixture/public', 'health_path' => '/redirect-health', 'version_path' => '/redirect-version'];
             $id = $sites->save($input);
             Assert::same($id, 1);

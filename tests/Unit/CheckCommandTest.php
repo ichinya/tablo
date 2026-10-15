@@ -4,8 +4,9 @@ declare(strict_types=1);
 namespace Tablo\Tests\Unit;
 
 use Tablo\CheckOutput;
+use Tablo\CheckSiteObservation;
 use Tablo\SiteChecker;
-use Tablo\SiteRepository;
+use Tablo\SiteInput;
 use Tablo\Tests\Support\CheckSchema;
 use Tablo\Tests\Support\FakeHttp;
 use Tablo\Tests\Support\FakeProvider;
@@ -20,21 +21,21 @@ final class CheckCommandTest
     #[Test]
     public function scalarProjectionRejectsMalformedDomainsAndOmitsPrivateGraphs(): void
     {
-        $site = SiteRepository::normalize(UnitFixtures::site()) + ['id' => 1, 'checked_at' => null];
+        $site = SiteInput::normalize(UnitFixtures::site()) + ['id' => 1, 'checked_at' => null];
         $state = (new SiteChecker(new FakeHttp([UnitFixtures::response(), UnitFixtures::response(200, '{"version":"safe"}')]), new FakeProvider()))->check($site);
         $private = 'synthetic-' . bin2hex(random_bytes(16));
         $site['name'] = $private . "\xff"; $site['checked_at'] = $private;
         $site['endpoint_token'] = new class { public function jsonSerialize(): never { throw new \RuntimeException('must not be traversed'); } };
         $state['deployed_version'] = $private . "\xff"; $state['latest_release'] = $private; $state['last_error'] = $private;
-        $output = CheckOutput::site($site, 'checked', 'attention', true, $state, true, 'accepted');
+        $output = CheckOutput::site($site, 'checked', 'attention', true, new CheckSiteObservation($state, true, 'accepted'));
         $bytes = CheckOutput::envelope('partial', 'attention', $state['checked_at'], [CheckOutput::encode($output)]);
-        Assert::false(str_contains($bytes, $private)); Assert::true(CheckSchema::valid(json_decode($bytes, false, 64, JSON_THROW_ON_ERROR)));
+        Assert::false(str_contains($bytes, $private)); Assert::true(CheckSchema::valid(json_decode($bytes, associative: false, depth: 64, flags: JSON_THROW_ON_ERROR)));
         Assert::same($output['persistence']['previous_checked_at'], null); Assert::same($output['persistence']['previous_freshness'], 'unknown');
         foreach ([['online', 2], ['response_time_ms', -1], ['response_time_ms', INF], ['open_issues', '0'],
             ['open_prs', -1], ['checked_at', '2026-02-31T00:00:00Z'], ['checked_at', $private . "\xff"],
             ['health_http_status', 700], ['latest_release', new \stdClass()]] as [$field, $value]) {
             $changed = array_replace($state, [$field => $value]); $refused = false;
-            try { CheckOutput::site($site, 'checked', 'attention', true, $changed); }
+            try { CheckOutput::site($site, 'checked', 'attention', true, new CheckSiteObservation($changed)); }
             catch (\UnexpectedValueException) { $refused = true; }
             Assert::true($refused, 'malformed scalar domain must refuse projection');
         }
@@ -45,13 +46,13 @@ final class CheckCommandTest
     #[Test]
     public function schemaNegativeControlsRejectShapeExitAndFieldSemanticCorruption(): void
     {
-        $site = SiteRepository::normalize(UnitFixtures::site()) + ['id' => 1, 'checked_at' => null];
+        $site = SiteInput::normalize(UnitFixtures::site()) + ['id' => 1, 'checked_at' => null];
         $state = (new SiteChecker(new FakeHttp([UnitFixtures::response(), UnitFixtures::response(200, '{"version":"safe"}')]), new FakeProvider()))->check($site);
-        $bytes = CheckOutput::envelope('success', 'complete', $state['checked_at'], [CheckOutput::encode(CheckOutput::site($site, 'checked', 'ok', false, $state, true, 'accepted'))]);
+        $bytes = CheckOutput::envelope('success', 'complete', $state['checked_at'], [CheckOutput::encode(CheckOutput::site($site, 'checked', 'ok', false, new CheckSiteObservation($state, true, 'accepted')))]);
         foreach (['extra', 'exit', 'negative-count', 'false-zero', 'paused-observation', 'bad-timestamp', 'array-object', 'unknown-reason'] as $case) {
-            $changed = json_decode($bytes, false, 64, JSON_THROW_ON_ERROR);
+            $changed = json_decode($bytes, associative: false, depth: 64, flags: JSON_THROW_ON_ERROR);
             switch ($case) {
-                case 'extra': $changed->sites[0]->secret = 'positive'; break;
+                case 'extra': $changed->sites[0]->secret = \Tablo\Tests\Support\FixtureCredentials::value(label: 'positive'); break;
                 case 'exit': $changed->run->exit_code = 1; break;
                 case 'negative-count': $changed->sites[0]->observation->git->fields->open_issues->value = -1; break;
                 case 'false-zero': $changed->sites[0]->observation->git->fields->open_issues->status = 'failed'; break;
@@ -69,23 +70,24 @@ final class CheckCommandTest
     {
         $directory = new TemporaryDirectory('tablo-check-bootstrap-');
         try {
-            $root = dirname(__DIR__, 2); mkdir($directory->path . '/bin'); mkdir($directory->path . '/vendor'); mkdir($directory->path . '/app');
+            $root = dirname(__DIR__, levels: 2); mkdir($directory->path . '/bin'); mkdir($directory->path . '/vendor'); mkdir($directory->path . '/app');
             copy($root . '/bin/check.php', $directory->path . '/bin/check.php');
             copy($root . '/app/bootstrap.php', $directory->path . '/app/bootstrap.php');
-            copy($root . '/app/check-diagnostics.php', $directory->path . '/app/check-diagnostics.php');
+            copy($root . '/app/CheckDiagnostics.php', $directory->path . '/app/CheckDiagnostics.php');
+            copy($root . '/app/RuntimeIni.php', $directory->path . '/app/RuntimeIni.php');
             Assert::same(hash_file('sha256', $root . '/bin/check.php'), hash_file('sha256', $directory->path . '/bin/check.php'));
             $environment = ['TABLO_DB' => $directory->path . '/must-not-exist.sqlite', 'TABLO_TOKEN_KEY_FILE' => ''];
             $command = [PHP_BINARY, $directory->path . '/bin/check.php', '--json'];
             $result = Subprocess::run($command, $directory, $environment);
-            Assert::same($result['exit_code'], 1); Assert::true(CheckSchema::valid(json_decode($result['stdout'], false, 64, JSON_THROW_ON_ERROR)));
+            Assert::same($result['exit_code'], 1); Assert::true(CheckSchema::valid(json_decode($result['stdout'], associative: false, depth: 64, flags: JSON_THROW_ON_ERROR)));
             Assert::false(is_file($environment['TABLO_DB']));
             // Reuse the installed Dotenv library with only this copied bootstrap's root.
-            $shim = '<?php require ' . var_export($root . '/vendor/autoload.php', true) . '; require __DIR__ . "/../app/bootstrap.php";';
+            $shim = '<?php require ' . var_export($root . '/vendor/autoload.php', return: true) . '; require __DIR__ . "/../app/bootstrap.php";';
             file_put_contents($directory->path . '/vendor/autoload.php', $shim);
             $secret = 'synthetic-' . bin2hex(random_bytes(16));
             file_put_contents($directory->path . '/.env', "PRIVATE=value with space " . $secret . "\n");
             $result = Subprocess::run($command, $directory, $environment);
-            Assert::same($result['exit_code'], 1); Assert::true(CheckSchema::valid(json_decode($result['stdout'], false, 64, JSON_THROW_ON_ERROR)));
+            Assert::same($result['exit_code'], 1); Assert::true(CheckSchema::valid(json_decode($result['stdout'], associative: false, depth: 64, flags: JSON_THROW_ON_ERROR)));
             Assert::false(str_contains($result['stdout'] . $result['stderr'], $secret)); Assert::false(is_file($environment['TABLO_DB']));
         } catch (\Throwable $error) { $directory->retainFailure($error); throw $error; }
         finally { $directory->close(); }
@@ -96,7 +98,7 @@ final class CheckCommandTest
     {
         $directory = new TemporaryDirectory('tablo-check-diagnostic-resource-');
         try {
-            $code = 'require ' . var_export(dirname(__DIR__, 2) . '/app/check-diagnostics.php', true)
+            $code = 'require ' . var_export(dirname(__DIR__, levels: 2) . '/app/CheckDiagnostics.php', return: true)
                 . '; fclose(STDERR); set_error_handler(static function (): never { throw new RuntimeException("warning"); });'
                 . ' Tablo\\CheckDiagnostics::write("safe fixed message\n");'
                 . ' try { trigger_error("after", E_USER_WARNING); } catch (RuntimeException) { echo "restored\n"; } echo "survived\n";';
@@ -114,9 +116,9 @@ final class CheckCommandTest
         try {
             // Deliberate exit control, not a claimed reproduction of a PHP crash.
             $result = Subprocess::run([PHP_BINARY, '-r', 'exit(-1073741819);'], $directory, []);
-            $expected = PHP_OS_FAMILY === 'Windows' ? -1073741819 : 5;
+            $expected = PHP_OS_FAMILY === 'Windows' ? -1_073_741_819 : 5;
             Assert::same($result['exit_code'], $expected);
-            $receipt = json_decode(file_get_contents($result['files']['receipt']), true, 32, JSON_THROW_ON_ERROR);
+            $receipt = json_decode(file_get_contents($result['files']['receipt']), associative: true, depth: 32, flags: JSON_THROW_ON_ERROR);
             Assert::same($receipt['exit_code'], $expected);
             Assert::true($receipt['closed'] && $receipt['root_exit_observed']);
             $exits = array_values(array_filter($receipt['events'], static fn (array $event): bool => $event['stage'] === 'root-exit'));
