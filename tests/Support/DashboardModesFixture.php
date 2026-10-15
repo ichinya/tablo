@@ -22,16 +22,10 @@ final class DashboardModesFixture
     public readonly string $csrf;
     public const EPOCH = 1_000_000;
 
-    public function __construct()
+    /** @param null|callable(array<string, string>, TestServer): WebFixture $startWeb */
+    public function __construct(?callable $startWeb = null)
     {
-        $this->directory = new TemporaryDirectory('tablo-dashboard-modes-');
-        file_put_contents($this->directory->path . '/key', random_bytes(32));
-        $this->peer = new TestServer($this->directory, dirname(__DIR__) . '/fixtures/endpoint-token-router.php', environment:
-            ['TABLO_ENDPOINT_FIXTURE' => $this->directory->path]);
-        $this->web = new WebFixture(true, environment: ['TABLO_TEST_SESSION_CLOCK' => '1',
-            'TABLO_TOKEN_KEY_FILE' => $this->directory->path . '/key']);
-        $this->clock(self::EPOCH);
-        $this->csrf = $this->web->authenticate();
+        [$this->directory, $this->web, $this->peer, $this->csrf] = open_dashboard_modes($startWeb);
     }
 
     /** @param callable(self): void $assertions */
@@ -47,7 +41,7 @@ final class DashboardModesFixture
     }
 
     public function clock(int $epoch): void
-    { file_put_contents($this->web->directory->path . '/runtime-clock', (string) $epoch, LOCK_EX); }
+    { write_dashboard_clock($this->web, $epoch); }
 
     /** @return list<int> */
     public static function seed(PDO $db, ?string $peer = null, string $set = 'matrix'): array
@@ -106,20 +100,102 @@ final class DashboardModesFixture
     }
 
     public function close(): void
-    {
-        $this->web->reopenDatabase();
-        $this->web->server->close();
-        $this->peer->close();
-        foreach ([$this->web->server->port, $this->peer->port] as $port) {
-            $connection = \Tablo\NativeWarning::ignore(static fn () => fsockopen('127.0.0.1', $port, timeout: .1));
-            if ($connection !== false) { fclose($connection); throw new RuntimeException('Owned listener remains after closure'); }
+    { close_dashboard_modes($this->directory, $this->web, $this->peer); }
+}
+
+/** @param null|callable(array<string, string>, TestServer): WebFixture $startWeb
+ * @return array{TemporaryDirectory, WebFixture, TestServer, string} */
+function open_dashboard_modes(?callable $startWeb): array
+{
+    $directory = null; $web = null; $peer = null;
+    try {
+        $directory = new TemporaryDirectory('tablo-dashboard-modes-');
+        if (file_put_contents($directory->path . '/key', random_bytes(32)) !== 32) {
+            throw new RuntimeException('Cannot write the owned dashboard fixture key');
         }
-        SessionEvidence::record('dashboard-closure', ['ports' => [$this->web->server->port, $this->peer->port], 'portsAbsent' => true,
-            'databaseReleased' => true, 'fixture' => $this->web->directory->path, 'peer' => $this->directory->path]);
-        if (getenv('TABLO_DASHBOARD_RETAIN') === '1') { return; }
-        $this->web->directory->close();
-        $this->directory->close();
+        $peer = new TestServer($directory, dirname(__DIR__) . '/fixtures/endpoint-token-router.php', environment:
+            ['TABLO_ENDPOINT_FIXTURE' => $directory->path]);
+        $environment = ['TABLO_TEST_SESSION_CLOCK' => '1', 'TABLO_TOKEN_KEY_FILE' => $directory->path . '/key'];
+        $web = $startWeb === null ? new WebFixture(true, environment: $environment) : $startWeb($environment, $peer);
+        write_dashboard_clock($web, DashboardModesFixture::EPOCH);
+        return [$directory, $web, $peer, $web->authenticate()];
+    } catch (Throwable $primary) { fail_dashboard_modes($primary, $directory, $web, $peer); }
+}
+
+function write_dashboard_clock(WebFixture $web, int $epoch): void
+{
+    $bytes = (string) $epoch;
+    if (file_put_contents($web->directory->path . '/runtime-clock', $bytes, LOCK_EX) !== strlen($bytes)) {
+        throw new RuntimeException('Cannot write the owned dashboard fixture clock');
     }
+}
+
+/** @return list<TemporaryDirectory> */
+function dashboard_directories(?TemporaryDirectory $directory, ?WebFixture $web): array
+{
+    $directories = [];
+    if ($web !== null) { $directories[] = $web->directory; }
+    if ($directory !== null) { $directories[] = $directory; }
+    return $directories;
+}
+
+/** @param list<TemporaryDirectory> $directories */
+function dashboard_cleanup_failure(array $directories, Throwable $cleanup): void
+{
+    foreach ($directories as $directory) {
+        try { $directory->recordCleanupFailure($cleanup); }
+        catch (Throwable) {
+            \Tablo\NativeWarning::ignore(static fn (): bool => error_log('Dashboard fixture evidence unavailable; original failure preserved'));
+        }
+    }
+}
+
+function fail_dashboard_modes(Throwable $primary, ?TemporaryDirectory $directory, ?WebFixture $web, ?TestServer $peer): never
+{
+    $directories = dashboard_directories($directory, $web);
+    foreach ($directories as $owned) {
+        try { $owned->retainFailure($primary); }
+        catch (Throwable $cleanup) { dashboard_cleanup_failure($directories, $cleanup); }
+    }
+    try { close_dashboard_modes($directory, $web, $peer); }
+    catch (Throwable $cleanup) { dashboard_cleanup_failure($directories, $cleanup); }
+    throw $primary;
+}
+
+/** @param list<callable(): void> $releases */
+function release_dashboard_resources(array $releases): void
+{
+    $failure = null;
+    foreach ($releases as $release) {
+        try { $release(); }
+        catch (Throwable $error) { $failure ??= $error; }
+    }
+    if ($failure !== null) { throw $failure; }
+}
+
+function dashboard_port_closed(TestServer $server): void
+{
+    $connection = \Tablo\NativeWarning::ignore(static fn () => fsockopen('127.0.0.1', $server->port, timeout: .1));
+    if ($connection !== false) { fclose($connection); throw new RuntimeException('Owned listener remains after closure'); }
+}
+
+function close_dashboard_modes(?TemporaryDirectory $directory, ?WebFixture $web, ?TestServer $peer): void
+{
+    $directories = dashboard_directories($directory, $web);
+    $servers = []; $releases = [];
+    if ($web !== null) { $releases[] = $web->reopenDatabase(...); $servers[] = $web->server; }
+    if ($peer !== null) { $servers[] = $peer; }
+    foreach ($servers as $server) { $releases[] = $server->close(...); }
+    foreach ($servers as $server) { $releases[] = static fn () => dashboard_port_closed($server); }
+    try {
+        release_dashboard_resources($releases);
+        SessionEvidence::record('dashboard-closure', ['ports' => array_map(static fn (TestServer $server): int => $server->port, $servers),
+            'portsAbsent' => true, 'databaseReleased' => $web !== null,
+            'fixture' => $web?->directory->path, 'peer' => $directory?->path]);
+        // Browser diagnostics and failures retain their directories after actual resource release.
+        if (getenv('TABLO_DASHBOARD_RETAIN') === '1') { return; }
+        foreach ($directories as $owned) { $owned->close(); }
+    } catch (Throwable $cleanup) { dashboard_cleanup_failure($directories, $cleanup); throw $cleanup; }
 }
 
 /** @return list<int> */

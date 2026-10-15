@@ -3363,6 +3363,12 @@
       "Composer analyze"
     ]
   },
+  "tests/fixtures/dashboard-modes-startup-failure.php": {
+    "owner": "tests/fixtures/dashboard-modes-startup-failure.php",
+    "consumers": [
+      "Dashboard fixture real application setup GET and controlled authentication refusal"
+    ]
+  },
   "tests/fixtures/database-process.php": {
     "owner": "php-script:tests/fixtures/database-process.php",
     "consumers": [
@@ -4427,6 +4433,14 @@
       "Composer lint",
       "Composer verify",
       "Composer analyze"
+    ]
+  },
+  "tests/Network/DashboardModesFixtureCleanupTest.php": {
+    "owner": "tests/Network/DashboardModesFixtureCleanupTest.php",
+    "consumers": [
+      "Dashboard fixture real startup and authentication failure lifecycle",
+      "dashboard.list_sites native test",
+      "dashboard.check_site native test"
     ]
   },
   "tests/Network/DatabaseMigrationCustodyTest.php": {

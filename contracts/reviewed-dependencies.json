@@ -8,7 +8,7 @@
                 "Composer verify",
                 "Reviewed dependency capture"
             ],
-            "fingerprint": "sha256:bab433cfb6b20be87c065d1ac6d3cf6a3dc9443b5d96c59c9cabe86ec3234bb2"
+            "fingerprint": "sha256:2e5395e0ecdc4b14d28bc79c8af5988cbfbf20166d05c851dc999cbd610f09e5"
         },
         {
             "path": "tools/reviewed-dependencies.php",
@@ -4224,6 +4224,14 @@
             "fingerprint": "sha256:367593f47e34bf670db08132c858c898357865f8f8591acf5f079993771b8732"
         },
         {
+            "path": "tests/fixtures/dashboard-modes-startup-failure.php",
+            "owner": "tests/fixtures/dashboard-modes-startup-failure.php",
+            "consumers": [
+                "Dashboard fixture real application setup GET and controlled authentication refusal"
+            ],
+            "fingerprint": "sha256:56c3a835de446288d62af1de7c4b453fba74bf63fc82bdac693c552de24384f6"
+        },
+        {
             "path": "tests/fixtures/database-process.php",
             "owner": "php-script:tests/fixtures/database-process.php",
             "consumers": [
@@ -5564,6 +5572,16 @@
             "fingerprint": "sha256:6fc1f640922a0aef48d363bfb83f4b8c740c94885917b9b1ec96c272571bbe42"
         },
         {
+            "path": "tests/Network/DashboardModesFixtureCleanupTest.php",
+            "owner": "tests/Network/DashboardModesFixtureCleanupTest.php",
+            "consumers": [
+                "Dashboard fixture real startup and authentication failure lifecycle",
+                "dashboard.list_sites native test",
+                "dashboard.check_site native test"
+            ],
+            "fingerprint": "sha256:f7fdd79dfe7c46ed838356f332d9f41fb8ce6e4898ba7f4b9f7e47d781bf7a14"
+        },
+        {
             "path": "tests/Network/DatabaseMigrationCustodyTest.php",
             "owner": "Tablo\\Tests\\Network\\DatabaseMigrationCustodyTest",
             "consumers": [
@@ -6660,7 +6678,7 @@
             "consumers": [
                 "Synthetic dashboard HTTP/browser fixtures"
             ],
-            "fingerprint": "sha256:c13c453362f7ed01e66becb5853054471b06ad01ee80e1fb3a68284a1fd662a8"
+            "fingerprint": "sha256:46468bad547832d82131b864ceae50beeb1333ead1b8f6339875b58b485b04a1"
         },
         {
             "path": "tests/Support/DatabaseAssertions.php",
@@ -9315,7 +9333,7 @@
                 "Composer verify",
                 "Composer analyze"
             ],
-            "fingerprint": "sha256:b3358db6ff9e1fb808a856cc2da9e66411546d3c9093c180fc15aa6c4097b3d5"
+            "fingerprint": "sha256:18e7de36a09f67ab352587b7b6cc5e540bf368a00af60a160efeeb4b27233e27"
         },
         {
             "path": "views/dashboard-actions.volt",
