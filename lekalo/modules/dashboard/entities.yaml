@@ -2187,6 +2187,507 @@
                     }
                 }
             ]
+        },
+        {
+            "id": "dashboard.api_latest_status",
+            "kind": "enum",
+            "version": 1,
+            "values": [
+                {
+                    "value": "paused"
+                },
+                {
+                    "value": "unknown"
+                },
+                {
+                    "value": "partial"
+                },
+                {
+                    "value": "complete"
+                }
+            ]
+        },
+        {
+            "id": "dashboard.api_freshness",
+            "kind": "enum",
+            "version": 1,
+            "values": [
+                {
+                    "value": "never_checked"
+                },
+                {
+                    "value": "clock_invalid"
+                },
+                {
+                    "value": "fresh"
+                },
+                {
+                    "value": "stale"
+                }
+            ]
+        },
+        {
+            "id": "dashboard.api_comparison",
+            "kind": "enum",
+            "version": 1,
+            "values": [
+                {
+                    "value": "not_tracked"
+                },
+                {
+                    "value": "unknown"
+                },
+                {
+                    "value": "current"
+                },
+                {
+                    "value": "update_available"
+                },
+                {
+                    "value": "ahead"
+                },
+                {
+                    "value": "different"
+                }
+            ]
+        },
+        {
+            "id": "dashboard.api_health_target",
+            "kind": "enum",
+            "version": 1,
+            "values": [
+                {
+                    "value": "homepage"
+                },
+                {
+                    "value": "endpoint"
+                }
+            ]
+        },
+        {
+            "id": "dashboard.api_error_code",
+            "kind": "enum",
+            "version": 1,
+            "values": [
+                {
+                    "value": "unauthorized"
+                },
+                {
+                    "value": "invalid_parameter"
+                },
+                {
+                    "value": "not_found"
+                },
+                {
+                    "value": "method_not_allowed"
+                },
+                {
+                    "value": "unavailable"
+                }
+            ]
+        },
+        {
+            "id": "dashboard.api_decimal",
+            "kind": "scalar",
+            "version": 1,
+            "base": "string",
+            "description": "Canonical unsigned decimal string through signed int64 maximum, never a JSON number."
+        },
+        {
+            "id": "dashboard.read_api_token",
+            "kind": "entity",
+            "version": 1,
+            "identity": [
+                "id"
+            ],
+            "description": "Schema10 singleton id1; empty/OFF by default. Only domain-separated SHA256 and exact current administrator credential fingerprint, canonical UTC creation. No plaintext, encryption, vault, last-used writes or expiry.",
+            "fields": [
+                {
+                    "name": "id",
+                    "type": {
+                        "ref": "dashboard.number"
+                    },
+                    "required": true
+                },
+                {
+                    "name": "secret_hash",
+                    "type": {
+                        "ref": "dashboard.text"
+                    },
+                    "required": true
+                },
+                {
+                    "name": "administrator_fingerprint",
+                    "type": {
+                        "ref": "dashboard.text"
+                    },
+                    "required": true
+                },
+                {
+                    "name": "created_at",
+                    "type": {
+                        "ref": "dashboard.timestamp"
+                    },
+                    "required": true
+                }
+            ]
+        },
+        {
+            "id": "dashboard.api_latest",
+            "kind": "value-object",
+            "version": 1,
+            "description": "Exact latest completeness, shared checked UTC only, finite health errors. Null differs from measured zero; no fabricated per-field/upstream success. Fresh at age900, stale901, future clock_invalid, paused retains observations.",
+            "fields": [
+                {
+                    "name": "status",
+                    "type": {
+                        "ref": "dashboard.api_latest_status"
+                    },
+                    "required": true
+                },
+                {
+                    "name": "checked_at",
+                    "type": {
+                        "optional": {
+                            "ref": "dashboard.timestamp"
+                        }
+                    }
+                },
+                {
+                    "name": "freshness",
+                    "type": {
+                        "ref": "dashboard.api_freshness"
+                    },
+                    "required": true
+                },
+                {
+                    "name": "online",
+                    "type": {
+                        "optional": {
+                            "ref": "dashboard.flag"
+                        }
+                    }
+                },
+                {
+                    "name": "health_error_code",
+                    "type": {
+                        "optional": {
+                            "ref": "dashboard.text"
+                        }
+                    }
+                },
+                {
+                    "name": "health_http_status",
+                    "type": {
+                        "optional": {
+                            "ref": "dashboard.number"
+                        }
+                    }
+                },
+                {
+                    "name": "response_time_ms",
+                    "type": {
+                        "optional": {
+                            "ref": "dashboard.number"
+                        }
+                    }
+                },
+                {
+                    "name": "open_issues",
+                    "type": {
+                        "optional": {
+                            "ref": "dashboard.number"
+                        }
+                    }
+                },
+                {
+                    "name": "open_prs",
+                    "type": {
+                        "optional": {
+                            "ref": "dashboard.number"
+                        }
+                    }
+                },
+                {
+                    "name": "comparison",
+                    "type": {
+                        "ref": "dashboard.api_comparison"
+                    },
+                    "required": true
+                }
+            ]
+        },
+        {
+            "id": "dashboard.api_site",
+            "kind": "value-object",
+            "version": 1,
+            "description": "Conservative external whitelist. Bounded authorized configuration and scheme/host/port origin only; omits credentials and presence, raw URLs/paths/selectors/expected values/diagnostics/version-tag-commit operands and future columns.",
+            "fields": [
+                {
+                    "name": "id",
+                    "type": {
+                        "ref": "dashboard.api_decimal"
+                    },
+                    "required": true
+                },
+                {
+                    "name": "config_revision",
+                    "type": {
+                        "ref": "dashboard.api_decimal"
+                    },
+                    "required": true
+                },
+                {
+                    "name": "name",
+                    "type": {
+                        "ref": "dashboard.text"
+                    },
+                    "required": true
+                },
+                {
+                    "name": "origin",
+                    "type": {
+                        "optional": {
+                            "ref": "dashboard.text"
+                        }
+                    }
+                },
+                {
+                    "name": "provider",
+                    "type": {
+                        "ref": "dashboard.text"
+                    },
+                    "required": true
+                },
+                {
+                    "name": "repository",
+                    "type": {
+                        "ref": "dashboard.text"
+                    },
+                    "required": true
+                },
+                {
+                    "name": "branch",
+                    "type": {
+                        "ref": "dashboard.text"
+                    },
+                    "required": true
+                },
+                {
+                    "name": "enabled",
+                    "type": {
+                        "ref": "dashboard.flag"
+                    },
+                    "required": true
+                },
+                {
+                    "name": "sort_order",
+                    "type": {
+                        "ref": "dashboard.number"
+                    },
+                    "required": true
+                },
+                {
+                    "name": "comparison_mode",
+                    "type": {
+                        "ref": "dashboard.mode"
+                    },
+                    "required": true
+                },
+                {
+                    "name": "health_check_mode",
+                    "type": {
+                        "ref": "dashboard.health_check_mode"
+                    },
+                    "required": true
+                },
+                {
+                    "name": "health_target",
+                    "type": {
+                        "ref": "dashboard.api_health_target"
+                    },
+                    "required": true
+                },
+                {
+                    "name": "tracks_version",
+                    "type": {
+                        "ref": "dashboard.flag"
+                    },
+                    "required": true
+                },
+                {
+                    "name": "created_at",
+                    "type": {
+                        "ref": "dashboard.timestamp"
+                    },
+                    "required": true
+                },
+                {
+                    "name": "updated_at",
+                    "type": {
+                        "ref": "dashboard.timestamp"
+                    },
+                    "required": true
+                },
+                {
+                    "name": "latest",
+                    "type": {
+                        "ref": "dashboard.api_latest"
+                    },
+                    "required": true
+                }
+            ]
+        },
+        {
+            "id": "dashboard.api_page_cursor",
+            "kind": "value-object",
+            "version": 1,
+            "fields": [
+                {
+                    "name": "next_after_id",
+                    "type": {
+                        "optional": {
+                            "ref": "dashboard.api_decimal"
+                        }
+                    }
+                }
+            ]
+        },
+        {
+            "id": "dashboard.api_sites_response",
+            "kind": "value-object",
+            "version": 1,
+            "fields": [
+                {
+                    "name": "api_version",
+                    "type": {
+                        "ref": "dashboard.number"
+                    },
+                    "required": true
+                },
+                {
+                    "name": "generated_at",
+                    "type": {
+                        "ref": "dashboard.timestamp"
+                    },
+                    "required": true
+                },
+                {
+                    "name": "data",
+                    "type": {
+                        "list": {
+                            "ref": "dashboard.api_site"
+                        }
+                    },
+                    "required": true
+                },
+                {
+                    "name": "page",
+                    "type": {
+                        "ref": "dashboard.api_page_cursor"
+                    },
+                    "required": true
+                }
+            ]
+        },
+        {
+            "id": "dashboard.api_site_response",
+            "kind": "value-object",
+            "version": 1,
+            "fields": [
+                {
+                    "name": "api_version",
+                    "type": {
+                        "ref": "dashboard.number"
+                    },
+                    "required": true
+                },
+                {
+                    "name": "generated_at",
+                    "type": {
+                        "ref": "dashboard.timestamp"
+                    },
+                    "required": true
+                },
+                {
+                    "name": "data",
+                    "type": {
+                        "ref": "dashboard.api_site"
+                    },
+                    "required": true
+                }
+            ]
+        },
+        {
+            "id": "dashboard.api_error",
+            "kind": "value-object",
+            "version": 1,
+            "fields": [
+                {
+                    "name": "code",
+                    "type": {
+                        "ref": "dashboard.api_error_code"
+                    },
+                    "required": true
+                },
+                {
+                    "name": "message",
+                    "type": {
+                        "ref": "dashboard.text"
+                    },
+                    "required": true
+                }
+            ]
+        },
+        {
+            "id": "dashboard.api_error_response",
+            "kind": "value-object",
+            "version": 1,
+            "fields": [
+                {
+                    "name": "api_version",
+                    "type": {
+                        "ref": "dashboard.number"
+                    },
+                    "required": true
+                },
+                {
+                    "name": "error",
+                    "type": {
+                        "ref": "dashboard.api_error"
+                    },
+                    "required": true
+                }
+            ]
+        },
+        {
+            "id": "dashboard.read_api_token_status",
+            "kind": "value-object",
+            "version": 1,
+            "fields": [
+                {
+                    "name": "present",
+                    "type": {
+                        "ref": "dashboard.flag"
+                    },
+                    "required": true
+                },
+                {
+                    "name": "active",
+                    "type": {
+                        "ref": "dashboard.flag"
+                    },
+                    "required": true
+                },
+                {
+                    "name": "created_at",
+                    "type": {
+                        "optional": {
+                            "ref": "dashboard.timestamp"
+                        }
+                    }
+                }
+            ]
         }
     ]
 }

@@ -40,7 +40,7 @@ final class HistoryMigrationTest
     public function historyTransitionRollbackAndTwiceUpgradeKeepEveryPredecessorRow(): void
     {
         foreach (['CREATE TABLE check_history', 'CREATE INDEX check_history_site_time', 'CREATE INDEX check_history_time',
-            'PRAGMA main.user_version = 9', 'COMMIT', null] as $failure) {
+            'PRAGMA main.user_version = ' . Database::CURRENT_SCHEMA_VERSION, 'COMMIT', null] as $failure) {
             $db = self::predecessor();
             $before = self::rows($db);
             $schema = \Tablo\SqlStatement::checked($db->query('SELECT name,type,sql FROM sqlite_schema ORDER BY name'))->fetchAll();

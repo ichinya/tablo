@@ -7406,5 +7406,302 @@
       "tests/Network/PasswordHelperRetentionTest.php",
       "Private explicitly seeded synthetic database preservation; excluded from default helper artifact"
     ]
+  },
+  "app/ApiSiteDto.php": {
+    "owner": "Read API and singleton token implementation",
+    "consumers": [
+      "Composer lint",
+      "Composer analyze",
+      "Composer verify",
+      "Native read API tests"
+    ]
+  },
+  "app/ApiSiteState.php": {
+    "owner": "Read API and singleton token implementation",
+    "consumers": [
+      "Composer lint",
+      "Composer analyze",
+      "Composer verify",
+      "Native read API tests"
+    ]
+  },
+  "app/read-api-repository.php": {
+    "owner": "Read API and singleton token implementation",
+    "consumers": [
+      "Composer lint",
+      "Composer analyze",
+      "Composer verify",
+      "Native read API tests"
+    ]
+  },
+  "app/read-api-token-repository.php": {
+    "owner": "Read API and singleton token implementation",
+    "consumers": [
+      "Composer lint",
+      "Composer analyze",
+      "Composer verify",
+      "Native read API tests"
+    ]
+  },
+  "app/read-api-token-schema.php": {
+    "owner": "Read API and singleton token implementation",
+    "consumers": [
+      "Composer lint",
+      "Composer analyze",
+      "Composer verify",
+      "Native read API tests"
+    ]
+  },
+  "app/ReadApi.php": {
+    "owner": "Read API and singleton token implementation",
+    "consumers": [
+      "Composer lint",
+      "Composer analyze",
+      "Composer verify",
+      "Native read API tests"
+    ]
+  },
+  "app/ReadApiConnection.php": {
+    "owner": "Read API and singleton token implementation",
+    "consumers": [
+      "Composer lint",
+      "Composer analyze",
+      "Composer verify",
+      "Native read API tests"
+    ]
+  },
+  "app/ReadApiRepository.php": {
+    "owner": "Read API and singleton token implementation",
+    "consumers": [
+      "Composer lint",
+      "Composer analyze",
+      "Composer verify",
+      "Native read API tests"
+    ]
+  },
+  "app/ReadApiRequest.php": {
+    "owner": "Read API and singleton token implementation",
+    "consumers": [
+      "Composer lint",
+      "Composer analyze",
+      "Composer verify",
+      "Native read API tests"
+    ]
+  },
+  "app/ReadApiResponse.php": {
+    "owner": "Read API and singleton token implementation",
+    "consumers": [
+      "Composer lint",
+      "Composer analyze",
+      "Composer verify",
+      "Native read API tests"
+    ]
+  },
+  "app/ReadApiSchemaAdmission.php": {
+    "owner": "Read API and singleton token implementation",
+    "consumers": [
+      "Composer lint",
+      "Composer analyze",
+      "Composer verify",
+      "Native read API tests"
+    ]
+  },
+  "app/ReadApiToken.php": {
+    "owner": "Read API and singleton token implementation",
+    "consumers": [
+      "Composer lint",
+      "Composer analyze",
+      "Composer verify",
+      "Native read API tests"
+    ]
+  },
+  "app/ReadApiTokenPages.php": {
+    "owner": "Read API and singleton token implementation",
+    "consumers": [
+      "Composer lint",
+      "Composer analyze",
+      "Composer verify",
+      "Native read API tests"
+    ]
+  },
+  "app/ReadApiTokenRepository.php": {
+    "owner": "Read API and singleton token implementation",
+    "consumers": [
+      "Composer lint",
+      "Composer analyze",
+      "Composer verify",
+      "Native read API tests"
+    ]
+  },
+  "app/ReadApiTokenSchema.php": {
+    "owner": "Read API and singleton token implementation",
+    "consumers": [
+      "Composer lint",
+      "Composer analyze",
+      "Composer verify",
+      "Native read API tests"
+    ]
+  },
+  "contracts/read-api-v1.schema.json": {
+    "owner": "Version 1 external read contract",
+    "consumers": [
+      "Read API documentation and privacy review"
+    ]
+  },
+  "docs/read-api.md": {
+    "owner": "Version 1 external read contract",
+    "consumers": [
+      "Read API documentation and privacy review"
+    ]
+  },
+  "tests/fixtures/read-api-router.php": {
+    "owner": "Read API synthetic acceptance evidence",
+    "consumers": [
+      "Composer lint",
+      "Composer analyze",
+      "Composer verify",
+      "Native read API tests"
+    ]
+  },
+  "tests/Http/ReadApiAuthenticationTest.php": {
+    "owner": "Read API synthetic acceptance evidence",
+    "consumers": [
+      "Composer lint",
+      "Composer analyze",
+      "Composer verify",
+      "Native read API tests"
+    ]
+  },
+  "tests/Http/ReadApiHttpTest.php": {
+    "owner": "Read API synthetic acceptance evidence",
+    "consumers": [
+      "Composer lint",
+      "Composer analyze",
+      "Composer verify",
+      "Native read API tests"
+    ]
+  },
+  "tests/Http/ReadApiParametersTest.php": {
+    "owner": "Read API synthetic acceptance evidence",
+    "consumers": [
+      "Composer lint",
+      "Composer analyze",
+      "Composer verify",
+      "Native read API tests"
+    ]
+  },
+  "tests/Http/ReadApiPrivacyTest.php": {
+    "owner": "Read API synthetic acceptance evidence",
+    "consumers": [
+      "Composer lint",
+      "Composer analyze",
+      "Composer verify",
+      "Native read API tests"
+    ]
+  },
+  "tests/Http/ReadApiSessionContractTest.php": {
+    "owner": "Read API synthetic acceptance evidence",
+    "consumers": [
+      "Composer lint",
+      "Composer analyze",
+      "Composer verify",
+      "Native read API tests"
+    ]
+  },
+  "tests/Http/ReadApiTokenManagementTest.php": {
+    "owner": "Read API synthetic acceptance evidence",
+    "consumers": [
+      "Composer lint",
+      "Composer analyze",
+      "Composer verify",
+      "Native read API tests"
+    ]
+  },
+  "tests/Network/ReadApiBoundaryTest.php": {
+    "owner": "Read API synthetic acceptance evidence",
+    "consumers": [
+      "Composer lint",
+      "Composer analyze",
+      "Composer verify",
+      "Native read API tests"
+    ]
+  },
+  "tests/Support/ReadApiAssertions.php": {
+    "owner": "Read API synthetic acceptance evidence",
+    "consumers": [
+      "Composer lint",
+      "Composer analyze",
+      "Composer verify",
+      "Native read API tests"
+    ]
+  },
+  "tests/Support/ReadApiFixture.php": {
+    "owner": "Read API synthetic acceptance evidence",
+    "consumers": [
+      "Composer lint",
+      "Composer analyze",
+      "Composer verify",
+      "Native read API tests"
+    ]
+  },
+  "tests/Unit/ApiSiteDtoTest.php": {
+    "owner": "Read API synthetic acceptance evidence",
+    "consumers": [
+      "Composer lint",
+      "Composer analyze",
+      "Composer verify",
+      "Native read API tests"
+    ]
+  },
+  "tests/Unit/ReadApiRepositoryTest.php": {
+    "owner": "Read API synthetic acceptance evidence",
+    "consumers": [
+      "Composer lint",
+      "Composer analyze",
+      "Composer verify",
+      "Native read API tests"
+    ]
+  },
+  "tests/Unit/ReadApiRequestTest.php": {
+    "owner": "Read API synthetic acceptance evidence",
+    "consumers": [
+      "Composer lint",
+      "Composer analyze",
+      "Composer verify",
+      "Native read API tests"
+    ]
+  },
+  "tests/Unit/ReadApiSchemaTest.php": {
+    "owner": "Read API synthetic acceptance evidence",
+    "consumers": [
+      "Composer lint",
+      "Composer analyze",
+      "Composer verify",
+      "Native read API tests"
+    ]
+  },
+  "tests/Unit/ReadApiTokenMigrationTest.php": {
+    "owner": "Read API synthetic acceptance evidence",
+    "consumers": [
+      "Composer lint",
+      "Composer analyze",
+      "Composer verify",
+      "Native read API tests"
+    ]
+  },
+  "tests/Unit/ReadApiTokenTest.php": {
+    "owner": "Read API synthetic acceptance evidence",
+    "consumers": [
+      "Composer lint",
+      "Composer analyze",
+      "Composer verify",
+      "Native read API tests"
+    ]
+  },
+  "views/read-api-token-issued.volt": {
+    "owner": "Version 1 external read contract",
+    "consumers": [
+      "Read API documentation and privacy review"
+    ]
   }
 }
