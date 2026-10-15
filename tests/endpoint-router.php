@@ -10,6 +10,27 @@ if (preg_match('~^/homepage/(200|201|204|301|302|404|500|503)$~D', $path, $match
     return;
 }
 switch ($path) {
+    case '/rate-headers':
+        http_response_code(429);
+        header('rEtRy-AfTeR: 3600');
+        header('X-RateLimit-Remaining: 0');
+        header('X-RateLimit-Resource: search');
+        header('X-RateLimit-Reset: 1900000000');
+        header('Authorization: synthetic-secret');
+        header('X-Arbitrary-Secret: synthetic-secret');
+        echo '{}';
+        break;
+    case '/duplicate-headers':
+        header('Retry-After: 1', false);
+        header('Retry-After: 9999', false);
+        header('X-RateLimit-Remaining: invalid');
+        header('X-RateLimit-Resource: synthetic-secret');
+        echo '{}';
+        break;
+    case '/short-delay':
+        usleep(300000);
+        echo '{}';
+        break;
     case '/up':
         header('Content-Type: application/json');
         echo '{"status":"ok"}';

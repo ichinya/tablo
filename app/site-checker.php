@@ -74,6 +74,7 @@ final class SiteChecker
                 $errors[] = 'Version: ' . ($e instanceof HttpFailure ? $e->getMessage() : 'Некорректный ответ проверки версии.');
             }
         }
+        if ($this->provider instanceof GitHubProvider) { $this->provider->beginCheck(); }
         $calls = [
             'latest_release' => fn () => $this->provider->getLatestRelease($site['repository']),
             'latest_commit' => fn () => $this->provider->getLatestCommit($site['repository'], $site['branch']),

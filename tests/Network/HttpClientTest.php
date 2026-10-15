@@ -59,6 +59,52 @@ final class HttpClientTest
     }
 
     #[Test]
+    public function returnsOnlyBoundedRelevantFinalResponseHeaders(): void
+    {
+        $http = new HttpClient(true);
+        $response = $http->get($this->server->base . '/rate-headers');
+        Assert::same($response['status'], 429);
+        Assert::same($response['headers'], ['retry-after' => '3600', 'x-ratelimit-remaining' => '0',
+            'x-ratelimit-resource' => 'search', 'x-ratelimit-reset' => '1900000000']);
+        Assert::false(str_contains(json_encode($response), 'synthetic-secret'));
+        Assert::same($http->get($this->server->base . '/duplicate-headers')['headers'],
+            ['retry-after' => null, 'x-ratelimit-remaining' => null, 'x-ratelimit-resource' => null]);
+        Assert::same($http->get($this->server->base . '/up')['headers'], []);
+    }
+
+    #[Test]
+    public function clampsCurlDeadlineAndStopsAfterPreflightDnsOverrun(): void
+    {
+        $error = null;
+        $start = hrtime(true);
+        try { (new HttpClient(true))->getBefore($this->server->base . '/short-delay', [], $start + 80000000); }
+        catch (HttpFailure $caught) { $error = $caught; }
+        Assert::instanceOf($error, HttpFailure::class);
+        Assert::same($error->reason, 'timeout');
+        Assert::true((hrtime(true) - $start) / 1e6 < 1000, 'cURL budget clamped');
+        $resolver = new class extends HttpClient {
+            public int $resolutions = 0;
+            protected function resolve(string $host): array
+            {
+                ++$this->resolutions;
+                usleep(80000);
+                return ['8.8.8.8'];
+            }
+        };
+        $start = hrtime(true);
+        $error = null;
+        try { $resolver->getBefore('https://deadline.example', [], $start + 10000000); }
+        catch (HttpFailure $caught) { $error = $caught; }
+        Assert::instanceOf($error, HttpFailure::class);
+        Assert::same($error->reason, 'timeout');
+        Assert::same($resolver->resolutions, 1);
+        Assert::true(hrtime(true) - $start > 10000000, 'synchronous DNS can overrun scheduling deadline');
+        try { $resolver->getBefore('https://deadline.example', [], hrtime(true) - 1); }
+        catch (HttpFailure) {}
+        Assert::same($resolver->resolutions, 1, 'expired deadline does not start DNS');
+    }
+
+    #[Test]
     public function refusesResponsesOverOneMegabyte(): void
     {
         $this->rejects('/large', 'size');

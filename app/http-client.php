@@ -5,10 +5,29 @@ namespace Tablo;
 
 class HttpClient
 {
+    private ?int $deadline = null;
+
     public function __construct(private readonly bool $allowPrivate = false) {}
+
+    public function getBefore(string $url, array $headers, int $deadline): array
+    {
+        $previous = $this->deadline;
+        $this->deadline = $deadline;
+        try { return $this->get($url, $headers); }
+        finally { $this->deadline = $previous; }
+    }
+
+    private function remainingMs(): int
+    {
+        if ($this->deadline === null) { return 6000; }
+        $remaining = (int) floor(($this->deadline - hrtime(true)) / 1000000);
+        if ($remaining < 1) { throw new HttpFailure('timeout'); }
+        return min(6000, $remaining);
+    }
 
     public function get(string $url, array $headers = []): array
     {
+        $this->remainingMs();
         $parts = parse_url($url);
         if (!is_array($parts) || !in_array($parts['scheme'] ?? '', ['http', 'https'], true)
             || empty($parts['host']) || isset($parts['user']) || isset($parts['pass'])) {
@@ -33,19 +52,40 @@ class HttpClient
                 $resolve[] = "$host:$port:" . (str_contains($address, ':') ? "[$address]" : $address);
             }
         }
+        // Synchronous SSRF preflight DNS has an OS resolver bound, not a PHP deadline.
+        // Re-check afterwards so an overrun never starts the subsequent cURL request.
+        $remainingMs = $this->remainingMs();
         $curl = curl_init($url);
         $body = '';
         $tooLarge = false;
+        $responseHeaders = [];
         curl_setopt_array($curl, [
             CURLOPT_RETURNTRANSFER => false,
             CURLOPT_FOLLOWLOCATION => false,
-            CURLOPT_CONNECTTIMEOUT => 3,
-            CURLOPT_TIMEOUT => 6,
+            CURLOPT_CONNECTTIMEOUT_MS => min(3000, $remainingMs),
+            CURLOPT_TIMEOUT_MS => $remainingMs,
             CURLOPT_PROTOCOLS => CURLPROTO_HTTP | CURLPROTO_HTTPS,
             CURLOPT_USERAGENT => 'Tablo/0.1',
             CURLOPT_HTTPHEADER => $headers,
             CURLOPT_RESOLVE => $resolve,
             CURLOPT_PROXY => '',
+            CURLOPT_HEADERFUNCTION => static function ($curl, string $line) use (&$responseHeaders): int {
+                // Discard interim header blocks and never retain arbitrary headers or credentials.
+                if (str_starts_with($line, 'HTTP/')) { $responseHeaders = []; }
+                $colon = strpos($line, ':');
+                if ($colon !== false) {
+                    $name = strtolower(substr($line, 0, $colon));
+                    if (in_array($name, ['retry-after', 'x-ratelimit-limit', 'x-ratelimit-remaining',
+                        'x-ratelimit-used', 'x-ratelimit-reset', 'x-ratelimit-resource'], true)) {
+                        $value = trim(substr($line, $colon + 1));
+                        $valid = $name === 'x-ratelimit-resource' ? in_array($value, ['core', 'search'], true)
+                            : (bool) preg_match('/^[0-9]{1,18}$/D', $value);
+                        // Duplicate/conflicting values fail closed, including identical duplicates.
+                        $responseHeaders[$name] = !array_key_exists($name, $responseHeaders) && $valid ? $value : null;
+                    }
+                }
+                return strlen($line);
+            },
             CURLOPT_WRITEFUNCTION => static function ($curl, string $chunk) use (&$body, &$tooLarge): int {
                 if (strlen($body) + strlen($chunk) > 1048576) {
                     $tooLarge = true;
@@ -63,7 +103,7 @@ class HttpClient
             }
             $status = curl_getinfo($curl, CURLINFO_RESPONSE_CODE);
             if ($status < 100 || $status > 599) { throw new HttpFailure('invalid-response'); }
-            return ['status' => $status, 'body' => $body,
+            return ['status' => $status, 'body' => $body, 'headers' => $responseHeaders,
                 'time_ms' => (int) round(curl_getinfo($curl, CURLINFO_TOTAL_TIME) * 1000)];
         } finally {
             // The handle is released by PHP when it leaves scope.
