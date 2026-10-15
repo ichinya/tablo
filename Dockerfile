@@ -20,7 +20,7 @@ RUN set -eux; \
 
 RUN apt-get update \
     && apt-get install -y --no-install-recommends libcurl4-openssl-dev libonig-dev libxml2-dev unzip \
-    && PKG_CONFIG_PATH=/opt/tablo-sqlite/lib/pkgconfig docker-php-ext-install curl mbstring pdo_sqlite xml \
+    && PKG_CONFIG_PATH=/opt/tablo-sqlite/lib/pkgconfig docker-php-ext-install curl mbstring pdo_sqlite xml pcntl \
     && a2enmod rewrite \
     && rm -rf /var/lib/apt/lists/*
 

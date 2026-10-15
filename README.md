@@ -168,6 +168,11 @@ TLS и ограничения ответа не доказывают выклю�
 одинаково ручной кнопкой и CLI. Причины показываются в ошибке карточки и подсказке
 статуса. Старые записи получают `null` до следующей проверки; прежние ошибки
 сохраняются. В причины не включаются URL, заголовки, тела ответов или текст cURL.
+
+Повреждённый chunked framing относится к `invalid-response`, если нативный
+декодер cURL явно распознал ошибку формата. Сам по себе код cURL 56 или наличие
+chunked encoding этого не доказывает: обычный receive/reset остаётся `network`.
+Незавершённый ответ сохраняет Unknown и null для HTTP-кода и времени ответа.
 Сбой version или GitHub не меняет результат health и его причину.
 
 ### Синтаксис и ограничения JSON path
@@ -683,3 +688,9 @@ primary cooldown через HMAC с private vault key; ротация handle с�
 Для визуальной проверки используйте `tests/web-router.php` с `TABLO_DB`, указывающим
 на эту БД, и `TABLO_TEST_RUNTIME`, указывающим на отдельный каталог сессий и кэша Volt.
 Этот router подменяет GitHub API фикстурой; реальный GitHub-токен не нужен.
+## Periodic worker
+
+`php bin/worker.php` runs serial checks using the interval saved at `/settings` (default 10 minutes).
+`php bin/worker.php --stop` requests cooperative stop; observe exit before restarting.
+Docker Compose includes `tablo-worker` sharing the web image, local database and token key.
+See [launch, cadence, fairness, stop and storage limits](docs/periodic-worker.md).

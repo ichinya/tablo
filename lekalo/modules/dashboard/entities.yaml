@@ -210,8 +210,8 @@
         {
             "id": "dashboard.site",
             "kind": "entity",
-            "version": 3,
-            "description": "A configured site and its most recent check. Null state means unknown, and stale checks are visibly marked. GitHub credentials are encrypted at rest and never returned to the UI; preserve key alongside database backups. Shared credentials are referenced by git_token_id; empty version_path disables installed-version requests and comparison. JSON selectors accept root $, object fields, quoted JSON keys and array indexes, up to 512 bytes. Missing inputs default to HTTP health, operator == and empty paths/expected value. JSON health requires 2xx and a successful scalar predicate; extraction errors are unknown. Version selectors require a nonempty string up to 200 bytes; empty version endpoint disables selector validation and requests. Empty health_path checks the base URL with strict HTTP 200, ignoring JSON settings. health_error_code and health_http_status preserve secret-free structured diagnostics; network and invalid responses remain unknown.",
+            "version": 4,
+            "description": "A configured site and its most recent check. Null state means unknown, and stale checks are visibly marked. GitHub credentials are encrypted at rest and never returned to the UI; preserve key alongside database backups. Shared credentials are referenced by git_token_id; empty version_path disables installed-version requests and comparison. JSON selectors accept root $, object fields, quoted JSON keys and array indexes, up to 512 bytes. Missing inputs default to HTTP health, operator == and empty paths/expected value. JSON health requires 2xx and a successful scalar predicate; extraction errors are unknown. Version selectors require a nonempty string up to 200 bytes; empty version endpoint disables selector validation and requests. Empty health_path checks the base URL with strict HTTP 200, ignoring JSON settings. health_error_code and health_http_status preserve secret-free structured diagnostics; network and invalid responses remain unknown. Schema 4 adds a nonnegative config_revision; every site edit and selected-token rotation increments it, rejecting disable-enable ABA and restored-value edits.",
             "identity": [
                 "id"
             ],
@@ -453,6 +453,13 @@
                             "ref": "dashboard.number"
                         }
                     }
+                },
+                {
+                    "name": "config_revision",
+                    "type": {
+                        "ref": "dashboard.number"
+                    },
+                    "required": true
                 }
             ]
         },
@@ -681,6 +688,124 @@
                 },
                 {
                     "name": "eligible_at",
+                    "type": {
+                        "ref": "dashboard.number"
+                    },
+                    "required": true
+                }
+            ]
+        },
+        {
+            "id": "dashboard.installation_settings",
+            "kind": "entity",
+            "version": 1,
+            "description": "Singleton schema 4 installation setting. Positive integer minutes default 10; raw decimal input and safe integer conversion validated at runtime. Reads do not rewrite defaults.",
+            "identity": [
+                "id"
+            ],
+            "fields": [
+                {
+                    "name": "id",
+                    "type": {
+                        "ref": "dashboard.number"
+                    },
+                    "required": true
+                },
+                {
+                    "name": "check_interval_minutes",
+                    "type": {
+                        "ref": "dashboard.number"
+                    },
+                    "required": true
+                }
+            ]
+        },
+        {
+            "id": "dashboard.worker_runtime",
+            "kind": "entity",
+            "version": 1,
+            "description": "Singleton generation-bound cooperative control. No lease, PID or liveness claim. Lifetime canonical OS lock is separate. Logical bounded scheduling turn survives restart.",
+            "identity": [
+                "id"
+            ],
+            "fields": [
+                {
+                    "name": "id",
+                    "type": {
+                        "ref": "dashboard.number"
+                    },
+                    "required": true
+                },
+                {
+                    "name": "run_id",
+                    "type": {
+                        "optional": {
+                            "ref": "dashboard.text"
+                        }
+                    }
+                },
+                {
+                    "name": "stop_requested",
+                    "type": {
+                        "ref": "dashboard.number"
+                    },
+                    "required": true
+                },
+                {
+                    "name": "fairness_turn",
+                    "type": {
+                        "ref": "dashboard.number"
+                    },
+                    "required": true
+                }
+            ]
+        },
+        {
+            "id": "dashboard.worker_progress",
+            "kind": "entity",
+            "version": 1,
+            "description": "At most one FK-cascaded row per site with four bounded field service turns. Revision mismatch resets debt. Admitted failure or validated memo/null completion earns credit; rejected admission earns none. No response/token/URL/history stored.",
+            "identity": [
+                "site_id"
+            ],
+            "fields": [
+                {
+                    "name": "site_id",
+                    "type": {
+                        "ref": "dashboard.number"
+                    },
+                    "required": true
+                },
+                {
+                    "name": "config_revision",
+                    "type": {
+                        "ref": "dashboard.number"
+                    },
+                    "required": true
+                },
+                {
+                    "name": "latest_release",
+                    "type": {
+                        "ref": "dashboard.number"
+                    },
+                    "required": true
+                },
+                {
+                    "name": "latest_commit",
+                    "type": {
+                        "ref": "dashboard.number"
+                    },
+                    "required": true
+                },
+                {
+                    "name": "open_issues",
+                    "type": {
+                        "ref": "dashboard.number"
+                    },
+                    "required": true
+                },
+                {
+                    "name": "open_prs",
                     "type": {
                         "ref": "dashboard.number"
                     },

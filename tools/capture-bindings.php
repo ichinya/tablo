@@ -20,13 +20,20 @@ $mapping = [
     'list_sites' => ['app/site-repository.php', 'public function all'],
     'list_branches' => ['app/github-connection.php', 'public function branches'],
     'user' => ['database/schema.sql', 'CREATE TABLE IF NOT EXISTS users'],
-    'site' => ['app/sqlite-database.php', 'private static function migrateToVersionTwo'],
+    'site' => ['app/sqlite-database.php', 'private static function migrateToVersionFour'],
     'git_token' => ['database/schema.sql', 'CREATE TABLE IF NOT EXISTS git_tokens'],
     'github_cooldown' => ['app/sqlite-database.php', 'private static function migrateToVersionThree'],
     'list_git_tokens' => ['app/git-token-repository.php', 'public function all'],
     'create_git_token' => ['app/git-token-repository.php', 'public function save'],
     'update_git_token' => ['app/git-token-repository.php', 'public function save'],
     'delete_git_token' => ['app/git-token-repository.php', 'public function delete'],
+    'get_settings' => ['app/settings-repository.php', 'public function get'],
+    'update_settings' => ['app/settings-repository.php', 'public function updateInterval'],
+    'run_worker_pass' => ['app/periodic-worker.php', 'public function runPass'],
+    'request_worker_stop' => ['app/worker-state-repository.php', 'public function requestStop'],
+    'installation_settings' => ['app/sqlite-database.php', 'CREATE TABLE installation_settings'],
+    'worker_runtime' => ['app/sqlite-database.php', 'CREATE TABLE worker_runtime'],
+    'worker_progress' => ['app/sqlite-database.php', 'CREATE TABLE worker_progress'],
 ];
 function typeName(array $type): string
 {
@@ -68,4 +75,12 @@ $declaration = ['schemaVersion' => 'lekalo/contracted-declaration/v0.4.0',
     'revision' => 'sha256:' . hash('sha256', json_encode($definitions, JSON_THROW_ON_ERROR)), 'symbols' => $symbols];
 if (!is_dir($root . '/contracts')) { mkdir($root . '/contracts'); }
 file_put_contents($root . '/contracts/php-bindings.json', json_encode($declaration, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES | JSON_THROW_ON_ERROR) . "\n");
+require __DIR__ . '/reviewed-dependencies.php';
+$dependencies = [];
+foreach (workerDependencies() as $path => $metadata) {
+    $dependencies[] = ['path' => $path, ...$metadata, 'fingerprint' => dependencyHash($root, $path)];
+}
+file_put_contents($root . '/contracts/reviewed-dependencies.json', json_encode([
+    'schema' => 'tablo/reviewed-dependencies/v1', 'dependencies' => $dependencies,
+], JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES | JSON_THROW_ON_ERROR) . "\n");
 echo 'Captured ' . count($symbols) . " source bindings; review contracts/php-bindings.json before accepting.\n";

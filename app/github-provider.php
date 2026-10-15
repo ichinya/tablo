@@ -33,6 +33,19 @@ final class GitHubProvider implements RepositoryProvider
         $this->deadline = $this->policy->now() + 24000000000;
     }
 
+    public function admissions(): int { return $this->policy->admissions(); }
+
+    public function eligibleResources(): array
+    {
+        $this->credential->assertCurrent($this->policy, $this->identity);
+        $result = [];
+        foreach (['core', 'search'] as $resource) {
+            $result[$resource] = $this->policy->currentEligibility($resource, $this->scope,
+                $this->credential->equivalentScope) <= $this->policy->epoch();
+        }
+        return $result;
+    }
+
     private function metric(string $key, \Closure $load): mixed
     {
         try {
@@ -44,7 +57,7 @@ final class GitHubProvider implements RepositoryProvider
             });
             $this->credential->assertCurrent($this->policy, $this->identity);
             return $result;
-        } catch (GitHubFailure $error) { throw $error; }
+        } catch (GitHubFailure | \PDOException | SharedKeyFailure $error) { throw $error; }
         catch (\Throwable) { throw new GitHubFailure('unavailable'); }
     }
 
