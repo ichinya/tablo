@@ -2,6 +2,32 @@
 declare(strict_types=1);
 
 $path = parse_url($_SERVER['REQUEST_URI'], PHP_URL_PATH);
+$fixture = getenv('TABLO_HEALTH_FIXTURE');
+if ($fixture) {
+    file_put_contents($fixture . '/uris.jsonl', json_encode($_SERVER['REQUEST_URI']) . "\n", FILE_APPEND | LOCK_EX);
+    if (str_starts_with($path, '/repos/') || str_starts_with($path, '/search/')) {
+        require __DIR__ . '/fixtures/worker-router.php';
+        return;
+    }
+    if ($path === '/barrier/') {
+        file_put_contents($fixture . '/entered', 'ready');
+        $deadline = microtime(true) + 8;
+        while (!is_file($fixture . '/release') && microtime(true) < $deadline) { clearstatcache(); usleep(10000); }
+    }
+    if (in_array($path, ['/', '/app/', '/app///', '/a//b///', '/%2Fapp/%7E///', '/barrier/'], true)) {
+        header('Content-Type: text/html');
+        echo '<html>Exact homepage</html>';
+        return;
+    }
+    if (preg_match('~^(/app|/a//b|/%2Fapp/%7E)/(up|json-health|version)$~D', $path, $joined)) {
+        header('Content-Type: application/json');
+        if ($joined[2] === 'up') { http_response_code((int) ($_GET['status'] ?? 204)); echo '{}'; }
+        elseif ($joined[2] === 'json-health') { echo '{"result":"ok"}'; }
+        elseif (isset($_GET['bad'])) { echo 'not JSON'; }
+        else { echo '{"version":"1.3.1","commit":"a61de82"}'; }
+        return;
+    }
+}
 if (preg_match('~^/homepage/(200|201|204|301|302|404|500|503)$~D', $path, $match)) {
     http_response_code((int) $match[1]);
     header('Content-Type: text/html');
@@ -33,6 +59,7 @@ switch ($path) {
         break;
     case '/up':
         header('Content-Type: application/json');
+        if ($fixture && isset($_GET['status'])) { http_response_code((int) $_GET['status']); }
         echo '{"status":"ok"}';
         break;
     case '/version':

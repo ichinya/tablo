@@ -60,7 +60,6 @@ final class SiteRepository
         if ($data['name'] === '' || mb_strlen($data['name']) > 80) {
             $errors['name'] = 'Укажите название до 80 символов.';
         }
-        $data['url'] = rtrim($data['url'], '/');
         $parts = parse_url($data['url']);
         if (strlen($data['url']) > 500 || !filter_var($data['url'], FILTER_VALIDATE_URL)
             || !is_array($parts) || !in_array($parts['scheme'] ?? '', ['http', 'https'], true)

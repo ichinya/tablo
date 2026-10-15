@@ -16,7 +16,7 @@
             "id": "dashboard.site_lifecycle",
             "kind": "scenario",
             "version": 1,
-            "summary": "Normalize GitHub URL, create, order, edit and delete; malformed input never persists; edit clears stale checks and an old in-flight result is refused.",
+            "summary": "Retain trimmed site URL bytes including trailing slashes; normalize GitHub URL, create, order, edit and delete; malformed input never persists; edit clears stale checks and an old in-flight result is refused.",
             "covers": [
                 "dashboard.create_site",
                 "dashboard.update_site",
@@ -28,7 +28,7 @@
             "id": "dashboard.check_outcomes",
             "kind": "scenario",
             "version": 2,
-            "summary": "Empty health path checks the base URL with strict HTTP 200 and ignores JSON settings; explicit HTTP endpoints retain 2xx and JSON predicates. HTTP and false predicates are offline. DNS, timeout, refused, SSRF, TLS, size and invalid responses are unknown with persisted secret-free reasons and HTTP status. Manual and CLI checks agree; independent version/Git failures never overwrite valid health. Schema 1 upgrades atomically to 2 without rewriting existing rows.",
+            "summary": "Empty health path checks the exact saved base URL with strict HTTP 200, no redirects and inactive JSON settings; explicit health/version paths trim only trailing base separators at the join and retain endpoint query bytes; explicit HTTP endpoints retain 2xx and JSON predicates. HTTP and false predicates are offline. DNS, timeout, refused, SSRF, TLS, size and invalid responses are unknown with persisted secret-free reasons and HTTP status. Manual, CLI and actual periodic worker checks agree; URL/endpoint/enable ABA refuses stale result and worker credit; independent version/Git failures never overwrite valid health. Schema 1 upgrades atomically to 2 without rewriting existing rows.",
             "covers": [
                 "dashboard.check_site",
                 "dashboard.site"

@@ -5,39 +5,14 @@ namespace Tablo\Tests\Http;
 
 use Testo\Assert;
 use Testo\Test;
-use Testo\Lifecycle\BeforeTest;
-use Testo\Lifecycle\AfterTest;
 use Tablo\Tests\Support\Subprocess;
-use Tablo\Tests\Support\TemporaryDirectory;
-use Tablo\Tests\Support\TestServer;
-use Tablo\Tests\Support\WebFixture;
+
+use Tablo\Tests\Support\HealthCheckFixture;
+use Tablo\Tests\Support\HealthCheckDiagnostics;
 
 final class HealthChecksTest
 {
-    private ?WebFixture $web = null;
-    private ?TemporaryDirectory $endpoints = null;
-    private ?TestServer $server = null;
-
-    #[BeforeTest]
-    public function start(): void
-    {
-        try {
-            $this->web = new WebFixture(true);
-            $this->endpoints = new TemporaryDirectory('tablo-health-endpoints-');
-            $this->server = new TestServer($this->endpoints, dirname(__DIR__) . '/endpoint-router.php');
-        } catch (\Throwable $error) { $this->stop(); throw $error; }
-    }
-
-    #[AfterTest]
-    public function stop(): void
-    {
-        $this->web?->close();
-        $this->server?->close();
-        $this->endpoints?->close();
-        $this->web = null;
-        $this->server = null;
-        $this->endpoints = null;
-    }
+    use HealthCheckFixture;
 
     #[Test]
     public function savesBlankEndpointAndMatchesManualAndCliResults(): void
@@ -71,9 +46,12 @@ final class HealthChecksTest
                 $root . '/bin/check.php'], $this->web->directory, [
                     'TABLO_DB' => $this->web->directory->path . '/test.sqlite', 'TABLO_ALLOW_PRIVATE_NETWORK' => '1',
                 ]);
-            Assert::same($result['exit_code'], $status === 200 ? 0 : 1, $result['stderr']);
-            Assert::same($result['stderr'], '');
+            $diagnostic = HealthCheckDiagnostics::capture($result, $this->web->database());
+            Assert::same($result['exit_code'], $status === 200 ? 0 : 1, $diagnostic);
+            Assert::same(strlen($result['stderr']), 0, $diagnostic);
             Assert::same($this->web->database()->query($query)->fetch(), $manual, 'manual and CLI use one policy');
+            $this->check('worker', $csrf, $status === 200 ? 0 : 1);
+            Assert::same($this->web->database()->query($query)->fetch(), $manual, 'actual worker shares the received-status policy');
         }
         $dashboard = $this->web->request('/');
         Assert::true(str_contains($dashboard['body'], 'data-health-error="http"') && str_contains($dashboard['body'], 'title="HTTP 503"'), 'stored machine reason and safe explanation displayed');
@@ -83,5 +61,10 @@ final class HealthChecksTest
         Assert::same($this->web->request('/sites/1/edit', $input)['status'], 303);
         Assert::same($this->web->database()->query('SELECT health_error_code,health_http_status,checked_at FROM sites')->fetch(),
             ['health_error_code' => null, 'health_http_status' => null, 'checked_at' => null]);
+        $uris = $this->uris();
+        foreach ([200, 201, 204, 301, 302, 404, 500, 503] as $status) {
+            Assert::same(count(array_keys($uris, '/homepage/' . $status, true)), 3);
+        }
+        Assert::false(in_array('/up', $uris, true), 'received redirects were never followed');
     }
 }

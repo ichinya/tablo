@@ -25,7 +25,7 @@
     </div>
     <div class="form-section"><h2>Проверки</h2><p class="section-description">Пути относительно адреса сайта, без перехода на другой домен.</p>
         <label for="health_path">Health endpoint · необязательно</label><input id="health_path" name="health_path" value="{{ site['health_path'] }}" placeholder="/up" maxlength="300" aria-describedby="health-path-hint">
-        <p class="field-hint" id="health-path-hint">Если оставить пустым, проверяется главная страница. Только HTTP 200 означает Online.</p>
+        <p class="field-hint" id="health-path-hint">Если оставить пустым, проверяется главная страница. Только HTTP 200 означает Online. Используется точный адрес сайта, включая завершающий /; редиректы не выполняются. Явный путь добавляется к адресу с одним / на стыке.</p>
         <div class="health-mode-fields" id="health-mode-fields">
         <label for="health_check_mode">Проверка доступности</label>
         <select id="health_check_mode" name="health_check_mode" aria-describedby="health-mode-hint{% if errors['health_check_mode'] is defined %} health_check_mode-error{% endif %}" {% if errors['health_check_mode'] is defined %}aria-invalid="true"{% endif %}>
