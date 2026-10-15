@@ -11,16 +11,19 @@ use Tablo\Tests\Support\TemporaryDirectory;
 use Testo\Assert;
 use Testo\Test;
 
+/** @phpstan-import-type Receipt from \Tablo\Tests\Support\SubprocessReceiptData */
 final class ProcessDiagnosticTest
 {
+    /** @return list<string> */
     private static function command(string $mode, string $gate = ''): array
     {
         return [PHP_BINARY, dirname(__DIR__) . '/fixtures/process-diagnostic.php', $mode, $gate];
     }
 
+    /** @return Receipt */
     private static function receipt(string $path): array
     {
-        return json_decode(file_get_contents($path), associative: true, flags: JSON_THROW_ON_ERROR);
+        return \Tablo\Tests\Support\SubprocessReceipt::read($path);
     }
 
     #[Test]
@@ -38,18 +41,18 @@ final class ProcessDiagnosticTest
                 Assert::true(str_contains($error->getMessage(), 'diagnostic stderr marker'));
                 Assert::false(str_contains($error->getMessage(), 'synthetic-input-secret'));
             }
-            $first = glob($directory->path . '/command-*.json')[0];
+            $first = \Tablo\Tests\Support\FixtureValue::at(\Tablo\Tests\Support\FixtureValue::fetched(glob($directory->path . '/command-*.json')), 0);
             $receipt = self::receipt($first);
             Assert::true($receipt['closed'] && $receipt['root_exit_observed']);
             Assert::same($receipt['ownership'], 'direct-child-only');
-            $hashes = array_map(static fn(string $path): string => hash_file('sha256', $path),
+            $hashes = array_map(\Tablo\RequiredFile::digest(...),
                 [$first, $receipt['streams']['stdout']['path'], $receipt['streams']['stderr']['path']]);
             $second = Subprocess::run(self::command('nonzero'), $directory, []);
             Assert::same($second['exit_code'], 7);
             Assert::true($first !== $second['files']['receipt']);
             Assert::same(self::receipt($second['files']['receipt'])['exit_code'], 7);
             $directory->close();
-            Assert::same(array_map(static fn(string $path): string => hash_file('sha256', $path),
+            Assert::same(array_map(\Tablo\RequiredFile::digest(...),
                 [$first, $receipt['streams']['stdout']['path'], $receipt['streams']['stderr']['path']]), $hashes);
         } finally { $child->close(); $directory->close(); }
     }
@@ -64,14 +67,14 @@ final class ProcessDiagnosticTest
                 Assert::true(str_contains($error->getMessage(), 'stage=spawn'));
                 Assert::false(str_contains($error->getMessage(), 'synthetic-argv-secret'));
             }
-            $first = glob($directory->path . '/command-*.json')[0];
+            $first = \Tablo\Tests\Support\FixtureValue::at(\Tablo\Tests\Support\FixtureValue::fetched(glob($directory->path . '/command-*.json')), 0);
             $hash = hash_file('sha256', $first);
             try {
                 $missing = Subprocess::run([$directory->path . '/missing-executable'], $directory, []);
                 Assert::true($missing['exit_code'] !== 0);
                 Assert::true(self::receipt($missing['files']['receipt'])['closed']);
             } catch (RuntimeException $error) { Assert::true(str_contains($error->getMessage(), 'stage=spawn')); }
-            Assert::same(count(glob($directory->path . '/command-*.json')), 2);
+            Assert::same(count(\Tablo\Tests\Support\FixtureFiles::matches($directory->path . '/command-*.json')), 2);
             Assert::same(hash_file('sha256', $first), $hash);
             $directory->close();
             Assert::true(is_file($first));
@@ -90,7 +93,7 @@ final class ProcessDiagnosticTest
         Assert::instanceOf($primary, JsonException::class);
         Assert::true(is_file($result['files']['stdout']));
         Assert::same(self::receipt($result['files']['receipt'])['exit_code'], 0);
-        Assert::true(str_contains(file_get_contents($result['files']['stdout']), '{malformed'));
+        Assert::true(str_contains(\Tablo\RequiredFile::bytes(file_get_contents($result['files']['stdout'])), '{malformed'));
     }
 
     #[Test]
@@ -126,10 +129,12 @@ final class ProcessDiagnosticTest
             $primary = new RuntimeException('synthetic primary secret');
             $directory->retainFailure($primary);
             $directory->cleanup(static function (): void { throw new RuntimeException('synthetic cleanup secret'); });
-            $records = array_map(self::receipt(...), glob($directory->path . '/failure-*.json'));
+            $failurePaths = glob($directory->path . '/failure-*.json');
+            if ($failurePaths === false) { throw new RuntimeException('Cannot discover retained fixture failures'); }
+            $records = array_map(\Tablo\Tests\Support\FixtureFailureEvidence::read(...), $failurePaths);
             Assert::true(in_array('primary', array_column($records, 'kind'), strict: true));
             Assert::true(in_array('cleanup', array_column($records, 'kind'), strict: true));
-            Assert::false(str_contains(json_encode($records), 'synthetic primary secret'));
+            Assert::false(str_contains(\Tablo\JsonEncoding::encode($records), 'synthetic primary secret'));
             $child->send('');
             file_put_contents($directory->path . '/release', data: 'release');
             Assert::same($child->finish()['exit_code'], 0);
@@ -148,7 +153,7 @@ final class ProcessDiagnosticTest
                 Assert::true(str_contains($error->getMessage(), 'diagnostic stdout marker'));
                 Assert::true(str_contains($error->getMessage(), 'diagnostic stderr marker'));
             }
-            $receipt = self::receipt(glob($directory->path . '/command-*.json')[0]);
+            $receipt = self::receipt(\Tablo\Tests\Support\FixtureValue::at(\Tablo\Tests\Support\FixtureValue::fetched(glob($directory->path . '/command-*.json')), 0));
             Assert::same($receipt['exit_code'], 0);
             Assert::true($receipt['closed'] && $receipt['root_exit_observed']);
         } finally { $directory->close(); }

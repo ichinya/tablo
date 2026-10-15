@@ -15,22 +15,23 @@ final class RawHttpServer
     {
         $this->directory = new TemporaryDirectory('tablo-framing-');
         try {
-            $this->process = proc_open([PHP_BINARY, dirname(__DIR__) . '/fixtures/raw-http-server.php', $this->directory->path],
-                [0 => ['pipe', 'r'], 1 => ['file', $this->directory->path . '/server.log', 'a'],
-                    2 => ['file', $this->directory->path . '/server.log', 'a']], $pipes);
+            $pipes = [];
+            $this->process = FixtureSpawn::append([PHP_BINARY, dirname(__DIR__) . '/fixtures/raw-http-server.php', $this->directory->path], $this->directory->path . '/server.log', $this->directory->path . '/server.log', $pipes);
             if (!is_resource($this->process)) { throw new RuntimeException('Cannot start raw HTTP fixture'); }
-            fclose($pipes[0]);
+            fclose(\Tablo\Tests\Support\FixturePipes::pipe($pipes, 0));
             $deadline = microtime(true) + 5;
+            $base = null;
             do {
                 clearstatcache();
                 if (is_file($this->directory->path . '/ready')) {
-                    $this->base = 'http://' . file_get_contents($this->directory->path . '/ready');
-                    return;
+                    $base = 'http://' . \Tablo\RequiredFile::bytes(file_get_contents($this->directory->path . '/ready'));
+                    break;
                 }
                 if (!proc_get_status($this->process)['running']) { break; }
                 usleep(20_000);
             } while (microtime(true) < $deadline);
-            throw new RuntimeException('Raw HTTP fixture did not become ready');
+            if ($base === null) { throw new RuntimeException('Raw HTTP fixture did not become ready'); }
+            $this->base = $base;
         } catch (\Throwable $error) {
             $this->close();
             throw $error;

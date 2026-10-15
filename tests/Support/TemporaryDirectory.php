@@ -65,8 +65,9 @@ final class TemporaryDirectory
             \RecursiveIteratorIterator::CHILD_FIRST,
         );
         foreach ($files as $file) {
+            if (!$file instanceof \SplFileInfo) { throw new RuntimeException('Unexpected fixture directory entry'); }
             $path = $file->getPathname();
-            if (!($file->isDir() && !$file->isLink() ? FixtureRemoval::directory($path) : FixtureRemoval::file($path))) {
+            if (!($file->isDir() && !$file->isLink() ? FixtureRemoval::directory(\Tablo\Tests\Support\FixtureValue::string($path)) : FixtureRemoval::file(\Tablo\Tests\Support\FixtureValue::string($path)))) {
                 throw new RuntimeException('Cannot remove test fixture: ' . $path);
             }
         }

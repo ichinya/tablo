@@ -8,7 +8,12 @@ use Dotenv\Exception\InvalidFileException;
 // Composer's generated autoload platform check does not enforce lib-* versions.
 // Refuse before environment, storage or checks can turn this into a website failure.
 if (!function_exists('curl_version') || !defined('CURLOPT_REQUEST_TARGET')
-    || (curl_version()['version_number'] ?? 0) < 0x07_3700) {
+    || (static function (): int {
+        // Native cURL exposes its numeric version as an integer; retain the missing-key zero refusal.
+        /** @var array{version_number?: int, ...} $info */
+        $info = curl_version();
+        return $info['version_number'] ?? 0;
+    })() < 0x07_3700) {
     throw new \Tablo\InstallationException(\Tablo\InstallationException::CURL_DIAGNOSTIC,
         \Tablo\InstallationException::UNSUPPORTED_CURL);
 }

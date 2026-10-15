@@ -18,7 +18,7 @@ final class ExternalRestoreAssertions
             copy($this->directory->path.'/key-backup',$this->directory->path.'/restore/key');
             putenv('TABLO_TOKEN_KEY_FILE='.$this->directory->path.'/restore/key');
             $db=Database::connect($this->directory->path.'/restore/db.sqlite');
-            Assert::same($db->query('SELECT * FROM github_cooldowns ORDER BY scope,resource')->fetchAll(),$before);
+            Assert::same(\Tablo\SqlRows::all(\Tablo\SqlStatement::checked($db->query('SELECT * FROM github_cooldowns ORDER BY scope,resource'))->fetchAll(), \Tablo\SqlGithubCooldownsEligibleAtResourceScopeRow::checked(...)),$before);
             Assert::same(TokenVault::forDatabase($db)->decrypt($cipher),$secret); $db=null;
             // Compatible schema4 rollback uses the original bytes and predecessor policy.
             copy($this->directory->path.'/key-backup',$this->directory->path.'/restore/github-token.key');

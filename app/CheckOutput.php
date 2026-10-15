@@ -3,7 +3,10 @@ declare(strict_types=1);
 
 namespace Tablo;
 
-/** Public scalar projection; never a provider or database row serializer. */
+/**
+ * Public scalar projection; never a provider or database row serializer.
+ * @phpstan-import-type Record from CheckSiteOutput
+ */
 final class CheckOutput
 {
     public const GIT_FIELDS = ['latest_release', 'latest_commit', 'open_issues', 'open_prs'];
@@ -23,8 +26,9 @@ final class CheckOutput
 
 
 
-    public static function encode(array $site): string { return json_encode($site, JSON_THROW_ON_ERROR); }
+    public static function encode(array $site): string { return JsonEncoding::encode($site); }
 
+    /** @param list<string> $fragments */
     public static function envelope(string $status, string $reason, ?string $started, array $fragments): string
     {
         $run = ['status' => $status, 'reason' => $reason, 'exit_code' => $status === 'success' ? 0 : 1,
@@ -57,6 +61,7 @@ final class CheckOutput
         }
     }
     public static function timestamp(mixed $value): ?string { return OutputTimestamp::timestamp($value); }
+    /** @return Record */
     public static function site(#[\SensitiveParameter] array $site, string $status, string $reason, ?bool $attention, #[\SensitiveParameter] ?CheckSiteObservation $context = null): array
     { return CheckSiteOutput::site($site, $status, $reason, $attention, $context); }
 }

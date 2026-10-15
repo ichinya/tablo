@@ -15,7 +15,7 @@ final class ResponseRateAssertions
                     Assert::same($error->httpStatus, null, 'existing typed rate failure status contract');
                     Assert::same($error->getMessage(), (new GitHubFailure('rate-limit', $now + $delay))->getMessage());
                     $masked = false;
-                    foreach ($error->getTrace() as $frame) {
+                    foreach (\Tablo\SqlRows::all($error->getTrace(), \Tablo\JsonRecord::checked(...)) as $frame) {
                         if (!(($frame['class'] ?? '') === GitHubRequestPolicy::class && ($frame['function'] ?? '') === 'observe')) { continue; }
 
                             $masked = ($frame['args'][1] ?? null) instanceof \SensitiveParameterValue;

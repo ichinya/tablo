@@ -1,15 +1,19 @@
 <?php
 declare(strict_types=1);
+require_once __DIR__ . '/../Support/FixtureRequest.php';
+require_once __DIR__ . '/../Support/FixtureValue.php';
+require_once dirname(__DIR__, levels: 2) . '/app/RegexCapture.php';
 
 // Local synthetic REST only; the test transport maps the fixed GitHub origin here.
 usleep(5000);
-$path = parse_url($_SERVER['REQUEST_URI'], PHP_URL_PATH);
+$path = \Tablo\Tests\Support\FixtureRequest::path($_SERVER['REQUEST_URI']);
 header('Content-Type: application/json');
+$match = [];
 switch (true) {
 case (preg_match('~/fixture/access-(.+?)(?:/|$)~', $path, $match)):
 
     http_response_code(403);
-    switch ($match[1]) {
+    switch (\Tablo\RegexCapture::text($match, 1)) {
         case 'duplicate-remaining':
             header('X-RateLimit-Remaining: 42', replace: false);
             header('X-RateLimit-Remaining: 42', replace: false);
@@ -61,7 +65,7 @@ default:
     break;
 case (preg_match('~/fixture/redirect-(301|302)~', $path, $match)):
 
-    http_response_code((int) $match[1]);
+    http_response_code((int) \Tablo\RegexCapture::text($match, 1));
     header('Location: https://untrusted.example/fixture-secret');
     echo '{"message":"fixture-secret"}';
 
@@ -113,7 +117,7 @@ default:
     break;
 case (str_contains($path, '/branches/')):
 
-    echo json_encode(['name' => rawurldecode(substr($path, strpos($path, needle: '/branches/') + 10)),
+    echo json_encode(['name' => rawurldecode(substr($path, \Tablo\Tests\Support\FixtureValue::integer(strpos($path, needle: '/branches/')) + 10)),
         'commit' => ['sha' => str_repeat('a', times: 40)]], JSON_THROW_ON_ERROR);
 
     break;

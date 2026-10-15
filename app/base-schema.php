@@ -8,6 +8,7 @@ use RuntimeException;
 
 // Pinned Lekalo requires lowercase physical source paths for this contracted owner.
 // @mago-expect lint:file-name
+/** @phpstan-import-type TableColumn from SchemaShape */
 final class BaseSchema
 {
     private const TEXT_COLUMN_TYPE = 'TEXT';
@@ -90,8 +91,10 @@ final class BaseSchema
     {
         $complete = $completeness === SchemaCompleteness::Complete;
         foreach (self::BASE_COLUMNS as $table => $required) {
-            $statement = $db->prepare('SELECT type FROM main.sqlite_schema WHERE name = ? COLLATE NOCASE');
+            $statement = \Tablo\SqlStatement::checked($db->prepare('SELECT type FROM main.sqlite_schema WHERE name = ? COLLATE NOCASE'));
             $statement->execute([$table]);
+            // SQLite schema-table type is non-null text, while no row returns false.
+            /** @var string|false $type */
             $type = $statement->fetchColumn();
             $statement->closeCursor();
             if ($type === false && !$complete) { continue; }
@@ -103,16 +106,21 @@ final class BaseSchema
             $missing = array_diff($required, array_column($columns, 'name'));
             $primary = $table === 'login_limits' ? 'key' : 'id';
             $keys = array_column(array_filter($columns, static fn (array $column): bool => (int) $column['pk'] > 0), 'name');
-            if ($missing !== [] || $keys !== [$primary]) {
+            if ($missing !== [] || count($keys) !== 1 || $keys[0] !== $primary) {
                 throw new RuntimeException('Incompatible SQLite schema: invalid columns or primary key in ' . $table . '.');
             }
         }
     }
+    /** @return list<TableColumn> */
     public static function columns(PDO $db, string $table): array
     {
-        $statement = $db->query('PRAGMA main.table_info(' . $table . ')');
-        try { return $statement->fetchAll(PDO::FETCH_ASSOC); }
+        $statement = \Tablo\SqlStatement::checked($db->query('PRAGMA main.table_info(' . $table . ')'));
+        try {
+            /** @var list<TableColumn> $rows */
+            $rows = $statement->fetchAll(PDO::FETCH_ASSOC);
+        }
         finally { $statement->closeCursor(); }
+        return $rows;
     }
 
 }

@@ -6,6 +6,7 @@ namespace Tablo\Tests\Support;
 use Tablo\HttpClient;
 
 // Real local HTTP transport; only the fixture API origin is substituted.
+/** @phpstan-import-type HttpResponse from HttpClient */
 final class WorkerHttp extends HttpClient
 {
     private readonly HttpClient $real;
@@ -14,6 +15,7 @@ final class WorkerHttp extends HttpClient
 
     public function __construct(private readonly string $base) { $this->real = new HttpClient(true); }
 
+    /** @return HttpResponse */
     public function getEndpoint(#[\SensitiveParameter] string $url, #[\SensitiveParameter] array $headers = [],
         int $maxRedirects = 3, ?int $deadline = null): array
     {
@@ -21,6 +23,7 @@ final class WorkerHttp extends HttpClient
         return $this->real->getEndpoint($url, $headers, $maxRedirects, $deadline);
     }
 
+    /** @return HttpResponse */
     public function get(#[\SensitiveParameter] string $url, #[\SensitiveParameter] array $headers = []): array
     {
         $path = parse_url($url, PHP_URL_PATH);

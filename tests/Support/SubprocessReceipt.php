@@ -5,15 +5,23 @@ namespace Tablo\Tests\Support;
 
 use RuntimeException;
 
+/** @phpstan-import-type Receipt from SubprocessReceiptData */
 final class SubprocessReceipt
 {
+    /** @return Receipt */
+    public static function read(string $path): array
+    {
+        return SubprocessReceiptData::checked(json_decode(\Tablo\RequiredFile::bytes(file_get_contents($path)), associative: true, depth: 32, flags: JSON_THROW_ON_ERROR));
+    }
+
     public static function write(SubprocessState $state): void
     {
         $receipt = ['pid' => $state->pid, 'exit_code' => $state->exitCode, 'root_exit_observed' => $state->pid !== null && !$state->running,
             'closed' => $state->closed, 'ownership' => 'direct-child-only', 'stream_eof' => 'not used; file backed',
             'events' => $state->events, 'streams' => []];
         foreach (['stdout', 'stderr'] as $stream) {
-            $receipt['streams'][$stream] = ['path' => $state->files[$stream], 'sha256' => hash_file('sha256', $state->files[$stream])];
+            $path = $state->files[$stream] ?? throw new RuntimeException('Missing direct test child stream path');
+            $receipt['streams'][$stream] = ['path' => $path, 'sha256' => \Tablo\RequiredFile::digest($path)];
         }
         if ($state->stderr === StderrCapture::ClosedReader) {
             $receipt['streams']['stderr'] += ['capture' => 'unavailable; OS pipe reader deliberately closed',

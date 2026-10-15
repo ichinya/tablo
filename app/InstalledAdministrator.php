@@ -8,15 +8,16 @@ use RuntimeException;
 
 final class InstalledAdministrator
 {
+    /** @return array{'admin': int, 'file': string, 'schema': int} */
     public static function installationIdentity(PDO $db): array
     {
-        $statement = $db->query('PRAGMA database_list');
-        try { $databases = $statement->fetchAll(); }
+        $statement = \Tablo\SqlStatement::checked($db->query('PRAGMA database_list'));
+        try { $databases = \Tablo\SqlRows::all($statement->fetchAll(), \Tablo\SqlFileNameSeqRow::checked(...)); }
         finally { $statement->closeCursor(); }
         foreach ($databases as $database) {
             if ($database['name'] !== 'main') { continue; }
             $file = $database['file'];
-            $canonical = is_string($file) && $file !== '' ? realpath($file) : false;
+            $canonical = $file !== '' ? realpath($file) : false;
             if ($canonical !== false && is_file($canonical) && is_writable($canonical)) {
                 return ['file' => $canonical, 'admin' => 1, 'schema' => SchemaVersion::schemaVersion($db)];
             }
@@ -25,13 +26,7 @@ final class InstalledAdministrator
     }
     public static function existingAdminHash(PDO $db): string
     {
-        try {
-            $version = SchemaVersion::schemaVersion($db);
-            BaseSchema::validateSchema($db, SchemaCompleteness::Complete);
-            SchemaLineage::classify($db);
-        } catch (RuntimeException $error) {
-            ExistingConnection::refuseExistingFailure($error, 'Installation schema incompatible.');
-        }
+        $version = self::validatedVersion($db);
         if ($version !== Database::CURRENT_SCHEMA_VERSION) {
             throw new InstallationException('Installation schema incompatible.');
         }
@@ -40,6 +35,18 @@ final class InstalledAdministrator
         }
         InstalledAdministrator::validateCurrentAdditions($db);
         return SingletonAdministrator::hash($db);
+    }
+
+    private static function validatedVersion(PDO $db): int
+    {
+        try {
+            $version = SchemaVersion::schemaVersion($db);
+            BaseSchema::validateSchema($db, SchemaCompleteness::Complete);
+            SchemaLineage::classify($db);
+            return $version;
+        } catch (RuntimeException $error) {
+            ExistingConnection::refuseExistingFailure($error, 'Installation schema incompatible.');
+        }
     }
     public static function validateCurrentAdditions(PDO $db): void
     {
@@ -53,8 +60,13 @@ final class InstalledAdministrator
             'notification_settings' => ['id','revision','installation_id','blocked','endpoint_cipher','bearer_cipher'],
             'notification_checkpoints' => ['site_id','last_history_id','config_revision','state'],
             'notification_slots' => ['site_id','event','event_id','source_id','claim','attempts']] as $table => $required) {
-            $statement = $db->prepare("SELECT type FROM main.sqlite_schema WHERE name = ?");
-            try { $statement->execute([$table]); $type = $statement->fetchColumn(); }
+            $statement = \Tablo\SqlStatement::checked($db->prepare("SELECT type FROM main.sqlite_schema WHERE name = ?"));
+            try {
+                $statement->execute([$table]);
+                // sqlite_schema.type is non-null text; no matching object returns false.
+                /** @var string|false $type */
+                $type = $statement->fetchColumn();
+            }
             finally { $statement->closeCursor(); }
             if ($type !== 'table' || array_diff($required, array_column(BaseSchema::columns($db, $table), 'name')) !== []) {
                 throw new InstallationException('Installation schema incompatible.');

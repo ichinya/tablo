@@ -28,15 +28,15 @@ final class NotificationPublicTest
             $settings=new NotificationSettings($db); $settings->update(['revision'=>'0','enabled'=>'1','endpoint'=>'https://127.0.0.1/hook','unavailable'=>'1','recovery'=>'1']);
             // Seed a real accepted opening with independent sample/wall times at least61s ago.
             $sites=new SiteRepository($db,null,static fn():int=>time()-61);
-            $sites->storeCheck($sites->find(1),['online'=>0,'checked_at'=>gmdate('Y-m-d\TH:i:s\Z',time()-61)]);
+            $sites->storeCheck(\Tablo\Tests\Support\FixtureValue::row($sites->find(1)),['online'=>0,'checked_at'=>gmdate('Y-m-d\TH:i:s\Z',time()-61)]);
             Assert::same($web->request('/sites/1/check',['_csrf'=>$csrf])['status'],303);
-            $slot=$db->query('SELECT status,attempts,last_code FROM notification_slots WHERE site_id=1')->fetch();
+            $slot=\Tablo\SqlRows::one(\Tablo\SqlStatement::checked($db->query('SELECT status,attempts,last_code FROM notification_slots WHERE site_id=1'))->fetch(), \Tablo\SqlNotificationSlotsAttemptsLastCodeStatusRow::checked(...));
             Assert::same($slot,['status'=>'failed','attempts'=>1,'last_code'=>'ssrf']);
-            Assert::same((int)$db->query('SELECT COUNT(*) FROM check_history WHERE site_id=1')->fetchColumn(),2);
+            Assert::same((int)\Tablo\SqlStatement::checked($db->query('SELECT COUNT(*) FROM check_history WHERE site_id=1'))->fetchColumn(),2);
             $root=dirname(__DIR__,levels: 2);
             $result=Subprocess::run([PHP_BINARY,'-d','auto_prepend_file='.$root.'/tests/FixtureCliGitHubConnection.php',$root.'/bin/check.php'],
                 $web->directory,['TABLO_DB'=>$web->directory->path.'/test.sqlite','TABLO_ALLOW_PRIVATE_NETWORK'=>'1']);
-            Assert::same($result['exit_code'],1); Assert::same((int)$db->query('SELECT COUNT(*) FROM check_history WHERE site_id=2')->fetchColumn(),1);
+            Assert::same($result['exit_code'],1); Assert::same((int)\Tablo\SqlStatement::checked($db->query('SELECT COUNT(*) FROM check_history WHERE site_id=2'))->fetchColumn(),1);
             file_put_contents($directory->path.'/health-status',data: '200');
             $child=new WorkerProcess($directory,'notification-worker',[PHP_BINARY,$root.'/tests/fixtures/worker-process.php'],
                 ['TABLO_DB'=>$web->directory->path.'/test.sqlite','TABLO_WORKER_BASE'=>$server->base]);

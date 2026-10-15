@@ -12,12 +12,13 @@ abstract class CompositionSchemaFixtureCase
     protected static function fixture(string $name): MigrationPdo
     {
         $db = new MigrationPdo(':memory:');
-        $db->exec(file_get_contents(dirname(__DIR__) . '/fixtures/historical-schema/' . $name . '.sql'));
+        $db->exec(\Tablo\RequiredFile::bytes(file_get_contents(dirname(__DIR__) . '/fixtures/historical-schema/' . $name . '.sql')));
         $db->exec("INSERT INTO users (id,password_hash) VALUES (1,'original-admin');
             INSERT INTO sites (id,name,url,repository) VALUES (1,'original-site','https://example.test/','fixture/public')");
         return $db;
     }
 
+    /** @return array<string, list<array>> */
     protected static function snapshot(PDO $db): array
     {
         $result = ['schema' => SchemaShape::rows($db, 'SELECT type,name,tbl_name,sql FROM sqlite_schema ORDER BY name'),

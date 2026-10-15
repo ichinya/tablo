@@ -3,9 +3,11 @@ declare(strict_types=1);
 
 namespace Tablo;
 
+/** @phpstan-import-type GitCredentialRecord from SiteCredentialInput as CredentialRecord */
 final class GitCredentialResolver
 {
     public function __construct(#[\SensitiveParameter] private readonly SiteRepository $sites, private readonly bool $worker, private readonly bool $propagateSharedFailures) {}
+    /** @param CredentialRecord|null $site */
     public function resolve(#[\SensitiveParameter] ?array $site, #[\SensitiveParameter] array $input): GitResolvedCredential
     {
         try {

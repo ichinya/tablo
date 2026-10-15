@@ -5,10 +5,11 @@ namespace Tablo;
 
 final class RejectedSiteForm
 {
+    /** @return array{url: string, health_path: string, version_path: string, ...} */
     public static function data(#[\SensitiveParameter] ?array $existing, ?int $id): array
     {
             $data = SiteInput::defaults();
-            foreach ($data as $key => $value) {
+            foreach (array_keys($data) as $key) {
                 if (!(is_string($_POST[$key] ?? null))) { continue; }
 
                     $data[$key] = $_POST[$key];

@@ -11,6 +11,9 @@ final class ProtectedRouteRevocationAssertions
 {
     public function __construct(private readonly WebFixture $web, private readonly \PDO $db) {}
 
+    /**
+     * @param array<string, array> $tables
+     */
     public function all(string $csrf, #[\SensitiveParameter] array $tables): void
     {
             foreach ([true, false] as $cookie) {
@@ -28,7 +31,7 @@ final class ProtectedRouteRevocationAssertions
                 '/settings/tokens/new', '/settings/tokens/1/edit', '/settings/tokens/1/delete', '/logout'] as $route) {
                 Assert::same($this->web->request($route, ['_csrf' => $csrf, 'name' => 'hostile mutation'])['status'], 303);
             }
-            foreach (['sites', 'git_tokens'] as $table) { Assert::same($this->db->query('SELECT * FROM ' . $table)->fetchAll(), $tables[$table]); }
+            foreach (['sites', 'git_tokens'] as $table) { Assert::same(\Tablo\SqlStatement::checked($this->db->query('SELECT * FROM ' . $table))->fetchAll(), \Tablo\Tests\Support\FixtureValue::at($tables, $table)); }
 
     }
 }

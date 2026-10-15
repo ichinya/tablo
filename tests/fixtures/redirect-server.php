@@ -1,13 +1,17 @@
 <?php
 declare(strict_types=1);
+require_once __DIR__ . '/../Support/FixtureValue.php';
 
 require dirname(__DIR__, levels: 2) . '/app/NativeWarning.php';
+require_once dirname(__DIR__, levels: 2) . '/app/MonotonicTime.php';
+require_once dirname(__DIR__, levels: 2) . '/app/JsonRecord.php';
 
 // Owned synthetic raw HTTP receiver; protocol framing is emitted, never parsed by product code.
-$directory = $argv[1];
+$directory = \Tablo\Tests\Support\FixtureValue::at(\Tablo\Tests\Support\FixtureValue::row($argv), 1);
+$errno = 0; $error = '';
 $server = stream_socket_server('tcp://127.0.0.1:0', $errno, $error);
 if ($server === false) { throw new RuntimeException('Cannot allocate owned redirect peer'); }
-$address = stream_socket_get_name($server, remote: false);
+$address = \Tablo\Tests\Support\FixtureValue::string(stream_socket_get_name($server, remote: false));
 file_put_contents($directory . '/ready.tmp', $address);
 rename($directory . '/ready.tmp', $directory . '/ready');
 $deadline = microtime(true) + 120;
@@ -25,7 +29,9 @@ try {
             $uri = explode(' ', $line ? $line : '')[1] ?? '/';
             $requestedPath = parse_url($uri, PHP_URL_PATH);
             $path = $requestedPath ? $requestedPath : '/';
-            parse_str(parse_url($uri, PHP_URL_QUERY) ?? '', $query);
+            $query = [];
+            parse_str(\Tablo\Tests\Support\FixtureValue::string(parse_url($uri, PHP_URL_QUERY) ?? ''), $query);
+            $m = [];
             $authorization = ''; $unexpected = false;
             while (($line = fgets($connection, length: 8192)) !== false && $line !== "\r\n") {
                 if (str_starts_with(strtolower($line), 'authorization:')) { $authorization = trim(substr($line, offset: 14)); }
@@ -33,10 +39,10 @@ try {
             }
             $routeSegment = explode('/', trim($path, characters: '/'))[0];
             $route = $routeSegment ? $routeSegment : 'root';
-            file_put_contents($directory . '/requests.jsonl', json_encode(['route' => $route,
+            file_put_contents($directory . '/requests.jsonl', \Tablo\Tests\Support\FixtureValue::string(json_encode(['route' => $route,
                 'bearer' => $authorization === 'Bearer synthetic-redirect-token', 'authorized' => $authorization !== '',
                 'unexpected_headers' => $unexpected, 'method_get' => $methodGet,
-                ...($route === 'query' ? ['request_line' => $requestLine] : [])]) . "\n", FILE_APPEND);
+                ...($route === 'query' ? ['request_line' => $requestLine] : [])])) . "\n", FILE_APPEND);
             $status = 200; $location = null; $body = '{"ok":true,"version":"v-safe","commit":"a61de82"}';
             $extra = ''; $prefix = ''; $chunked = false;
             switch (true) {
@@ -58,14 +64,14 @@ case ($route === 'query'):
                     '/query/%2E%2e/%2F%3F%23%25?value=%2f%3F%23%25&literal=+' => 202,
                     default => 404,
                 };
-                $body = json_encode(['query_resource' => $status]);
+                $body = \Tablo\Tests\Support\FixtureValue::string(json_encode(['query_resource' => $status]));
 
     break;
 case (preg_match('~^/status/(301|302|303|307|308|300|304|305)$~D', $path, $m)):
- $status = (int) $m[1]; $location = '/final';
+ $status = (int) \Tablo\Tests\Support\FixtureValue::at(\Tablo\JsonRecord::checked($m), 1); $location = '/final';
     break;
-case (preg_match('~^/chain/([0-9]+)$~D', $path, $m) && (int) $m[1] > 0):
- $status = 302; $location = '/chain/' . ((int) $m[1] - 1);
+case (preg_match('~^/chain/([0-9]+)$~D', $path, $m) && (int) \Tablo\Tests\Support\FixtureValue::at($m, 1) > 0):
+ $status = 302; $location = '/chain/' . ((int) \Tablo\Tests\Support\FixtureValue::at(\Tablo\JsonRecord::checked($m), 1) - 1);
     break;
 case (str_starts_with($path, '/cycle/')):
  $status = 302; $location = $path === '/cycle/a' ? '/cycle/b' : '/cycle/a';
@@ -81,7 +87,7 @@ case (str_starts_with($path, '/cross/')):
 
                 $status = 302;
                 $location = match (substr($path, offset: 7)) { 'scheme' => 'https://' . $address . '/final',
-                    'host' => 'http://localhost:' . parse_url('http://' . $address, PHP_URL_PORT) . '/final',
+                    'host' => 'http://localhost:' . \Tablo\Tests\Support\FixtureValue::integer(parse_url('http://' . $address, PHP_URL_PORT)) . '/final',
                     'port' => 'http://127.0.0.1:' . (int) ($query['port'] ?? 1) . '/final',
                     'private' => 'http://10.0.0.1/final', default => '/final' };
 
@@ -129,8 +135,8 @@ case ($path === '/held/start' || $path === '/held/observed'):
      fwrite($connection, data: "HTTP/1.1 200 Fixture\r\nConnection: close\r\nContent-Length: 2\r\n\r\nx");
  }
  // The client must expire while this response is held; close signals the owned stop latch.
- $holdUntil = hrtime(true) + 3_000_000_000;
- while (!is_file($directory . '/stop') && hrtime(true) < $holdUntil) { clearstatcache(); usleep(1_000); }
+ $holdUntil = \Tablo\MonotonicTime::integer(hrtime(true)) + 3_000_000_000;
+ while (!is_file($directory . '/stop') && \Tablo\MonotonicTime::integer(hrtime(true)) < $holdUntil) { clearstatcache(); usleep(1_000); }
  $status = 302; $location = '/held/unreachable';
     break;
 case ($path === '/delay/start'):
@@ -164,11 +170,11 @@ case ($path === '/framing/broken'):
 case ($chunked):
 
                 $head .= "Transfer-Encoding: chunked\r\n\r\n";
-                $body = $path === '/framing/broken' ? "Z\r\ninvalid\r\n" : (match (true) { ($path === '/budget/tiny-chunks') => str_repeat("1\r\nx\r\n", times: 200_000) . "0\r\n\r\n", default => dechex(strlen($body)) . "\r\n" . $body . "\r\n0\r\nLocation: http://10.0.0.1/\r\n\r\n" });
+                $body = $path === '/framing/broken' ? "Z\r\ninvalid\r\n" : (match (true) { ($path === '/budget/tiny-chunks') => str_repeat("1\r\nx\r\n", times: 200_000) . "0\r\n\r\n", default => dechex(strlen(\Tablo\Tests\Support\FixtureValue::string($body))) . "\r\n" . $body . "\r\n0\r\nLocation: http://10.0.0.1/\r\n\r\n" });
 
     break;
 default:
- $head .= 'Content-Length: ' . strlen($body) . "\r\n\r\n";
+ $head .= 'Content-Length: ' . strlen(\Tablo\Tests\Support\FixtureValue::string($body)) . "\r\n\r\n";
     break;
 }
             $response = $head . $body;

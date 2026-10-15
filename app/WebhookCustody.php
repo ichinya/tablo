@@ -5,7 +5,9 @@ namespace Tablo;
 
 final class WebhookCustody
 {
+    /** @var list<array{0: resource|false|null, 1: array<int, resource>}> */
     private static array $unreleased=[];
+    /** @var array{}|array{0: resource|false|null, 1: array<int, resource>} */
     private static array $active=[];
     private static bool $shutdownRegistered=false;
     public static function blocked(): bool { return self::$unreleased !== []; }

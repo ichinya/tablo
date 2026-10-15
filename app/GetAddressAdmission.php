@@ -3,9 +3,16 @@ declare(strict_types=1);
 
 namespace Tablo;
 
+/** @phpstan-import-type Chain from EndpointChain */
 final class GetAddressAdmission
 {
+    /** @param \Closure(string): list<string> $resolver */
     public function __construct(private readonly bool $allowPrivate, #[\SensitiveParameter] private readonly \Closure $resolver) {}
+    /**
+     * @param array{host: string, scheme: string, port?: int, ...} $parts
+     * @param Chain|null $chain
+     * @return list<non-empty-string>
+     */
     public function pin(#[\SensitiveParameter] array $parts, ?array $chain): array
     {
         $host = trim($parts['host'], characters: '[]');
@@ -18,6 +25,7 @@ final class GetAddressAdmission
             if (!$addresses) {
                 throw new HttpFailure('dns');
             }
+            if (!array_key_exists(0, $addresses)) { throw new HttpFailure('dns'); }
             foreach ($addresses as $address) {
                 if ($chain !== null ? !EndpointTarget::isPublicAddress($address)
                     : (!filter_var($address, FILTER_VALIDATE_IP, FILTER_FLAG_NO_PRIV_RANGE | FILTER_FLAG_NO_RES_RANGE)

@@ -45,7 +45,7 @@ final class HttpClientTest
     #[Test]
     public function checksRealCurlHealthAndVersion(): void
     {
-        $site = ['url' => $this->server->base, 'health_path' => '/up', 'version_path' => '/version',
+        $site = ['url' => \Tablo\Tests\Support\FixtureValue::object($this->server)->base, 'health_path' => '/up', 'version_path' => '/version',
             'repository' => 'test/repo', 'branch' => 'main'];
         $state = (new SiteChecker(new HttpClient(true), new FakeProvider()))->check($site);
         Assert::true($state['online'] === 1 && $state['deployed_version'] === '1.3.1'
@@ -55,33 +55,33 @@ final class HttpClientTest
     #[Test]
     public function doesNotFollowRedirects(): void
     {
-        Assert::same((new HttpClient(true))->get($this->server->base . '/redirect')['status'], 302);
+        Assert::same((new HttpClient(true))->get(\Tablo\Tests\Support\FixtureValue::object($this->server)->base . '/redirect')['status'], 302);
     }
 
     #[Test]
     public function returnsOnlyBoundedRelevantFinalResponseHeaders(): void
     {
         $http = new HttpClient(true);
-        $response = $http->get($this->server->base . '/rate-headers');
+        $response = $http->get(\Tablo\Tests\Support\FixtureValue::object($this->server)->base . '/rate-headers');
         Assert::same($response['status'], 429);
-        Assert::same($response['headers'], ['retry-after' => '3600', 'x-ratelimit-remaining' => '0',
+        Assert::same(\Tablo\Tests\Support\FixtureValue::at($response, 'headers'), ['retry-after' => '3600', 'x-ratelimit-remaining' => '0',
             'x-ratelimit-resource' => 'search', 'x-ratelimit-reset' => '1900000000']);
-        Assert::false(str_contains(json_encode($response), \Tablo\Tests\Support\FixtureCredentials::value(label: 'synthetic-secret')));
-        Assert::same($http->get($this->server->base . '/duplicate-headers')['headers'],
+        Assert::false(str_contains(\Tablo\Tests\Support\FixtureValue::string(json_encode($response)), \Tablo\Tests\Support\FixtureCredentials::value(label: 'synthetic-secret')));
+        Assert::same(\Tablo\Tests\Support\FixtureValue::at($http->get(\Tablo\Tests\Support\FixtureValue::object($this->server)->base . '/duplicate-headers'), 'headers'),
             ['retry-after' => null, 'x-ratelimit-remaining' => null, 'x-ratelimit-resource' => null]);
-        Assert::same($http->get($this->server->base . '/up')['headers'], []);
+        Assert::same(\Tablo\Tests\Support\FixtureValue::at($http->get(\Tablo\Tests\Support\FixtureValue::object($this->server)->base . '/up'), 'headers'), []);
     }
 
     #[Test]
     public function clampsCurlDeadlineAndStopsAfterPreflightDnsOverrun(): void
     {
         $error = null;
-        $start = hrtime(true);
-        try { (new HttpClient(true))->getBefore($this->server->base . '/short-delay', [], $start + 80_000_000); }
+        $start = \Tablo\MonotonicTime::integer(hrtime(true));
+        try { (new HttpClient(true))->getBefore(\Tablo\Tests\Support\FixtureValue::object($this->server)->base . '/short-delay', [], $start + 80_000_000); }
         catch (HttpFailure $caught) { $error = $caught; }
         Assert::instanceOf($error, HttpFailure::class);
         Assert::same($error->reason, 'timeout');
-        Assert::true((hrtime(true) - $start) / 1e6 < 1000, 'cURL budget clamped');
+        Assert::true((\Tablo\MonotonicTime::integer(hrtime(true)) - $start) / 1e6 < 1000, 'cURL budget clamped');
         $resolver = new class extends HttpClient {
             public int $resolutions = 0;
             protected function resolve(#[\SensitiveParameter] string $host): array
@@ -91,15 +91,15 @@ final class HttpClientTest
                 return ['8.8.8.8'];
             }
         };
-        $start = hrtime(true);
+        $start = \Tablo\MonotonicTime::integer(hrtime(true));
         $error = null;
         try { $resolver->getBefore('https://deadline.example', [], $start + 10_000_000); }
         catch (HttpFailure $caught) { $error = $caught; }
         Assert::instanceOf($error, HttpFailure::class);
         Assert::same($error->reason, 'timeout');
         Assert::same($resolver->resolutions, 1);
-        Assert::true(hrtime(true) - $start > 10_000_000, 'synchronous DNS can overrun scheduling deadline');
-        try { $resolver->getBefore('https://deadline.example', [], hrtime(true) - 1); }
+        Assert::true(\Tablo\MonotonicTime::integer(hrtime(true)) - $start > 10_000_000, 'synchronous DNS can overrun scheduling deadline');
+        try { $resolver->getBefore('https://deadline.example', [], \Tablo\MonotonicTime::integer(hrtime(true)) - 1); }
         catch (HttpFailure $discardedCleanup) { unset($discardedCleanup); }
         Assert::same($resolver->resolutions, 1, 'expired deadline does not start DNS');
     }
@@ -121,11 +121,12 @@ final class HttpClientTest
     #[Test]
     public function distinguishesRefusedTlsAndTruncatedResponses(): void
     {
+        $number = 0; $message = '';
         $socket = stream_socket_server('tcp://127.0.0.1:0', $number, $message);
-        if ($socket === false) { throw new RuntimeException($message); }
-        $address = stream_socket_get_name($socket, remote: false);
+        if ($socket === false) { throw new RuntimeException(\Tablo\Tests\Support\FixtureValue::string($message)); }
+        $address = \Tablo\Tests\Support\FixtureValue::string(stream_socket_get_name($socket, remote: false));
         fclose($socket);
-        foreach ([['http://' . $address, 'refused'], [str_replace('http:', replace: 'https:', subject: $this->server->base), 'tls']] as [$url, $reason]) {
+        foreach ([['http://' . $address, 'refused'], [str_replace('http:', replace: 'https:', subject: \Tablo\Tests\Support\FixtureValue::object($this->server)->base), 'tls']] as [$url, $reason]) {
             $error = null;
             try { (new HttpClient(true))->get($url); } catch (HttpFailure $caught) { $error = $caught; }
             Assert::instanceOf($error, HttpFailure::class);
@@ -138,7 +139,7 @@ final class HttpClientTest
     private function rejects(string $path, string $reason): void
     {
         $error = null;
-        try { (new HttpClient(true))->get($this->server->base . $path); } catch (RuntimeException $caught) { $error = $caught; }
+        try { (new HttpClient(true))->get(\Tablo\Tests\Support\FixtureValue::object($this->server)->base . $path); } catch (RuntimeException $caught) { $error = $caught; }
         Assert::instanceOf($error, RuntimeException::class, 'Unsafe or stalled response refused');
         Assert::instanceOf($error, HttpFailure::class);
         Assert::same($error->reason, $reason);

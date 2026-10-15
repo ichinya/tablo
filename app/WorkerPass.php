@@ -8,10 +8,13 @@ final class WorkerPass
     private readonly SiteRepository $sites;
     private readonly WorkerStateRepository $state;
     private readonly NotificationDelivery $notifications;
+    /** @var \Closure(): GitHubConnection */
     private readonly \Closure $connection;
+    /** @var \Closure(string): void */
     private readonly \Closure $output;
     private readonly TokenVault $vault;
-    public function __construct(private readonly WorkerRuntime $runtime, private readonly HttpClient $http, private readonly \Closure $stop)
+    /** @param \Closure(): bool $stop */
+    public function __construct(WorkerRuntime $runtime, private readonly HttpClient $http, private readonly \Closure $stop)
     {
         $this->sites=$runtime->sites; $this->state=$runtime->state; $this->notifications=$runtime->notifications;
         $this->connection=$runtime->connection; $this->output=$runtime->output; $this->vault=$runtime->vault;

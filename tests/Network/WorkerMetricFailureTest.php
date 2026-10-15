@@ -63,10 +63,10 @@ default:
                 $error = null;
                 try { $worker->run(); } catch (\Throwable $caught) { $error = $caught; }
                 Assert::instanceOf($error, $kind === 'readonly' ? \PDOException::class : SharedKeyFailure::class);
-                if ($kind === 'readonly') { Assert::same($error->errorInfo[1], 8, 'real SQLITE_READONLY from nested cooldown persistence'); }
+                if ($kind === 'readonly') { Assert::same(\Tablo\Tests\Support\FixtureNative::sqliteCode(\Tablo\Tests\Support\FixtureNative::pdoException($error)), 8, 'real SQLITE_READONLY from nested cooldown persistence'); }
                 Assert::same(count(self::requests($directory)), 2, 'health plus first admitted metric; no more fields/site/pass');
-                Assert::same((int) $db->query('SELECT COUNT(*) FROM sites WHERE checked_at IS NOT NULL')->fetchColumn(), 0);
-                Assert::same((int) $db->query('SELECT COUNT(*) FROM worker_progress')->fetchColumn(), 0);
+                Assert::same((int) \Tablo\SqlStatement::checked($db->query('SELECT COUNT(*) FROM sites WHERE checked_at IS NOT NULL'))->fetchColumn(), 0);
+                Assert::same((int) \Tablo\SqlStatement::checked($db->query('SELECT COUNT(*) FROM worker_progress'))->fetchColumn(), 0);
                 $lock = new WorkerLock(); Assert::true($lock->acquire($db)); $lock->close();
             } finally { unset($caught, $error, $lock, $worker, $http, $sites, $db); $server?->close(); $directory->close(); }
         }

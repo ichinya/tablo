@@ -60,8 +60,8 @@ final class GitHubKeyCustodyTest extends GitHubKeyFixtureCase
                 Assert::same(hash_file('sha256', $key), $keyHash);
                 $db = Database::connect($path);
                 $vault = new TokenVault($key);
-                $encrypted = $kind === 'saved' ? $before[0][0]['encrypted_token'] : $before[1][0]['github_token'];
-                Assert::same($vault->decrypt($encrypted), $secret);
+                $encrypted = $kind === 'saved' ? \Tablo\Tests\Support\FixtureValue::at($before[0], 0)['encrypted_token'] : \Tablo\Tests\Support\FixtureValue::at($before[1], 0)['github_token'];
+                Assert::same($vault->decrypt(\Tablo\Tests\Support\FixtureValue::string($encrypted)), $secret);
                 Assert::false(str_contains($server->diagnostics(), $secret));
                 unset($vault, $db);
             }
@@ -103,10 +103,10 @@ final class GitHubKeyCustodyTest extends GitHubKeyFixtureCase
             ]);
             Assert::same($result['exit_code'], 0);
             Assert::same($result['stderr'], '');
-            $observed = json_decode($result['stdout'], associative: true, depth: 16, flags: JSON_THROW_ON_ERROR);
-            Assert::same($observed['outcome'], 'ok');
-            Assert::same($observed['scope'], $scope);
-            Assert::same($observed['core'], 1);
+            $observed = \Tablo\JsonRecord::checked(json_decode($result['stdout'], associative: true, depth: 16, flags: JSON_THROW_ON_ERROR));
+            Assert::same(\Tablo\Tests\Support\FixtureValue::at($observed, 'outcome'), 'ok');
+            Assert::same(\Tablo\Tests\Support\FixtureValue::at($observed, 'scope'), $scope);
+            Assert::same(\Tablo\Tests\Support\FixtureValue::at($observed, 'core'), 1);
             Assert::same(hash_file('sha256', $key), $keyHash);
             $db = Database::connect($path);
             $vault = new TokenVault($key);

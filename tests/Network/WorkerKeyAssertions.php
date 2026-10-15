@@ -16,7 +16,7 @@ case (in_array($kind, ['missing', 'live'], strict: true)):
 case ($kind === 'live-replacement'):
 
                     Assert::same(filesize($key), 32);
-                    Assert::false(hash_equals(hash_file('sha256', $key), $hash), 'changed valid-length key is never accepted');
+                    Assert::false(hash_equals(\Tablo\Tests\Support\FixtureValue::string(hash_file('sha256', $key)), $hash), 'changed valid-length key is never accepted');
 
     break;
 default:

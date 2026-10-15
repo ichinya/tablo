@@ -7,8 +7,10 @@ use PDO;
 use Tablo\TokenVault;
 use Tablo\Tests\Support\TemporaryDirectory;
 
+/** @phpstan-import-type SchemaRows from InjectedVaultFixture */
 final class InjectedVaultSeed
 {
+    /** @return array{string, string, string, string, string, string, SchemaRows} */
     public static function create(TemporaryDirectory $directory, string $selection): array
     {
                 $path = $directory->path . '/' . $selection . '.sqlite';

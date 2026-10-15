@@ -29,11 +29,11 @@ final class GitHubBudgetTest
             file_put_contents($log, data: '');
             Assert::same($web->request('/sites/1/check', ['_csrf' => $csrf])['status'], 303);
             $query = 'SELECT online,latest_release,latest_commit,open_issues,open_prs,last_error FROM sites WHERE id=1';
-            $manual = $web->database()->query($query)->fetch();
+            $manual = \Tablo\Tests\Support\FixtureValue::fetched(\Tablo\SqlRows::one(\Tablo\SqlStatement::checked($web->database()->query($query))->fetch(), CheckObservation::budget(...)));
             (new GitHubBudgetAssertions($web))->manual($manual, $log);
             file_put_contents($log, data: '');
             Assert::same($web->request('/sites/1/check', ['_csrf' => $csrf])['status'], 303);
-            Assert::same(count(file($log)), 2, 'fresh web request respects stored search cooldown');
+            Assert::same(count(\Tablo\Tests\Support\FixtureFiles::lines($log)), 2, 'fresh web request respects stored search cooldown');
             $root = dirname(__DIR__, levels: 2);
             file_put_contents($log, data: '');
             $environment = ['TABLO_DB' => $web->directory->path . '/test.sqlite', 'TABLO_ALLOW_PRIVATE_NETWORK' => '1',
@@ -44,9 +44,9 @@ final class GitHubBudgetTest
                 Assert::same($result['exit_code'], 1);
                 Assert::same($result['stderr'], '');
                 Assert::true(str_contains($result['stdout'], '1: attention'));
-                Assert::same($web->database()->query($query)->fetch(), $manual);
+                Assert::same(\Tablo\SqlStatement::checked($web->database()->query($query))->fetch(), $manual);
             }
-            Assert::same(count(file($log)), 4, 'two fresh CLI processes send only core requests');
+            Assert::same(count(\Tablo\Tests\Support\FixtureFiles::lines($log)), 4, 'two fresh CLI processes send only core requests');
             Assert::false(str_contains($web->request('/')['body'], \Tablo\Tests\Support\FixtureCredentials::value(label: 'rate-fixture-token')));
         } finally {
             $server?->close();

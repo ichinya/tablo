@@ -23,10 +23,10 @@ final class SettingsPages extends WebPage
             try { $notificationSite=IncidentQuery::integer($_GET['notification_site_id'],PHP_INT_MAX); }
             catch (\InvalidArgumentException) { return $this->render('error',['title'=>'Некорректный запрос','message'=>'Проверьте ID сайта.'],400); }
         }
-        $notice = $_SESSION['notice'] ?? '';
+        $data = ['notice' => $_SESSION['notice'] ?? ''];
         unset($_SESSION['notice']);
-        return $this->render('settings', ['title' => 'Настройки', 'tokens' => $this->tokens->all(),
-            'providers' => GitProviders::available(), 'notice' => $notice, 'errors' => $errors,
+        return $this->render('settings', $data + ['title' => 'Настройки', 'tokens' => $this->tokens->all(),
+            'providers' => GitProviders::available(), 'errors' => $errors,
             'notifications' => $this->notifications->get(),
             'notification_status' => $notificationSite===null?$this->notificationOutbox->status():$this->notificationOutbox->statusForSite($notificationSite),
             'notification_site_id' => $notificationSite,

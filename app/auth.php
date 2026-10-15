@@ -16,7 +16,7 @@ final class Auth
 
     public function needsSetup(): bool
     {
-        return !$this->db->query('SELECT 1 FROM users WHERE id = 1')->fetchColumn();
+        return !\Tablo\SqlStatement::checked($this->db->query('SELECT 1 FROM users WHERE id = 1'))->fetchColumn();
     }
 
     public function setup(#[SensitiveParameter] string $password, #[SensitiveParameter] string $confirmation): void
@@ -49,8 +49,8 @@ final class Auth
         $now = time();
         $this->db->exec('BEGIN IMMEDIATE');
         try {
-            $this->db->prepare('DELETE FROM login_limits WHERE window_start < ?')->execute([$now - 900]);
-            $statement = $this->db->prepare('SELECT failures FROM login_limits WHERE key = ?');
+            \Tablo\SqlStatement::checked($this->db->prepare('DELETE FROM login_limits WHERE window_start < ?'))->execute([$now - 900]);
+            $statement = \Tablo\SqlStatement::checked($this->db->prepare('SELECT failures FROM login_limits WHERE key = ?'));
             $statement->execute([$key]);
             $failures = (int) $statement->fetchColumn();
             $statement->closeCursor();
@@ -60,18 +60,18 @@ final class Auth
             $hash = $this->adminHash();
             $valid = is_string($hash) && !str_contains($password, "\0") && password_verify($password, $hash);
             if ($valid) {
-                $this->db->prepare('DELETE FROM login_limits WHERE key = ?')->execute([$key]);
+                \Tablo\SqlStatement::checked($this->db->prepare('DELETE FROM login_limits WHERE key = ?'))->execute([$key]);
                 if (password_needs_rehash($hash, PASSWORD_DEFAULT)) {
                     $hash = PasswordService::hash($password, $password);
                     (new AdministratorCredentialWrite($this->db))->executeCredential('UPDATE users SET password_hash = ? WHERE id = 1', [$hash]);
                 }
             }
             if (!$valid) {
-                $this->db->prepare('INSERT INTO login_limits (key, failures, window_start) VALUES (?, 1, ?)
-                    ON CONFLICT(key) DO UPDATE SET failures = failures + 1')->execute([$key, $now]);
+                \Tablo\SqlStatement::checked($this->db->prepare('INSERT INTO login_limits (key, failures, window_start) VALUES (?, 1, ?)
+                    ON CONFLICT(key) DO UPDATE SET failures = failures + 1'))->execute([$key, $now]);
             }
             $this->db->exec('COMMIT');
-            return $valid ? AdministratorFingerprint::fingerprint($hash) : null;
+            return $valid && $hash !== null ? AdministratorFingerprint::fingerprint($hash) : null;
         } catch (\Throwable $e) {
             try { $this->db->exec('ROLLBACK'); } catch (Throwable $discardedCleanup) { /* Preserve original failure. */  unset($discardedCleanup); }
             throw $e;
@@ -80,8 +80,12 @@ final class Auth
 
     private function adminHash(): ?string
     {
-        $statement = $this->db->query('SELECT password_hash FROM users WHERE id = 1');
-        try { $hash = $statement->fetchColumn(); }
+        $statement = \Tablo\SqlStatement::checked($this->db->query('SELECT password_hash FROM users WHERE id = 1'));
+        try {
+            // SQLite scalar result is still admitted by the string check below; no row remains false.
+            /** @var string|int|float|null|false $hash */
+            $hash = $statement->fetchColumn();
+        }
         finally { $statement->closeCursor(); }
         return is_string($hash) ? $hash : null;
     }

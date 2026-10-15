@@ -22,7 +22,7 @@ final class DatabaseWalHolderTest
         $probe->exec('PRAGMA busy_timeout = 0');
         $code = null;
         try { $probe->exec('BEGIN IMMEDIATE'); $probe->exec('ROLLBACK'); }
-        catch (\PDOException $error) { $code = $error->errorInfo[1] ?? null; }
+        catch (\PDOException $error) { $code = \Tablo\Tests\Support\FixtureNative::sqliteCode($error); }
         Assert::same($code, 5, 'Holder no longer owns the real SQLite writer lock');
         $holder->assertRunning();
     }

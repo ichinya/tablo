@@ -3,7 +3,8 @@ declare(strict_types=1);
 
 namespace Tablo\Tests\Support;
 
-/** Owned HTTP edge: its outbound socket and observed inbound socket are real. */
+/** Owned HTTP edge: its outbound socket and observed inbound socket are real.
+ * @phpstan-type Observation array{peer: string, xff: string, outbound_source: string, ...} */
 final class TrustedProxy
 {
     public readonly TemporaryDirectory $directory;
@@ -23,10 +24,20 @@ final class TrustedProxy
         }
     }
 
+    /** @return list<Observation> */
     public function observations(): array
     {
-        return array_map(static fn (string $line): array => json_decode($line, associative: true, flags: JSON_THROW_ON_ERROR),
-            file($this->directory->path . '/observations.jsonl', FILE_IGNORE_NEW_LINES));
+        return array_map(self::observation(...), FixtureFiles::lines($this->directory->path . '/observations.jsonl', FILE_IGNORE_NEW_LINES));
+    }
+
+    /** @return Observation */
+    public static function observation(string $line): array
+    {
+        $row = \Tablo\JsonRecord::decode($line, 512);
+        $row['peer'] = \Tablo\SqlColumn::string($row, 'peer');
+        $row['xff'] = \Tablo\SqlColumn::string($row, 'xff');
+        $row['outbound_source'] = \Tablo\SqlColumn::string($row, 'outbound_source');
+        return $row;
     }
 
     public function close(): void

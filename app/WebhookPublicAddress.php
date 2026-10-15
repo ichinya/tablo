@@ -9,6 +9,7 @@ final class WebhookPublicAddress
     {
         if (!filter_var($address,FILTER_VALIDATE_IP,FILTER_FLAG_GLOBAL_RANGE)) { return false; }
         $binary = inet_pton($address);
+        if ($binary === false || strlen($binary) < 4) { return false; }
         if (strlen($binary) === 4) {
             $first = ord($binary[0]);
             // Global filter alone admits multicast in supported PHP runtimes.

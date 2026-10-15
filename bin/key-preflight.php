@@ -9,6 +9,7 @@ set_error_handler(static function (int $severity): bool {
     throw new RuntimeException('Key preflight failed.');
 });
 try {
+    /** @var non-negative-int $argc */
     if (PHP_SAPI !== 'cli' || $argc !== 1) { exit(64); }
     require dirname(__DIR__) . '/vendor/autoload.php';
     Tablo\Database::preflightExternalKey();

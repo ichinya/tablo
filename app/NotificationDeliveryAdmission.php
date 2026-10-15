@@ -5,6 +5,7 @@ namespace Tablo;
 
 final class NotificationDeliveryAdmission
 {
+    /** @param (\Closure(): bool)|null $stop */
     public static function refuse(\PDO $db, #[\SensitiveParameter] TokenVault $vault, ?\Closure $stop): ?string
     {
             if ($db->inTransaction()) { return 'storage-busy'; }

@@ -29,7 +29,7 @@ final class DatabaseSchemaAdmissionTest
                 Assert::true(\Tablo\Tests\Support\DatabaseAssertions::errorMessage(static fn () => Database::connect($path)) !== null);
                 $db = new MigrationPdo($path);
                 Assert::same(\Tablo\Tests\Support\DatabaseAssertions::snapshot($db), $before);
-                Assert::same($db->query('PRAGMA journal_mode')->fetchColumn(), 'delete');
+                Assert::same(\Tablo\SqlStatement::checked($db->query('PRAGMA journal_mode'))->fetchColumn(), 'delete');
                 unset($db);
             }
         } finally {

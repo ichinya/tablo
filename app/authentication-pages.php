@@ -43,7 +43,9 @@ final class AuthenticationPages extends WebPage
         $app->post('/logout', new WebAction(static function () use ($web) {
             $_SESSION = [];
             session_destroy();
-            setcookie(session_name(), value: '', expires_or_options: ['expires' => time() - 3600, 'path' => '/', 'secure' => session_get_cookie_params()['secure'], 'httponly' => true, 'samesite' => 'Strict']);
+            $name = session_name();
+            if ($name === false) { throw new \RuntimeException('Session cookie unavailable.'); }
+            setcookie($name, value: '', expires_or_options: ['expires' => time() - 3600, 'path' => '/', 'secure' => session_get_cookie_params()['secure'], 'httponly' => true, 'samesite' => 'Strict']);
             return $web->redirect('/login');
         }));
     }

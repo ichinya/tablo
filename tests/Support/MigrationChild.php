@@ -3,6 +3,10 @@ declare(strict_types=1);
 namespace Tablo\Tests\Support;
 use RuntimeException;
 
+/**
+ * @phpstan-type Schedule array{entry?: string, arguments?: list<string>}
+ * @phpstan-type Receipt array{argv: list<string>, cwd: string, startedUtc: string, pid: int, endedUtc?: string, exit?: ?int, closeObserved?: bool, stdout?: array{bytes: int|false, sha256: string|false}, stderr?: array{bytes: int|false, sha256: string|false}}
+ */
 final class MigrationChild
 {
 
@@ -11,8 +15,10 @@ final class MigrationChild
     public readonly string $stderr;
     public mixed $input = null;
     public ?int $exitCode = null;
+    /** @var Receipt */
     public array $receipt;
 
+    /** @param Schedule $schedule */
     public function __construct(public readonly TemporaryDirectory $directory, public readonly string $name, string $mode, string $database,
         array $schedule = [])
     {
@@ -20,10 +26,11 @@ final class MigrationChild
         $this->stderr = $directory->path . '/' . $name . '.err';
         $command = [PHP_BINARY, '-d', 'zend.exception_ignore_args=1', $schedule['entry'] ?? dirname(__DIR__) . '/fixtures/database-process.php',
             $mode, $database, $directory->path, $name, ...($schedule['arguments'] ?? [])];
+        $pipes = [];
         $this->process = proc_open($command, [0 => ['pipe', 'r'], 1 => ['file', $this->stdout, 'w'],
             2 => ['file', $this->stderr, 'w']], $pipes, dirname(__DIR__, levels: 2), env_vars: null, options: ['bypass_shell' => true]);
         if (!is_resource($this->process)) { throw new RuntimeException('Cannot start migration process'); }
-        $this->input = $pipes[0]; // EOF lets a holder detect a vanished parent.
+        $this->input = FixturePipes::pipe($pipes, 0); // EOF lets a holder detect a vanished parent.
         $this->receipt = ['argv' => $command, 'cwd' => dirname(__DIR__, levels: 2), 'startedUtc' => gmdate('c'),
             'pid' => proc_get_status($this->process)['pid']];
     }
@@ -59,6 +66,6 @@ final class MigrationChild
     }
     public function diagnostics(): string
     {
-        return file_get_contents($this->stdout) . "\n" . file_get_contents($this->stderr);
+        return \Tablo\RequiredFile::bytes(file_get_contents($this->stdout)) . "\n" . \Tablo\RequiredFile::bytes(file_get_contents($this->stderr));
     }
 }

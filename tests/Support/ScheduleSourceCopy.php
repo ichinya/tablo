@@ -3,8 +3,16 @@ declare(strict_types=1);
 
 namespace Tablo\Tests\Support;
 
+/**
+ * @phpstan-type Additions list<array{string, string}>
+ * @phpstan-type Owners array<string, array{string, Additions}>
+ * @phpstan-type Copy array{path: string, ownerSha256: string, instrumentedSha256: string, reversedSha256: string, additions: Additions}
+ * @phpstan-type Instrumentation array{owners: array<string, Copy>, schemaSha256: string}
+ */
 final class ScheduleSourceCopy
 {
+    /** @param Additions $additions
+     * @return Copy */
     public static function write(TemporaryDirectory $directory,string $name,string $path,array $additions): array
     {
         $source = file_get_contents($path);

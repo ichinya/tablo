@@ -4,8 +4,13 @@ declare(strict_types=1);
 namespace Tablo\Tests\Support;
 
 
+/** @phpstan-import-type Rule from CheckSchema */
 final class SchemaObject
 {
+    /**
+     * @param Rule $rule
+     * @param Rule $root
+     */
     public static function matches(mixed $value, array $rule, array $root): bool
     {
         if ($value instanceof \stdClass) {

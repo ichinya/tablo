@@ -5,6 +5,7 @@ namespace Tablo;
 
 // Pinned Lekalo requires lowercase physical source paths for this contracted owner.
 // @mago-expect lint:file-name
+/** @phpstan-import-type GitCredentialRecord from SiteCredentialInput as CredentialRecord */
 final class GitHubConnection
 {
     private readonly GitHubRequestPolicy $policy;
@@ -15,9 +16,10 @@ final class GitHubConnection
         $this->policy = $policy ?? new GitHubRequestPolicy($sites->githubCooldowns());
     }
 
+    /** @param CredentialRecord|null $site */
     public function provider(#[\SensitiveParameter] ?array $site, #[\SensitiveParameter] array $input = []): GitHubProvider
     {
-        $site = SiteProjection::withoutEndpointCredential($site);
+        $site = SiteProjection::gitCredentials($site);
         $input = SiteProjection::withoutEndpointCredential($input);
         GitProviders::requireSupported($site['provider'] ?? 'github');
         $proof = (new GitCredentialResolver($this->sites, $this->worker, $this->propagateSharedFailures))->resolve($site, $input);
@@ -25,6 +27,7 @@ final class GitHubConnection
         return new GitHubProvider($this->http, $proof->token, $this->policy, new GitHubCredential($proof->revision, $proof->scope, $current->matches(...), $proof->equivalentScope));
     }
 
+    /** @param CredentialRecord|null $site */
     public function branches(#[\SensitiveParameter] array $input, #[\SensitiveParameter] ?array $site = null): array
     {
         $repository = SiteInput::normalizeRepository(is_string($input['repository'] ?? null) ? $input['repository'] : '');
@@ -36,6 +39,7 @@ final class GitHubConnection
         }
     }
 
+    /** @param CredentialRecord|null $site */
     public function validate(#[\SensitiveParameter] array $input, #[\SensitiveParameter] ?array $site = null): void
     {
         $data = SiteInput::normalize($input);

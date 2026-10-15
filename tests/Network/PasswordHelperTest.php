@@ -16,19 +16,20 @@ final class PasswordHelperTest
 {
     private static function assertMetadata(array $result, int $exit): void
     {
-        Assert::same($result['exit_code'], $exit, 'actual helper exit');
-        preg_match('/HELPER_METADATA=(.+)/', $result['stdout'], $match);
-        $metadata = json_decode($match[1] ?? '', associative: true, flags: JSON_THROW_ON_ERROR);
-        Assert::same($metadata['helperExit'], $exit, 'inner helper and wrapper exits agree');
-        Assert::true($metadata['encodingRestored'] && $metadata['codePageRestored'] && $metadata['preambleRestored']);
-        Assert::same($metadata['prompts'], 2, 'both protected prompts requested');
+        Assert::same(\Tablo\Tests\Support\FixtureValue::at($result, 'exit_code'), $exit, 'actual helper exit');
+        $match = [];
+        preg_match('/HELPER_METADATA=(.+)/', \Tablo\Tests\Support\FixtureValue::string(\Tablo\Tests\Support\FixtureValue::at($result, 'stdout')), $match);
+        $metadata = \Tablo\JsonRecord::checked(json_decode($match[1] ?? '', associative: true, flags: JSON_THROW_ON_ERROR));
+        Assert::same(\Tablo\Tests\Support\FixtureValue::at(\Tablo\JsonRecord::checked($metadata), 'helperExit'), $exit, 'inner helper and wrapper exits agree');
+        Assert::true(\Tablo\Tests\Support\FixtureJson::boolean($metadata, 'encodingRestored') && \Tablo\Tests\Support\FixtureJson::boolean($metadata, 'codePageRestored') && \Tablo\Tests\Support\FixtureJson::boolean($metadata, 'preambleRestored'));
+        Assert::same(\Tablo\Tests\Support\FixtureValue::at($metadata, 'prompts'), 2, 'both protected prompts requested');
     }
 
     #[Test]
     public function shippedHelperPreservesHostEncodingAndExactCredentials(): void
     {
         if (PHP_OS_FAMILY !== 'Windows') { throw new SkipTest('Native Windows PowerShell host required.'); }
-        $shells = [getenv('SystemRoot') . '/System32/WindowsPowerShell/v1.0/powershell.exe'];
+        $shells = [\Tablo\Tests\Support\FixtureValue::string(getenv('SystemRoot')) . '/System32/WindowsPowerShell/v1.0/powershell.exe'];
         $pwsh = getenv('TABLO_TEST_PWSH');
         if (is_string($pwsh) && $pwsh !== '') { $shells[] = $pwsh; }
         foreach ($shells as $shell) {
@@ -41,27 +42,27 @@ final class PasswordHelperTest
                     $path = $directory->path . '/fixture.sqlite';
                     $db = Database::connect($path);
                     (new Auth($db))->setup(\Tablo\Tests\Support\FixtureCredentials::value(label: 'fixture-password'), \Tablo\Tests\Support\FixtureCredentials::value(label: 'fixture-password'));
-                    $old = $db->query('SELECT password_hash FROM users')->fetchColumn();
+                    $old = \Tablo\Tests\Support\FixtureValue::string(\Tablo\SqlStatement::checked($db->query('SELECT password_hash FROM users'))->fetchColumn());
                     $db = null;
                     $command = PasswordHelperCommand::forHost($shell, $encoding, $scenario);
                     $environment = ['TABLO_DB' => $path, 'TABLO_STORAGE_DIR' => $directory->path];
                     $result = Subprocess::run(command: $command, directory: $directory, environment: $environment, options: new \Tablo\Tests\Support\CommandOptions(timeout: 20));
                     self::assertMetadata($result, $exit);
                     $db = new PDO('sqlite:' . $path);
-                    $hash = $db->query('SELECT password_hash FROM users')->fetchColumn();
+                    $hash = \Tablo\Tests\Support\FixtureValue::string(\Tablo\SqlStatement::checked($db->query('SELECT password_hash FROM users'))->fetchColumn());
                     if ($exit === 0) {
                         $password = match ($scenario) { 'min' => str_repeat('x', times: 12), 'max' => str_repeat('x', times: 72),
                             default => "  \u{0436}\u{4e2d}\u{1f642}-unicode-  " };
-                        Assert::true(password_verify($password, $hash), 'exact UTF-8 and retained spaces');
-                        Assert::true(!password_verify(\Tablo\Tests\Support\FixtureCredentials::value(label: 'fixture-password'), $hash));
+                        Assert::true(password_verify($password, \Tablo\Tests\Support\FixtureValue::string($hash)), 'exact UTF-8 and retained spaces');
+                        Assert::true(!password_verify(\Tablo\Tests\Support\FixtureCredentials::value(label: 'fixture-password'), \Tablo\Tests\Support\FixtureValue::string($hash)));
                         Assert::true(!str_contains($result['stdout'] . $result['stderr'], $password));
                         $repeat = Subprocess::run(command: $command, directory: $directory, environment: $environment, options: new \Tablo\Tests\Support\CommandOptions(timeout: 20));
                         Assert::same($repeat['exit_code'], 2, 'same-password refusal propagates');
                         self::assertMetadata($repeat, 2);
-                        Assert::true(hash_equals($hash, $db->query('SELECT password_hash FROM users')->fetchColumn()));
+                        Assert::true(hash_equals(\Tablo\Tests\Support\FixtureValue::string($hash), \Tablo\Tests\Support\FixtureValue::string(\Tablo\SqlStatement::checked($db->query('SELECT password_hash FROM users'))->fetchColumn())));
                         continue;
                     }
-                    Assert::true(hash_equals($old, $hash), 'failure retains the original credential');
+                    Assert::true(hash_equals(\Tablo\Tests\Support\FixtureValue::string($old), \Tablo\Tests\Support\FixtureValue::string($hash)), 'failure retains the original credential');
                 } finally { $db = null; $directory->close(); }
             }
         }

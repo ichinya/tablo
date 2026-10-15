@@ -11,13 +11,13 @@ final class NotificationCheckpointRebase
         // Preserve debounce/handled identities for this same logical channel, including legacy states.
         $after=0;
         do {
-            $query=$this->db->prepare('SELECT site_id,state FROM notification_checkpoints WHERE site_id>? ORDER BY site_id LIMIT 32');
-            try { $query->execute([$after]); $rows=$query->fetchAll(); } finally { $query->closeCursor(); }
+            $query=\Tablo\SqlStatement::checked($this->db->prepare('SELECT site_id,state FROM notification_checkpoints WHERE site_id>? ORDER BY site_id LIMIT 32'));
+            try { $query->execute([$after]); $rows=\Tablo\SqlRows::all($query->fetchAll(), \Tablo\SqlNotificationCheckpointsSiteIdStateRow::checked(...)); } finally { $query->closeCursor(); }
             foreach ($rows as $row) {
-                $after=$row['site_id']; $state=json_decode($row['state'],associative: true,depth: 16,flags: JSON_THROW_ON_ERROR);
+                $after=$row['site_id']; $state=NotificationCheckpointData::channel($row['state']);
                 if ($state['channel']!==$revision) { continue; }
                 $state['channel']=$revision+1;
-                $query=$this->db->prepare('UPDATE notification_checkpoints SET state=? WHERE site_id=?');
+                $query=\Tablo\SqlStatement::checked($this->db->prepare('UPDATE notification_checkpoints SET state=? WHERE site_id=?'));
                 try { $query->execute([json_encode($state,JSON_THROW_ON_ERROR),$after]); } finally { $query->closeCursor(); }
             }
         } while (count($rows)===32);

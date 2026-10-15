@@ -3,9 +3,11 @@ declare(strict_types=1);
 
 namespace Tablo;
 
+/** @phpstan-import-type GitCredentialRecord from SiteCredentialInput as CredentialRecord */
 final class SiteTokenResolver
 {
     public function __construct(private readonly GitTokenRepository $savedTokens, #[\SensitiveParameter] private readonly TokenVault $tokens) {}
+    /** @param CredentialRecord|null $site */
     public function resolveToken(#[\SensitiveParameter] array $input, #[\SensitiveParameter] ?array $site): string
     {
         $token = TokenInput::validateToken($input['github_token'] ?? '');

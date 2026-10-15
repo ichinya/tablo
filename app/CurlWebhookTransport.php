@@ -5,6 +5,10 @@ namespace Tablo;
 
 final class CurlWebhookTransport
 {
+    /**
+     * @param \Closure(string): non-empty-list<string> $addresses
+     * @param \Closure(\CurlHandle): void $configure
+     */
     public function __construct(#[\SensitiveParameter] private readonly \Closure $addresses, #[\SensitiveParameter] private readonly \Closure $configure) {}
     public function request(#[\SensitiveParameter] string $url, #[\SensitiveParameter] string $payload,
         string $eventId, #[\SensitiveParameter] string $bearer, int $deadline): int
@@ -21,6 +25,7 @@ final class CurlWebhookTransport
         $headers=['Content-Type: application/json','Accept: application/json','Idempotency-Key: '.$eventId];
         if ($bearer!=='') { $headers[]='Authorization: Bearer '.$bearer; }
         $curl=curl_init($url); $buffer = new WebhookResponseBudget();
+        if ($curl === false) { throw new WebhookFailure('network'); }
         try {
             ($this->configure)($curl);
             $options = CurlWebhookOptions::build($payload, $headers, $pin, $remaining, $buffer);

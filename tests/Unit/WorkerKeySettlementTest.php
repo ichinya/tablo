@@ -33,9 +33,9 @@ final class WorkerKeySettlementTest
             $state = new WorkerStateRepository($db, $sites);
             putenv('TABLO_TOKEN_KEY_FILE=' . $directory->path . '/unrelated-missing');
             $result = ['checked_at' => '2026-01-01T00:00:00Z', 'worker_service' => ['latest_release' => true]];
-            Assert::true($state->settle($snapshot, $result));
-            Assert::same($sites->find($id)['checked_at'], $result['checked_at']);
-            Assert::same($state->turns($id, $snapshot['config_revision'])['latest_release'], 1);
+            Assert::true($state->settle(\Tablo\Tests\Support\FixtureValue::row($snapshot), $result));
+            Assert::same(\Tablo\Tests\Support\FixtureValue::row($sites->find($id))['checked_at'], $result['checked_at']);
+            Assert::same($state->turns($id, \Tablo\Tests\Support\FixtureValue::row($snapshot)['config_revision'])['latest_release'], 1);
             Assert::false($db->inTransaction());
         } finally {
             $vault = null; $db = null; $sites = null; $state = null;
@@ -71,23 +71,23 @@ final class WorkerKeySettlementTest
                         $db->exec('UPDATE installation_settings SET check_interval_minutes = 7');
                     }
                     $caught = null;
-                    try { $state->settle($snapshot, $result); }
+                    try { $state->settle(\Tablo\Tests\Support\FixtureValue::row($snapshot), $result); }
                     catch (SharedKeyFailure $error) { $caught = $error->getMessage(); unset($error); }
                     Assert::true(is_string($caught));
                     Assert::same($db->inTransaction(), $callerTransaction);
-                    Assert::same($sites->find($id)['checked_at'], null);
-                    Assert::same((int) $db->query('SELECT count(*) FROM worker_progress')->fetchColumn(), 0);
-                    Assert::same((int) $db->query('SELECT fairness_turn FROM worker_runtime')->fetchColumn(), 0);
+                    Assert::same(\Tablo\Tests\Support\FixtureValue::row($sites->find($id))['checked_at'], null);
+                    Assert::same((int) \Tablo\SqlStatement::checked($db->query('SELECT count(*) FROM worker_progress'))->fetchColumn(), 0);
+                    Assert::same((int) \Tablo\SqlStatement::checked($db->query('SELECT fairness_turn FROM worker_runtime'))->fetchColumn(), 0);
                     if ($callerTransaction) {
-                        Assert::same((int) $db->query('SELECT check_interval_minutes FROM installation_settings')->fetchColumn(), 7);
+                        Assert::same((int) \Tablo\SqlStatement::checked($db->query('SELECT check_interval_minutes FROM installation_settings'))->fetchColumn(), 7);
                         $db->rollBack();
                     }
                 }
                 Assert::false(is_file($directory->path . '/github-token.key'));
                 file_put_contents($key, $original);
             }
-            Assert::true($state->settle($snapshot, $result));
-            Assert::same($state->turns($id, $snapshot['config_revision'])['latest_release'], 1);
+            Assert::true($state->settle(\Tablo\Tests\Support\FixtureValue::row($snapshot), $result));
+            Assert::same($state->turns($id, \Tablo\Tests\Support\FixtureValue::row($snapshot)['config_revision'])['latest_release'], 1);
         } finally {
             $vault = null; $db = null; $sites = null; $state = null;
             putenv($environment === false ? 'TABLO_TOKEN_KEY_FILE' : 'TABLO_TOKEN_KEY_FILE=' . $environment);

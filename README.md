@@ -1196,14 +1196,29 @@ Windows x64 и Linux x64 GNU. SHA-256 архива и исполняемого �
 
 `composer lint` запускает все стандартные правила для PHP **8.2** и всех PHP-файлов
 в `app`, `bin`, `public`, `tests`, `tools`; любое замечание возвращает ненулевой код.
+`composer analyze` использует тот же закреплённый Mago и тот же полный набор исходников.
+Анализатор сохраняет умеренные стандартные настройки и дополнительно проверяет
+существование индексов массивов, use-объявления, регистр имён и инициализацию свойств.
+Уровень отказа — Note; baseline и дополнительные аргументы не принимаются.
+`vendor` загружается только для типов зависимостей и не входит в проверяемые исходники.
 Runner сверяет реальный список исходников Mago с полным физическим набором,
 проверяет конфигурацию и не принимает дополнительные аргументы, меняющие область проверки.
 `composer verify` сначала отказывает при изменении явно просмотренных зависимостей,
-затем запускает lint и полный прежний набор проверок модели, lock, bindings и Testo.
+затем запускает lint, analyze и полный прежний набор проверок модели, lock, bindings и Testo.
 Проверка ничего не скачивает и не обновляет fingerprints. После просмотра изменений
 выполните явный `php tools/capture-bindings.php` и проверьте diff обоих manifests;
 `tools/reviewed-dependency-map.json` перечисляет физические зависимости без новых доменных сущностей.
 CI выполняет явную установку и ту же проверку кэшированного релиза на каждой платформе.
+
+The analyzer has three separately reviewed, counted expectations:
+`analysis:mixed-assignment(1)` on `WalAttempt`'s raw PDO observation,
+`analysis:uninitialized-property(1)` on the deliberately uninitialized trace fixture,
+and `analysis:invalid-argument(1)` on the original invalid-constructor privacy fixture.
+The PDO value stays opaque until primary failure and cursor cleanup settle; validation
+still distinguishes false, null and zero. Both negative fixtures retain their actual
+native faults and complete trace checks. Removing a marker or resolving its fault
+must produce the corresponding diagnostic or an unfulfilled expectation.
+No analyzer baseline or project-source exclusion is used.
 
 The gate retains all default rules. Its 23 reviewed, local expectations are explicit:
 one `no-ini-set` expectation on `RuntimeIni`'s checked configuration statement, and

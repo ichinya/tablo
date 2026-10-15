@@ -17,7 +17,7 @@ final class IncidentsTest
         $web = new WebFixture();
         try {
             $web->authenticate();
-            Assert::same($web->request(path: '/incidents', options: new \Tablo\Tests\Support\WebRequestOptions(cookies: (false) ? \Tablo\Tests\Support\CookiePolicy::Retained : \Tablo\Tests\Support\CookiePolicy::Omitted))['status'], 303);
+            Assert::same($web->request(path: '/incidents', options: new \Tablo\Tests\Support\WebRequestOptions(cookies: \Tablo\Tests\Support\CookiePolicy::Omitted))['status'], 303);
             $db = $web->database();
             $sites = new SiteRepository($db);
             $id = $sites->save(array_replace(F::site(), ['name' => '<img src=x onerror=alert(1)>']));
@@ -48,8 +48,10 @@ final class IncidentsTest
             Assert::false(is_file($web->directory->path . '/github-calls.log'), 'GET has zero upstream requests');
             Assert::false(is_file($web->directory->path . '/github-token.key'), 'read has no credential work');
             Assert::true(str_contains($response['body'], 'href="/incidents"'));
-            foreach (glob($web->directory->path . '/runtime/sessions/sess_*') as $session) {
-                $contents = file_get_contents($session);
+            $sessions = glob($web->directory->path . '/runtime/sessions/sess_*');
+            if ($sessions === false) { throw new \RuntimeException('Cannot enumerate owned browser sessions.'); }
+            foreach ($sessions as $session) {
+                $contents = \Tablo\RequiredFile::bytes(file_get_contents($session));
                 file_put_contents($session, preg_replace('/authenticated_at\|i:[0-9]+;/', replacement: 'authenticated_at|i:1;', subject: $contents));
             }
             $expired = $web->request('/incidents');
@@ -74,10 +76,11 @@ final class IncidentsTest
             }
             $first = $web->request('/incidents');
             Assert::same(substr_count($first['body'], needle: 'data-incident-id='), 50);
+            $match = [];
             preg_match('/href="([^\"]+)"[^>]*>Следующая страница/', $first['body'], $match);
             Assert::true(($match[1] ?? null) !== null);
             F::accept($sites, $id, 0, '2025-01-01T00:00:00Z');
-            $second = $web->request(html_entity_decode($match[1]));
+            $second = $web->request(html_entity_decode(\Tablo\Tests\Support\FixtureValue::string(\Tablo\Tests\Support\FixtureValue::at($match, 1))));
             Assert::same($second['status'], 200);
             Assert::same(substr_count($second['body'], needle: 'data-incident-id='), 2);
             Assert::false(str_contains($second['body'], 'data-incident-id="105"'));
@@ -88,7 +91,7 @@ final class IncidentsTest
             Assert::same($web->request('/incidents?site_id=999')['status'], 404);
             $filtered = $web->request('/incidents?site_id=' . $id . '&limit=1');
             preg_match('/href="([^\"]+)"[^>]*>Следующая страница/', $filtered['body'], $match);
-            $url = html_entity_decode($match[1]);
+            $url = html_entity_decode(\Tablo\Tests\Support\FixtureValue::string(\Tablo\Tests\Support\FixtureValue::at($match, 1)));
             Assert::same($web->request(str_replace('site_id=' . $id, 'site_id=' . $other, $url))['status'], 422);
             $sites->delete($id);
             Assert::same($web->request($url)['status'], 404, 'deleted filter never falls back to global');

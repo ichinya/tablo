@@ -1,14 +1,12 @@
 <?php
 declare(strict_types=1);
 
+require_once dirname(__DIR__) . '/app/RequiredFile.php';
+require_once __DIR__ . '/CaptureModel.php';
+
 // Explicit contract capture, never called by verification. Review the diff after model/code changes.
 $root = dirname(__DIR__);
-$definitions = [];
-foreach (glob($root . '/lekalo/modules/dashboard/*.yaml') as $file) {
-    foreach (json_decode(file_get_contents($file), associative: true, depth: 64, flags: JSON_THROW_ON_ERROR)['definitions'] as $definition) {
-        $definitions[$definition['id']] = $definition;
-    }
-}
+$definitions = \Tablo\Tools\CaptureModel::definitions($root);
 $mapping = [
     'change_admin_password' => ['app/auth.php', 'public function changePassword'],
     'setup' => ['app/auth.php', 'public function setupSession'],
@@ -55,38 +53,31 @@ $mapping = [
     'ack_notification' => ['app/notification-outbox.php', 'public function acknowledge'],
     'deliver_notification' => ['app/notification-delivery.php', 'public function runOne'],
 ];
-function type_name(array $type): string
-{
-    if (($type['ref'] ?? null) !== null) { return $type['ref']; }
-    foreach (['optional', 'list'] as $wrapper) {
-        if (($type[$wrapper] ?? null) !== null) { return $wrapper . '(' . type_name($type[$wrapper]) . ')'; }
-    }
-    throw new RuntimeException('Unmapped type');
-}
 $symbols = [];
 foreach ($mapping as $name => [$path, $needle]) {
-    $definition = $definitions['dashboard.' . $name];
-    $source = file_get_contents($root . '/' . $path);
+    $definition = $definitions['dashboard.' . $name] ?? throw new RuntimeException('Missing dashboard definition: ' . $name);
+    $source = \Tablo\RequiredFile::bytes(file_get_contents($root . '/' . $path));
     $offset = strpos($source, $needle);
     if ($offset === false) { throw new RuntimeException('Missing implementation: ' . $name); }
     $signature = null;
     $effects = [];
     if (in_array($definition['kind'], ['command', 'query'], strict: true)) {
-        $signature = ['inputs' => [], 'output' => (($definition['returns'] ?? null) !== null) ? type_name($definition['returns']) : null, 'reads' => $definition['reads'] ?? []];
+        $signature = ['inputs' => [], 'output' => (($definition['returns'] ?? null) !== null) ? \Tablo\Tools\CaptureModel::typeName($definition['returns']) : null, 'reads' => $definition['reads'] ?? []];
         foreach ($definition['input'] ?? [] as $input) {
-            $signature['inputs'][] = ['name' => $input['name'], 'type' => type_name($input['type']), 'required' => !(($input['type']['optional'] ?? null) !== null)];
+            $signature['inputs'][] = ['name' => $input['name'], 'type' => \Tablo\Tools\CaptureModel::typeName($input['type']), 'required' => !(($input['type']['optional'] ?? null) !== null)];
         }
         foreach ($definition['effects'] ?? [] as $id) {
-            $effect = $definitions[$id];
-            $effects[] = ['kind' => $effect['operation'], 'subject' => $effect['entity']];
+            $effect = $definitions[$id] ?? throw new RuntimeException('Missing dashboard effect: ' . $id);
+            $effects[] = ['kind' => $effect['operation'] ?? throw new RuntimeException('Missing effect operation: ' . $id),
+                'subject' => $effect['entity'] ?? throw new RuntimeException('Missing effect entity: ' . $id)];
         }
     }
     $symbol = ['id' => $definition['id'], 'kind' => $definition['kind'],
         'source' => ['path' => $path, 'line' => substr_count(substr($source, offset: 0, length: $offset), needle: "\n") + 1],
         'fingerprint' => 'sha256:' . hash('sha256', $source), 'signature' => $signature, 'effects' => $effects];
     if ($definition['kind'] === 'entity') {
-        $symbol['shape'] = ['fields' => array_map(fn (array $field) => ['name' => $field['name'],
-            'type' => type_name($field['type']), 'required' => $field['required'] ?? false], $definition['fields'])];
+        $symbol['shape'] = ['fields' => array_map(\Tablo\Tools\CaptureModel::field(...),
+            $definition['fields'] ?? throw new RuntimeException('Missing entity fields: ' . $name))];
     }
     $symbols[] = $symbol;
 }

@@ -1,10 +1,12 @@
 <?php
 declare(strict_types=1);
+require_once __DIR__ . '/Support/FixtureRequest.php';
+require_once __DIR__ . '/Support/FixtureValue.php';
 
-$path = parse_url($_SERVER['REQUEST_URI'], PHP_URL_PATH);
+$path = \Tablo\Tests\Support\FixtureRequest::path($_SERVER['REQUEST_URI']);
 $fixture = getenv('TABLO_HEALTH_FIXTURE');
 if ($fixture) {
-    file_put_contents($fixture . '/uris.jsonl', json_encode($_SERVER['REQUEST_URI']) . "\n", FILE_APPEND | LOCK_EX);
+    file_put_contents($fixture . '/uris.jsonl', \Tablo\Tests\Support\FixtureValue::string(json_encode($_SERVER['REQUEST_URI'])) . "\n", FILE_APPEND | LOCK_EX);
     if (str_starts_with($path, '/repos/') || str_starts_with($path, '/search/')) {
         require __DIR__ . '/fixtures/worker-router.php';
         return;
@@ -19,13 +21,14 @@ if ($fixture) {
         echo '<html>Exact homepage</html>';
         return;
     }
+    $joined = [];
     if (preg_match('~^(/app|/a//b|/%2Fapp/%7E)/(up|json-health|version)$~D', $path, $joined)) {
         header('Content-Type: application/json');
         switch (true) {
-case ($joined[2] === 'up'):
+case (\Tablo\Tests\Support\FixtureValue::at($joined, 2) === 'up'):
  http_response_code((int) ($_GET['status'] ?? 204)); echo '{}';
     break;
-case ($joined[2] === 'json-health'):
+case (\Tablo\Tests\Support\FixtureValue::at($joined, 2) === 'json-health'):
  echo '{"result":"ok"}';
     break;
 case (($_GET['bad'] ?? null) !== null):
@@ -38,10 +41,11 @@ default:
         return;
     }
 }
+$match = [];
 if (preg_match('~^/homepage/(200|201|204|301|302|404|500|503)$~D', $path, $match)) {
-    http_response_code((int) $match[1]);
+    http_response_code((int) \Tablo\Tests\Support\FixtureValue::at($match, 1));
     header('Content-Type: text/html');
-    if (in_array((int) $match[1], [301, 302], strict: true)) { header('Location: /up'); }
+    if (in_array((int) \Tablo\Tests\Support\FixtureValue::at($match, 1), [301, 302], strict: true)) { header('Location: /up'); }
     echo '<html><body>Fixture homepage</body></html>';
     return;
 }

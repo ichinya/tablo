@@ -2,6 +2,8 @@
 declare(strict_types=1);
 
 try {
+    /** @var non-negative-int $argc */
+    /** @var list<string> $argv */
     require dirname(__DIR__) . '/vendor/autoload.php';
     // Explicitly empty/malformed policy refuses before opening or migrating storage.
     $retention = getenv('TABLO_HISTORY_RETENTION_DAYS');

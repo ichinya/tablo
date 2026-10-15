@@ -29,8 +29,8 @@ final class DashboardPage extends WebPage
                 ++$stats['attention'];
             }
         }
-        $notice = $_SESSION['notice'] ?? '';
+        $data = ['notice' => $_SESSION['notice'] ?? ''];
         unset($_SESSION['notice']);
-        return $this->render('dashboard', ['title' => 'Обзор сайтов', 'sites' => $sites, 'stats' => $stats, 'notice' => $notice]);
+        return $this->render('dashboard', $data + ['title' => 'Обзор сайтов', 'sites' => $sites, 'stats' => $stats]);
     }
 }

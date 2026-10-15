@@ -3,8 +3,10 @@ declare(strict_types=1);
 
 namespace Tablo;
 
+/** @phpstan-import-type Layout from SchemaLayout */
 final class SchemaLineage
 {
+    /** @return Layout */
     public static function classify(\PDO $db): array
     {
         $version = SchemaVersion::schemaVersion($db);

@@ -13,7 +13,9 @@ final class EndpointHost
             if (filter_var($address, FILTER_VALIDATE_IP, FILTER_FLAG_IPV6) === false) { throw new HttpFailure('invalid-url'); }
             $binary = inet_pton($address);
             if ($binary === false || strlen($binary) !== 16) { throw new HttpFailure('invalid-url'); }
-            return '[' . inet_ntop($binary) . ']';
+            $canonical = inet_ntop($binary);
+            if ($canonical === false) { throw new HttpFailure('invalid-url'); }
+            return '[' . $canonical . ']';
         }
         if (!filter_var($host, FILTER_VALIDATE_IP, FILTER_FLAG_IPV4)) {
             // Reject alternate numeric spellings rather than letting cURL interpret them.

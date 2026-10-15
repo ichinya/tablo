@@ -29,6 +29,11 @@ final class GitHubCredentialTest
     #[Test]
     public function privateQuotaIdentityPreservesCiphertextAndDefaultAndExternalKeys(): void
     {
+        if (getenv('TABLO_TEST_ISOLATED_TRACE') !== __FUNCTION__) {
+            \Tablo\Tests\Support\TraceTestIsolation::nativeCase(__FILE__, __FUNCTION__,
+                dirname(__DIR__) . '/fixtures/github-credential-native-case.php', minimumAssertions: 23);
+            return;
+        }
         $directory = new TemporaryDirectory('tablo-github-private-');
         try {
             $db = Database::connect($directory->path . '/test.sqlite');
@@ -43,22 +48,31 @@ final class GitHubCredentialTest
                 Assert::same($vault->credentialScope('low-entropy-fixture'), $scope);
                 Assert::false(hash_equals($scope, $vault->credentialScope('different-fixture')));
             }
-            $defaultKey = file_get_contents($directory->path . '/github-token.key');
-            $externalKey = file_get_contents($directory->path . '/external.key');
+            $defaultKey = \Tablo\RequiredFile::bytes(file_get_contents($directory->path . '/github-token.key'));
+            $externalKey = \Tablo\RequiredFile::bytes(file_get_contents($directory->path . '/external.key'));
             Assert::same((new TokenVault($directory->path . '/external.key'))->credentialScope('low-entropy-fixture'), $scope);
             Assert::false(hash_equals(TokenVault::forDatabase($db)->credentialScope('low-entropy-fixture'), $scope));
-            Assert::true(hash_equals($defaultKey, file_get_contents($directory->path . '/github-token.key')));
-            Assert::true(hash_equals($externalKey, file_get_contents($directory->path . '/external.key')));
+            Assert::true(hash_equals($defaultKey, \Tablo\RequiredFile::bytes(file_get_contents($directory->path . '/github-token.key'))));
+            Assert::true(hash_equals($externalKey, \Tablo\RequiredFile::bytes(file_get_contents($directory->path . '/external.key'))));
             file_put_contents($directory->path . '/external.key', data: 'corrupt-fixture');
             $failure = null;
             try { $vault->credentialScope('private-fixture'); } catch (\RuntimeException $caught) { $failure = $caught; }
             Assert::instanceOf($failure, \RuntimeException::class);
             Assert::same(file_get_contents($directory->path . '/external.key'), 'corrupt-fixture');
-            Assert::false(str_contains($failure->getMessage() . json_encode($failure->getTrace()), 'private-fixture'));
+            self::privateTrace($failure);
         } finally {
             unset($db, $vault);
             $directory->close();
         }
+    }
+
+    private static function privateTrace(\Throwable $failure): void
+    {
+        $encodedTrace = json_encode($failure->getTrace());
+        Assert::false(str_contains($failure->getMessage() . (string) $encodedTrace, 'private-fixture'));
+        $privacy = \Tablo\Tests\Support\TraceInspector::inspect($failure, ['private-fixture']);
+        Assert::same($privacy['leaked'], false);
+        Assert::true($privacy['complete'], json_encode($privacy['opaque'], JSON_THROW_ON_ERROR));
     }
 
     #[Test]
@@ -126,7 +140,7 @@ final class GitHubCredentialTest
             };
             $provider = (new GitHubConnection($sites, $loading))->provider($snapshot);
             self::changed(static fn () => $provider->getLatestRelease('example/project'));
-            Assert::false($sites->storeCheck($snapshot, ['latest_release' => 'obsolete-private']));
+            Assert::false($sites->storeCheck(\Tablo\Tests\Support\FixtureValue::row($snapshot), ['latest_release' => 'obsolete-private']));
             Assert::same($connection->provider($sites->find($id))->getLatestRelease('example/project'), 'public');
             Assert::same(count($http->requests), 2);
         } finally {

@@ -5,6 +5,7 @@ namespace Tablo;
 
 final class PublicAddressRanges
 {
+    /** @return list<string>|null */
     public static function ranges(#[\SensitiveParameter] string $binary): ?array
     {
         if (strlen($binary) === 4) {

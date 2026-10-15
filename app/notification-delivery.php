@@ -14,6 +14,10 @@ final class NotificationDelivery
         private readonly ?WebhookSupervisor $supervisor=null) { $this->vault=$vault??TokenVault::forDatabase($db); }
 
     // Independent failure isolation; one unlocked network attempt after accepted commits.
+    /**
+     * @param (\Closure(): bool)|null $stop
+     * @return array{code: string, http_status?: ?int, elapsed_ms?: int}
+     */
     public function runOne(?\Closure $stop=null, ?int $now=null): array
     {
         $lock=new NotificationLock(); $claim=false; $outbox=new NotificationOutbox($this->db);
@@ -32,7 +36,7 @@ final class NotificationDelivery
             }
             try { if (!$outbox->acknowledge($claim,$result,$now??time())) { return ['code'=>'stale-ack']; } }
             catch (\Throwable) { return ['code'=>'ack-storage']; }
-            return array_intersect_key($result,array_flip(['code','http_status','elapsed_ms']));
+            return NotificationResult::publicFields($result);
         } catch (\Throwable) {
             // No notification error changes an accepted check, or reruns site work.
             if ($claim!==false) {

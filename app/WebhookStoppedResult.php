@@ -5,6 +5,7 @@ namespace Tablo;
 
 final class WebhookStoppedResult
 {
+    /** @return array{code: string, stopped: bool, elapsed_ms: int, child_exit?: int, signaled?: bool, termsig?: int} */
     public static function finish(WebhookProcess $child,string $code,int $started): array
     {
         $child->status=OwnedWebhookStop::stopOwned($child->process);

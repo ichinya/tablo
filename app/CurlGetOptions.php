@@ -5,6 +5,11 @@ namespace Tablo;
 
 final class CurlGetOptions
 {
+    /**
+     * @param list<string> $headers
+     * @param list<string> $resolve
+     * @param array{path?: string, query?: string, ...}|null $parts
+     */
     public static function build(#[\SensitiveParameter] array $headers, array $resolve, int $remainingMs, HttpResponseBuffer $buffer, #[\SensitiveParameter] ?array $parts): array
     {
             $options = [
@@ -25,7 +30,7 @@ final class CurlGetOptions
             if ($parts !== null) {
                 // EndpointTarget already validated and canonicalized this URL.
                 // libcurl otherwise drops an explicitly empty query delimiter.
-                $options[CURLOPT_REQUEST_TARGET] = $parts['path']
+                $options[CURLOPT_REQUEST_TARGET] = ($parts['path'] ?? '/')
                     . (array_key_exists('query', $parts) ? '?' . $parts['query'] : '');
             }
         return $options;

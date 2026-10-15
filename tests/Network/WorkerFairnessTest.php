@@ -41,7 +41,7 @@ final class WorkerFairnessTest
             $worker = new PeriodicWorker($db, $http, hooks: new \Tablo\WorkerHooks(connection: static fn (): GitHubConnection => new GitHubConnection($sites, $http, $policy), output: static function (): void {}));
             $worker->runPass();
             Assert::same(count(array_filter($http->calls, static fn (string $path): bool => str_starts_with($path, '/repos/fixture/core-limited/'))), 1);
-            foreach ([2,3] as $id) { Assert::same($sites->find($id)['latest_release'], 'v1'); }
+            foreach ([2,3] as $id) { Assert::same(\Tablo\Tests\Support\FixtureValue::row($sites->find($id))['latest_release'], 'v1'); }
             $turns = (new WorkerStateRepository($db))->turns(1, 0);
             Assert::true($turns['latest_release'] > 0);
             Assert::same($turns['latest_commit'], 0, 'pre-admission primary cooldown earns no credit');

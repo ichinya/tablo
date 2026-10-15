@@ -5,14 +5,18 @@ namespace Tablo\Tests\Support;
 
 use Throwable;
 
+/** @phpstan-type Result array{exit_code: ?int, stdout: string, stderr: string, files: array{stdout: string, stderr: string, receipt: string}} */
 final class Subprocess
 {
     private readonly SubprocessState $state;
+    /** @param list<string> $command */
     public function __construct(array $command, TemporaryDirectory $directory, array $environment = [], #[\SensitiveParameter] ?CommandOptions $options = null)
     {
         $this->state = new SubprocessState($directory, ($options ?? new CommandOptions())->stderr);
         SubprocessLaunch::launch($this->state, $command, $environment, $options?->cwd);
     }
+    /** @param list<string> $command
+     * @return Result */
     public static function run(array $command, TemporaryDirectory $directory, array $environment, #[\SensitiveParameter] ?CommandOptions $options = null): array
     {
         $options ??= new CommandOptions();
@@ -30,6 +34,7 @@ final class Subprocess
     { SubprocessInput::input($this->state, $input); }
     public function awaitOutput(string $marker, float $timeout = 5): void
     { SubprocessSelection::waitForOutput($this->state, $marker, $timeout); }
+    /** @return Result */
     public function finish(float $timeout = 8): array
     { return SubprocessCompletion::finish($this->state, $timeout); }
     public function close(?Throwable $primary = null): void

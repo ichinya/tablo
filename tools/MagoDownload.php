@@ -5,8 +5,10 @@ namespace Tablo\Tools;
 
 use RuntimeException;
 
+/** @phpstan-import-type Pin from MagoPin */
 final class MagoDownload
 {
+    /** @param Pin $pin */
     public static function archive(array $pin): void
     {
         $file = fopen($pin['archive_path'], mode: 'x+b');
@@ -23,7 +25,7 @@ final class MagoDownload
             }
             if (!fflush($file)) { throw new RuntimeException('Cannot flush Mago archive.'); }
         } finally {
-            if ($curl !== false) { curl_close($curl); }
+            unset($curl);
             fclose($file);
         }
         MagoPin::digest($pin['archive_path'], $pin['archive_sha256']);

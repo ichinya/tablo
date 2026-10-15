@@ -7,17 +7,20 @@ use PDO;
 
 // Pinned Lekalo requires lowercase physical source paths for this contracted owner.
 // @mago-expect lint:file-name
+/**
+ * @phpstan-import-type SiteRecord from SiteRow
+ * @phpstan-import-type Config from SiteCheckWriter
+ */
 final class SiteRepository extends SiteCredentialAccess
 {
     private readonly TokenVault $tokens;
-    private readonly GitTokenRepository $savedTokens;
     private readonly SiteCheckWriter $writes;
 
+    /** @param (\Closure(): int)|null $notificationClock */
     public function __construct(private readonly PDO $db, #[\SensitiveParameter] ?TokenVault $tokens = null,
         private readonly ?\Closure $notificationClock = null)
     {
         $this->tokens = $tokens ?? TokenVault::forDatabase($db);
-        $this->savedTokens = new GitTokenRepository($db, $this->tokens);
         $this->writes = new SiteCheckWriter($db);
         parent::__construct($db, $this->tokens);
     }
@@ -30,28 +33,39 @@ final class SiteRepository extends SiteCredentialAccess
 
 
 
+    /** @return list<SiteRecord> */
     public function all(): array
     {
-        return $this->db->query('SELECT s.*, t.encrypted_token AS selected_token_snapshot
-            FROM sites s LEFT JOIN git_tokens t ON t.id = s.git_token_id ORDER BY s.sort_order, s.id')->fetchAll();
+        $statement = SqlStatement::checked($this->db->query('SELECT s.*, t.encrypted_token AS selected_token_snapshot
+            FROM sites s LEFT JOIN git_tokens t ON t.id = s.git_token_id ORDER BY s.sort_order, s.id'));
+        try { return SiteRow::rows($statement->fetchAll()); }
+        finally { $statement->closeCursor(); }
     }
 
 
 
+    /** @return array<array-key, int>|list<int> */
     public function enabledIds(): array
     {
-        $statement = $this->db->query('SELECT id FROM sites WHERE enabled = 1 ORDER BY sort_order, id');
+        $statement = \Tablo\SqlStatement::checked($this->db->query('SELECT id FROM sites WHERE enabled = 1 ORDER BY sort_order, id'));
         try { return array_map('intval', $statement->fetchAll(PDO::FETCH_COLUMN)); }
         finally { $statement->closeCursor(); }
     }
 
+    /** @return SiteRecord|null */
     public function find(int $id): ?array
     {
-        $statement = $this->db->prepare('SELECT s.*, t.encrypted_token AS selected_token_snapshot
-            FROM sites s LEFT JOIN git_tokens t ON t.id = s.git_token_id WHERE s.id = ?');
+        $statement = \Tablo\SqlStatement::checked($this->db->prepare('SELECT s.*, t.encrypted_token AS selected_token_snapshot
+            FROM sites s LEFT JOIN git_tokens t ON t.id = s.git_token_id WHERE s.id = ?'));
         $statement->execute([$id]);
-        $row = $statement->fetch();
-        return $row ? $row : null;
+        try {
+            // Native row acquisition for this SELECT yields an array or the distinct no-row false.
+            /** @var array|false $row */
+            $row = $statement->fetch();
+        }
+        finally { $statement->closeCursor(); }
+        if (!$row) { return null; }
+        return SiteRow::checked($row);
     }
 
 
@@ -119,15 +133,17 @@ final class SiteRepository extends SiteCredentialAccess
 
     public function delete(int $id): void
     {
-        $this->db->prepare('DELETE FROM sites WHERE id = ?')->execute([$id]);
+        \Tablo\SqlStatement::checked($this->db->prepare('DELETE FROM sites WHERE id = ?'))->execute([$id]);
     }
 
+    /** @param Config $site */
     public function storeCheck(#[\SensitiveParameter] array $site, array $state): bool
     {
         return (new SiteResultSettlement($this->db,$this->tokens,$this->writes,$this->notificationClock))->persistCheck($site,$state,SettlementKind::Manual);
     }
 
     // Worker settlement delegates here; neither entry point can bypass transaction ownership.
+    /** @param Config $site */
     public function settleWorkerCheck(#[\SensitiveParameter] array $site, array $state): bool
     {
         return (new SiteResultSettlement($this->db,$this->tokens,$this->writes,$this->notificationClock))->persistCheck($site,$state,SettlementKind::Worker);

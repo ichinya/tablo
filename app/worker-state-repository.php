@@ -7,6 +7,7 @@ use PDO;
 
 // Pinned Lekalo requires lowercase physical source paths for this contracted owner.
 // @mago-expect lint:file-name
+/** @phpstan-import-type Config from SiteCheckWriter */
 final class WorkerStateRepository
 {
     public const FIELDS = ['latest_release', 'latest_commit', 'open_issues', 'open_prs'];
@@ -20,7 +21,7 @@ final class WorkerStateRepository
     public function begin(): string
     {
         $generation = bin2hex(random_bytes(16));
-        $statement = $this->db->prepare('UPDATE worker_runtime SET run_id = ?, stop_requested = 0 WHERE id = 1');
+        $statement = \Tablo\SqlStatement::checked($this->db->prepare('UPDATE worker_runtime SET run_id = ?, stop_requested = 0 WHERE id = 1'));
         $statement->execute([$generation]);
         if ($statement->rowCount() !== 1) { throw new \RuntimeException('Invalid worker control state.'); }
         return $generation;
@@ -28,42 +29,53 @@ final class WorkerStateRepository
 
     public function generation(): ?string
     {
-        $statement = $this->db->query('SELECT run_id FROM worker_runtime WHERE id = 1');
-        try { $generation = $statement->fetchColumn(); return $generation ? $generation : null; }
+        $statement = \Tablo\SqlStatement::checked($this->db->query('SELECT run_id FROM worker_runtime WHERE id = 1'));
+        try {
+            /** @var string|null|false $generation */
+            $generation = $statement->fetchColumn();
+            return $generation ? $generation : null;
+        }
         finally { $statement->closeCursor(); }
     }
 
     public function requestStop(string $observed_generation): bool
     {
-        $statement = $this->db->prepare('UPDATE worker_runtime SET stop_requested = 1 WHERE id = 1 AND run_id = ?');
+        $statement = \Tablo\SqlStatement::checked($this->db->prepare('UPDATE worker_runtime SET stop_requested = 1 WHERE id = 1 AND run_id = ?'));
         $statement->execute([$observed_generation]);
         return $statement->rowCount() === 1;
     }
 
     public function stopping(string $generation): bool
     {
-        $statement = $this->db->prepare('SELECT stop_requested FROM worker_runtime WHERE id = 1 AND run_id = ?');
+        $statement = \Tablo\SqlStatement::checked($this->db->prepare('SELECT stop_requested FROM worker_runtime WHERE id = 1 AND run_id = ?'));
         $statement->execute([$generation]);
-        try { $value = $statement->fetchColumn(); }
+        try {
+            /** @var int|false $value */
+            $value = $statement->fetchColumn();
+        }
         finally { $statement->closeCursor(); }
-        return $value === false || (int) $value === 1;
+        return $value === false || $value === 1;
     }
 
     public function finish(string $generation): void
     {
-        $this->db->prepare('UPDATE worker_runtime SET run_id = NULL, stop_requested = 0 WHERE id = 1 AND run_id = ?')->execute([$generation]);
+        \Tablo\SqlStatement::checked($this->db->prepare('UPDATE worker_runtime SET run_id = NULL, stop_requested = 0 WHERE id = 1 AND run_id = ?'))->execute([$generation]);
     }
 
+    /** @return array{latest_release: int, latest_commit: int, open_issues: int, open_prs: int} */
     public function turns(int $id, int $revision): array
     {
-        $statement = $this->db->prepare('SELECT * FROM worker_progress WHERE site_id = ? AND config_revision = ?');
+        $statement = \Tablo\SqlStatement::checked($this->db->prepare('SELECT * FROM worker_progress WHERE site_id = ? AND config_revision = ?'));
         $statement->execute([$id, $revision]);
-        try { $row = $statement->fetch(); }
+        try { $row = \Tablo\SqlRows::one($statement->fetch(), \Tablo\SqlWorkerProgressRow::checked(...)); }
         finally { $statement->closeCursor(); }
-        return array_intersect_key($row ? $row : array_fill_keys(self::FIELDS, value: 0), array_flip(self::FIELDS));
+        if ($row === false) { return ['latest_release' => 0, 'latest_commit' => 0, 'open_issues' => 0, 'open_prs' => 0]; }
+        return ['latest_release' => $row['latest_release'], 'latest_commit' => $row['latest_commit'],
+            'open_issues' => $row['open_issues'], 'open_prs' => $row['open_prs']];
     }
 
     // SiteRepository owns the shared post-network result/history/credit transaction.
+    /** @param Config $site */
     public function settle(#[\SensitiveParameter] array $site, array $result): bool
     {
         // Preserve external-key pass lifetime and actual history/incident/credit transaction owner.

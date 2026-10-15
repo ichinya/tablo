@@ -36,8 +36,8 @@ final class WorkerSharedFailureTest extends WorkerFailureFixtureCase
             Assert::same($result['stderr'], self::FAILURE);
             Assert::false(str_contains($result['stdout'], 'Worker pass complete.'));
             Assert::same(self::requests($directory), ['/up'], 'one actual health request; no next site/pass');
-            Assert::same((int) $db->query('SELECT COUNT(*) FROM sites WHERE checked_at IS NOT NULL')->fetchColumn(), 0);
-            Assert::same((int) $db->query('SELECT COUNT(*) FROM worker_progress')->fetchColumn(), 0);
+            Assert::same((int) \Tablo\SqlStatement::checked($db->query('SELECT COUNT(*) FROM sites WHERE checked_at IS NOT NULL'))->fetchColumn(), 0);
+            Assert::same((int) \Tablo\SqlStatement::checked($db->query('SELECT COUNT(*) FROM worker_progress'))->fetchColumn(), 0);
             $lock = new WorkerLock();
             Assert::true($lock->acquire($db), 'OS successor acquisition after exit1 despite failed finish');
             $lock->close();

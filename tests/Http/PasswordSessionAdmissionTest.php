@@ -32,15 +32,15 @@ final class PasswordSessionAdmissionTest extends PasswordHttpFixtureCase
                 $csrf = WebFixture::csrf($web->request('/'));
             }
             $file = self::sessionFile($web);
-            $contents = file_get_contents($file);
+            $contents = \Tablo\RequiredFile::bytes(file_get_contents($file));
             file_put_contents($file, preg_replace('/authenticated_at\|i:\d+;/', 'authenticated_at|i:' . (time() - 43_201) . ';', $contents));
             Assert::same($web->request('/')['status'], 303);
-            Assert::true(!str_contains(file_get_contents(self::sessionFile($web)), 'auth_fingerprint'));
+            Assert::true(!str_contains(\Tablo\RequiredFile::bytes(file_get_contents(self::sessionFile($web))), 'auth_fingerprint'));
             Assert::same(self::login($web, \Tablo\Tests\Support\FixtureCredentials::value(label: 'fixture-password'))['status'], 303);
             $csrf = WebFixture::csrf($web->request('/'));
             Assert::same($web->request('/logout', ['_csrf' => $csrf])['status'], 303);
             Assert::same($web->request('/')['status'], 303);
-            Assert::true(!str_contains(file_get_contents(self::sessionFile($web)), 'auth_fingerprint'));
+            Assert::true(!str_contains(\Tablo\RequiredFile::bytes(file_get_contents(self::sessionFile($web))), 'auth_fingerprint'));
         } finally { $web->close(); }
     }
 }

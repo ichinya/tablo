@@ -65,16 +65,16 @@ final class JsonConfigurationTest extends JsonCheckFixtureCase
                 'health_json_operator' => '==', 'health_json_expected_value' => ' ok ', 'version_json_path' => '$.build.version']);
             $id = $sites->save($input);
             foreach (['health_check_mode', 'health_json_path', 'health_json_operator', 'health_json_expected_value', 'version_json_path'] as $field) {
-                Assert::same($sites->find($id)[$field], $input[$field], 'stored ' . $field);
-                Assert::same($sites->all()[0][$field], $input[$field], 'listed ' . $field);
+                Assert::same(\Tablo\Tests\Support\FixtureValue::at(\Tablo\Tests\Support\FixtureValue::row($sites->find($id)), $field), \Tablo\Tests\Support\FixtureValue::at($input, $field), 'stored ' . $field);
+                Assert::same(\Tablo\Tests\Support\FixtureValue::at(\Tablo\Tests\Support\FixtureValue::at($sites->all(), 0), $field), \Tablo\Tests\Support\FixtureValue::at($input, $field), 'listed ' . $field);
             }
             foreach (['health_check_mode' => 'http', 'health_json_path' => '$.other', 'health_json_operator' => '!=',
                 'health_json_expected_value' => 'different', 'version_json_path' => '$.other.version'] as $field => $value) {
                 $sites->save($input, $id);
                 $snapshot = $sites->find($id);
                 $sites->save(array_replace($input, [$field => $value]), $id);
-                Assert::same($sites->storeCheck($snapshot, ['online' => 1]), false, 'stale ' . $field);
-                Assert::same($sites->storeCheck($sites->find($id), ['online' => 1, 'checked_at' => '2026-01-01T00:00:00Z']), true, 'fresh ' . $field);
+                Assert::same($sites->storeCheck(\Tablo\Tests\Support\FixtureValue::row($snapshot), ['online' => 1]), false, 'stale ' . $field);
+                Assert::same($sites->storeCheck(\Tablo\Tests\Support\FixtureValue::row($sites->find($id)), ['online' => 1, 'checked_at' => '2026-01-01T00:00:00Z']), true, 'fresh ' . $field);
             }
         } finally {
             unset($sites, $db);
@@ -91,16 +91,16 @@ final class JsonConfigurationTest extends JsonCheckFixtureCase
         try {
             $path = $temporary->path . '/test.sqlite';
             $old = new PDO('sqlite:' . $path, null, null, [PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION]);
-            $schema = file_get_contents(dirname(__DIR__, levels: 2) . '/database/schema.sql');
-            $old->exec(preg_replace('/^\s*(?:version_json_path|health_check_mode|health_json_path|health_json_operator|health_json_expected_value) TEXT.*\R/m', replacement: '', subject: $schema));
+            $schema = \Tablo\RequiredFile::bytes(file_get_contents(dirname(__DIR__, levels: 2) . '/database/schema.sql'));
+            $old->exec(\Tablo\Tests\Support\FixtureValue::string(preg_replace('/^\s*(?:version_json_path|health_check_mode|health_json_path|health_json_operator|health_json_expected_value) TEXT.*\R/m', replacement: '', subject: $schema)));
             (new Auth($old))->setup(\Tablo\Tests\Support\FixtureCredentials::value(label: 'fixture-password'), \Tablo\Tests\Support\FixtureCredentials::value(label: 'fixture-password'));
-            $hash = $old->query('SELECT password_hash FROM users')->fetchColumn();
+            $hash = \Tablo\Tests\Support\FixtureValue::string(\Tablo\SqlStatement::checked($old->query('SELECT password_hash FROM users'))->fetchColumn());
             $vault = new TokenVault($temporary->path . '/key');
             $cipher = $vault->encrypt(\Tablo\Tests\Support\FixtureCredentials::value(label: 'fixture-token'));
             $tokens = new GitTokenRepository($old, $vault);
             $token = $tokens->save(['name' => 'Fixture', 'provider' => 'github', 'token' => \Tablo\Tests\Support\FixtureCredentials::value(label: 'shared-fixture-token')]);
-            $old->prepare("INSERT INTO sites (name,url,repository,health_path,version_path,github_token) VALUES ('Legacy','https://example.com','fixture/public','/up','/version',?)")->execute([$cipher]);
-            $old->prepare("INSERT INTO sites (name,url,repository,git_token_id) VALUES ('Shared','https://example.com','fixture/public',?)")->execute([$token]);
+            \Tablo\SqlStatement::checked($old->prepare("INSERT INTO sites (name,url,repository,health_path,version_path,github_token) VALUES ('Legacy','https://example.com','fixture/public','/up','/version',?)"))->execute([$cipher]);
+            \Tablo\SqlStatement::checked($old->prepare("INSERT INTO sites (name,url,repository,git_token_id) VALUES ('Shared','https://example.com','fixture/public',?)"))->execute([$token]);
             $keyHash = hash_file('sha256', $temporary->path . '/key');
             unset($tokens, $old);
             $db = Database::connect($path);
@@ -111,14 +111,14 @@ final class JsonConfigurationTest extends JsonCheckFixtureCase
                 Assert::same($site['health_check_mode'], 'http');
                 Assert::same($site['health_json_operator'], '==');
                 foreach (['health_json_path', 'health_json_expected_value', 'version_json_path'] as $field) {
-                    Assert::same($site[$field], '');
+                    Assert::same(\Tablo\Tests\Support\FixtureValue::at($site, $field), '');
                 }
             }
-            Assert::same($sites->find(1)['version_path'], '/version');
-            Assert::same($sites->find(1)['github_token'], $cipher);
+            Assert::same(\Tablo\Tests\Support\FixtureValue::row($sites->find(1))['version_path'], '/version');
+            Assert::same(\Tablo\Tests\Support\FixtureValue::row($sites->find(1))['github_token'], $cipher);
             Assert::same($sites->tokenFor($sites->find(1)), \Tablo\Tests\Support\FixtureCredentials::value(label: 'fixture-token'));
             Assert::same($sites->tokenFor($sites->find(2)), \Tablo\Tests\Support\FixtureCredentials::value(label: 'shared-fixture-token'));
-            Assert::same($db->query('SELECT password_hash FROM users')->fetchColumn(), $hash);
+            Assert::same(\Tablo\SqlStatement::checked($db->query('SELECT password_hash FROM users'))->fetchColumn(), $hash);
             Assert::same(hash_file('sha256', $temporary->path . '/key'), $keyHash);
         } finally {
             unset($old, $tokens, $sites, $db, $vault);

@@ -38,6 +38,6 @@ final class SiteCheckerTest
         $http = new FakeHttp([UnitFixtures::response(), UnitFixtures::response(200, 'not json')]);
         $state = (new SiteChecker($http, $provider))->check(SiteInput::normalize($sample));
         Assert::true($state['online'] === 1 && $state['latest_release'] === null && $state['deployed_version'] === null, 'partial outcome fabricated');
-        Assert::true($state['open_issues'] === 4 && str_contains($state['last_error'], 'rate limit'), 'partial metadata lost');
+        Assert::true($state['open_issues'] === 4 && str_contains(\Tablo\Tests\Support\FixtureValue::string($state['last_error']), 'rate limit'), 'partial metadata lost');
     }
 }

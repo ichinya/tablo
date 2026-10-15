@@ -32,35 +32,42 @@ if ($target === '/_tablo/health' || str_starts_with($target, '/_tablo/health?') 
     http_response_code(503);
     $headers = headers_list();
     $initialDepth = ob_get_level();
-    $outputDetected = false;
-    $closedEarly = false;
-    $cleaning = false;
-    $deferredResponse = false;
-    // Suppress flushed chunks too; never consume a buffer belonging to the caller.
-    ob_start(static function (string $chunk, int $phase) use (&$outputDetected, &$closedEarly, &$cleaning, &$deferredResponse): string {
-        $outputDetected = $outputDetected || $chunk !== '';
-        if (($phase & PHP_OUTPUT_HANDLER_FINAL) !== 0) {
-            $closedEarly = !$cleaning;
-            return $deferredResponse ? "unavailable\n" : '';
+    // The output handler and the owner share this one live capture state.
+    $captureState = new class {
+        public bool $outputDetected = false;
+        public bool $closedEarly = false;
+        public bool $cleaning = false;
+        public bool $deferredResponse = false;
+
+        public function consume(#[\SensitiveParameter] string $chunk, ?int $phase): string
+        {
+            $this->outputDetected = $this->outputDetected || $chunk !== '';
+            if ((($phase ?? 0) & PHP_OUTPUT_HANDLER_FINAL) !== 0) {
+                $this->closedEarly = !$this->cleaning;
+                return $this->deferredResponse ? "unavailable\n" : '';
+            }
+            return '';
         }
-        return '';
-    }, chunk_size: 4096);
+    };
+    // Suppress flushed chunks too; never consume a buffer belonging to the caller.
+    ob_start($captureState->consume(...), chunk_size: 4096);
     try {
         require dirname(__DIR__) . '/vendor/autoload.php';
         $available = Tablo\ContainerHealth::available();
     } catch (Throwable $discardedCleanup) {
         // No exception paths, configuration or secrets in HTTP or health logs.
      unset($discardedCleanup); }
-    $cleaning = true;
+    $captureState->cleaning = true;
     // Bound cleanup even if a dependency creates many or non-removable buffers.
     for ($discarded = 0; ob_get_level() > $initialDepth && $discarded < 32; ++$discarded) {
-        $outputDetected = $outputDetected || ob_get_length() > 0;
+        $length = ob_get_length();
+        $captureState->outputDetected = $captureState->outputDetected || ($length !== false && $length > 0);
         $status = ob_get_status();
         if (($status['flags'] & PHP_OUTPUT_HANDLER_REMOVABLE) === 0) { break; }
         try { if (!ob_end_clean()) { break; } }
         catch (Throwable) { $available = false; break; }
     }
-    $available = $available && !$outputDetected && !$closedEarly
+    $available = $available && !$captureState->outputDetected && !$captureState->closedEarly
         && ob_get_level() === $initialDepth && headers_list() === $headers && http_response_code() === 503;
     // Apache transport headers are server-owned; remove only PHP's queued headers.
     // Already-sent headers / deliberate transport flush / process exit cannot be undone here.
@@ -72,7 +79,7 @@ if ($target === '/_tablo/health' || str_starts_with($target, '/_tablo/health?') 
     http_response_code($available ? 200 : 503);
     if (ob_get_level() > $initialDepth) {
         // An intact sink emits the fixed failure at shutdown if nested cleanup was blocked.
-        $deferredResponse = !$closedEarly;
+        $captureState->deferredResponse = !$captureState->closedEarly;
         return;
     }
     echo $available ? "ok\n" : "unavailable\n";

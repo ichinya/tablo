@@ -11,9 +11,9 @@ final class ExternalQuotaAssertions
 
     public function preserved(array $before, #[\SensitiveParameter] string $cipher): void
     {
-            $after=$this->db->query("SELECT * FROM github_cooldowns WHERE scope LIKE 'credential:v1:%' ORDER BY scope,resource")->fetchAll();
+            $after=\Tablo\SqlRows::all(\Tablo\SqlStatement::checked($this->db->query("SELECT * FROM github_cooldowns WHERE scope LIKE 'credential:v1:%' ORDER BY scope,resource"))->fetchAll(), \Tablo\SqlGithubCooldownsEligibleAtResourceScopeRow::checked(...));
             Assert::same($after,$before, 'original private quota remains; equivalent site/saved handles may be materialized');
-            Assert::same($this->db->query('SELECT github_token FROM sites')->fetchColumn(),$cipher);
+            Assert::same(\Tablo\SqlStatement::checked($this->db->query('SELECT github_token FROM sites'))->fetchColumn(),$cipher);
 
     }
 }

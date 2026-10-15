@@ -17,7 +17,7 @@ final class RedirectAdmissionTest
     {
         $server = new RedirectServer();
         try {
-            $url = 'http://localhost:' . parse_url($server->base, PHP_URL_PORT) . '/chain/3';
+            $url = 'http://localhost:' . \Tablo\Tests\Support\FixtureValue::integer(parse_url($server->base, PHP_URL_PORT)) . '/chain/3';
             $http = new HttpClient(true);
             Assert::same($http->get($url, \Tablo\Tests\Support\RedirectAssertions::headers())['status'], 302, 'existing generic boundary resolves localhost natively');
             Assert::same(count($server->rows()), 1);
@@ -45,7 +45,7 @@ final class RedirectAdmissionTest
                 $response = $http->getEndpoint($server->base . '/status/' . $status, \Tablo\Tests\Support\RedirectAssertions::headers());
                 Assert::same($response['status'], 200);
                 Assert::same(count($server->rows()) - $before, 2);
-                Assert::false((($response['location'] ?? null) !== null) || str_contains(json_encode($response), 'synthetic-redirect-token'));
+                Assert::false((($response['location'] ?? null) !== null) || str_contains(\Tablo\Tests\Support\FixtureValue::string(json_encode($response)), 'synthetic-redirect-token'));
             }
             foreach (['root', 'sibling', 'dot', 'query', 'network', 'case'] as $case) {
                 $before = count($server->rows());

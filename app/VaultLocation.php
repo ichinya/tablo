@@ -9,7 +9,7 @@ final class VaultLocation
     {
         $external = TokenVault::configured();
         if ($external !== null) { return $external; }
-        $databasePath = $db->query('PRAGMA database_list')->fetch()['file'] ?? '';
+        $databasePath = \Tablo\SqlRows::one(\Tablo\SqlStatement::checked($db->query('PRAGMA database_list'))->fetch(), \Tablo\SqlFileNameSeqRow::checked(...))['file'] ?? '';
         $directory = $databasePath !== '' ? dirname($databasePath) : dirname(__DIR__) . '/storage';
         // Keep the existing key filename so installed credentials remain readable.
         return new TokenVault($directory . '/github-token.key');

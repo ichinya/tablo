@@ -3,9 +3,17 @@ declare(strict_types=1);
 
 namespace Tablo;
 
+/**
+ * @phpstan-import-type State from NotificationCheckpointData
+ * @phpstan-import-type Record from SqlIncidentsClockInvalidConfigRevisionEndReasonRow as Incident
+ */
 final class UnavailableNotification
 {
-    public function __construct(private readonly NotificationProjectionStore $store, private readonly NotificationEnqueue $enqueue) {}
+    public function __construct(NotificationProjectionStore $store, private readonly NotificationEnqueue $enqueue) {}
+    /**
+     * @param State $state
+     * @param Incident $incident
+     */
     public function accepted(NotificationProjectionContext $context, array &$state, array $incident): void
     {
         $row = $context->row; $settings = $context->settings; $wall = $context->wall;

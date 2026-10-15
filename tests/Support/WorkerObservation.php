@@ -4,6 +4,7 @@ namespace Tablo\Tests\Support;
 
 final class WorkerObservation
 {
+    /** @var resource|false|null */
     public mixed $process = null;
     public ?int $exit = null;
     public function running(): bool

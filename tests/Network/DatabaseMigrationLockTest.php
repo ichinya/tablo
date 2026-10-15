@@ -31,7 +31,7 @@ final class DatabaseMigrationLockTest extends DatabaseMigrationFixtureCase
             // The reader must finish before the writer is released, not merely within a timing threshold.
             $result = self::result($reader);
             Assert::same($result['version'], Database::CURRENT_SCHEMA_VERSION);
-            Assert::same($result['users'], 1);
+            Assert::same(\Tablo\SqlColumn::integer($result, 'users'), 1);
             file_put_contents($directory->path . '/writer.release', data: 'release');
             self::result($writer);
         } finally {
@@ -63,13 +63,13 @@ final class DatabaseMigrationLockTest extends DatabaseMigrationFixtureCase
                 $b = self::result($second);
                 Assert::same($a['version'], Database::CURRENT_SCHEMA_VERSION);
                 Assert::same($b['version'], Database::CURRENT_SCHEMA_VERSION);
-                Assert::true($a['ddl'] > 0);
+                Assert::true(\Tablo\Tests\Support\FixtureValue::integer($a['ddl']) > 0);
                 Assert::same($b['ddl'], 0, 'Waiting migrator executed bootstrap after the version changed');
                 $db = Database::connect($path);
-                Assert::same((int) $db->query('SELECT count(*) FROM users')->fetchColumn(), $legacy ? 1 : 0);
+                Assert::same((int) \Tablo\SqlStatement::checked($db->query('SELECT count(*) FROM users'))->fetchColumn(), $legacy ? 1 : 0);
                 if ($legacy) {
-                    Assert::same($db->query('SELECT password_hash FROM users')->fetchColumn(), 'synthetic-hash');
-                    Assert::same($db->query('SELECT github_token FROM sites')->fetchColumn(), 'synthetic-ciphertext');
+                    Assert::same(\Tablo\SqlStatement::checked($db->query('SELECT password_hash FROM users'))->fetchColumn(), 'synthetic-hash');
+                    Assert::same(\Tablo\SqlStatement::checked($db->query('SELECT github_token FROM sites'))->fetchColumn(), 'synthetic-ciphertext');
                 }
             } finally {
                 $second?->close();
@@ -99,10 +99,10 @@ final class DatabaseMigrationLockTest extends DatabaseMigrationFixtureCase
                 file_put_contents($directory->path . '/start', data: 'start');
                 foreach ([self::result($first), self::result($second)] as $result) {
                     Assert::same($result['version'], Database::CURRENT_SCHEMA_VERSION);
-                    Assert::same($result['users'], $legacy ? 1 : 0);
+                    Assert::same(\Tablo\SqlColumn::integer($result, 'users'), $legacy ? 1 : 0);
                 }
                 $db = Database::connect($path);
-                Assert::same($db->query('PRAGMA integrity_check')->fetchColumn(), 'ok');
+                Assert::same(\Tablo\SqlStatement::checked($db->query('PRAGMA integrity_check'))->fetchColumn(), 'ok');
             } finally {
                 $second?->close();
                 $first?->close();

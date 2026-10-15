@@ -52,7 +52,7 @@ final class WorkerKeyFailureTest extends WorkerFailureFixtureCase
                 $result = $child->wait();
                 WorkerKeyOutcomeAssertions::refused($result, WorkerKeyObservation::read($directory, $db), $kind, self::FAILURE);
                 Assert::same(hash_file('sha256', $key . '.held'), $hash);
-                WorkerKeyAssertions::unchanged($kind, $key, $hash);
+                WorkerKeyAssertions::unchanged($kind, $key, \Tablo\Tests\Support\FixtureValue::string($hash));
                 $lock = new WorkerLock();
                 Assert::true($lock->acquire($db)); $lock->close();
             } finally { $child?->close(); $server?->close(); unset($other, $lock, $child, $server, $db); $directory->close(); }

@@ -9,8 +9,8 @@ final class WorkerCredentialAssertions
 {
     public static function settled(array $observation, string $mode): void
     {
-                Assert::same($observation[0], in_array($mode, ['rename-only','stop'], strict: true));
-                Assert::same($observation[1],
+                Assert::same(\Tablo\Tests\Support\FixtureValue::at($observation, 0), in_array($mode, ['rename-only','stop'], strict: true));
+                Assert::same(\Tablo\Tests\Support\FixtureValue::at($observation, 1),
                     in_array($mode, ['rename-only','stop'], strict: true) ? 1 : 0, 'real worker barrier pairs accepted result and history');
 
     }

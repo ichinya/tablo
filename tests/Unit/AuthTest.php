@@ -24,8 +24,8 @@ final class AuthTest
         (new \Tablo\Tests\Support\FixtureRejection(\Closure::fromCallable(static fn () => $auth->setup(\Tablo\Tests\Support\FixtureCredentials::value(label: 'fixture-password'), 'different'))))->verify('mismatch accepted');
         $auth->setup(\Tablo\Tests\Support\FixtureCredentials::value(label: 'fixture-password'), \Tablo\Tests\Support\FixtureCredentials::value(label: 'fixture-password'));
         Assert::true(!$auth->needsSetup(), 'setup repeated');
-        $hash = $db->query('SELECT password_hash FROM users')->fetchColumn();
-        Assert::true($hash !== \Tablo\Tests\Support\FixtureCredentials::value(label: 'fixture-password') && password_verify(\Tablo\Tests\Support\FixtureCredentials::value(label: 'fixture-password'), $hash), 'password not hashed');
+        $hash = \Tablo\Tests\Support\FixtureValue::string(\Tablo\SqlStatement::checked($db->query('SELECT password_hash FROM users'))->fetchColumn());
+        Assert::true($hash !== \Tablo\Tests\Support\FixtureCredentials::value(label: 'fixture-password') && password_verify(\Tablo\Tests\Support\FixtureCredentials::value(label: 'fixture-password'), \Tablo\Tests\Support\FixtureValue::string($hash)), 'password not hashed');
         (new \Tablo\Tests\Support\FixtureRejection(\Closure::fromCallable(static fn () => $auth->setup('another-password', 'another-password'))))->verify('second administrator accepted');
         Assert::true($auth->login(\Tablo\Tests\Support\FixtureCredentials::value(label: 'fixture-password'), 'client'), 'valid login refused');
     }
@@ -74,7 +74,7 @@ final class AuthTest
             Assert::true(!$auth->login('incorrect', '2001:db8::43'));
             Assert::true(!$auth->login('incorrect', '2001:db8::43'));
             Assert::true($auth->login($credential, '2001:db8::43'));
-            Assert::same($db->query('SELECT key, failures FROM login_limits')->fetchAll(), [
+            Assert::same(\Tablo\SqlRows::all(\Tablo\SqlStatement::checked($db->query('SELECT key, failures FROM login_limits'))->fetchAll(), \Tablo\SqlLoginLimitsFailuresKeyRow::checked(...)), [
                 ['key' => hash('sha256', data: '2001:db8::42'), 'failures' => 5],
             ]);
             $db->exec('UPDATE login_limits SET window_start = ' . (time() - 899));
@@ -83,7 +83,7 @@ final class AuthTest
             Assert::true($rejected, 'window expired early');
             $db->exec('UPDATE login_limits SET window_start = ' . (time() - 901));
             Assert::true($auth->login($credential, '2001:db8::42'));
-            Assert::same((int) $db->query('SELECT COUNT(*) FROM login_limits')->fetchColumn(), 0);
+            Assert::same((int) \Tablo\SqlStatement::checked($db->query('SELECT COUNT(*) FROM login_limits'))->fetchColumn(), 0);
         } finally { $db = null; $auth = null; $directory->close(); }
     }
 
@@ -104,7 +104,7 @@ final class AuthTest
             // Do not retain the exception/trace (and its PDO) during Windows cleanup.
             try { $auth->login('incorrect', '198.51.100.42'); } catch (\PDOException) { $failed = true; }
             Assert::true($failed, 'Forced write failure was not exercised');
-            Assert::same($db->query('SELECT key, failures FROM login_limits')->fetchAll(), [
+            Assert::same(\Tablo\SqlRows::all(\Tablo\SqlStatement::checked($db->query('SELECT key, failures FROM login_limits'))->fetchAll(), \Tablo\SqlLoginLimitsFailuresKeyRow::checked(...)), [
                 ['key' => 'expired-sentinel', 'failures' => 3],
             ]);
             $db = null; $auth = null;
@@ -113,7 +113,7 @@ final class AuthTest
             $auth = new Auth($db);
             Assert::true(!$auth->login('incorrect', '198.51.100.42'));
             Assert::true($auth->login($credential, '198.51.100.42'));
-            Assert::same((int) $db->query('SELECT COUNT(*) FROM login_limits')->fetchColumn(), 0);
+            Assert::same((int) \Tablo\SqlStatement::checked($db->query('SELECT COUNT(*) FROM login_limits'))->fetchColumn(), 0);
         } finally { $db = null; $auth = null; $directory->close(); }
     }
 }

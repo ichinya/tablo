@@ -13,8 +13,11 @@ final class PeriodicWorker
     private readonly SiteRepository $sites;
     private readonly SettingsRepository $settings;
     private readonly WorkerStateRepository $state;
+    /** @var Closure(): (int|float) */
     private readonly Closure $clock;
+    /** @var Closure(float): void */
     private readonly Closure $sleep;
+    /** @var Closure(string): void */
     private readonly Closure $output;
     private bool $stop = false;
     private readonly WorkerRuntime $runtime;

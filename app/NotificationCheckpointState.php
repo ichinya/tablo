@@ -3,15 +3,23 @@ declare(strict_types=1);
 
 namespace Tablo;
 
+/**
+ * @phpstan-import-type State from NotificationCheckpointData
+ * @phpstan-import-type Record from SqlNotificationCheckpointsConfigRevisionLastHistoryIdSiteIdRow as Checkpoint
+ */
 final class NotificationCheckpointState
 {
+    /**
+     * @param Checkpoint|false $old
+     * @return State
+     */
     public static function prepare(NotificationProjectionStore $store, NotificationProjectionContext $context, array|false $old): array
     {
         $row = $context->row; $settings = $context->settings;
         $empty = ['channel'=> $settings['revision'], 'watermark'=>'', 'wall'=>0, 'health'=>null, 'health_since'=>null,
             'health_wall'=>null, 'health_count'=>0, 'health_handled'=>null, 'recovery_handled'=>null,
             'lag'=>null, 'lag_since'=>null, 'lag_wall'=>null, 'lag_count'=>0, 'lag_handled'=>null];
-        $state = $old === false ? $empty : json_decode($old['state'],associative: true,depth: 16,flags: JSON_THROW_ON_ERROR);
+        $state = $old === false ? $empty : NotificationCheckpointData::epoch($old['state'], $old['config_revision'] !== $row['config_revision'] ? $empty : null);
         if ($old !== false && ($old['config_revision'] !== $row['config_revision'] || $state['channel'] !== $settings['revision'])) {
             $store->execute("UPDATE notification_slots SET status = 'cancelled', claim = NULL, lease_until = NULL
                 WHERE site_id = ? AND status IN ('pending','inflight')",[$row['site_id']]);
@@ -23,8 +31,9 @@ final class NotificationCheckpointState
                 $state['lag_count'] = 0; $state['health_count'] = 0;
             }
         }
-        return $state;
+        return NotificationCheckpointData::current($state);
     }
+    /** @param State $state */
     public static function reset(array &$state): void
     {
         $state['lag_wall'] = null; $state['lag_since'] = null; $state['health_wall'] = null; $state['health_since'] = null;

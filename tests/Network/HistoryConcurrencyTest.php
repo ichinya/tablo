@@ -19,6 +19,7 @@ use Testo\Test;
 
 final class HistoryConcurrencyTest
 {
+    /** @param list<string> $args */
     private static function child(TemporaryDirectory $directory, string $path, int $id, string $action, array $args = []): void
     {
         $result = Subprocess::run([PHP_BINARY, dirname(__DIR__) . '/fixtures/history-process.php', $path, (string) $id,
@@ -47,15 +48,15 @@ final class HistoryConcurrencyTest
                 $id = $sites->save($input);
                 $snapshot = $sites->find($id);
                 $state = ['online' => 0, 'checked_at' => '2026-01-01T00:00:00Z'];
-                Assert::true($sites->storeCheck($snapshot, $state));
-                $checkpoint = $db->query('SELECT * FROM incident_checkpoints WHERE site_id=' . $id)->fetch();
-                $incident = $db->query('SELECT * FROM incidents WHERE site_id=' . $id)->fetch();
-                $notification = $db->query('SELECT * FROM notification_checkpoints WHERE site_id=' . $id)->fetch();
+                Assert::true($sites->storeCheck(\Tablo\Tests\Support\FixtureValue::row($snapshot), $state));
+                $checkpoint = \Tablo\Tests\Support\FixtureValue::databaseRow(\Tablo\SqlStatement::checked($db->query('SELECT * FROM incident_checkpoints WHERE site_id=' . $id))->fetch());
+                $incident = \Tablo\Tests\Support\FixtureValue::databaseRow(\Tablo\SqlStatement::checked($db->query('SELECT * FROM incidents WHERE site_id=' . $id))->fetch());
+                $notification = \Tablo\Tests\Support\FixtureValue::databaseRow(\Tablo\SqlStatement::checked($db->query('SELECT * FROM notification_checkpoints WHERE site_id=' . $id))->fetch());
                 self::child($directory, $path, $id, array_key_exists($action, $fields) ? 'field' : $action,
                     array_key_exists($action, $fields) ? [$action, json_encode($fields[$action], JSON_THROW_ON_ERROR)] : []);
                 $accepted = $action === 'rename';
-                Assert::same($sites->storeCheck($snapshot, $accepted ? $state : ['checked_at' => 'invalid', 'release_error_code' => 'raw-marker']), $accepted, $action);
-                Assert::same((new WorkerStateRepository($db,$sites))->settle($snapshot, $accepted
+                Assert::same($sites->storeCheck(\Tablo\Tests\Support\FixtureValue::row($snapshot), $accepted ? $state : ['checked_at' => 'invalid', 'release_error_code' => 'raw-marker']), $accepted, $action);
+                Assert::same((new WorkerStateRepository($db,$sites))->settle(\Tablo\Tests\Support\FixtureValue::row($snapshot), $accepted
                     ? $state + ['worker_service' => ['latest_commit' => true]] : ['worker_service' => 'invalid']), $accepted, $action);
                 (new HistoryProjectionAssertions($db))->settled($id, $action, [$checkpoint, $incident, $notification]);
             }
@@ -78,11 +79,11 @@ final class HistoryConcurrencyTest
             $writer = new MigrationProcess($directory, 'writer', 'writer', $path);
             $writer->awaitSignal('writer.locked');
             $db->exec('PRAGMA busy_timeout=80');
-            (new HistoryWriterAssertions($db, $sites))->blocked($id, $snapshot, $state);
+            (new HistoryWriterAssertions($db, $sites))->blocked($id, \Tablo\Tests\Support\FixtureValue::row($snapshot), $state);
             file_put_contents($directory->path . '/writer.release', data: 'release');
             Assert::same($writer->wait()['code'], 0);
-            Assert::true($sites->storeCheck($snapshot, $state));
-            $sites->storeCheck($snapshot, ['checked_at' => '2025-12-01T00:00:00Z']);
+            Assert::true($sites->storeCheck(\Tablo\Tests\Support\FixtureValue::row($snapshot), $state));
+            $sites->storeCheck(\Tablo\Tests\Support\FixtureValue::row($snapshot), ['checked_at' => '2025-12-01T00:00:00Z']);
             $history = new CheckHistoryRepository($db);
             $page = $history->page($id, '2025-01-01T00:00:00Z', '2027-01-01T00:00:00Z', 1);
             self::child($directory, $path, $id, 'store', ['2025-11-01T00:00:00Z']);
@@ -93,12 +94,12 @@ final class HistoryConcurrencyTest
             self::child($directory, $path, $id, 'store', ['2026-01-01T00:00:00Z']);
             self::child($directory, $path, $id, 'store', ['2025-10-01T00:00:00Z']);
             Assert::same($history->pruneBatch('2026-01-01T00:00:00Z', $id), 1);
-            Assert::same($sites->find($id)['checked_at'], '2025-10-01T00:00:00Z', 'old accepted last-state is truthful after history prune');
+            Assert::same(\Tablo\Tests\Support\FixtureValue::row($sites->find($id))['checked_at'], '2025-10-01T00:00:00Z', 'old accepted last-state is truthful after history prune');
             self::child($directory, $path, $other, 'store', ['2025-01-01T00:00:00Z']);
             self::child($directory, $path, $id, 'delete');
             Assert::same($history->pruneBatch('2026-01-01T00:00:00Z'), 1);
-            Assert::same((int) $db->query('SELECT COUNT(*) FROM check_history')->fetchColumn(), 0);
-            Assert::same($sites->find($other)['checked_at'], '2025-01-01T00:00:00Z');
+            Assert::same((int) \Tablo\SqlStatement::checked($db->query('SELECT COUNT(*) FROM check_history'))->fetchColumn(), 0);
+            Assert::same(\Tablo\Tests\Support\FixtureValue::row($sites->find($other))['checked_at'], '2025-01-01T00:00:00Z');
         } finally { $writer?->close(); unset($caught, $snapshot, $history, $sites, $db); $directory->close(); }
     }
 
@@ -112,13 +113,13 @@ final class HistoryConcurrencyTest
             $db = Database::connect($path);
             $sites = new SiteRepository($db);
             $id = $sites->save(UnitFixtures::site());
-            $sites->storeCheck($sites->find($id), ['online' => 1, 'checked_at' => '2020-01-01T00:00:00Z']);
+            $sites->storeCheck(\Tablo\Tests\Support\FixtureValue::row($sites->find($id)), ['online' => 1, 'checked_at' => '2020-01-01T00:00:00Z']);
             $before = $sites->find($id);
             $env = ['TABLO_DB' => $path, 'TABLO_GITHUB_TOKEN_KEY' => $directory->path . '/never-created.key'];
             $read = [PHP_BINARY, $root . '/bin/history.php', (string) $id, '2019-01-01T00:00:00Z', '2021-01-01T00:00:00Z'];
             $result = Subprocess::run($read, $directory, $env);
             Assert::same($result['exit_code'], 0);
-            Assert::same(count(json_decode($result['stdout'], associative: true, depth: 16, flags: JSON_THROW_ON_ERROR)['rows']), 1);
+            Assert::same(count(\Tablo\JsonRecord::checked(\Tablo\Tests\Support\FixtureValue::at(\Tablo\JsonRecord::checked(json_decode($result['stdout'], associative: true, depth: 16, flags: JSON_THROW_ON_ERROR)), 'rows'))), 1);
             Assert::same($result['stderr'], '');
             (new HistoryCliAssertions($directory, $db))->refused($read, $env);
             $unopened = $directory->path . '/never-created.sqlite';

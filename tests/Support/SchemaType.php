@@ -2,8 +2,10 @@
 declare(strict_types=1);
 namespace Tablo\Tests\Support;
 
+/** @phpstan-import-type Rule from CheckSchema */
 final class SchemaType
 {
+    /** @param Rule $rule */
     public static function matches(mixed $value, array $rule): bool
     {
         if (($rule['type'] ?? null) !== null) {

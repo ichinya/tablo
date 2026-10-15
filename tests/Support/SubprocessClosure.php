@@ -18,12 +18,12 @@ final class SubprocessClosure
                 foreach ([15, 9] as $signal) {
                     if (!SubprocessObservation::running($state)) { break; }
                     $state->event('terminate-direct-child', ['signal' => $signal]);
-                    proc_terminate($state->process, $signal);
+                    proc_terminate($state->ownedProcess(), $signal);
                     $deadline = microtime(true) + 2;
                     while (SubprocessObservation::running($state) && microtime(true) < $deadline) { usleep(20_000); }
                 }
                 if (SubprocessObservation::running($state)) { throw new RuntimeException('Direct test child closure unconfirmed'); }
-                $exit = proc_close($state->process);
+                $exit = proc_close($state->ownedProcess());
                 $state->event('proc-close', ['native_exit_code' => $exit]);
                 if ($exit !== -1) { $state->exitCode ??= $exit; }
                 $state->process = null;

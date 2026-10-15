@@ -7,6 +7,7 @@ use Phalcon\Mvc\Micro;
 
 final class WebRoutes
 {
+    /** @var list<AuthenticationPages|DashboardPage|IncidentPage|SettingsPages|TokenPages|SitePages> */
     private readonly array $pages;
     public readonly Auth $auth;
     public function __construct(\PDO $db, TokenVault $vault, PageResponse $page, HttpClient $http)

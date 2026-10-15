@@ -5,6 +5,10 @@ namespace Tablo;
 
 final class WebhookAddressAdmission
 {
+    /**
+     * @param \Closure(string): list<string> $resolver
+     * @return non-empty-list<string>
+     */
     public static function addresses(string $host, #[\SensitiveParameter] \Closure $resolver): array
     {
         $addresses=filter_var($host,FILTER_VALIDATE_IP)?[$host]:$resolver($host);

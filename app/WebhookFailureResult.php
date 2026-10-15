@@ -5,6 +5,7 @@ namespace Tablo;
 
 final class WebhookFailureResult
 {
+    /** @return (array{'code': string, 'stopped': false})|(array{'code': string, 'stopped': true}) */
     public static function finish(WebhookProcess $child,string $code): array
     {
         if (is_resource($child->process)) {

@@ -49,7 +49,7 @@ final class ExternalKeyTest
             }
             Assert::same($web->request('/settings',['_csrf'=>$csrf,'check_interval_minutes'=>'2'])['status'],303);
             Assert::same($web->request('/settings',['_csrf'=>'bad','check_interval_minutes'=>'3'])['status'],419);
-            $db=$web->database();Assert::same((int)$db->query('SELECT check_interval_minutes FROM installation_settings')->fetchColumn(),2);
+            $db=$web->database();Assert::same((int)\Tablo\SqlStatement::checked($db->query('SELECT check_interval_minutes FROM installation_settings'))->fetchColumn(),2);
             Assert::same(file_get_contents($key),$bytes); Assert::false(is_file($web->directory->path.'/github-token.key'));
             Assert::false(str_contains($web->server->diagnostics(),$secret));
         } finally {$db=null;$web?->close();$web=null;$directory->close();}

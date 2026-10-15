@@ -40,7 +40,7 @@ final class HttpFramingTest
                     Assert::same($state['deployed_commit'], 'a61de82', $mode);
                     Assert::same($state['open_issues'], 4, $mode);
                     Assert::same($state['latest_commit'], str_repeat('a', times: 40), $mode);
-                    Assert::same($state['last_error'], 'Health: ' . HttpFailure::MESSAGES[$reason], $mode);
+                    Assert::same($state['last_error'], 'Health: ' . \Tablo\Tests\Support\FixtureValue::at(HttpFailure::MESSAGES, $reason), $mode);
                 }
             }
         } finally { $server->close(); }
@@ -81,6 +81,7 @@ final class HttpFramingTest
             Assert::same(file_get_contents($directory . '/disconnected'), '1', 'Client released the TCP connection');
         } finally { $server->close(); }
         Assert::false(is_dir($directory));
+        $errno = 0; $error = '';
         $socket = stream_socket_server(str_replace('http:', replace: 'tcp:', subject: $base), $errno, $error);
         Assert::true(is_resource($socket), 'Owned peer exited and released its port');
         if (is_resource($socket)) { fclose($socket); }

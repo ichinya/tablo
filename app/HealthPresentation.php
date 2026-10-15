@@ -3,9 +3,17 @@ declare(strict_types=1);
 
 namespace Tablo;
 
+/**
+ * @phpstan-import-type Header from Presenter
+ * @phpstan-import-type Health from Presenter
+ */
 final class HealthPresentation
 {
-    public static function apply(array &$site): void
+    /**
+     * @param Header $site
+     * @return Health
+     */
+    public static function apply(array &$site): array
     {
         $site['tone'] = 'muted';
         $site['status'] = 'Не проверен';
@@ -14,15 +22,16 @@ final class HealthPresentation
             : (HttpFailure::MESSAGES[$reason ?? ''] ?? '');
         if (!$site['enabled']) {
             $site['status'] = 'На паузе';
-            return;
+            return $site;
         }
         if ($site['online'] !== null) {
             $site['tone'] = $site['online'] ? 'green' : 'red';
             $site['status'] = $site['online'] ? 'Online' : 'Offline';
-            return;
+            return $site;
         }
         if ($site['checked_at']) {
             $site['status'] = 'Нет данных';
         }
+        return $site;
     }
 }

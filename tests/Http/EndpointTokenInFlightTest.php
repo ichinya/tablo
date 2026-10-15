@@ -22,29 +22,32 @@ final class EndpointTokenInFlightTest
         $child = null; $control = null; $sites = null;
         try {
             $this->startEndpoints();
-            $csrf = $this->web->authenticate();
-            $sites = new SiteRepository($this->web->database());
-            $control = new WorkerStateRepository($this->web->database());
+            $web = \Tablo\Tests\Support\FixtureValue::object($this->web);
+            $peer = \Tablo\Tests\Support\FixtureValue::object($this->peer);
+            $endpointDirectory = \Tablo\Tests\Support\FixtureValue::object($this->endpointDirectory);
+            $csrf = $web->authenticate();
+            $sites = new SiteRepository($web->database());
+            $control = new WorkerStateRepository($web->database());
             foreach (['manual', 'cli', 'worker'] as $mode) {
-                $input = [...SiteInput::defaults(), 'name' => 'Endpoint race', 'url' => $this->peer->base . '/barrier/',
+                $input = [...SiteInput::defaults(), 'name' => 'Endpoint race', 'url' => $peer->base . '/barrier/',
                     'repository' => 'fixture/public', 'health_path' => '', 'version_path' => '', 'endpoint_token' => EndpointFixture::tokenA()];
                 $id = $sites->save($input);
-                foreach (['entered', 'release'] as $file) { if (!(is_file($this->endpointDirectory->path . '/' . $file))) { continue; }
- unlink($this->endpointDirectory->path . '/' . $file);  }
-                $command = InFlightCommand::forMode($mode, $this->web, $id, $csrf);
-                $child = new WorkerProcess($this->endpointDirectory, 'endpoint-race-' . $mode, $command, [
-                    'TABLO_DB' => $this->web->directory->path . '/test.sqlite', 'TABLO_ALLOW_PRIVATE_NETWORK' => '1', 'TABLO_WORKER_BASE' => $this->peer->base]);
+                foreach (['entered', 'release'] as $file) { if (!(is_file($endpointDirectory->path . '/' . $file))) { continue; }
+ unlink($endpointDirectory->path . '/' . $file);  }
+                $command = InFlightCommand::forMode($mode, $web, $id, $csrf);
+                $child = new WorkerProcess($endpointDirectory, 'endpoint-race-' . $mode, $command, [
+                    'TABLO_DB' => \Tablo\Tests\Support\FixtureValue::object($web->directory)->path . '/test.sqlite', 'TABLO_ALLOW_PRIVATE_NETWORK' => '1', 'TABLO_WORKER_BASE' => $peer->base]);
                 $deadline = microtime(true) + 5;
-                while (!is_file($this->endpointDirectory->path . '/entered') && microtime(true) < $deadline) { clearstatcache(); usleep(10_000); }
-                Assert::true(is_file($this->endpointDirectory->path . '/entered'));
+                while (!is_file($endpointDirectory->path . '/entered') && microtime(true) < $deadline) { clearstatcache(); usleep(10_000); }
+                Assert::true(is_file($endpointDirectory->path . '/entered'));
                 $before = $sites->find($id);
                 $sites->save([...$input, 'endpoint_token' => EndpointFixture::tokenB()], $id);
                 $sites->save($input, $id);
-                Assert::true($sites->find($id)['config_revision'] > $before['config_revision']);
-                file_put_contents($this->endpointDirectory->path . '/release', data: 'release');
-                if ($mode === 'worker') { $child->awaitOutput('Worker pass complete.'); $control->requestStop($control->generation()); }
+                Assert::true(\Tablo\Tests\Support\FixtureValue::row($sites->find($id))['config_revision'] > \Tablo\Tests\Support\FixtureValue::row($before)['config_revision']);
+                file_put_contents($endpointDirectory->path . '/release', data: 'release');
+                if ($mode === 'worker') { $child->awaitOutput('Worker pass complete.'); $control->requestStop(\Tablo\Tests\Support\FixtureValue::string($control->generation())); }
                 $result = $child->wait();
-                (new RefusedCheckAssertions($this->web->database(), $sites))->endpoint($result, $id, $mode);
+                (new RefusedCheckAssertions($web->database(), $sites))->endpoint($result, $id, $mode);
                 $sites->delete($id);
             }
         } finally {

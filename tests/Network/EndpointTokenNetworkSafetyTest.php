@@ -31,12 +31,12 @@ final class EndpointTokenNetworkSafetyTest
                 $state = (new SiteChecker(new HttpClient(true), new FakeProvider(), $vault))->check([...$site, 'url' => $server->base . '/' . $mode]);
                 Assert::same($state['online'], null);
                 Assert::same($state['health_error_code'], $reason);
-                Assert::false(str_contains($state['last_error'], EndpointFixture::tokenA()));
+                Assert::false(str_contains(\Tablo\Tests\Support\FixtureValue::string($state['last_error']), EndpointFixture::tokenA()));
                 Assert::same($state['latest_release'], 'v1.3.2');
             }
             $headers = ['Authorization: Bearer ' . EndpointFixture::tokenA()];
             $caught = null;
-            try { (new HttpClient(true))->getBefore($server->base . '/stall', $headers, hrtime(true) + 100_000_000); }
+            try { (new HttpClient(true))->getBefore($server->base . '/stall', $headers, \Tablo\MonotonicTime::integer(hrtime(true)) + 100_000_000); }
             catch (HttpFailure $error) { $caught = $error->reason; unset($error); }
             Assert::same($caught, 'timeout');
         } finally { $vault = null; $server->close(); }
@@ -72,7 +72,7 @@ final class EndpointTokenNetworkSafetyTest
             protected function resolve(#[\SensitiveParameter] string $host): array { usleep(40_000); return ['8.8.8.8']; }
         };
         $caught = null;
-        try { $slow->getBefore('https://deadline.example/', $headers, hrtime(true) + 10_000_000); }
+        try { $slow->getBefore('https://deadline.example/', $headers, \Tablo\MonotonicTime::integer(hrtime(true)) + 10_000_000); }
         catch (HttpFailure $error) { $caught = $error->reason; unset($error); }
         Assert::same($caught, 'timeout', 'controlled synchronous resolver overrun cannot start cURL');
     }

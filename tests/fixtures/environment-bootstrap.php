@@ -4,7 +4,7 @@ declare(strict_types=1);
 require dirname(__DIR__, levels: 2) . '/vendor/autoload.php';
 
 // Test the copied bootstrap without changing the working installation's .env or database.
-$root = $argv[1];
+$root = \Tablo\Tests\Support\FixtureValue::at(\Tablo\Tests\Support\FixtureValue::row($argv), 1);
 if (getenv('TABLO_DOTENV_TEST_PROCESS') !== 'keep') {
     putenv('TABLO_DB');
     unset($_ENV['TABLO_DB'], $_SERVER['TABLO_DB']);
@@ -47,7 +47,7 @@ $path = getenv('TABLO_DB');
 $file = null;
 if ($path !== false && $path !== '') {
     $database = Tablo\Database::connect();
-    $file = $database->query('PRAGMA database_list')->fetch(PDO::FETCH_ASSOC)['file'];
+    $file = \Tablo\Tests\Support\FixtureValue::fetched(\Tablo\SqlRows::one(\Tablo\SqlStatement::checked($database->query('PRAGMA database_list'))->fetch(PDO::FETCH_ASSOC), \Tablo\SqlFileNameSeqRow::checked(...)))['file'];
 }
 echo json_encode(['path' => $path, 'file' => $file, 'value' => getenv('TABLO_DOTENV_TEST_VALUE'),
     'literal' => getenv('TABLO_DOTENV_TEST_LITERAL')], JSON_THROW_ON_ERROR) . PHP_EOL;

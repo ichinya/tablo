@@ -4,9 +4,18 @@ declare(strict_types=1);
 namespace Tablo\Tests\Support;
 
 
-/** Scheduling additions in an exact copy of the declaring owner; no product seam. */
+/** Scheduling additions in an exact copy of the declaring owner; no product seam.
+ * @phpstan-import-type Instrumentation from ScheduleSourceCopy
+ * @phpstan-import-type Wait from MigrationProcess
+ * @phpstan-import-type Receipt from MigrationChild
+ * @phpstan-import-type Data from ScheduleObservation
+ * @phpstan-import-type Event from ScheduleObservation
+ * @phpstan-type Collected array{code: ?int, stdout: string, stderr: string, receipt: Receipt, data: Data, events: list<Event>}
+ * @phpstan-type Race array{A: Collected, B: Collected, instrumentation: Instrumentation}
+ * @phpstan-type Current array{A: Collected, holder: Wait, instrumentation: Instrumentation} */
 final class DatabaseConnectSchedule
 {
+    /** @var Instrumentation */
     public readonly array $instrumentation;
     public function __construct(private readonly TemporaryDirectory $directory, ?string $owner = null)
     {
@@ -17,7 +26,7 @@ final class DatabaseConnectSchedule
         mkdir($directory->path . '/source/database', permissions: 0o700);
         $copies = [];
         foreach ($sources as $name => [$path,$additions]) { $copies[$name] = ScheduleSourceCopy::write($directory,$name,$path,$additions); }
-        $schema = file_get_contents($root . '/database/schema.sql');
+        $schema = \Tablo\RequiredFile::bytes(file_get_contents($root . '/database/schema.sql'));
         file_put_contents($directory->path . '/source/database/schema.sql', $schema);
         $this->instrumentation = ['owners'=>$copies,'schemaSha256'=>hash('sha256',$schema)];
     }
@@ -30,15 +39,17 @@ final class DatabaseConnectSchedule
             ['entry' => dirname(__DIR__) . '/fixtures/DatabaseScheduleChild.php', 'arguments' => [$this->directory->path . '/source']]);
     }
 
+    /** @return Collected */
     private function collect(MigrationProcess $child, string $name, ?MigrationProcess $holder = null): array
     {
         $result = $child->wait(holder: $holder);
-        $result['data'] = json_decode($result['stdout'], associative: true, depth: 32, flags: JSON_THROW_ON_ERROR);
-        $result['events'] = array_map(static fn (string $line): array => json_decode($line, associative: true, depth: 32, flags: JSON_THROW_ON_ERROR),
-            file($this->directory->path . '/' . $name . '.events', FILE_IGNORE_NEW_LINES));
+        $result['data'] = ScheduleObservation::decode($result['stdout']);
+        $result['events'] = array_map(ScheduleObservation::event(...),
+            FixtureFiles::lines($this->directory->path . '/' . $name . '.events', FILE_IGNORE_NEW_LINES));
         return $result;
     }
 
+    /** @return Race */
     public function race(string $path): array
     {
         $b = null; $a = null;
@@ -60,6 +71,7 @@ final class DatabaseConnectSchedule
         } finally { $a?->close(); $b?->close(); }
     }
 
+    /** @return Current */
     public function current(string $path, WalHolderPolicy $policy): array
     {
         $a = null; $holder = null;
@@ -69,14 +81,17 @@ final class DatabaseConnectSchedule
             $a = $this->child('A', $path, 'current');
             $a->awaitSignal('A.attempt-finished');
             $holder->assertRunning();
-            if ($policy === WalHolderPolicy::ReleaseBeforeRetry) { $holder->release(); $held = $holder->wait(); }
+            if ($policy === WalHolderPolicy::ReleaseBeforeRetry) {
+                $holder->release(); $held = $holder->wait();
+                $a->proceed('retry');
+                $first = $this->collect($a, 'A');
+                return ['A' => $first, 'holder' => $held, 'instrumentation' => $this->instrumentation];
+            }
             $a->proceed('retry');
-            $first = $this->collect($a, 'A', $policy === WalHolderPolicy::ReleaseBeforeRetry ? null : $holder);
-            if ($policy === WalHolderPolicy::HoldThroughTimeout) {
+            $first = $this->collect($a, 'A', $holder);
                 $holder->assertRunning();
                 $holder->release();
                 $held = $holder->wait();
-            }
             return ['A' => $first, 'holder' => $held, 'instrumentation' => $this->instrumentation];
         } finally { $a?->close(); $holder?->close(); }
     }

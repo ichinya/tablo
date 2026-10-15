@@ -95,21 +95,21 @@ final class EndpointTokenCheckerTest
                 $state = (new SiteChecker($http, new FakeProvider(), $vault))->check($site);
                 Assert::same($state['online'], 1);
                 Assert::same($state['latest_release'], 'v1.3.2');
-                Assert::true(str_contains($state['last_error'], 'Version: HTTP ' . $status));
-                Assert::false(str_contains($state['last_error'], EndpointFixture::tokenA()));
+                Assert::true(str_contains(\Tablo\Tests\Support\FixtureValue::string($state['last_error']), 'Version: HTTP ' . $status));
+                Assert::false(str_contains(\Tablo\Tests\Support\FixtureValue::string($state['last_error']), EndpointFixture::tokenA()));
                 $http = new FakeHttp([UnitFixtures::response($status, EndpointFixture::tokenA()), UnitFixtures::response(200, '{"version":"1.0.0"}')]);
                 $state = (new SiteChecker($http, new FakeProvider(), $vault))->check($site);
                 Assert::same($state['online'], 0);
                 Assert::same($state['health_error_code'], 'http');
                 Assert::same($state['health_http_status'], $status);
                 Assert::same($state['deployed_version'], '1.0.0');
-                Assert::false(str_contains($state['last_error'], EndpointFixture::tokenA()));
+                Assert::false(str_contains(\Tablo\Tests\Support\FixtureValue::string($state['last_error']), EndpointFixture::tokenA()));
             }
             $http = new FakeHttp([UnitFixtures::response(200)]);
             $state = (new SiteChecker($http, new FakeProvider(), $vault))->check([...$site, 'version_path' => '']);
             Assert::same(count($http->requests), 1);
             Assert::same($state['online'], 1);
-            Assert::true(hash_equals($http->requests[0][1][0], 'Authorization: Bearer ' . EndpointFixture::tokenA()));
+            Assert::true(hash_equals(\Tablo\Tests\Support\FixtureValue::string(\Tablo\Tests\Support\FixtureValue::at(\Tablo\Tests\Support\FixtureValue::at($http->requests, 0)[1], 0)), 'Authorization: Bearer ' . EndpointFixture::tokenA()));
         } finally { $vault = null; $http = null; $directory->close(); }
     }
 
@@ -144,13 +144,13 @@ final class EndpointTokenCheckerTest
         $site = [...UnitFixtures::site(), 'endpoint_token' => $secret, 'github_token' => $secret,
             'selected_token_snapshot' => $secret, 'remove_endpoint_token' => \Tablo\FormCheckbox::VALUE];
         $public = SiteProjection::publicSite($site);
-        Assert::true($public['has_endpoint_token']);
-        Assert::true($public['has_github_token']);
-        Assert::true(SiteProjection::publicSite(['endpoint_token' => EndpointFixture::invalidCiphertext()])['has_endpoint_token'], 'presence is independent of ciphertext validity');
+        Assert::true(\Tablo\Tests\Support\FixtureValue::at($public, 'has_endpoint_token'));
+        Assert::true(\Tablo\Tests\Support\FixtureValue::at($public, 'has_github_token'));
+        Assert::true(\Tablo\Tests\Support\FixtureValue::at(SiteProjection::publicSite(['endpoint_token' => EndpointFixture::invalidCiphertext()]), 'has_endpoint_token'), 'presence is independent of ciphertext validity');
         Assert::false(str_contains(json_encode($public, JSON_THROW_ON_ERROR), $secret));
         $git = SiteProjection::withoutEndpointCredential($site);
-        Assert::false(array_key_exists('endpoint_token', $git));
-        Assert::false(array_key_exists('remove_endpoint_token', $git));
+        Assert::false(array_key_exists('endpoint_token', \Tablo\Tests\Support\FixtureValue::row($git)));
+        Assert::false(array_key_exists('remove_endpoint_token', \Tablo\Tests\Support\FixtureValue::row($git)));
         Assert::true(($git['github_token'] ?? null) !== null && ($git['selected_token_snapshot'] ?? null) !== null);
     }
 }

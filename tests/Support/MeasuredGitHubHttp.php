@@ -5,6 +5,7 @@ namespace Tablo\Tests\Support;
 
 use Tablo\HttpClient;
 
+/** @phpstan-import-type HttpResponse from HttpClient */
 final class MeasuredGitHubHttp extends HttpClient
 {
     public int $core = 0;
@@ -13,6 +14,7 @@ final class MeasuredGitHubHttp extends HttpClient
 
     public function __construct(private readonly string $base) { $this->real = new HttpClient(true); }
 
+    /** @return HttpResponse */
     public function get(#[\SensitiveParameter] string $url, #[\SensitiveParameter] array $headers = []): array
     {
         if (!str_starts_with($url, 'https://api.github.com/')) { throw new \RuntimeException('Unexpected fixture origin'); }

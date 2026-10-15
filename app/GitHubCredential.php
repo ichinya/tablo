@@ -5,6 +5,7 @@ namespace Tablo;
 
 final class GitHubCredential
 {
+    /** @param (\Closure(): bool)|null $current */
     public function __construct(
         public readonly string $revision = '',
         public readonly string $scope = 'anonymous',

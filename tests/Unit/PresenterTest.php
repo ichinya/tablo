@@ -20,8 +20,8 @@ final class PresenterTest
         $db = Database::connect(':memory:');
         $sites = new SiteRepository($db);
         $id = $sites->save($sample);
-        $site = $sites->find($id);
-        Assert::true(Presenter::site($site)['comparison_tone'] === 'muted', 'unknown shown current');
+        $site = \Tablo\Tests\Support\FixtureValue::row($sites->find($id));
+        Assert::true(Presenter::site(\Tablo\Tests\Support\FixtureValue::row($site))['comparison_tone'] === 'muted', 'unknown shown current');
         $site['deployed_version'] = '1.3.2'; $site['latest_release'] = 'v1.3.2';
         Assert::true(Presenter::site($site)['comparison_tone'] === 'green', 'v prefix not normalized');
         $site['deployed_version'] = '1.3.1';

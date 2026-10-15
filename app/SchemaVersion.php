@@ -10,7 +10,7 @@ final class SchemaVersion
 {
     public static function schemaVersion(PDO $db): int
     {
-        $statement = $db->query('PRAGMA main.user_version');
+        $statement = \Tablo\SqlStatement::checked($db->query('PRAGMA main.user_version'));
         try { $version = (int) $statement->fetchColumn(); }
         finally { $statement->closeCursor(); }
         if ($version < 0 || $version > Database::CURRENT_SCHEMA_VERSION) {

@@ -35,6 +35,7 @@ final class TokenVault
     public function encrypt(#[\SensitiveParameter] string $token): string
     {
         $iv = random_bytes(12);
+        $tag = null;
         $cipher = openssl_encrypt($token, cipher_algo: 'aes-256-gcm', passphrase: $this->keyFile->forCreation(KeyCreation::Allowed), options: OPENSSL_RAW_DATA, iv: $iv, tag: $tag);
         if ($cipher === false) {
             throw new \RuntimeException('Не удалось сохранить токен.');

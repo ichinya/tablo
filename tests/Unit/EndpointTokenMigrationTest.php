@@ -21,28 +21,28 @@ final class EndpointTokenMigrationTest
     {
         foreach (['ALTER TABLE sites ADD COLUMN endpoint_token', 'PRAGMA main.user_version = 8', 'COMMIT', null] as $failure) {
             $db = new MigrationPdo(':memory:');
-            $db->exec(file_get_contents(dirname(__DIR__) . '/fixtures/historical-schema/common4.sql'));
+            $db->exec(\Tablo\RequiredFile::bytes(file_get_contents(dirname(__DIR__) . '/fixtures/historical-schema/common4.sql')));
             $db->exec("
                 INSERT INTO users(id,password_hash) VALUES(1,'synthetic-preserved');
                 INSERT INTO sites(name,url,repository,github_token,online,checked_at)
                 VALUES('Preserved','https://example.com/','fixture/public','synthetic-cipher',1,'2026-01-01T00:00:00Z')");
-            $before = $db->query('SELECT * FROM sites')->fetch();
-            $schema = $db->query('SELECT name,sql FROM sqlite_schema ORDER BY name')->fetchAll();
+            $before = \Tablo\Tests\Support\FixtureValue::databaseRow(\Tablo\SqlStatement::checked($db->query('SELECT * FROM sites'))->fetch());
+            $schema = \Tablo\SqlStatement::checked($db->query('SELECT name,sql FROM sqlite_schema ORDER BY name'))->fetchAll();
             $db->failBefore = $failure;
             if ($failure !== null) {
                 $failed = false;
                 try { Database::migrate($db); } catch (\PDOException) { $failed = true; }
                 Assert::true($failed);
-                Assert::same((int) $db->query('PRAGMA user_version')->fetchColumn(), 4);
-                Assert::same($db->query('SELECT name,sql FROM sqlite_schema ORDER BY name')->fetchAll(), $schema);
-                Assert::same($db->query('SELECT * FROM sites')->fetch(), $before);
+                Assert::same((int) \Tablo\SqlStatement::checked($db->query('PRAGMA user_version'))->fetchColumn(), 4);
+                Assert::same(\Tablo\SqlStatement::checked($db->query('SELECT name,sql FROM sqlite_schema ORDER BY name'))->fetchAll(), $schema);
+                Assert::same(\Tablo\SqlStatement::checked($db->query('SELECT * FROM sites'))->fetch(), $before);
                 $db->failBefore = null;
             }
             Database::migrate($db);
-            $after = $db->query('SELECT * FROM sites')->fetch();
-            Assert::same($after['endpoint_token'], null);
-            Assert::same(array_intersect_key($after, $before), $before);
-            Assert::same($db->query('SELECT password_hash FROM users')->fetchColumn(), 'synthetic-preserved');
+            $after = \Tablo\Tests\Support\FixtureValue::databaseRow(\Tablo\SqlStatement::checked($db->query('SELECT * FROM sites'))->fetch());
+            Assert::same(\Tablo\Tests\Support\FixtureValue::at(\Tablo\Tests\Support\FixtureValue::fetched($after), 'endpoint_token'), null);
+            Assert::same(array_intersect_key(\Tablo\Tests\Support\FixtureValue::fetched($after), \Tablo\Tests\Support\FixtureValue::fetched($before)), $before);
+            Assert::same(\Tablo\SqlStatement::checked($db->query('SELECT password_hash FROM users'))->fetchColumn(), 'synthetic-preserved');
             $db->statements = [];
             Database::migrate($db);
             Assert::same(count(array_filter($db->statements, static fn (string $sql): bool => preg_match('/^(BEGIN|ALTER|CREATE|COMMIT)/', $sql) === 1)), 0);
@@ -52,7 +52,7 @@ final class EndpointTokenMigrationTest
             try { Database::migrate($db); } catch (\RuntimeException) { $failed = true; }
             Assert::true($failed);
             Assert::same(count(array_filter($db->statements, static fn (string $sql): bool => preg_match('/^(BEGIN|ALTER|CREATE|COMMIT)/', $sql) === 1)), 0);
-            Assert::same((int) $db->query('PRAGMA user_version')->fetchColumn(), 9);
+            Assert::same((int) \Tablo\SqlStatement::checked($db->query('PRAGMA user_version'))->fetchColumn(), 9);
         }
     }
 
@@ -74,7 +74,7 @@ final class EndpointTokenMigrationTest
             // Make a genuine v4-shape partial installation with the additive column already
             // present: wrong selected key must refuse before any transition or WAL changes.
             $db->exec('PRAGMA user_version=4');
-            $cipherHash = hash('sha256', $sites->find(1)['endpoint_token']);
+            $cipherHash = hash('sha256', \Tablo\Tests\Support\FixtureValue::string(\Tablo\Tests\Support\FixtureValue::row($sites->find(1))['endpoint_token']));
             $vault = null; $sites = null; $db = null;
             $before = hash_file('sha256', $path);
             $failed = false;
@@ -84,8 +84,8 @@ final class EndpointTokenMigrationTest
             Assert::true($failed);
             Assert::same(hash_file('sha256', $path), $before);
             $db = new \PDO('sqlite:' . $path);
-            Assert::same((int) $db->query('PRAGMA user_version')->fetchColumn(), 4);
-            Assert::same(hash('sha256', $db->query('SELECT endpoint_token FROM sites')->fetchColumn()), $cipherHash);
+            Assert::same((int) \Tablo\SqlStatement::checked($db->query('PRAGMA user_version'))->fetchColumn(), 4);
+            Assert::same(hash('sha256', \Tablo\Tests\Support\FixtureValue::string(\Tablo\SqlStatement::checked($db->query('SELECT endpoint_token FROM sites'))->fetchColumn())), $cipherHash);
             Assert::false(is_file($directory->path . '/github-token.key'));
         } finally { $vault = null; $db = null; $sites = null; $directory->close(); }
     }

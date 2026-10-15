@@ -3,8 +3,15 @@ declare(strict_types=1);
 
 namespace Tablo;
 
+/**
+ * @phpstan-import-type SiteData from SiteInput
+ */
 final class SiteUrlInput
 {
+    /**
+     * @param SiteData $data
+     * @param array<string, string> $errors
+     */
     public static function validate(#[\SensitiveParameter] array $data, array &$errors): void
     {
         $parts = parse_url($data['url']);

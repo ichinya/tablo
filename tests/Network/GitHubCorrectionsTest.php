@@ -35,7 +35,7 @@ final class GitHubCorrectionsTest extends GitHubCorrectionFixtureCase
                 Assert::same($error->httpStatus, 403);
                 Assert::true(str_contains($error->getMessage(), 'Contents: read'));
                 Assert::false(str_contains($error->getMessage(), $secret));
-                Assert::same((int) $db->query('SELECT COUNT(*) FROM github_cooldowns')->fetchColumn(), 0);
+                Assert::same((int) \Tablo\SqlStatement::checked($db->query('SELECT COUNT(*) FROM github_cooldowns'))->fetchColumn(), 0);
                 foreach (['another-token', ''] as $token) {
                     $fresh = (new GitHubConnection($sites, $http))->provider(null, ['github_token' => $token]);
                     Assert::same($fresh->getLatestRelease('fixture/control'), 'v1');
@@ -77,7 +77,7 @@ default:
                 self::failure(static fn () => $provider->getLatestRelease('fixture/control'), 'rate-limit');
                 Assert::same($http->core, 1);
                 $secondary = str_starts_with($case, 'secondary-');
-                Assert::same((int) $db->query("SELECT COUNT(*) FROM github_cooldowns WHERE scope='shared' AND resource='secondary'")->fetchColumn(), $secondary ? 1 : 0);
+                Assert::same((int) \Tablo\SqlStatement::checked($db->query("SELECT COUNT(*) FROM github_cooldowns WHERE scope='shared' AND resource='secondary'"))->fetchColumn(), $secondary ? 1 : 0);
                 foreach ([\Tablo\Tests\Support\FixtureCredentials::value(label: 'other-token'), ''] as $token) {
                     $fresh = (new GitHubConnection($sites, $http))->provider(null, ['github_token' => $token]);
                     switch (true) {

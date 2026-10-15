@@ -12,8 +12,8 @@ final class NotificationLock
 
     public function acquire(PDO $db): bool
     {
-        $query = $db->query('PRAGMA main.database_list');
-        try { $rows = $query->fetchAll(); } finally { $query->closeCursor(); }
+        $query = \Tablo\SqlStatement::checked($db->query('PRAGMA main.database_list'));
+        try { $rows = \Tablo\SqlRows::all($query->fetchAll(), \Tablo\SqlFileNameSeqRow::checked(...)); } finally { $query->closeCursor(); }
         $file = '';
         foreach ($rows as $row) { if (!($row['name'] === 'main')) { continue; }
  $file = $row['file'];  }
@@ -24,6 +24,7 @@ final class NotificationLock
         try {
             $handle = fopen($path . '.notifications.lock', mode: 'c+b');
             if ($handle === false) { throw new RuntimeException('Notification lock unavailable.'); }
+            $blocked = 0;
             if (!flock($handle, LOCK_EX | LOCK_NB, $blocked)) {
                 fclose($handle); $handle = null;
                 if ($blocked === 1) { return false; }

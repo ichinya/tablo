@@ -35,8 +35,8 @@ final class GitHubBudgetTest extends GitHubBudgetFixtureCase
         Assert::same($state['latest_commit'], str_repeat('a', times: 40));
         Assert::same($state['open_issues'], null);
         Assert::same($state['open_prs'], null);
-        Assert::true(str_contains($state['last_error'], 'лимит API'));
-        Assert::false(str_contains($state['last_error'], \Tablo\Tests\Support\FixtureCredentials::value(label: 'synthetic-secret')));
+        Assert::true(str_contains(\Tablo\Tests\Support\FixtureValue::string($state['last_error']), 'лимит API'));
+        Assert::false(str_contains(\Tablo\Tests\Support\FixtureValue::string($state['last_error']), \Tablo\Tests\Support\FixtureCredentials::value(label: 'synthetic-secret')));
         Assert::same(count($http->requests), 3, 'no subsequent search request');
         Assert::same((new GitHubProvider($http, '', $policy))->getLatestRelease('example/other'), 'v2', 'core remains usable');
     }

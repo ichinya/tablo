@@ -54,8 +54,8 @@ final class SqlSchemaAdmissionTest extends SqlSchemaFixtureCase
                 $db->exec('DELETE FROM check_history');
                 Database::migrate($db);
                 Assert::same(self::insertHistory($db), 901);
-                Assert::same((int) $db->query('PRAGMA user_version')->fetchColumn(), 8);
-                Assert::same($db->query('PRAGMA foreign_key_check')->fetchAll(PDO::FETCH_ASSOC), []);
+                Assert::same((int) \Tablo\SqlStatement::checked($db->query('PRAGMA user_version'))->fetchColumn(), 8);
+                Assert::same(\Tablo\SqlStatement::checked($db->query('PRAGMA foreign_key_check'))->fetchAll(PDO::FETCH_ASSOC), []);
             }
         }
     }
@@ -69,11 +69,11 @@ final class SqlSchemaAdmissionTest extends SqlSchemaFixtureCase
         $actual->exec('CREATE TABLE probe(id INTEGER PRIMARY KEY, value TEXT DEFAULT "null" CHECK(value IS "null"))');
         $wanted->exec('INSERT INTO probe DEFAULT VALUES');
         $actual->exec('INSERT INTO probe DEFAULT VALUES');
-        Assert::same($wanted->query('SELECT value FROM probe')->fetchColumn(), null);
-        Assert::same($actual->query('SELECT value FROM probe')->fetchColumn(), 'null');
+        Assert::same(\Tablo\SqlStatement::checked($wanted->query('SELECT value FROM probe'))->fetchColumn(), null);
+        Assert::same(\Tablo\SqlStatement::checked($actual->query('SELECT value FROM probe'))->fetchColumn(), 'null');
         Assert::notSame(SchemaColumnShape::columns($actual, 'probe'), SchemaColumnShape::columns($wanted, 'probe'));
-        $actualSql = $actual->query("SELECT sql FROM sqlite_schema WHERE name='probe'")->fetchColumn();
-        $wantedSql = $wanted->query("SELECT sql FROM sqlite_schema WHERE name='probe'")->fetchColumn();
+        $actualSql = \Tablo\Tests\Support\FixtureValue::string(\Tablo\SqlStatement::checked($actual->query("SELECT sql FROM sqlite_schema WHERE name='probe'"))->fetchColumn());
+        $wantedSql = \Tablo\Tests\Support\FixtureValue::string(\Tablo\SqlStatement::checked($wanted->query("SELECT sql FROM sqlite_schema WHERE name='probe'"))->fetchColumn());
         Assert::instanceOf(self::error(static fn () => SchemaCheckShape::validate($actualSql, $wantedSql, version: 8, missing: [])), RuntimeException::class);
     }
 }

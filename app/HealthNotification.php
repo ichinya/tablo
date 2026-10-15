@@ -3,13 +3,15 @@ declare(strict_types=1);
 
 namespace Tablo;
 
+/** @phpstan-import-type State from NotificationCheckpointData */
 final class HealthNotification
 {
     public function __construct(private readonly NotificationProjectionStore $store, private readonly NotificationEnqueue $enqueue) {}
+    /** @param State $state */
     public function accepted(NotificationProjectionContext $context, array &$state): void
     {
-        $incident = $this->store->one('SELECT * FROM incidents WHERE site_id = ? AND (end_reason IS NULL OR recovery_history_id = ?)
-                ORDER BY id DESC LIMIT 1',[$context->row['site_id'],$context->historyId]);
+        $incident = \Tablo\SqlRows::one($this->store->one('SELECT * FROM incidents WHERE site_id = ? AND (end_reason IS NULL OR recovery_history_id = ?)
+                ORDER BY id DESC LIMIT 1',[$context->row['site_id'],$context->historyId]), \Tablo\SqlIncidentsClockInvalidConfigRevisionEndReasonRow::checked(...));
         if ($incident === false || $incident['id'] <= $context->settings['activation_id']) { return; }
         if ($incident['end_reason'] === 'recovered') { (new RecoveryNotification($this->store,$this->enqueue))->accepted($context,$state,$incident); return; }
         if ($context->row['online'] === 0) { (new UnavailableNotification($this->store,$this->enqueue))->accepted($context,$state,$incident); return; }

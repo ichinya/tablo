@@ -12,9 +12,12 @@ final class GitRateEvidence
     }
     public static function secondaryMessage(string $body): bool
     {
-        $document = json_decode($body, associative: true, depth: 32);
-        $message = is_array($document) ? ($document['message'] ?? null) : null;
-        return is_string($message) && stripos($message, needle: 'secondary rate limit') !== false;
+        return self::hasSecondaryMessage(json_decode($body, associative: true, depth: 32));
+    }
+    private static function hasSecondaryMessage(mixed $document): bool
+    {
+        return is_array($document) && is_string($document['message'] ?? null)
+            && stripos($document['message'], needle: 'secondary rate limit') !== false;
     }
 
 }

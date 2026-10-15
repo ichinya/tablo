@@ -19,14 +19,14 @@ abstract class GitHubPrivacyFixtureCase
 
     protected static function assertSupportedProviderTrace(array $result): void
     {
-        Assert::false($result['leaked'], 'response trace must redact every private marker');
+        Assert::false(\Tablo\Tests\Support\FixtureValue::at($result, 'leaked'), 'response trace must redact every private marker');
         // Inherited production-bound closures remain opaque: supported state only, not whole-graph privacy.
-        Assert::false($result['complete'], 'provider trace explicitly retains incomplete opaque coverage');
-        Assert::true(($result['opaque']['closure'] ?? 0) > 0);
+        Assert::false(\Tablo\Tests\Support\FixtureValue::at($result, 'complete'), 'provider trace explicitly retains incomplete opaque coverage');
+        Assert::true(\Tablo\Tests\Support\FixtureValue::integer($result['opaque']['closure'] ?? 0) > 0);
     }
 
     protected static function requests(string $path): array
     {
-        return array_map('intval', file($path, FILE_IGNORE_NEW_LINES));
+        return array_map('intval', \Tablo\Tests\Support\FixtureValue::fetched(file($path, FILE_IGNORE_NEW_LINES)));
     }
 }

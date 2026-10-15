@@ -3,8 +3,16 @@ declare(strict_types=1);
 
 namespace Tablo;
 
+/**
+ * @phpstan-import-type Claim from NotificationOutbox
+ * @phpstan-import-type Result from NotificationResult
+ */
 final class NotificationRetryStatus
 {
+    /**
+     * @param Claim $claimed
+     * @param Result $result
+     */
     public static function status(array $claimed,array $result,int $now): string
     {
         if ($result['code'] === 'sent') { return 'sent'; }

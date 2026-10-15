@@ -7,6 +7,7 @@ use PDO;
 
 final class SchemaReference
 {
+    /** @param array{endpoint: bool} $features */
     public static function reference(int $version, array $features): PDO
     {
         $db = new PDO('sqlite::memory:', null, null, [PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION]);

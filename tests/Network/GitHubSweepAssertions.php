@@ -14,6 +14,7 @@ final class GitHubSweepAssertions
 {
     public function __construct(private readonly SiteRepository $sites, private readonly GitHubConnection $connection) {}
 
+    /** @param array{release: bool} $expectation */
     public function acceptedSites(array $expectation): void
     {
                         $release = $expectation['release'];

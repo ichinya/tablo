@@ -38,8 +38,8 @@ final class WorkerProcessCustodyTest
             $old = $state->generation();
             $turns = $state->turns($first, 0);
             Assert::true(min($turns) > 0);
-            Assert::true($sites->find($first)['checked_at'] !== null);
-            Assert::same($sites->find($second)['checked_at'], null);
+            Assert::true(\Tablo\Tests\Support\FixtureValue::row($sites->find($first))['checked_at'] !== null);
+            Assert::same(\Tablo\Tests\Support\FixtureValue::row($sites->find($second))['checked_at'], null);
             $forced = $child->terminate();
             Assert::false($child->running());
             Assert::true($forced['exit_code'] !== 0);
@@ -47,10 +47,10 @@ final class WorkerProcessCustodyTest
             file_put_contents($directory->path . '/release', data: 'release');
             $child = new WorkerProcess($directory, 'successor', [PHP_BINARY, dirname(__DIR__) . '/fixtures/worker-process.php'], ['TABLO_DB' => $path,'TABLO_WORKER_BASE' => $server->base]);
             $child->awaitOutput('Worker pass complete.');
-            Assert::false($state->requestStop($old));
-            $state->requestStop($state->generation());
+            Assert::false($state->requestStop(\Tablo\Tests\Support\FixtureValue::string($old)));
+            $state->requestStop(\Tablo\Tests\Support\FixtureValue::string($state->generation()));
             Assert::same($child->wait()['exit_code'], 0);
-            Assert::true($sites->find($second)['checked_at'] !== null);
+            Assert::true(\Tablo\Tests\Support\FixtureValue::row($sites->find($second))['checked_at'] !== null);
             Assert::true(min($state->turns($second, 0)) > 0);
         } finally {
             file_put_contents($directory->path . '/release', data: 'release');
@@ -92,8 +92,8 @@ final class WorkerProcessCustodyTest
             $next->awaitOutput('Worker pass complete.');
             $current = $state->generation();
             Assert::true($old !== $current);
-            Assert::false($state->requestStop($old), 'stale observed generation cannot stop successor');
-            $state->finish($old);
+            Assert::false($state->requestStop(\Tablo\Tests\Support\FixtureValue::string($old)), 'stale observed generation cannot stop successor');
+            $state->finish(\Tablo\Tests\Support\FixtureValue::string($old));
             Assert::same($state->generation(), $current);
             $stop = Subprocess::run([PHP_BINARY, $root . '/bin/worker.php', '--stop'], $directory, ['TABLO_DB' => $path]);
             Assert::same($stop['exit_code'], 0);

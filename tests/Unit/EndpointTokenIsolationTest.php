@@ -44,12 +44,12 @@ final class EndpointTokenIsolationTest
             Assert::same($caught, 'credential-changed', 'accepted config-revision guard still rejects an old memo handle');
             Assert::same($connection->provider($sites->find($one))->getLatestRelease($base['repository']), 'v2');
             $preview = $connection->branches([...$base, 'endpoint_token' => EndpointFixture::tokenA()], $sites->find($two));
-            Assert::same($preview['branches'], ['main']);
+            Assert::same(\Tablo\Tests\Support\FixtureValue::at($preview, 'branches'), ['main']);
             foreach ($http->requests as [$url, $headers]) {
                 Assert::true(str_starts_with($url, 'https://api.github.com/'));
                 Assert::false((bool) array_filter($headers, static fn ($header) => str_starts_with($header, 'Authorization:')));
-                Assert::false(str_contains(json_encode([$url, $headers]), EndpointFixture::tokenA()));
-                Assert::false(str_contains(json_encode([$url, $headers]), EndpointFixture::tokenB()));
+                Assert::false(str_contains(\Tablo\Tests\Support\FixtureValue::string(json_encode([$url, $headers])), EndpointFixture::tokenA()));
+                Assert::false(str_contains(\Tablo\Tests\Support\FixtureValue::string(json_encode([$url, $headers])), EndpointFixture::tokenB()));
             }
         } finally { $db = null; $vault = null; $sites = null; $connection = null; $old = null; $directory->close(); }
     }

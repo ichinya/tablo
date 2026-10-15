@@ -36,33 +36,34 @@ trait HealthCheckFixture
         $this->endpoints = null;
     }
 
+    /** @return list<string> */
     protected function uris(): array
     {
-        $path = $this->endpoints->path . '/uris.jsonl';
-        return is_file($path) ? array_map(static fn (string $line): string => json_decode($line, associative: true, depth: 4, flags: JSON_THROW_ON_ERROR), file($path, FILE_IGNORE_NEW_LINES)) : [];
+        $path = \Tablo\Tests\Support\FixtureValue::object($this->endpoints)->path . '/uris.jsonl';
+        return is_file($path) ? array_map(static fn (string $line): string => FixtureValue::string(json_decode($line, associative: true, depth: 4, flags: JSON_THROW_ON_ERROR)), FixtureFiles::lines($path, FILE_IGNORE_NEW_LINES)) : [];
     }
 
     protected function check(string $mode, string $csrf, int $cliExit): void
     {
         if ($mode === 'manual') {
-            Assert::same($this->web->request('/sites/1/check', ['_csrf' => $csrf])['status'], 303);
+            Assert::same(\Tablo\Tests\Support\FixtureValue::object($this->web)->request('/sites/1/check', ['_csrf' => $csrf])['status'], 303);
             return;
         }
         $root = dirname(__DIR__, levels: 2);
         if ($mode === 'cli') {
             $result = Subprocess::run([PHP_BINARY, '-d', 'auto_prepend_file=' . $root . '/tests/FixtureCliGitHubConnection.php', $root . '/bin/check.php'],
-                $this->endpoints, ['TABLO_DB' => $this->web->directory->path . '/test.sqlite', 'TABLO_ALLOW_PRIVATE_NETWORK' => '1']);
-            $diagnostic = HealthCheckDiagnostics::capture($result, $this->web->database());
+                \Tablo\Tests\Support\FixtureValue::object($this->endpoints), ['TABLO_DB' => FixtureValue::object($this->web)->directory->path . '/test.sqlite', 'TABLO_ALLOW_PRIVATE_NETWORK' => '1']);
+            $diagnostic = HealthCheckDiagnostics::capture($result, \Tablo\Tests\Support\FixtureValue::object($this->web)->database());
             Assert::same($result['exit_code'], $cliExit, $diagnostic);
             Assert::same(strlen($result['stderr']), 0, $diagnostic);
             return;
         }
-        $child = new WorkerProcess($this->endpoints, 'exact-worker', [PHP_BINARY, $root . '/tests/fixtures/worker-process.php'],
-            ['TABLO_DB' => $this->web->directory->path . '/test.sqlite', 'TABLO_WORKER_BASE' => $this->server->base]);
-        $state = new WorkerStateRepository($this->web->database());
+        $child = new WorkerProcess(\Tablo\Tests\Support\FixtureValue::object($this->endpoints), 'exact-worker', [PHP_BINARY, $root . '/tests/fixtures/worker-process.php'],
+            ['TABLO_DB' => FixtureValue::object($this->web)->directory->path . '/test.sqlite', 'TABLO_WORKER_BASE' => \Tablo\Tests\Support\FixtureValue::object($this->server)->base]);
+        $state = new WorkerStateRepository(\Tablo\Tests\Support\FixtureValue::object($this->web)->database());
         try {
             $child->awaitOutput('Worker pass complete.');
-            $state->requestStop($state->generation());
+            $state->requestStop(\Tablo\Tests\Support\FixtureValue::string($state->generation()));
             $result = $child->wait();
             Assert::same($result['exit_code'], 0);
             Assert::same($result['stderr'], '');

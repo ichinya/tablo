@@ -3,6 +3,7 @@ declare(strict_types=1);
 
 namespace Tablo;
 
+/** @phpstan-import-type Branches from GitHubBranches */
 final class GitHubProvider implements RepositoryProvider
 {
     private readonly GitHubRequestPolicy $policy;
@@ -30,6 +31,7 @@ final class GitHubProvider implements RepositoryProvider
 
     public function admissions(): int { return $this->policy->admissions(); }
 
+    /** @return array{'core': bool, 'search': bool} */
     public function eligibleResources(): array
     {
         $this->credential->assertCurrent($this->policy, $this->identity);
@@ -56,24 +58,23 @@ final class GitHubProvider implements RepositoryProvider
 
     public function getLatestRelease(string $repository): ?string
     {
-        return $this->metrics->metric('release:' . GitRepositoryPath::path($repository), function () use ($repository): ?string {
+        return GitMetricValue::release($this->metrics->metric('release:' . GitRepositoryPath::path($repository), function () use ($repository): ?string {
         $json = $this->requests->request(GitRepositoryPath::path($repository) . '/releases/latest', GitMissingPolicy::Allowed);
         if ($json === null) {
             // Distinguish a repository with no releases from a missing/private repository.
             $this->requests->request(GitRepositoryPath::path($repository));
             return null;
         }
-        $tag = $json['tag_name'] ?? null;
-        if (!is_string($tag) || $tag === '' || strlen($tag) > 200) {
+        if (!is_string($json['tag_name'] ?? null) || $json['tag_name'] === '' || strlen($json['tag_name']) > 200) {
             throw new GitHubFailure('release-unconfirmed');
         }
-        return $tag;
-        });
+        return $json['tag_name'];
+        }));
     }
 
     public function getLatestCommit(string $repository, string $branch): string
     {
-        return $this->metrics->metric('commit:' . GitRepositoryPath::path($repository) . '/branches/' . rawurlencode($branch),
+        return GitMetricValue::commit($this->metrics->metric('commit:' . GitRepositoryPath::path($repository) . '/branches/' . rawurlencode($branch),
             function () use ($repository, $branch): string {
         $json = $this->requests->request(GitRepositoryPath::path($repository) . '/branches/' . rawurlencode($branch));
         if (!is_string($json['name'] ?? null) || !is_string($json['commit']['sha'] ?? null)
@@ -82,14 +83,15 @@ final class GitHubProvider implements RepositoryProvider
         }
         if ($json['name'] !== $branch) { throw new GitHubFailure('branch-unconfirmed'); }
         return strtolower($json['commit']['sha']);
-        });
+        }));
     }
 
 
 
     public function getOpenIssuesCount(string $repository): int { return (new GitHubCount($this->metrics,$this->requests))->count($repository, 'issue'); }
     public function getOpenPullRequestsCount(string $repository): int { return (new GitHubCount($this->metrics,$this->requests))->count($repository, 'pr'); }
+    /** @return Branches */
     public function getBranches(string $repository): array
-    { return $this->metrics->metric('branches:' . GitRepositoryPath::path($repository), fn (): array => (new GitHubBranches($this->requests->request(...)))->getBranches($repository)); }
+    { return GitMetricValue::branches($this->metrics->metric('branches:' . GitRepositoryPath::path($repository), fn (): array => (new GitHubBranches($this->requests->request(...)))->getBranches($repository))); }
     public function beginCheck(): void { $this->requests->beginCheck(); }
 }

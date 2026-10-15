@@ -29,10 +29,10 @@ final class TestServer
         if ($documentRoot !== null) { array_push($command, '-t', $documentRoot); }
         $command[] = $router;
         try {
-            $this->process = proc_open($command, [0 => ['pipe', 'r'], 1 => ['file', $this->log, 'a'],
-                2 => ['file', $this->log, 'a']], $pipes, dirname(__DIR__, levels: 2), array_replace(getenv(), $environment));
+            $pipes = [];
+            $this->process = FixtureSpawn::append($command, $this->log, $this->log, $pipes, ['cwd' => dirname(__DIR__, levels: 2), 'environment' => FixtureSpawn::environment($environment)]);
             if (!is_resource($this->process)) { throw new RuntimeException('Cannot start test server'); }
-            fclose($pipes[0]);
+            fclose(\Tablo\Tests\Support\FixturePipes::pipe($pipes, 0));
             $deadline = microtime(true) + 5;
             do {
                 if (!proc_get_status($this->process)['running']) { break; }
@@ -49,8 +49,8 @@ final class TestServer
 
     public function diagnostics(): string
     {
-        return (is_file($this->log) ? file_get_contents($this->log) : '(no server log)')
-            . (is_file($this->errorLog) ? "\n" . file_get_contents($this->errorLog) : '');
+        return (is_file($this->log) ? \Tablo\RequiredFile::bytes(file_get_contents($this->log)) : '(no server log)')
+            . (is_file($this->errorLog) ? "\n" . \Tablo\RequiredFile::bytes(file_get_contents($this->errorLog)) : '');
     }
 
     public function close(): void

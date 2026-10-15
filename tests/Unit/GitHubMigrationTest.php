@@ -15,25 +15,25 @@ final class GitHubMigrationTest
     {
         foreach (['CREATE TABLE github_cooldowns', 'PRAGMA main.user_version = 8', 'COMMIT', null] as $failure) {
             $db = new MigrationPdo(':memory:');
-            $db->exec(file_get_contents(dirname(__DIR__) . '/fixtures/historical-schema/common2.sql'));
+            $db->exec(\Tablo\RequiredFile::bytes(file_get_contents(dirname(__DIR__) . '/fixtures/historical-schema/common2.sql')));
             $db->exec("
                 INSERT INTO sites (name,url,repository,github_token,online,latest_release,health_error_code)
                 VALUES ('Synthetic','https://example.com','example/project','encrypted-fixture',1,'v1','http')");
-            $before = $db->query('SELECT * FROM sites')->fetchAll();
+            $before = \Tablo\SqlStatement::checked($db->query('SELECT * FROM sites'))->fetchAll();
             $db->failBefore = $failure;
             if ($failure !== null) {
                 $error = null;
                 try { Database::migrate($db); } catch (\RuntimeException $caught) { $error = $caught; }
                 Assert::instanceOf($error, \RuntimeException::class);
-                Assert::same((int) $db->query('PRAGMA user_version')->fetchColumn(), 2);
-                Assert::same($db->query("SELECT name FROM sqlite_schema WHERE name='github_cooldowns'")->fetchColumn(), false);
-                Assert::same($db->query('SELECT * FROM sites')->fetchAll(), $before);
+                Assert::same((int) \Tablo\SqlStatement::checked($db->query('PRAGMA user_version'))->fetchColumn(), 2);
+                Assert::same(\Tablo\SqlStatement::checked($db->query("SELECT name FROM sqlite_schema WHERE name='github_cooldowns'"))->fetchColumn(), false);
+                Assert::same(\Tablo\SqlStatement::checked($db->query('SELECT * FROM sites'))->fetchAll(), $before);
                 $db->failBefore = null;
             }
             Database::migrate($db);
-            Assert::same((int) $db->query('PRAGMA user_version')->fetchColumn(), Database::CURRENT_SCHEMA_VERSION);
-            Assert::same(array_intersect_key($db->query('SELECT * FROM sites')->fetch(), $before[0]), $before[0]);
-            Assert::same($db->query('PRAGMA journal_mode')->fetchColumn(), 'memory', 'no dependency on WAL issue 8');
+            Assert::same((int) \Tablo\SqlStatement::checked($db->query('PRAGMA user_version'))->fetchColumn(), Database::CURRENT_SCHEMA_VERSION);
+            Assert::same(array_intersect_key(\Tablo\JsonRecord::checked(\Tablo\SqlStatement::checked($db->query('SELECT * FROM sites'))->fetch()), \Tablo\JsonRecord::checked(\Tablo\Tests\Support\FixtureValue::at($before, 0))), \Tablo\Tests\Support\FixtureValue::at($before, 0));
+            Assert::same(\Tablo\SqlStatement::checked($db->query('PRAGMA journal_mode'))->fetchColumn(), 'memory', 'no dependency on WAL issue 8');
         }
     }
 }

@@ -60,7 +60,7 @@ final class ReviewedDependenciesTest
             Assert::same(file_get_contents($path), $captured);
             foreach (array_keys(\required_reviewed_dependencies()) as $dependency) {
                 $source = $directory->path . '/' . $dependency;
-                $original = file_get_contents($source);
+                $original = \Tablo\RequiredFile::bytes(file_get_contents($source));
                 file_put_contents($source, $original . "\n// unreviewed drift\n");
                 self::refusal($directory->path, 'Unreviewed dependency source drift: ' . $dependency);
                 Assert::same(file_get_contents($path), $captured, 'verification cannot recapture');
@@ -78,16 +78,17 @@ final class ReviewedDependenciesTest
             self::fixture($directory);
             Assert::same(Subprocess::run([PHP_BINARY, $directory->path . '/tools/capture-reviewed-dependencies.php'], $directory, [])['exit_code'], 0);
             $path = $directory->path . '/contracts/reviewed-dependencies.json';
-            $original = file_get_contents($path);
-            $manifest = json_decode($original, associative: true, depth: 64, flags: JSON_THROW_ON_ERROR);
-            $variants = [null, [], ['schema' => $manifest['schema'], 'dependencies' => []]];
+            $original = \Tablo\RequiredFile::bytes(file_get_contents($path));
+            $manifest = \Tablo\JsonRecord::checked(json_decode($original, associative: true, depth: 64, flags: JSON_THROW_ON_ERROR));
+            $manifest['dependencies'] = \Tablo\SqlRows::all(\Tablo\JsonRecord::checked(\Tablo\Tests\Support\FixtureValue::at($manifest, 'dependencies')), \Tablo\JsonRecord::checked(...));
+            $variants = [null, [], ['schema' => \Tablo\Tests\Support\FixtureValue::at($manifest, 'schema'), 'dependencies' => []]];
             foreach (['path' => '../app/PasswordService.php', 'owner' => 'fake-owner', 'consumers' => ['fake-consumer'],
                 'fingerprint' => 'sha256:invalid'] as $field => $value) {
                 $changed = $manifest;
                 $changed['dependencies'][0][$field] = $value;
                 $variants[] = $changed;
             }
-            $changed = $manifest; $changed['dependencies'][1] = $changed['dependencies'][0]; $variants[] = $changed;
+            $changed = $manifest; $changed['dependencies'][1] = \Tablo\Tests\Support\FixtureValue::at(\Tablo\JsonRecord::checked(\Tablo\Tests\Support\FixtureValue::at($changed, 'dependencies')), 0); $variants[] = $changed;
             $changed = $manifest; unset($changed['dependencies'][0]); $variants[] = $changed;
             $changed = $manifest; $changed['dependencies'][0]['extra'] = 'ignored'; $variants[] = $changed;
             $changed = $manifest; $changed['schema'] = 'lekalo-declaring-owners'; $variants[] = $changed;

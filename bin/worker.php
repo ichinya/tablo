@@ -10,7 +10,10 @@ set_error_handler(static function (int $severity): bool {
     throw new RuntimeException('Worker operation failed.');
 });
 try {
-    if ($argc > 2 || ($argc === 2 && $argv[1] !== '--stop')) {
+    // PHP supplies arbitrary CLI argument counts, not a single inferred invocation.
+    /** @var non-negative-int $argc */
+    /** @var list<string> $argv */
+    if ($argc > 2 || ($argc === 2 && ($argv[1] ?? null) !== '--stop')) {
         fwrite(STDERR, data: "Usage: php bin/worker.php [--stop]\n");
         exit(64);
     }

@@ -13,6 +13,7 @@ use Throwable;
 
 abstract class WalNegotiationFixtureCase
 {
+    /** @param class-string $owner */
     protected static function negotiate(PDO $db, string $owner = Database::class): ?\Throwable
     {
         try { (new \ReflectionMethod($owner, 'ensureWal'))->invoke(null, $db); }

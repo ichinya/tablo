@@ -7,19 +7,24 @@ use PDO;
 
 // Pinned Lekalo requires lowercase physical source paths for this contracted owner.
 // @mago-expect lint:file-name
+/** @phpstan-import-type Snapshot from CheckHistorySnapshot */
 final class NotificationProjector
 {
     public function __construct(private readonly PDO $db, #[\SensitiveParameter] private readonly TokenVault $vault) {}
 
     // Called only within the genuine SiteRepository accepted-result transaction.
+    /**
+     * @param Snapshot $row
+     * @param array{name: string, url: string, comparison_mode: string, ...} $site
+     */
     public function accepted(int $historyId, array $row, #[\SensitiveParameter] array $site, int $wall): void
     {
         $store = new NotificationProjectionStore($this->db);
         $enqueue = new NotificationEnqueue($store, $this->vault);
-        $settings = $store->one('SELECT installation_id, revision, activation_id, enabled, unavailable, recovery, version_lag,
-            include_name, include_url, endpoint_cipher IS NOT NULL AS endpoint_present FROM notification_settings WHERE id = 1');
+        $settings = \Tablo\SqlRows::required($store->one('SELECT installation_id, revision, activation_id, enabled, unavailable, recovery, version_lag,
+            include_name, include_url, endpoint_cipher IS NOT NULL AS endpoint_present FROM notification_settings WHERE id = 1'), \Tablo\SqlNotificationSettingsActivationIdEnabledEndpointPresentRow::checked(...));
         $context = new NotificationProjectionContext($historyId, $row, $site, $settings, $wall);
-        $old = $store->one('SELECT * FROM notification_checkpoints WHERE site_id = ?', [$row['site_id']]);
+        $old = \Tablo\SqlRows::one($store->one('SELECT * FROM notification_checkpoints WHERE site_id = ?', [$row['site_id']]), \Tablo\SqlNotificationCheckpointsConfigRevisionLastHistoryIdSiteIdRow::checked(...));
         if ($old !== false && $old['last_history_id'] >= $historyId) { return; }
         $state = NotificationCheckpointState::prepare($store,$context,$old);
         $late = $row['checked_at'] < $state['watermark'] || $wall < $state['wall'];
@@ -49,5 +54,9 @@ final class NotificationProjector
 
 
 
+    /**
+     * @param Snapshot $row
+     * @param array{comparison_mode: string, ...} $site
+     */
     public static function comparison(array $row, #[\SensitiveParameter] array $site): string|false|null { return NotificationComparison::comparison($row, $site); }
 }

@@ -36,11 +36,11 @@ final class DatabaseDiagnosticsUpgradeTest
             Assert::same($after['version'], Database::CURRENT_SCHEMA_VERSION);
             foreach ($before['rows'] as $table => $rows) {
                 foreach ($rows as $index => $row) {
-                    Assert::same(array_intersect_key($after['rows'][$table][$index], $row), $row);
+                    Assert::same(array_intersect_key(\Tablo\Tests\Support\FixtureValue::at(\Tablo\Tests\Support\FixtureValue::at($after['rows'], $table), $index), $row), $row);
                 }
             }
-            Assert::same($after['rows']['sites'][0]['health_error_code'], null);
-            Assert::same($after['rows']['sites'][0]['health_http_status'], null);
+            Assert::same(\Tablo\Tests\Support\FixtureValue::at(\Tablo\Tests\Support\FixtureValue::at(\Tablo\Tests\Support\FixtureValue::at($after['rows'], 'sites'), 0), 'health_error_code'), null);
+            Assert::same(\Tablo\Tests\Support\FixtureValue::at(\Tablo\Tests\Support\FixtureValue::at(\Tablo\Tests\Support\FixtureValue::at($after['rows'], 'sites'), 0), 'health_http_status'), null);
             $db->statements = [];
             Database::migrate($db);
             Assert::same(array_values(array_filter($db->statements, static fn (string $sql): bool => preg_match('/^(BEGIN|CREATE|ALTER|DROP|INSERT|UPDATE|COMMIT|ROLLBACK)/', $sql) === 1)), []);

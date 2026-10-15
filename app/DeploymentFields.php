@@ -6,6 +6,7 @@ namespace Tablo;
 /** Validated public deployment metadata, independently of its JSON layout. */
 final class DeploymentFields
 {
+    /** @return array{deployed_version: ?string, deployed_commit: ?string} */
     public static function validated(#[\SensitiveParameter] mixed $version, #[\SensitiveParameter] mixed $commit): array
     {
         if ($version !== null && (!is_string($version) || $version === '' || strlen($version) > 200

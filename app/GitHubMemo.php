@@ -3,8 +3,13 @@ declare(strict_types=1);
 
 namespace Tablo;
 
+/**
+ * @phpstan-import-type Branches from GitHubBranches
+ * @phpstan-type MemoValue string|int|null|Branches
+ */
 final class GitHubMemo
 {
+    /** @var array<string, MemoValue> */
     private array $memo = [];
     private readonly string $salt;
     public function __construct(private readonly int $maxEntries) { $this->salt = random_bytes(32); }
@@ -19,6 +24,10 @@ final class GitHubMemo
  unset($this->memo[$key]);
         }
     }
+    /**
+     * @param \Closure(): MemoValue $load
+     * @return MemoValue
+     */
     public function remember(string $identity, string $metric, \Closure $load): mixed
     {
         $key = $identity . ':' . hash('sha256', $metric);

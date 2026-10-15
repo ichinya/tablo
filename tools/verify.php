@@ -6,6 +6,7 @@ chdir($root);
 $selectedLekalo = getenv('LEKALO_BIN');
 $lekalo = $selectedLekalo ? $selectedLekalo : 'lekalo';
 
+/** @param list<string> $command */
 function run_gate(array $command): void
 {
     fwrite(STDOUT, '> ' . implode(' ', $command) . PHP_EOL);
@@ -20,6 +21,7 @@ function run_gate(array $command): void
     }
     $process = null;
     $exit = null;
+    $pipes = [];
     try {
         $process = proc_open($command, [0 => STDIN, 1 => $stdout, 2 => $stderr], $pipes,
             options: ['bypass_shell' => true]);
@@ -38,7 +40,7 @@ function run_gate(array $command): void
             fwrite(STDOUT, 'Gate pid: ' . $initial['pid'] . '; initial exit: ' . $initial['exitcode'] . '; proc_close: ' . $closed . PHP_EOL);
         }
     } finally {
-        if (is_resource($process)) { proc_terminate($process); proc_close($process); }
+        Tablo\Tools\MagoProcessClosure::close($process);
         fclose($stdout); fclose($stderr);
     }
     fwrite(STDOUT, 'Gate exit: ' . ($exit === null ? 'not-started' : $exit) . PHP_EOL);
@@ -51,15 +53,19 @@ function run_gate(array $command): void
 try {
     require __DIR__ . '/reviewed-dependencies.php';
     verify_worker_dependencies($root); // FIRST: refusal precedes any contract/native subprocess.
+    if (count($argv) !== 1) { throw new RuntimeException('Verify accepts no extra arguments.'); }
     require __DIR__ . '/NativeTestAttachments.php';
+    require __DIR__ . '/BindingsDeclaration.php';
+    require_once __DIR__ . '/MagoProcessClosure.php';
     $nativeMap = [];
     run_gate([PHP_BINARY, 'tools/lint.php']);
+    run_gate([PHP_BINARY, 'tools/analyze.php']);
     run_gate([$lekalo, 'validate', '--no-cache']);
     run_gate([$lekalo, 'lock', '--check', '--offline']);
-    $declaration = json_decode(file_get_contents('contracts/php-bindings.json'), associative: true, depth: 64, flags: JSON_THROW_ON_ERROR);
+    $declaration = Tablo\Tools\BindingsDeclaration::read('contracts/php-bindings.json');
     foreach ($declaration['symbols'] as $symbol) {
         $path = $symbol['source']['path'];
-        if (!is_file($path) || !hash_equals($symbol['fingerprint'], 'sha256:' . hash_file('sha256', $path))) {
+        if (!is_file($path) || !hash_equals($symbol['fingerprint'], 'sha256:' . Tablo\RequiredFile::digest($path))) {
             throw new RuntimeException('Unreviewed source drift: ' . $path . '. Review code/model changes and explicitly capture new bindings.');
         }
     }
@@ -129,6 +135,11 @@ try {
             $tests .= ',tests/Unit/ExternalKeyTest.php,tests/Unit/ExternalKeyAuthenticationTest.php,tests/Unit/ExternalKeyCustodyTest.php,tests/Unit/WorkerKeySettlementTest.php,tests/Unit/WorkerConnectionOwnershipTest.php,tests/Network/ExternalKeyTest.php,tests/Http/ExternalKeyTest.php';
             $tests .= ',tests/Unit/SchemaObservationRaceTest.php';
             $tests .= ',tests/Unit/DatabasePathTest.php';
+            // Every database entry point uses checked PDO acquisition and actual row admission.
+            $tests .= ',tests/Unit/SqlStatementTest.php,tests/Unit/SqlRowTest.php';
+            if (in_array($symbol['id'], ['dashboard.ack_notification', 'dashboard.deliver_notification'], strict: true)) {
+                $tests .= ',tests/Unit/NotificationResultTest.php';
+            }
             if (in_array($symbol['id'], ['dashboard.run_checks', 'dashboard.setup', 'dashboard.login',
                 'dashboard.change_admin_password', 'dashboard.run_worker_pass'], strict: true)) {
                 $tests .= ',tests/Unit/RuntimeIniTest.php';
@@ -165,8 +176,8 @@ try {
         'status' => 'passed', 'checked_at' => gmdate('c'), 'lekalo_lock' => hash_file('sha256', filename: 'lekalo.lock'),
         'composer_lock' => hash_file('sha256', filename: 'composer.lock'), 'bindings' => hash_file('sha256', filename: 'contracts/php-bindings.json'),
         'reviewed_dependencies' => hash_file('sha256', filename: 'contracts/reviewed-dependencies.json'),
-        'gates' => ['mago-lint', 'model-validation', 'lock-freshness', 'source-fingerprints', 'contract-conformance', 'native-logic-tests', 'real-http-client-tests', 'isolated-http-flow'],
-    ], JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES) . "\n");
+        'gates' => ['mago-lint', 'mago-analyze', 'model-validation', 'lock-freshness', 'source-fingerprints', 'contract-conformance', 'native-logic-tests', 'real-http-client-tests', 'isolated-http-flow'],
+    ], JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES | JSON_THROW_ON_ERROR) . "\n");
     echo "All gates passed.\n";
 } catch (Throwable $e) {
     fwrite(STDERR, $e->getMessage() . PHP_EOL);

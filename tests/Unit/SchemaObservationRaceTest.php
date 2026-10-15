@@ -22,7 +22,7 @@ final class SchemaObservationRaceTest
                 'endpoint' => true, 'history' => true, 'incidents' => true, 'notifications' => true]);
             Assert::true($db->observations >= 2);
             Assert::false($db->inTransaction());
-            Assert::same($db->query('PRAGMA integrity_check')->fetchColumn(), 'ok');
+            Assert::same(\Tablo\SqlStatement::checked($db->query('PRAGMA integrity_check'))->fetchColumn(), 'ok');
         } finally { unset($db); $directory->close(); }
     }
 

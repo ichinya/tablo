@@ -4,8 +4,10 @@ namespace Tablo\Tools;
 
 use RuntimeException;
 
+/** @phpstan-import-type Metadata from ReviewedDependencyCatalog */
 final class ReviewedDependencyCoverage
 {
+    /** @param array<string, Metadata> $required */
     public static function verify(string $root, array $required): void
     {
         $expected = array_values(array_filter(array_keys($required),

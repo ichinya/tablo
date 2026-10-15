@@ -19,6 +19,7 @@ final class WorkerConnectionOwnershipTest
         try {
             putenv('TABLO_TOKEN_KEY_FILE');
             [$key, $original, $vault, $a, $b, $sitesA, $sitesB, $idA, $idB, $snapshot, $result] = ConnectionOwnershipFixture::create($directory);
+            $snapshot = \Tablo\Tests\Support\FixtureValue::row($snapshot);
             foreach ([false, true] as $callerTransaction) {
                 if ($callerTransaction) {
                     CallerTransactionFixture::open($a, $b, $key);
@@ -26,13 +27,13 @@ final class WorkerConnectionOwnershipTest
                 $caught = null;
                 try {
                     $state = new WorkerStateRepository($a, $sitesB);
-                    $state->settle($snapshot, $result);
+                    $state->settle(\Tablo\Tests\Support\FixtureValue::row($snapshot), $result);
                 } catch (\LogicException $error) { $caught = $error->getMessage(); unset($error); }
                 Assert::same($caught, 'Settlement repository connection mismatch.');
                 Assert::same($a->inTransaction(), $callerTransaction);
                 Assert::same($b->inTransaction(), $callerTransaction);
-                Assert::same($sitesA->find($idA)['checked_at'], null);
-                Assert::same($sitesB->find($idB)['checked_at'], null);
+                Assert::same(\Tablo\Tests\Support\FixtureValue::row($sitesA->find($idA))['checked_at'], null);
+                Assert::same(\Tablo\Tests\Support\FixtureValue::row($sitesB->find($idB))['checked_at'], null);
                 (new ConnectionOwnershipAssertions($a, $b))->noCredit();
                 if ($callerTransaction) {
                     (new ConnectionOwnershipAssertions($a, $b))->caller($key);

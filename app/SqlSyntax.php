@@ -6,6 +6,7 @@ namespace Tablo;
 
 final class SqlSyntax
 {
+    /** @return array{checks: list<list<string>>, autoincrement: bool} */
     public static function constraints(string $sql): array
     {
         $lexemes = SqlLexemes::read($sql);
@@ -20,11 +21,16 @@ final class SqlSyntax
         return ['checks' => $checks, 'autoincrement' => $autoincrement];
     }
 
+    /** @return list<string> */
     public static function tokens(string $sql): array
     {
         return array_map(SqlLexemes::comparable(...), SqlLexemes::read($sql));
     }
 
+    /**
+     * @param list<non-empty-string> $lexemes
+     * @return list<list<non-empty-string>>
+     */
     private static function definitions(array $lexemes): array
     {
         $opening = array_search('(', $lexemes, strict: true);

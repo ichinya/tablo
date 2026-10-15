@@ -11,11 +11,11 @@ final class IncidentWriterAssertions
 
     public function noResurrection(array $result, int $other): void
     {
-            Assert::same($result['exit_code'], 0);
-            Assert::true(str_contains($result['stdout'], '"result":false'));
-            Assert::same(array_column($this->db->query('SELECT site_id FROM incidents')->fetchAll(), 'site_id'), [$other]);
-            Assert::same(array_column($this->db->query('SELECT site_id FROM incident_checkpoints')->fetchAll(), 'site_id'), [$other]);
-            Assert::same($this->db->query('PRAGMA foreign_key_check')->fetchAll(), []);
+            Assert::same(\Tablo\Tests\Support\FixtureValue::at($result, 'exit_code'), 0);
+            Assert::true(str_contains(\Tablo\Tests\Support\FixtureValue::string(\Tablo\Tests\Support\FixtureValue::at($result, 'stdout')), '"result":false'));
+            Assert::same(array_column(\Tablo\SqlRows::all(\Tablo\SqlStatement::checked($this->db->query('SELECT site_id FROM incidents'))->fetchAll(), \Tablo\SqlIncidentsSiteIdRow::checked(...)), 'site_id'), [$other]);
+            Assert::same(array_column(\Tablo\SqlRows::all(\Tablo\SqlStatement::checked($this->db->query('SELECT site_id FROM incident_checkpoints'))->fetchAll(), \Tablo\SqlIncidentsSiteIdRow::checked(...)), 'site_id'), [$other]);
+            Assert::same(\Tablo\SqlStatement::checked($this->db->query('PRAGMA foreign_key_check'))->fetchAll(), []);
 
     }
 }

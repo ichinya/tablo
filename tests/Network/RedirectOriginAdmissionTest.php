@@ -22,12 +22,12 @@ final class RedirectOriginAdmissionTest
         }
         $source = new RedirectServer(); $destination = new RedirectServer();
         try {
-            foreach (['scheme', 'host', 'private', 'port?port=' . parse_url($destination->base, PHP_URL_PORT)] as $case) {
+            foreach (['scheme', 'host', 'private', 'port?port=' . \Tablo\Tests\Support\FixtureValue::integer(parse_url($destination->base, PHP_URL_PORT))] as $case) {
                 $before = count($source->rows());
                 \Tablo\Tests\Support\RedirectAssertions::reject($source->base . '/cross/' . $case, 'redirect-origin', headers: \Tablo\Tests\Support\RedirectAssertions::headers());
                 Assert::same(count($source->rows()) - $before, 1);
                 Assert::same($destination->rows(), []);
-                Assert::true($source->rows()[$before]['bearer']);
+                Assert::true(\Tablo\Tests\Support\FixtureValue::at($source->rows(), $before)['bearer']);
             }
             foreach ([['Cookie: synthetic-redirect-token'], ['Host: other.example'], ['X-Key: synthetic-redirect-token'],
                 ['Authorization: Bearer synthetic-redirect-token', 'Referer: secret'], ["Authorization: Bearer x\r\nX: y"]] as $headers) {
@@ -70,8 +70,8 @@ final class RedirectOriginAdmissionTest
                 $outcome = ['reason' => $error->reason];
             }
             $report = getenv('TABLO_REDIRECT_CONTROL_REPORT');
-            if ($report) { file_put_contents($report, json_encode(['curl_version' => curl_version()['version'],
-                'interim_conflict' => $outcome]) . "\n", FILE_APPEND | LOCK_EX); }
+            if ($report) { file_put_contents($report, \Tablo\Tests\Support\FixtureValue::string(json_encode(['curl_version' => \Tablo\Tests\Support\FixtureValue::at(\Tablo\Tests\Support\FixtureValue::fetched(curl_version()), 'version'),
+                'interim_conflict' => $outcome])) . "\n", FILE_APPEND | LOCK_EX); }
             $before = count($server->rows());
             Assert::same((new HttpClient(true))->getEndpoint($server->base . '/header/trailer')['status'], 200);
             Assert::same(count($server->rows()) - $before, 1);

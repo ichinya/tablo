@@ -66,17 +66,17 @@ final class ExternalKeyTest
             putenv('TABLO_TOKEN_KEY_FILE=0'); self::refuses(TokenVault::configured(...));
             $raw = random_bytes(32); file_put_contents($root . '/' . $relative, $raw);
             putenv('TABLO_TOKEN_KEY_FILE=' . $relative);
-            $vault = TokenVault::configured(); $cipher = $vault->encrypt('synthetic');
+            $vault = TokenVault::configured(); $cipher = \Tablo\Tests\Support\FixtureValue::object($vault)->encrypt('synthetic');
             chdir($directory->path);
-            Assert::same(TokenVault::configured()->decrypt($cipher), 'synthetic');
+            Assert::same(\Tablo\Tests\Support\FixtureValue::object(TokenVault::configured())->decrypt($cipher), 'synthetic');
             Assert::same(file_get_contents($root . '/' . $relative), $raw);
             if (DIRECTORY_SEPARATOR === '/') {
                 symlink($root . '/' . $relative, $directory->path . '/link');
                 putenv('TABLO_TOKEN_KEY_FILE=' . $directory->path . '/link');
-                Assert::same(TokenVault::configured()->decrypt($cipher), 'synthetic');
+                Assert::same(\Tablo\Tests\Support\FixtureValue::object(TokenVault::configured())->decrypt($cipher), 'synthetic');
             }
         } finally {
-            chdir($cwd);
+            chdir(\Tablo\Tests\Support\FixtureValue::string($cwd));
             putenv($environment === false ? 'TABLO_TOKEN_KEY_FILE' : 'TABLO_TOKEN_KEY_FILE=' . $environment);
             if (is_file($root . '/' . $relative)) { unlink($root . '/' . $relative); }
             $directory->close();

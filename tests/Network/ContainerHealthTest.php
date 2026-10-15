@@ -10,22 +10,25 @@ use Testo\Test;
 
 final class ContainerHealthTest
 {
+    /** @return list{int, string, string, float} */
     private static function client(string $path, string $directory, array $extra = [], \Tablo\Tests\Support\CurlAvailability $curl = \Tablo\Tests\Support\CurlAvailability::Enabled): array
     {
         $argv = $curl === \Tablo\Tests\Support\CurlAvailability::Disabled ? [PHP_BINARY, '-d', 'disable_functions=curl_init', $path] : [PHP_BINARY, $path];
+        $pipes = [];
         $process = proc_open($argv, [0 => ['pipe', 'r'], 1 => ['file', $directory . '/client.out', 'w'],
-            2 => ['file', $directory . '/client.err', 'w']], $pipes, cwd: null, env_vars: array_replace(getenv(), $extra));
+            2 => ['file', $directory . '/client.err', 'w']], $pipes, cwd: null, env_vars: \Tablo\Tests\Support\FixtureSpawn::environment($extra));
         Assert::true(is_resource($process));
-        fclose($pipes[0]);
+        $process = \Tablo\Tests\Support\FixtureNative::resource($process);
+        fclose(\Tablo\Tests\Support\FixturePipes::pipe($pipes, 0));
         $started = microtime(true);
         $exit = proc_close($process);
-        return [$exit, file_get_contents($directory . '/client.out'), file_get_contents($directory . '/client.err'), microtime(true) - $started];
+        return [$exit, \Tablo\RequiredFile::bytes(file_get_contents($directory . '/client.out')), \Tablo\RequiredFile::bytes(file_get_contents($directory . '/client.err')), microtime(true) - $started];
     }
 
     #[Test]
     public function realCurlRejectsIncorrectResponsesAndBoundsTransfer(): void
     {
-        $source = file_get_contents(dirname(__DIR__, levels: 2) . '/deploy/healthcheck.php');
+        $source = \Tablo\RequiredFile::bytes(file_get_contents(dirname(__DIR__, levels: 2) . '/deploy/healthcheck.php'));
         foreach (['ok' => 0, 'redirect' => 1, 'login' => 1, 'static' => 1, 'raw-php' => 1, 'large-body' => 1, 'large-header' => 1, 'delayed-body' => 1] as $mode => $exit) {
             $directory = new TemporaryDirectory('tablo-container-health-client-');
             $router = $directory->path . '/router.php';
@@ -54,7 +57,7 @@ PHP);
                 Assert::same($out, $exit === 0 ? "healthy\n" : "unavailable\n", $mode);
                 Assert::same($err, '', $mode);
                 Assert::true($elapsed < 4, 'bounded client wall time');
-                $request = json_decode(file_get_contents($log), associative: true);
+                $request = \Tablo\JsonRecord::checked(json_decode(\Tablo\RequiredFile::bytes(file_get_contents($log)), associative: true));
                 Assert::same($request, ['method' => 'GET', 'target' => '/_tablo/health', 'cookie' => false, 'credentials' => false]);
             } finally { $server->close(); $directory->close(); }
         }

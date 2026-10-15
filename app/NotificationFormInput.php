@@ -3,15 +3,18 @@ declare(strict_types=1);
 
 namespace Tablo;
 
+/**
+ * @phpstan-import-type Flags from NotificationFlags
+ * @phpstan-type Form array{revision: string, endpoint: string, bearer: string, flags: Flags}
+ */
 final class NotificationFormInput
 {
+    /** @return Form */
     public static function parse(#[\SensitiveParameter] array $input): array
     {
-        $revision = $input['revision'] ?? null;
-        if (!is_string($revision) || !preg_match('/^(0|[1-9][0-9]{0,15})$/D', $revision)) { self::invalid(); }
-        $endpoint = $input['endpoint'] ?? '';
-        $bearer = $input['bearer'] ?? '';
-        if (!is_string($endpoint) || !is_string($bearer)) { self::invalid(); }
+        $revision = NotificationFormValue::revision($input['revision'] ?? null);
+        $endpoint = NotificationFormValue::string($input['endpoint'] ?? '');
+        $bearer = NotificationFormValue::string($input['bearer'] ?? '');
         $flags = NotificationFlags::parse($input);
         if (($flags['remove_endpoint'] && $endpoint !== '') || ($flags['remove_bearer'] && $bearer !== '')) { self::invalid(); }
         if ($endpoint !== '') { WebhookAddress::parts($endpoint); }

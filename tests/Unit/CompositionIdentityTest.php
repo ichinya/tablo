@@ -40,12 +40,12 @@ final class CompositionIdentityTest extends CompositionSchemaFixtureCase
                 Database::migrate($db);
                 foreach (['check_history', 'incidents', 'incident_checkpoints', 'notification_settings', 'notification_checkpoints', 'notification_slots'] as $table) {
                     if (!(($before[$table] ?? null) !== null)) { continue; }
- Assert::same(SchemaShape::rows($db, 'SELECT * FROM ' . $table . ' ORDER BY rowid'), $before[$table], $name);
+ Assert::same(SchemaShape::rows($db, 'SELECT * FROM ' . $table . ' ORDER BY rowid'), \Tablo\Tests\Support\FixtureValue::at($before, $table), $name);
                 }
-                Assert::same((int) $db->query("SELECT seq FROM sqlite_sequence WHERE name='check_history'")->fetchColumn(), 900);
+                Assert::same((int) \Tablo\SqlStatement::checked($db->query("SELECT seq FROM sqlite_sequence WHERE name='check_history'"))->fetchColumn(), 900);
                 $db->exec("INSERT INTO check_history(site_id,config_revision,checked_at,version_status) VALUES(1,0,'2026-01-01T00:00:01Z','skipped')");
                 Assert::same((int) $db->lastInsertId(), 901);
-                Assert::same((int) $db->query('PRAGMA foreign_keys')->fetchColumn(), 1);
+                Assert::same((int) \Tablo\SqlStatement::checked($db->query('PRAGMA foreign_keys'))->fetchColumn(), 1);
             }
         }
     }

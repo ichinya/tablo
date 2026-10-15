@@ -13,13 +13,17 @@ use Tablo\Tests\Support\TemporaryDirectory;
 use Testo\Assert;
 use Testo\Test;
 
+/**
+ * @phpstan-import-type Base from \Tablo\Tests\Support\DatabaseProcessObservation
+ */
 final class DatabaseWalTest
 {
+    /** @return Base */
     private static function result(MigrationProcess $process, ?MigrationProcess $holder = null): array
     {
         $result = $process->wait(holder: $holder);
         Assert::same($result['code'], 0, 'Database process failed: ' . $result['stderr'] . $result['stdout']);
-        return json_decode($result['stdout'], associative: true, depth: 16, flags: JSON_THROW_ON_ERROR);
+        return \Tablo\Tests\Support\DatabaseProcessObservation::decode($result['stdout']);
     }
 
     private static function release(TemporaryDirectory $directory, string $name): void
@@ -31,23 +35,23 @@ final class DatabaseWalTest
         #[\SensitiveParameter] string $adminSecret, #[\SensitiveParameter] string $syntheticToken): void
     {
         foreach (['users', 'sites', 'git_tokens'] as $table) {
-            Assert::same($restored->query('SELECT * FROM ' . $table . ' ORDER BY id')->fetchAll(),
-                $source->query('SELECT * FROM ' . $table . ' ORDER BY id')->fetchAll());
+            Assert::same(\Tablo\SqlStatement::checked($restored->query('SELECT * FROM ' . $table . ' ORDER BY id'))->fetchAll(),
+                \Tablo\SqlStatement::checked($source->query('SELECT * FROM ' . $table . ' ORDER BY id'))->fetchAll());
         }
-        Assert::same($restored->query('PRAGMA integrity_check')->fetchColumn(), 'ok');
-        Assert::same($restored->query('PRAGMA foreign_key_check')->fetchAll(), []);
-        Assert::same((int) $restored->query('PRAGMA user_version')->fetchColumn(), Database::CURRENT_SCHEMA_VERSION);
-        Assert::true(password_verify($adminSecret, $restored->query('SELECT password_hash FROM users')->fetchColumn()));
+        Assert::same(\Tablo\SqlStatement::checked($restored->query('PRAGMA integrity_check'))->fetchColumn(), 'ok');
+        Assert::same(\Tablo\SqlStatement::checked($restored->query('PRAGMA foreign_key_check'))->fetchAll(), []);
+        Assert::same((int) \Tablo\SqlStatement::checked($restored->query('PRAGMA user_version'))->fetchColumn(), Database::CURRENT_SCHEMA_VERSION);
+        Assert::true(password_verify($adminSecret, \Tablo\Tests\Support\FixtureValue::string(\Tablo\SqlStatement::checked($restored->query('SELECT password_hash FROM users'))->fetchColumn())));
         $restoredVault = TokenVault::forDatabase($restored);
-        $encrypted = $restored->query('SELECT encrypted_token FROM git_tokens')->fetchColumn();
+        $encrypted = \Tablo\Tests\Support\FixtureValue::string(\Tablo\SqlStatement::checked($restored->query('SELECT encrypted_token FROM git_tokens'))->fetchColumn());
         $missingKeyError = null;
-        try { $restoredVault->decrypt($encrypted); } catch (RuntimeException $error) { $missingKeyError = $error->getMessage(); }
+        try { $restoredVault->decrypt(\Tablo\Tests\Support\FixtureValue::string($encrypted)); } catch (RuntimeException $error) { $missingKeyError = $error->getMessage(); }
         unset($error);
         Assert::true($missingKeyError !== null);
-        Assert::false(str_contains($missingKeyError, $syntheticToken));
+        Assert::false(str_contains(\Tablo\Tests\Support\FixtureValue::string($missingKeyError), $syntheticToken));
         Assert::false(is_file($directory->path . '/restore/github-token.key'));
         Assert::true(copy($directory->path . '/github-token.key', $directory->path . '/restore/github-token.key'));
-        Assert::same($restoredVault->decrypt($encrypted), $syntheticToken);
+        Assert::same($restoredVault->decrypt(\Tablo\Tests\Support\FixtureValue::string($encrypted)), $syntheticToken);
     }
 
     #[Test]
@@ -67,12 +71,12 @@ final class DatabaseWalTest
                 $reader->awaitSignal('reader.snapshot');
                 $writer = new MigrationProcess($directory, 'writer', $journal === 'wal' ? 'wal-write-short' : 'wal-delete-write', $path);
                 // The held reader is released only after the independent writer has exited.
-                $write = self::result($writer);
+                $write = \Tablo\Tests\Support\DatabaseProcessObservation::write(self::result($writer));
                 Assert::same($write['journal'], $journal);
                 Assert::same($write['written'], $journal === 'wal');
-                if ($journal === 'delete') { Assert::same($write['sqlite_code'], 5); }
+                if ($journal === 'delete') { Assert::same(\Tablo\Tests\Support\FixtureJson::sqliteCode($write, 'sqlite_code'), 5); }
                 self::release($directory, 'reader');
-                $read = self::result($reader);
+                $read = \Tablo\Tests\Support\DatabaseProcessObservation::read(self::result($reader));
                 Assert::same([$read['before'], $read['during'], $read['after']], [1, 1, $journal === 'wal' ? 2 : 1]);
             } finally {
                 $writer?->close();
@@ -105,23 +109,23 @@ final class DatabaseWalTest
             $writer->awaitSignal('writer.ready');
             DatabaseWalHolderTest::assertLocked($holder, $path);
             file_put_contents($directory->path . '/writer.proceed', data: 'proceed');
-            $write = self::result($writer, $holder);
+            $write = \Tablo\Tests\Support\DatabaseProcessObservation::write(self::result($writer, $holder));
             DatabaseWalHolderTest::assertLocked($holder, $path);
             Assert::same($write['written'], false);
-            Assert::same($write['sqlite_code'], 5);
+            Assert::same(\Tablo\Tests\Support\FixtureJson::sqliteCode($write, 'sqlite_code'), 5);
             Assert::same($write['timeout'], 5000);
             Assert::same($write['foreign_keys'], 1);
             Assert::true($write['elapsed'] >= 4.5 && $write['elapsed'] < 8, 'Unexpected default busy wait');
             $db = Database::connect($path);
-            Assert::same((int) $db->query('SELECT count(*) FROM sites')->fetchColumn(), 0);
+            Assert::same((int) \Tablo\SqlStatement::checked($db->query('SELECT count(*) FROM sites'))->fetchColumn(), 0);
             $holder->release();
             $holder->awaitSignal('holder.released');
             Assert::same(self::result($holder)['journal'], 'wal');
             $writer = new MigrationProcess($directory, 'retry', 'wal-write', $path);
             $writer->awaitSignal('retry.ready');
             file_put_contents($directory->path . '/retry.proceed', data: 'proceed');
-            Assert::same(self::result($writer)['written'], true);
-            Assert::same((int) $db->query('SELECT count(*) FROM sites')->fetchColumn(), 1);
+            Assert::same(\Tablo\Tests\Support\DatabaseProcessObservation::write(self::result($writer))['written'], true);
+            Assert::same((int) \Tablo\SqlStatement::checked($db->query('SELECT count(*) FROM sites'))->fetchColumn(), 1);
         } finally {
             $writer?->close();
             $reader?->close();
@@ -143,42 +147,42 @@ final class DatabaseWalTest
             $db->exec('PRAGMA wal_autocheckpoint = 0'); // Fixture only; product keeps SQLite defaults.
             $adminSecret = bin2hex(random_bytes(16));
             $hash = password_hash($adminSecret, PASSWORD_BCRYPT, options: ['cost' => 4]);
-            $db->prepare('INSERT INTO users(id,password_hash) VALUES(1,?)')->execute([$hash]);
+            \Tablo\SqlStatement::checked($db->prepare('INSERT INTO users(id,password_hash) VALUES(1,?)'))->execute([$hash]);
             $db->exec("INSERT INTO sites(name,url,repository) VALUES('old','https://example.com','example/project')");
-            Assert::same($db->query('PRAGMA wal_checkpoint(TRUNCATE)')->fetch(PDO::FETCH_NUM), [0, 0, 0]);
+            Assert::same(\Tablo\SqlStatement::checked($db->query('PRAGMA wal_checkpoint(TRUNCATE)'))->fetch(PDO::FETCH_NUM), [0, 0, 0]);
             $reader = new MigrationProcess($directory, 'reader', 'wal-reader', $path);
             $reader->awaitSignal('reader.snapshot');
             $vault = TokenVault::forDatabase($db);
             $syntheticToken = bin2hex(random_bytes(24));
             $tokens = new GitTokenRepository($db, $vault);
             $tokenId = $tokens->save(['name' => 'Synthetic', 'provider' => 'github', 'token' => $syntheticToken]);
-            $db->prepare("INSERT INTO sites(name,url,repository,git_token_id) VALUES('new','https://example.com','example/project',?)")
+            \Tablo\SqlStatement::checked($db->prepare("INSERT INTO sites(name,url,repository,git_token_id) VALUES('new','https://example.com','example/project',?)"))
                 ->execute([$tokenId]);
             $db->exec('PRAGMA busy_timeout = 150');
-            $busy = $db->query('PRAGMA wal_checkpoint(TRUNCATE)')->fetch(PDO::FETCH_NUM);
-            Assert::same($busy[0], 1);
-            Assert::true($busy[1] > $busy[2], 'Reader must keep uncheckpointed frames');
+            $busy = \Tablo\JsonRecord::checked(\Tablo\SqlStatement::checked($db->query('PRAGMA wal_checkpoint(TRUNCATE)'))->fetch(PDO::FETCH_NUM));
+            Assert::same(\Tablo\Tests\Support\FixtureValue::at(\Tablo\JsonRecord::checked($busy), 0), 1);
+            Assert::true(\Tablo\Tests\Support\FixtureValue::integer(\Tablo\Tests\Support\FixtureValue::at($busy, 1)) > \Tablo\Tests\Support\FixtureValue::integer(\Tablo\Tests\Support\FixtureValue::at($busy, 2)), 'Reader must keep uncheckpointed frames');
             mkdir($directory->path . '/restore', permissions: 0o700);
             $backupPath = $directory->path . '/restore/tablo.sqlite';
             // A bare live main-file copy misses the new row. This is deliberately an unsafe control.
             copy($path, $directory->path . '/stale.sqlite');
             $stale = Database::connect($directory->path . '/stale.sqlite');
-            Assert::same((int) $stale->query('SELECT count(*) FROM sites')->fetchColumn(), 1);
+            Assert::same((int) \Tablo\SqlStatement::checked($stale->query('SELECT count(*) FROM sites'))->fetchColumn(), 1);
             unset($stale);
-            $db->exec('VACUUM INTO ' . $db->quote($backupPath));
+            $db->exec('VACUUM INTO ' . \Tablo\Tests\Support\FixtureValue::string($db->quote($backupPath)));
             $restored = Database::connect($backupPath);
             self::assertRestoredRows($db, $restored, $directory, $adminSecret, $syntheticToken);
             self::release($directory, 'reader');
-            $read = self::result($reader);
+            $read = \Tablo\Tests\Support\DatabaseProcessObservation::read(self::result($reader));
             Assert::same([$read['before'], $read['during'], $read['after']], [1, 1, 2]);
-            Assert::same($db->query('PRAGMA wal_checkpoint(TRUNCATE)')->fetch(PDO::FETCH_NUM), [0, 0, 0]);
+            Assert::same(\Tablo\SqlStatement::checked($db->query('PRAGMA wal_checkpoint(TRUNCATE)'))->fetch(PDO::FETCH_NUM), [0, 0, 0]);
             clearstatcache(true, $path . '-wal');
             // Runtime/VFS cleanup may remove an empty WAL; a surviving file must be empty.
             Assert::same(is_file($path . '-wal') ? filesize($path . '-wal') : 0, 0);
             // Independently verify checkpointed data in the main file, without source sidecars.
             Assert::true(copy($path, $directory->path . '/checkpoint.sqlite'));
             $checkpointed = Database::connect($directory->path . '/checkpoint.sqlite');
-            Assert::same((int) $checkpointed->query('SELECT count(*) FROM sites')->fetchColumn(), 2);
+            Assert::same((int) \Tablo\SqlStatement::checked($checkpointed->query('SELECT count(*) FROM sites'))->fetchColumn(), 2);
             unset($checkpointed);
         } finally {
             $reader?->close();
@@ -202,11 +206,11 @@ final class DatabaseWalTest
             Assert::true($child->terminate()['code'] !== 0);
             clearstatcache();
             Assert::true(is_file($path . '-wal'));
-            Assert::true(filesize($path . '-wal') > 0);
+            Assert::true(\Tablo\Tests\Support\FixtureValue::integer(filesize($path . '-wal')) > 0);
             $db = Database::connect($path);
-            Assert::same($db->query('SELECT name FROM sites ORDER BY id')->fetchAll(PDO::FETCH_COLUMN), ['committed']);
-            Assert::same($db->query('PRAGMA integrity_check')->fetchColumn(), 'ok');
-            Assert::same($db->query('PRAGMA foreign_key_check')->fetchAll(), []);
+            Assert::same(\Tablo\SqlStatement::checked($db->query('SELECT name FROM sites ORDER BY id'))->fetchAll(PDO::FETCH_COLUMN), ['committed']);
+            Assert::same(\Tablo\SqlStatement::checked($db->query('PRAGMA integrity_check'))->fetchColumn(), 'ok');
+            Assert::same(\Tablo\SqlStatement::checked($db->query('PRAGMA foreign_key_check'))->fetchAll(), []);
         } finally {
             $child?->close();
             unset($db);
@@ -230,7 +234,7 @@ final class DatabaseWalTest
                 $db->exec("INSERT INTO sites(name,url,repository) VALUES('old','https://example.com','example/project')");
                 $vault = TokenVault::forDatabase($db);
                 $vault->encrypt(bin2hex(random_bytes(16)));
-                $statement = $db->query('SELECT * FROM sites');
+                $statement = \Tablo\SqlStatement::checked($db->query('SELECT * FROM sites'));
                 $reader = new MigrationProcess($directory, 'reader', 'wal-reader', $path);
                 $reader->awaitSignal('reader.snapshot');
                 Assert::true(is_file($path . '-wal') && is_file($path . '-shm'));
@@ -270,7 +274,7 @@ final class DatabaseWalTest
         $directory = new TemporaryDirectory('tablo-wal-handles-');
         try {
             $db = Database::connect($directory->path . '/test.sqlite');
-            $statement = $db->query('SELECT * FROM sites');
+            $statement = \Tablo\SqlStatement::checked($db->query('SELECT * FROM sites'));
             unset($db);
             $failure = null;
             try { $directory->close(); } catch (RuntimeException $error) { $failure = $error->getMessage(); }

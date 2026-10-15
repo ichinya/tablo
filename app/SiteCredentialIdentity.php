@@ -3,9 +3,11 @@ declare(strict_types=1);
 
 namespace Tablo;
 
+/** @phpstan-import-type GitCredentialRecord from SiteCredentialInput as CredentialRecord */
 final class SiteCredentialIdentity
 {
     public function __construct(private readonly \PDO $db,private readonly GitTokenRepository $savedTokens, #[\SensitiveParameter] private readonly TokenVault $tokens) {}
+    /** @param CredentialRecord|null $site */
     public function credentialScope(#[\SensitiveParameter] array $input, #[\SensitiveParameter] ?array $site): string
     {
         $selected = (new SelectedSiteToken($this->savedTokens))->selectedToken($input, $site);

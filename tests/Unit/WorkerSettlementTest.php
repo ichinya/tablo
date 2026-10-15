@@ -23,7 +23,7 @@ final class WorkerSettlementTest
             $db = Database::connect($directory->path . '/db.sqlite');
             $sites = new SiteRepository($db);
             $id = $sites->save(array_replace(UnitFixtures::site(), ['repository' => 'fixture/project']));
-            $snapshot = $sites->find($id);
+            $snapshot = \Tablo\Tests\Support\FixtureValue::row($sites->find($id));
             $state = new WorkerStateRepository($db);
             $result = ['online' => 1, 'checked_at' => '2026-01-01T00:00:00Z',
                 'worker_service' => ['latest_release' => true, 'open_issues' => true]];
@@ -42,11 +42,11 @@ final class WorkerSettlementTest
                 Assert::instanceOf($error, PDOException::class);
                 Assert::true(str_contains($error->getMessage(), $diagnostic), 'original settlement failure: ' . $diagnostic);
                 Assert::false($db->inTransaction());
-                Assert::same($sites->find($id)['checked_at'], null);
-                Assert::same((int) $db->query('SELECT COUNT(*) FROM worker_progress')->fetchColumn(), 0);
-                Assert::same((int) $db->query('SELECT COUNT(*) FROM check_history')->fetchColumn(), 0);
-                Assert::same((int) $db->query('SELECT fairness_turn FROM worker_runtime')->fetchColumn(), 0);
-                Assert::same((int) $db->query('SELECT COUNT(*) FROM commit_control')->fetchColumn(), 0);
+                Assert::same(\Tablo\Tests\Support\FixtureValue::row($sites->find($id))['checked_at'], null);
+                Assert::same((int) \Tablo\SqlStatement::checked($db->query('SELECT COUNT(*) FROM worker_progress'))->fetchColumn(), 0);
+                Assert::same((int) \Tablo\SqlStatement::checked($db->query('SELECT COUNT(*) FROM check_history'))->fetchColumn(), 0);
+                Assert::same((int) \Tablo\SqlStatement::checked($db->query('SELECT fairness_turn FROM worker_runtime'))->fetchColumn(), 0);
+                Assert::same((int) \Tablo\SqlStatement::checked($db->query('SELECT COUNT(*) FROM commit_control'))->fetchColumn(), 0);
                 unset($error, $caught);
                 $db->exec('DROP TRIGGER refusal');
             }
@@ -54,14 +54,14 @@ final class WorkerSettlementTest
             $db->exec('UPDATE installation_settings SET check_interval_minutes = 7');
             try { $state->settle($snapshot, $result); Assert::true(false); } catch (PDOException $discardedCleanup) { unset($discardedCleanup); }
             Assert::true($db->inTransaction(), 'failed BEGIN leaves caller-owned transaction intact');
-            Assert::same((int) $db->query('SELECT check_interval_minutes FROM installation_settings')->fetchColumn(), 7);
+            Assert::same((int) \Tablo\SqlStatement::checked($db->query('SELECT check_interval_minutes FROM installation_settings'))->fetchColumn(), 7);
             $db->rollBack();
             Assert::true($state->settle($snapshot, $result));
-            Assert::same((int) $db->query('SELECT COUNT(*) FROM check_history')->fetchColumn(), 1);
-            Assert::same($sites->find($id)['checked_at'], $result['checked_at']);
+            Assert::same((int) \Tablo\SqlStatement::checked($db->query('SELECT COUNT(*) FROM check_history'))->fetchColumn(), 1);
+            Assert::same(\Tablo\Tests\Support\FixtureValue::row($sites->find($id))['checked_at'], $result['checked_at']);
             Assert::same($state->turns($id, $snapshot['config_revision']),
                 ['latest_release' => 1, 'latest_commit' => 0, 'open_issues' => 2, 'open_prs' => 0]);
-            Assert::same((int) $db->query('SELECT fairness_turn FROM worker_runtime')->fetchColumn(), 2);
+            Assert::same((int) \Tablo\SqlStatement::checked($db->query('SELECT fairness_turn FROM worker_runtime'))->fetchColumn(), 2);
         } finally { unset($caught, $error, $state, $snapshot, $sites, $db); $directory->close(); }
     }
 
@@ -79,7 +79,7 @@ final class WorkerSettlementTest
             $result = ['checked_at' => '2026-01-01T00:00:00Z', 'worker_service' => array_fill_keys($state::FIELDS, value: true)];
             foreach (['edit', 'disable', 'delete', 'aba', 'rotation', 'individual', 'name', 'cipher'] as $action) {
                 $id = $sites->save($input);
-                $snapshot = $sites->find($id);
+                $snapshot = \Tablo\Tests\Support\FixtureValue::row($sites->find($id));
                 match ($action) {
                     'edit' => $sites->save($input, $id),
                     'disable' => $sites->save(array_replace($input, ['enabled' => 0]), $id),
@@ -93,8 +93,8 @@ final class WorkerSettlementTest
                     'cipher' => $db->exec("UPDATE git_tokens SET encrypted_token = 'changed-without-revision' WHERE id = " . $token),
                 };
                 Assert::false($state->settle($snapshot, $result), $action);
-                Assert::same((int) $db->query('SELECT COUNT(*) FROM worker_progress')->fetchColumn(), 0);
-                Assert::same((int) $db->query('SELECT fairness_turn FROM worker_runtime')->fetchColumn(), 0);
+                Assert::same((int) \Tablo\SqlStatement::checked($db->query('SELECT COUNT(*) FROM worker_progress'))->fetchColumn(), 0);
+                Assert::same((int) \Tablo\SqlStatement::checked($db->query('SELECT fairness_turn FROM worker_runtime'))->fetchColumn(), 0);
             }
         } finally { unset($state, $snapshot, $tokens, $sites, $db); $directory->close(); }
     }

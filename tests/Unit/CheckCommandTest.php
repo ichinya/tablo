@@ -50,18 +50,19 @@ final class CheckCommandTest
         $state = (new SiteChecker(new FakeHttp([UnitFixtures::response(), UnitFixtures::response(200, '{"version":"safe"}')]), new FakeProvider()))->check($site);
         $bytes = CheckOutput::envelope('success', 'complete', $state['checked_at'], [CheckOutput::encode(CheckOutput::site($site, 'checked', 'ok', false, new CheckSiteObservation($state, true, 'accepted')))]);
         foreach (['extra', 'exit', 'negative-count', 'false-zero', 'paused-observation', 'bad-timestamp', 'array-object', 'unknown-reason'] as $case) {
-            $changed = json_decode($bytes, associative: false, depth: 64, flags: JSON_THROW_ON_ERROR);
+            $changed = \Tablo\Tests\Support\JsonMutation::document($bytes);
             switch ($case) {
-                case 'extra': $changed->sites[0]->secret = \Tablo\Tests\Support\FixtureCredentials::value(label: 'positive'); break;
-                case 'exit': $changed->run->exit_code = 1; break;
-                case 'negative-count': $changed->sites[0]->observation->git->fields->open_issues->value = -1; break;
-                case 'false-zero': $changed->sites[0]->observation->git->fields->open_issues->status = 'failed'; break;
-                case 'paused-observation': $changed->sites[0]->status = 'paused'; break;
-                case 'bad-timestamp': $changed->sites[0]->observation->checked_at = 'secret'; break;
-                case 'array-object': $changed->sites[0]->observation->health = []; break;
-                case 'unknown-reason': $changed->sites[0]->observation->health->reason = 'private'; break;
+                case 'extra': \Tablo\Tests\Support\JsonMutation::set($changed, ['sites', 0, 'secret'], \Tablo\Tests\Support\FixtureCredentials::value(label: 'positive')); break;
+                case 'exit': \Tablo\Tests\Support\JsonMutation::set($changed, ['run', 'exit_code'], 1); break;
+                case 'negative-count': \Tablo\Tests\Support\JsonMutation::set($changed, ['sites', 0, 'observation', 'git', 'fields', 'open_issues', 'value'], -1); break;
+                case 'false-zero': \Tablo\Tests\Support\JsonMutation::set($changed, ['sites', 0, 'observation', 'git', 'fields', 'open_issues', 'status'], 'failed'); break;
+                case 'paused-observation': \Tablo\Tests\Support\JsonMutation::set($changed, ['sites', 0, 'status'], 'paused'); break;
+                case 'bad-timestamp': \Tablo\Tests\Support\JsonMutation::set($changed, ['sites', 0, 'observation', 'checked_at'], 'secret'); break;
+                case 'array-object': \Tablo\Tests\Support\JsonMutation::set($changed, ['sites', 0, 'observation', 'health'], []); break;
+                case 'unknown-reason': \Tablo\Tests\Support\JsonMutation::set($changed, ['sites', 0, 'observation', 'health', 'reason'], 'private'); break;
             }
-            Assert::false(CheckSchema::valid($changed), 'real schema validator negative control: ' . $case);
+            $validate = new \ReflectionMethod(CheckSchema::class, 'valid');
+            Assert::false(\Tablo\Tests\Support\FixtureValue::boolean($validate->invoke(null, $changed)), 'real schema validator negative control: ' . $case);
         }
     }
 
@@ -118,11 +119,11 @@ final class CheckCommandTest
             $result = Subprocess::run([PHP_BINARY, '-r', 'exit(-1073741819);'], $directory, []);
             $expected = PHP_OS_FAMILY === 'Windows' ? -1_073_741_819 : 5;
             Assert::same($result['exit_code'], $expected);
-            $receipt = json_decode(file_get_contents($result['files']['receipt']), associative: true, depth: 32, flags: JSON_THROW_ON_ERROR);
+            $receipt = \Tablo\Tests\Support\SubprocessReceipt::read($result['files']['receipt']);
             Assert::same($receipt['exit_code'], $expected);
             Assert::true($receipt['closed'] && $receipt['root_exit_observed']);
             $exits = array_values(array_filter($receipt['events'], static fn (array $event): bool => $event['stage'] === 'root-exit'));
-            Assert::same($exits[0]['native_exit_code'], $expected);
+            Assert::same(\Tablo\Tests\Support\FixtureValue::at($exits, 0)['native_exit_code'], $expected);
         } catch (\Throwable $error) { $directory->retainFailure($error); throw $error; }
         finally { $directory->close(); }
     }

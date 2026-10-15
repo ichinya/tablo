@@ -8,12 +8,12 @@ final class NotificationProjectionStore
     public function __construct(private readonly \PDO $db) {}
     public function one(string $sql, array $values=[]): array|false
     {
-        $query=$this->db->prepare($sql);
-        try { $query->execute($values); return $query->fetch(); } finally { $query->closeCursor(); }
+        $query=\Tablo\SqlStatement::checked($this->db->prepare($sql));
+        try { $query->execute($values); return SqlRows::one($query->fetch(), static fn (array $row): array => $row); } finally { $query->closeCursor(); }
     }
     public function execute(string $sql, #[\SensitiveParameter] array $values): void
     {
-        $query=$this->db->prepare($sql);
+        $query=\Tablo\SqlStatement::checked($this->db->prepare($sql));
         try { $query->execute($values); } finally { $query->closeCursor(); }
     }
 }

@@ -5,6 +5,7 @@ namespace Tablo;
 
 final class ProxyConfiguration
 {
+    /** @return (array{})|(list<string>) */
     public static function parse(#[\SensitiveParameter] string|false $configuration = false): array
     {
         if ($configuration === false || $configuration === '') {

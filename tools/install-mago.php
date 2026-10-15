@@ -8,5 +8,5 @@ require __DIR__ . '/MagoCache.php';
 require __DIR__ . '/MagoDownload.php';
 require __DIR__ . '/MagoInstall.php';
 
-try { Tablo\Tools\MagoInstall::run(dirname(__DIR__), array_slice($argv, offset: 1)); }
+try { Tablo\Tools\MagoInstall::run(dirname(__DIR__), array_values(array_slice($argv, offset: 1))); }
 catch (Throwable $error) { fwrite(STDERR, $error->getMessage() . PHP_EOL); exit(1); }

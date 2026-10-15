@@ -34,11 +34,13 @@ final class WebFixture
         }
     }
 
+    /** @return array{status: int, headers: string, body: string} */
     public function request(string $path, ?array $data = null, ?WebRequestOptions $options = null): array
     {
         $options ??= new WebRequestOptions();
         $cookie = $options->cookies === CookiePolicy::Retained;
         $curl = curl_init(($options->base ?? $this->server->base) . $path);
+        if ($curl === false) { throw new RuntimeException('Cannot initialize HTTP fixture request.'); }
         $cookies = $this->directory->path . '/' . $options->jar;
         curl_setopt_array($curl, [CURLOPT_RETURNTRANSFER => true, CURLOPT_HEADER => true, CURLOPT_TIMEOUT => 8,
             CURLOPT_PROXY => '', CURLOPT_COOKIEFILE => $cookie ? $cookies : '', CURLOPT_COOKIEJAR => $cookie ? $cookies : null]);
@@ -46,13 +48,16 @@ final class WebFixture
         if ($options->source !== null) { curl_setopt($curl, CURLOPT_INTERFACE, $options->source); }
         if ($data !== null) { curl_setopt_array($curl, [CURLOPT_POST => true, CURLOPT_POSTFIELDS => http_build_query($data)]); }
         $raw = curl_exec($curl);
-        if ($raw === false) { throw new RuntimeException('HTTP fixture request failed: ' . curl_error($curl) . "\n" . $this->server->diagnostics()); }
-        $size = curl_getinfo($curl, CURLINFO_HEADER_SIZE);
-        return ['status' => curl_getinfo($curl, CURLINFO_RESPONSE_CODE), 'headers' => substr($raw, offset: 0, length: $size), 'body' => substr($raw, $size)];
+        if (!is_string($raw)) { throw new RuntimeException('HTTP fixture request failed: ' . curl_error($curl) . "\n" . $this->server->diagnostics()); }
+        $size = FixtureValue::integer(curl_getinfo($curl, CURLINFO_HEADER_SIZE));
+        $status = FixtureValue::integer(curl_getinfo($curl, CURLINFO_RESPONSE_CODE));
+        return ['status' => $status, 'headers' => substr($raw, offset: 0, length: $size), 'body' => substr($raw, $size)];
     }
 
+    /** @param array{body: string, ...} $response */
     public static function csrf(array $response): string
     {
+        $match = [];
         preg_match('/name="_csrf" value="([a-f0-9]+)"/', $response['body'], $match);
         if (!(($match[1] ?? null) !== null)) { throw new RuntimeException('CSRF missing: ' . substr($response['body'], offset: 0, length: 250)); }
         return $match[1];

@@ -22,6 +22,7 @@ final class SiteRepositoryTest
         $sites = new SiteRepository($db);
         $id = $sites->save($sample);
         $site = $sites->find($id);
+        Assert::notNull($site, 'Saved fixture site must exist.');
         Assert::true($site['repository'] === 'ichinya/tempalog' && $site['url'] === 'https://tempalog.example/', 'normalization preserves the site URL');
         $state = ['online' => 1, 'deployed_version' => '1.3.1', 'checked_at' => gmdate('c')];
         Assert::true($sites->storeCheck($site, $state), 'check not saved');
@@ -29,10 +30,14 @@ final class SiteRepositoryTest
         $changed['url'] = 'https://other.example';
         $changed['sort_order'] = 4;
         $sites->save($changed, $id);
-        Assert::true($sites->find($id)['checked_at'] === null, 'stale check survived edit');
+        $current = $sites->find($id);
+        Assert::notNull($current, 'Updated fixture site must exist.');
+        Assert::true($current['checked_at'] === null, 'stale check survived edit');
         Assert::true(!$sites->storeCheck($site, $state), 'old in-flight check overwrote edit');
         $first = $sites->save($sample);
-        Assert::true($sites->all()[0]['id'] === $first, 'sort order ignored');
+        $ordered = $sites->all();
+        Assert::true(array_key_exists(0, $ordered), 'Saved fixture collection must contain a row.');
+        Assert::true(\Tablo\Tests\Support\FixtureValue::at($ordered, 0)['id'] === $first, 'sort order ignored');
         $sites->delete($id);
         Assert::true($sites->find($id) === null && count($sites->all()) === 1, 'delete removed wrong record');
     }
@@ -48,7 +53,7 @@ final class SiteRepositoryTest
             ['repository' => 'owner/..'], ['health_path' => '//evil.example/up'], ['health_path' => '/a\\b'],
             ['version_path' => '/version#other'], ['branch' => "main\nother"], ['comparison_mode' => 'evil'],
             ['sort_order' => '3.5'], ['name' => ['array']]] as $bad) {
-            (new \Tablo\Tests\Support\FixtureRejection(\Closure::fromCallable(static fn () => SiteInput::normalize(array_replace($sample, $bad)))))->verify('invalid input accepted: ' . json_encode($bad));
+            (new \Tablo\Tests\Support\FixtureRejection(\Closure::fromCallable(static fn () => SiteInput::normalize(array_replace($sample, $bad)))))->verify('invalid input accepted: ' . \Tablo\Tests\Support\FixtureValue::string(json_encode($bad)));
         }
     }
 }

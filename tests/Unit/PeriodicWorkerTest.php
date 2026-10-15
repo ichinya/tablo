@@ -30,6 +30,7 @@ final class PeriodicWorkerTest
             $time = 1000.0;
             $starts = [];
             $sleeps = [];
+            /** @var PeriodicWorker|null $worker */
             $worker = null;
             $http = new class($path, $time) extends HttpClient {
                 public int $health = 0;
@@ -53,11 +54,11 @@ final class PeriodicWorkerTest
                     $starts[] = $time;
                     return new GitHubConnection($sites, $http);
                 }, clock: static function () use (&$time): float { return $time; }, sleep: static function (float $seconds) use (&$time, &$sleeps): void { $sleeps[] = $seconds; $time += $seconds; }, output: static function (string $message) use (&$worker, &$starts): void {
-                    if ($message === 'Worker pass complete.' && count($starts) === 2) { $worker->stop(); }
+                    if ($message === 'Worker pass complete.' && count($starts) === 2) { \Tablo\Tests\Support\FixtureValue::object($worker)->stop(); }
                 }));
             Assert::same($worker->run(), 0);
             Assert::same(count($starts), 2);
-            Assert::true(abs($starts[1] - $starts[0] - 300) < 0.001, 'two 90s HTTP checks then committed 120s completion wait');
+            Assert::true(abs(\Tablo\Tests\Support\FixtureValue::at($starts, 1) - \Tablo\Tests\Support\FixtureValue::at($starts, 0) - 300) < 0.001, 'two 90s HTTP checks then committed 120s completion wait');
             Assert::true(max($sleeps) <= 0.1);
             Assert::same(count($sleeps) > 1000, true);
             Assert::same((new WorkerStateRepository($db))->generation(), null);
@@ -77,9 +78,9 @@ final class PeriodicWorkerTest
             $id = $sites->save($input);
             $state = ['online' => 1, 'checked_at' => '2026-01-01T00:00:00Z'];
             $snapshot = $sites->find($id);
-            Assert::true($sites->storeCheck($snapshot, $state));
+            Assert::true($sites->storeCheck(\Tablo\Tests\Support\FixtureValue::row($snapshot), $state));
             $tokens->save(['name' => 'Renamed', 'provider' => 'github', 'token' => ''], $token);
-            Assert::true($sites->storeCheck($snapshot, $state), 'rename keeps ciphertext and revision');
+            Assert::true($sites->storeCheck(\Tablo\Tests\Support\FixtureValue::row($snapshot), $state), 'rename keeps ciphertext and revision');
             foreach (['aba', 'edit', 'rotation', 'individual', 'reselect', 'delete'] as $action) {
                 $snapshot = $sites->find($id);
                 match ($action) {
@@ -90,7 +91,7 @@ final class PeriodicWorkerTest
                     'reselect' => $sites->save($input, $id),
                     'delete' => $sites->delete($id),
                 };
-                Assert::false($sites->storeCheck($snapshot, $state), $action . ' rejects old result');
+                Assert::false($sites->storeCheck(\Tablo\Tests\Support\FixtureValue::row($snapshot), $state), $action . ' rejects old result');
             }
         } finally { unset($snapshot, $tokens, $sites, $db); $directory->close(); }
     }
@@ -122,12 +123,12 @@ final class PeriodicWorkerTest
             $logs = [];
             $worker = new PeriodicWorker($db, $http, hooks: new \Tablo\WorkerHooks(output: static function (string $message) use (&$logs): void { $logs[] = $message; }));
             $worker->runPass();
-            Assert::true($sites->find(1)['checked_at'] !== null);
-            Assert::same($sites->find(1)['online'], 1, 'unavailable credentials still allow health');
-            Assert::same($sites->find(2)['online'], null);
-            Assert::false(str_contains($sites->find(2)['last_error'], 'synthetic-private'));
-            Assert::true($sites->find(3)['checked_at'] !== null);
-            Assert::true($sites->find(4)['checked_at'] !== null);
+            Assert::true(\Tablo\Tests\Support\FixtureValue::row($sites->find(1))['checked_at'] !== null);
+            Assert::same(\Tablo\Tests\Support\FixtureValue::row($sites->find(1))['online'], 1, 'unavailable credentials still allow health');
+            Assert::same(\Tablo\Tests\Support\FixtureValue::row($sites->find(2))['online'], null);
+            Assert::false(str_contains(\Tablo\Tests\Support\FixtureValue::string(\Tablo\Tests\Support\FixtureValue::row($sites->find(2))['last_error']), 'synthetic-private'));
+            Assert::true(\Tablo\Tests\Support\FixtureValue::row($sites->find(3))['checked_at'] !== null);
+            Assert::true(\Tablo\Tests\Support\FixtureValue::row($sites->find(4))['checked_at'] !== null);
             Assert::false(str_contains(implode(' ', $logs), 'synthetic-private'));
             Assert::same($logs, ['Worker site checked.', 'Worker site checked.', 'Worker site checked.', 'Worker credentials unavailable.', 'Worker site checked.']);
             Assert::same((new WorkerStateRepository($db))->turns(1, 0), array_fill_keys(WorkerStateRepository::FIELDS, value: 0));

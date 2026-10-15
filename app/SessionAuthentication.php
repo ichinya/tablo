@@ -8,15 +8,18 @@ final class SessionAuthentication
 
     public static function refresh(Auth $auth, SessionSetupState $setup): void
     {
-        $needsSetup = $setup === SessionSetupState::Required;
         if ((($_SESSION['authenticated_at'] ?? null) !== null) || (($_SESSION['auth_fingerprint'] ?? null) !== null)) {
-            $marker = $_SESSION['auth_fingerprint'] ?? null;
+            self::validate($auth, $setup, $_SESSION['auth_fingerprint'] ?? null);
+        }
+    }
+
+    private static function validate(Auth $auth, SessionSetupState $setup, mixed $marker): void
+    {
             $current = $auth->credentialFingerprint();
-            if ($needsSetup || !(($_SESSION['authenticated_at'] ?? null) !== null) || !is_string($marker)
+            if ($setup === SessionSetupState::Required || !(($_SESSION['authenticated_at'] ?? null) !== null) || !is_string($marker)
                 || preg_match('/^[a-f0-9]{64}$/D', $marker) !== 1 || $current === null
                 || !hash_equals($current, $marker)) {
                 WebSession::invalidateAuthentication();
             }
-        }
     }
 }

@@ -5,11 +5,18 @@ namespace Tablo;
 
 // Pinned Lekalo requires lowercase physical source paths for this contracted owner.
 // @mago-expect lint:file-name
+/**
+ * @phpstan-import-type CheckResult from CheckState
+ */
 final class SiteChecker
 {
     public function __construct(private readonly HttpClient $http, private readonly RepositoryProvider $provider,
         #[\SensitiveParameter] private readonly ?TokenVault $vault = null) {}
 
+    /**
+     * @param list<string>|null $fieldOrder
+     * @return CheckResult
+     */
     public function check(#[\SensitiveParameter] array $site, ?array $fieldOrder = null): array
     {
         $state = CheckState::initial($site);
@@ -21,7 +28,7 @@ final class SiteChecker
         $state['version_error_code'] = $state['version_status'] === 'error' ? $state['version_outcome']['reason'] : null;
         $state['version_http_status'] = $state['version_outcome']['http_status'];
         unset($access);
-        (new GitCheck($this->provider))->git($site['repository'], $site['branch'], $fieldOrder, $state, $errors);
+        (new GitCheck($this->provider))->git(SiteCheckInput::text($site, 'repository'), SiteCheckInput::text($site, 'branch'), $fieldOrder, $state, $errors);
         $state['last_error'] = $errors ? implode(' ', $errors) : null;
         return $state;
     }

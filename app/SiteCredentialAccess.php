@@ -3,6 +3,7 @@ declare(strict_types=1);
 
 namespace Tablo;
 
+/** @phpstan-import-type GitCredentialRecord from SiteCredentialInput as CredentialRecord */
 class SiteCredentialAccess
 {
     private readonly GitTokenRepository $savedTokens;
@@ -17,6 +18,7 @@ class SiteCredentialAccess
         return new GitHubCooldownRepository($this->db);
     }
 
+    /** @param CredentialRecord|null $site */
     public function tokenFor(#[\SensitiveParameter] ?array $site): string
     {
         if (!!($site['git_token_id'] ?? null)) {
@@ -41,9 +43,13 @@ class SiteCredentialAccess
     }
 
 
+    /** @param CredentialRecord|null $site */
     protected function selectedToken(#[\SensitiveParameter] array $input,#[\SensitiveParameter] ?array $site): ?int { return (new SelectedSiteToken($this->savedTokens))->selectedToken($input,$site); }
+    /** @param CredentialRecord|null $site */
     public function resolveToken(#[\SensitiveParameter] array $input,#[\SensitiveParameter] ?array $site): string { return (new SiteTokenResolver($this->savedTokens,$this->tokens))->resolveToken($input,$site); }
+    /** @param CredentialRecord|null $site */
     public function credentialRevision(#[\SensitiveParameter] array $input,#[\SensitiveParameter] ?array $site): string { return (new SiteCredentialRevision($this->db,$this->savedTokens))->credentialRevision($input,$site); }
+    /** @param CredentialRecord|null $site */
     public function credentialScope(#[\SensitiveParameter] array $input,#[\SensitiveParameter] ?array $site): string { return (new SiteCredentialIdentity($this->db,$this->savedTokens,$this->tokens))->credentialScope($input,$site); }
     public function equivalentCredentialScope(#[\SensitiveParameter] string $token): ?string { return (new SiteCredentialIdentity($this->db,$this->savedTokens,$this->tokens))->equivalentCredentialScope($token); }
 }

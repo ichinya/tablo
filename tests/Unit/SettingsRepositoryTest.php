@@ -29,7 +29,7 @@ final class SettingsRepositoryTest
         }
         $db->exec('DELETE FROM installation_settings');
         Assert::same($settings->get(), 10);
-        Assert::same((int) $db->query('SELECT count(*) FROM installation_settings')->fetchColumn(), 0);
+        Assert::same((int) \Tablo\SqlStatement::checked($db->query('SELECT count(*) FROM installation_settings'))->fetchColumn(), 0);
         $settings->updateInterval('2');
         $db->exec('PRAGMA ignore_check_constraints = ON; UPDATE installation_settings SET check_interval_minutes = 0');
         $error = null;

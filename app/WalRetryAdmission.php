@@ -10,7 +10,7 @@ final class WalRetryAdmission
         // Cleanup failure never enters contention retry even when the primary error is BUSY.
         $error = $attempt->error;
         if ($attempt->cleanupFailed || !$error instanceof \PDOException
-            || !in_array($error->errorInfo[1] ?? null,[5,261,773],strict: true)) { throw $error; }
+            || !in_array($error->errorInfo[1] ?? null,[5,261,773],strict: true)) { throw $error ?? new \TypeError('Missing failed WAL attempt error.'); }
         return $error;
     }
 }

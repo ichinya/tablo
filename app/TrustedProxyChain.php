@@ -5,6 +5,7 @@ namespace Tablo;
 
 final class TrustedProxyChain
 {
+    /** @param list<string> $proxies */
     public static function resolve(array $server, array $proxies): string
     {
         $peer = IpAddress::canonical($server['REMOTE_ADDR'] ?? null);
@@ -14,8 +15,9 @@ final class TrustedProxyChain
         if (!in_array($peer, $proxies, strict: true)) {
             return $peer;
         }
-        $header = $server['HTTP_X_FORWARDED_FOR'] ?? null;
-        if (!is_string($header) || $header === '' || strlen($header) > ClientAddress::MAX_BYTES
+        if (!is_string($server['HTTP_X_FORWARDED_FOR'] ?? null)) { throw new ValidationException(['password' => ClientAddress::HEADER_ERROR]); }
+        $header = $server['HTTP_X_FORWARDED_FOR'];
+        if ($header === '' || strlen($header) > ClientAddress::MAX_BYTES
             || substr_count($header, needle: ',') >= ClientAddress::MAX_HOPS) {
             throw new ValidationException(['password' => ClientAddress::HEADER_ERROR]);
         }
@@ -33,7 +35,7 @@ final class TrustedProxyChain
             if (!in_array($current, $proxies, strict: true)) {
                 return $current;
             }
-            $current = $chain[$i];
+            $current = $chain[$i] ?? throw new ValidationException(['password' => ClientAddress::HEADER_ERROR]);
         }
         if (in_array($current, $proxies, strict: true)) {
             throw new ValidationException(['password' => ClientAddress::HEADER_ERROR]);

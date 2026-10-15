@@ -10,7 +10,7 @@ try {
         http_response_code(404);
         exit(2);
     }
-    if (count($argv) !== 2 || !in_array($argv[1], ['--help', '--show-installation', '--password-stdin'], strict: true)) {
+    if (count($argv) !== 2 || !in_array($argv[1] ?? null, ['--help', '--show-installation', '--password-stdin'], strict: true)) {
         fwrite(STDERR, data: "Invalid invocation. Use --help.\n");
         exit(2);
     }
@@ -33,7 +33,10 @@ try {
     fwrite(STDERR, data: "Credential changed. Select the installation again; no automatic retry.\n");
     exit(4);
 } catch (PDOException $error) {
-    if (in_array(($error->errorInfo[1] ?? 0) & 255, [5, 6], strict: true)) {
+    // This command uses SQLite; its native driver code is integer or absent/NULL.
+    /** @var array{1?: ?int, ...}|null $information */
+    $information = $error->errorInfo;
+    if (in_array(($information[1] ?? 0) & 255, [5, 6], strict: true)) {
         fwrite(STDERR, data: "Installation busy. No automatic retry.\n");
         exit(4);
     }

@@ -7,27 +7,23 @@ final class JsonPathValue
 {
     public static function extract(#[\SensitiveParameter] mixed $document, #[\SensitiveParameter] string $path): string|int|float|bool
     {
-        $value = $document;
-        foreach (JsonPath::segments($path) as [$kind, $key]) {
-            if ($kind === 'key' && $value instanceof \stdClass && property_exists($value, $key)) {
-                $value = $value->{$key};
-                continue;
+        return self::walk($document, JsonPath::segments($path), 0);
+    }
+
+    /** @param list<array{0: 'key', 1: string}|array{0: 'index', 1: int}> $segments */
+    private static function walk(#[\SensitiveParameter] mixed $document, array $segments, int $offset): string|int|float|bool
+    {
+        if (!array_key_exists($offset, $segments)) { return JsonPathScalar::checked($document); }
+        $segment = $segments[$offset];
+        if ($segment[0] === 'key' && $document instanceof \stdClass) {
+            $properties = get_object_vars($document);
+            if (array_key_exists($segment[1], $properties)) {
+                return self::walk($properties[$segment[1]], $segments, $offset + 1);
             }
-            if ($kind === 'index' && is_array($value) && array_key_exists($key, $value)) {
-                $value = $value[$key];
-                continue;
-            }
-            throw new \RuntimeException('Поле по JSON path не найдено.');
         }
-        if ($value === null) {
-            throw new \RuntimeException('JSON-поле содержит null.');
+        if ($segment[0] === 'index' && is_array($document) && array_key_exists($segment[1], $document)) {
+            return self::walk($document[$segment[1]], $segments, $offset + 1);
         }
-        if (!is_string($value) && !is_int($value) && !is_float($value) && !is_bool($value)) {
-            throw new \RuntimeException('JSON path должен выбирать одно значение, а не объект или массив.');
-        }
-        if (is_float($value) && !is_finite($value)) {
-            throw new \RuntimeException('JSON-поле содержит некорректное число.');
-        }
-        return $value;
+        throw new \RuntimeException('Поле по JSON path не найдено.');
     }
 }

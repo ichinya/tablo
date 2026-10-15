@@ -9,7 +9,7 @@ final class TraceObjectInspection
     public static function append(object $value, TraceTraversal $state): void
     {
             $class = new \ReflectionObject($value);
-            if (method_exists($class, 'isUninitializedLazyObject') && $class->isUninitializedLazyObject($value)) {
+            if (method_exists($class, 'isUninitializedLazyObject') && (new \ReflectionMethod($class, 'isUninitializedLazyObject'))->invoke($class, $value) === true) {
                 $state->opaque['lazy-object'] = ($state->opaque['lazy-object'] ?? 0) + 1;
                 return; // Never initialize a lazy carrier merely to inspect a trace.
             }
@@ -21,7 +21,7 @@ final class TraceObjectInspection
                     if (!$property->isStatic() && !$property->isInitialized($value)) {
                         $state->opaque['uninitialized-property'] = ($state->opaque['uninitialized-property'] ?? 0) + 1;
                     }
-                    if (!$property->isStatic() && method_exists($property, 'isVirtual') && $property->isVirtual()) {
+                    if (!$property->isStatic() && method_exists($property, 'isVirtual') && (new \ReflectionMethod($property, 'isVirtual'))->invoke($property) === true) {
                         $state->opaque['virtual-property'] = ($state->opaque['virtual-property'] ?? 0) + 1;
                     }
                 }

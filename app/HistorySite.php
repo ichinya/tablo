@@ -8,7 +8,7 @@ final class HistorySite
     public static function existingSite(\PDO $db, int $siteId): void
     {
         if ($siteId < 1) { throw new \InvalidArgumentException('Invalid history site.'); }
-        $statement = $db->prepare('SELECT id FROM sites WHERE id = ?');
+        $statement = \Tablo\SqlStatement::checked($db->prepare('SELECT id FROM sites WHERE id = ?'));
         try {
             $statement->execute([$siteId]);
             if ($statement->fetchColumn() === false) { throw new \OutOfBoundsException('History site not found.'); }

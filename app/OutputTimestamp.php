@@ -14,7 +14,9 @@ final class OutputTimestamp
     public static function freshness(?string $timestamp, int $now): string
     {
         if ($timestamp === null) { return 'unavailable'; }
-        return $now - strtotime($timestamp) > 900 ? 'stale' : 'fresh';
+        $seconds = strtotime($timestamp);
+        // Preserve PHP's previous false-to-zero arithmetic for direct malformed callers.
+        return $now - ($seconds === false ? 0 : $seconds) > 900 ? 'stale' : 'fresh';
     }
     public static function previous(mixed $raw, ?string $timestamp, int $now): string
     {

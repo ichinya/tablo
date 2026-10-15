@@ -35,8 +35,8 @@ final class ClientAddressStartupTest
                 unset($exception);
             }
             Assert::true($caught instanceof RuntimeException, 'Actual Web must reject malformed configuration');
-            Assert::same($caught->getMessage(), ClientAddress::CONFIG_ERROR);
-            ConfigurationTraceAssertions::redacted($caught, $marker);
+            Assert::same(\Tablo\Tests\Support\FixtureValue::object($caught)->getMessage(), ClientAddress::CONFIG_ERROR);
+            ConfigurationTraceAssertions::redacted(\Tablo\Tests\Support\FixtureValue::object($caught), $marker);
             Assert::true(!is_dir($directory->path . '/runtime'));
             Assert::true(!is_file($directory->path . '/unused.sqlite'));
             Assert::true(!is_file($directory->path . '/github-token.key'));

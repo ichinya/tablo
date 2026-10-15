@@ -12,7 +12,7 @@ final class SubprocessSelection
         $state->event('selection', ['timeout_seconds' => $timeout]);
         $deadline = microtime(true) + $timeout;
         do {
-            if (str_contains(file_get_contents($state->files['stdout']), $marker)) { return; }
+            if (str_contains(\Tablo\RequiredFile::bytes(file_get_contents($state->files['stdout'])), $marker)) { return; }
             if (!SubprocessObservation::running($state)) { break; }
             usleep(20_000);
         } while (microtime(true) < $deadline);

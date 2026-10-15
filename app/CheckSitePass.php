@@ -3,9 +3,11 @@ declare(strict_types=1);
 
 namespace Tablo;
 
+/** @phpstan-import-type SiteRecord from SiteRow */
 final class CheckSitePass
 {
     public function __construct(private readonly SiteRepository $sites,private readonly GitHubConnection $github,private readonly HttpClient $http,#[\SensitiveParameter] private readonly TokenVault $vault) {}
+    /** @param SiteRecord $site */
     public function check(#[\SensitiveParameter] array $site,CheckFormat $format,CheckProgress $progress): int
     {
         $json = $format === CheckFormat::Json;
@@ -23,7 +25,7 @@ final class CheckSitePass
                 $this->sites->assertWorkerKeyAvailable();
                 try {
                     $checker = new SiteChecker($this->http,
-                        $this->github->provider(SiteProjection::withoutEndpointCredential($site)), $this->vault);
+                        $this->github->provider(SiteProjection::gitCredentials($site)), $this->vault);
                     $state = $checker->check($site);
                     CheckSiteFragment::prepare($format,$progress,$site,$state);
                     $phase = 'checking';

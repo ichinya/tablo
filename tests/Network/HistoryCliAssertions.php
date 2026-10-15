@@ -11,11 +11,13 @@ final class HistoryCliAssertions
 {
     public function __construct(private readonly TemporaryDirectory $directory, private readonly \PDO $db) {}
 
+    /** @param list<string> $read
+     * @param array<string, string> $env */
     public function refused(array $read, array $env): void
     {
         $root = dirname(__DIR__, levels: 2);
-            foreach ([[PHP_BINARY, $root . '/bin/history.php', '999', $read[3], $read[4]],
-                [PHP_BINARY, $root . '/bin/history.php', '1', 'private-marker', $read[4]],
+            foreach ([[PHP_BINARY, $root . '/bin/history.php', '999', \Tablo\Tests\Support\FixtureValue::at($read, 3), \Tablo\Tests\Support\FixtureValue::at($read, 4)],
+                [PHP_BINARY, $root . '/bin/history.php', '1', 'private-marker', \Tablo\Tests\Support\FixtureValue::at($read, 4)],
                 [...$read, '101'], [...$read, '50', 'private-marker']] as $bad) {
                 $result = Subprocess::run($bad, $this->directory, $env);
                 Assert::same($result['exit_code'], 1);
@@ -27,7 +29,7 @@ final class HistoryCliAssertions
                     $env + ['TABLO_HISTORY_RETENTION_DAYS' => $bad]);
                 Assert::same($result['exit_code'], 1);
                 Assert::same($result['stderr'], 'History prune failed. Check retention and local storage.' . PHP_EOL);
-                Assert::same((int) $this->db->query('SELECT COUNT(*) FROM check_history')->fetchColumn(), 1);
+                Assert::same((int) \Tablo\SqlStatement::checked($this->db->query('SELECT COUNT(*) FROM check_history'))->fetchColumn(), 1);
             }
 
     }

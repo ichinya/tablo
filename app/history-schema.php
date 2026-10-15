@@ -7,6 +7,10 @@ use PDO;
 
 // Pinned Lekalo requires lowercase physical source paths for this contracted owner.
 // @mago-expect lint:file-name
+/**
+ * @phpstan-import-type SchemaObject from SchemaShape
+ * @phpstan-import-type ForeignKey from SchemaShape
+ */
 final class HistorySchema
 {
     public static function migrateToVersionFive(PDO $db, HistoryCodeDomain $domain = HistoryCodeDomain::Legacy): void
@@ -47,6 +51,7 @@ final class HistorySchema
         $db->exec('CREATE INDEX check_history_site_time ON check_history(site_id, checked_at, id)');
         $db->exec('CREATE INDEX check_history_time ON check_history(checked_at, id)');
     }
+    /** @param array<string, SchemaObject> $objects */
     public static function validateHistoryDependencies(PDO $db, array $objects): void
     {
         foreach ($objects as $name => $object) {
@@ -55,7 +60,9 @@ final class HistorySchema
             if ($object['type'] !== 'table') { continue; }
             // Names are quoted from actual SQLite metadata, never interpolated as SQL syntax.
             $quoted = '"' . str_replace('"', replace: '""', subject: $object['name']) . '"';
-            foreach (SchemaShape::rows($db, 'PRAGMA main.foreign_key_list(' . $quoted . ')') as $foreign) {
+            /** @var list<ForeignKey> $foreignKeys */
+            $foreignKeys = SchemaShape::rows($db, 'PRAGMA main.foreign_key_list(' . $quoted . ')');
+            foreach ($foreignKeys as $foreign) {
                 if (!(strtolower($foreign['table']) === 'check_history')) { continue; }
  SchemaShape::refuse();
             }
@@ -64,10 +71,12 @@ final class HistorySchema
     public static function widenHistory(PDO $db): void
     {
         HistorySchema::validateHistoryDependencies($db, SchemaShape::objects($db));
+        /** @var list<array{seq: int}> $sequence */
         $sequence = SchemaShape::rows($db, "SELECT seq FROM main.sqlite_sequence WHERE name = 'check_history'");
         $oldSequence = $sequence[0]['seq'] ?? 0;
         $expected = SchemaReference::reference(Database::CURRENT_SCHEMA_VERSION, ['endpoint' => true]);
-        $sql = SchemaShape::objects($expected)['check_history']['sql'];
+        $sql = SchemaShape::objects($expected)['check_history']['sql'] ?? null;
+        if ($sql === null) { SchemaShape::refuse(); }
         $db->exec(str_replace('CREATE TABLE check_history', replace: 'CREATE TABLE _tablo_history_upgrade', subject: $sql));
         $columns = implode(', ', array_map(static fn (array $column): string => '"' . $column['name'] . '"', BaseSchema::columns($db, 'check_history')));
         $db->exec('INSERT INTO _tablo_history_upgrade (' . $columns . ') SELECT ' . $columns . ' FROM check_history');
@@ -78,11 +87,11 @@ final class HistorySchema
         $db->exec('ALTER TABLE _tablo_history_upgrade RENAME TO check_history');
         $db->exec('CREATE INDEX check_history_site_time ON check_history(site_id, checked_at, id)');
         $db->exec('CREATE INDEX check_history_time ON check_history(checked_at, id)');
-        $statement = $db->prepare("UPDATE main.sqlite_sequence SET seq = MAX(seq, ?) WHERE name = 'check_history'");
+        $statement = \Tablo\SqlStatement::checked($db->prepare("UPDATE main.sqlite_sequence SET seq = MAX(seq, ?) WHERE name = 'check_history'"));
         try { $statement->bindValue(1, $oldSequence, PDO::PARAM_INT); $statement->execute(); }
         finally { $statement->closeCursor(); }
         if ($sequence !== [] && SchemaShape::rows($db, "SELECT seq FROM main.sqlite_sequence WHERE name = 'check_history'") === []) {
-            $statement = $db->prepare("INSERT INTO main.sqlite_sequence (name, seq) VALUES ('check_history', ?)");
+            $statement = \Tablo\SqlStatement::checked($db->prepare("INSERT INTO main.sqlite_sequence (name, seq) VALUES ('check_history', ?)"));
             try { $statement->bindValue(1, $oldSequence, PDO::PARAM_INT); $statement->execute(); }
             finally { $statement->closeCursor(); }
         }

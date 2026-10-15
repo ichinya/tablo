@@ -9,7 +9,7 @@ final class AdministratorCredentialWrite
     public function executeCredential(string $sql, #[\SensitiveParameter] array $values): int
     {
         try {
-            $statement = $this->db->prepare($sql);
+            $statement = \Tablo\SqlStatement::checked($this->db->prepare($sql));
             try {
                 $statement->execute($values);
                 return $statement->rowCount();
