@@ -16,7 +16,7 @@ final class CompositionMigrationAtomicityTest extends CompositionSchemaFixtureCa
     public function realSqlFailuresRollbackEveryMigrationStageAndPreserveCallerTransactions(): void
     {
         foreach (['CREATE TABLE _tablo_history_upgrade', 'INSERT INTO _tablo_history_upgrade', 'DROP TABLE check_history',
-            'ALTER TABLE _tablo_history_upgrade', 'CREATE INDEX check_history_site_time', 'PRAGMA main.user_version = 8', 'COMMIT'] as $stage) {
+            'ALTER TABLE _tablo_history_upgrade', 'CREATE INDEX check_history_site_time', 'PRAGMA main.user_version = 9', 'COMMIT'] as $stage) {
             $db = self::fixture('history5'); $before = self::snapshot($db); $db->failBefore = $stage;
             $error = self::error(static fn () => Database::migrate($db));
             Assert::instanceOf($error, \PDOException::class, $stage);
@@ -67,7 +67,7 @@ default:
             Assert::same(self::snapshot($db), $before);
             $db->deferCommitFailure = false; $db->refuseSequence = false;
             Database::migrate($db);
-            Assert::same((int) \Tablo\SqlStatement::checked($db->query('PRAGMA user_version'))->fetchColumn(), 8);
+            Assert::same((int) \Tablo\SqlStatement::checked($db->query('PRAGMA user_version'))->fetchColumn(), \Tablo\Database::CURRENT_SCHEMA_VERSION);
         }
     }
 }

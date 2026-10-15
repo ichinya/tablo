@@ -17,10 +17,13 @@ final class SubprocessClosure
             if (is_resource($state->process)) {
                 foreach ([15, 9] as $signal) {
                     if (!SubprocessObservation::running($state)) { break; }
-                    $state->event('terminate-direct-child', ['signal' => $signal]);
-                    proc_terminate($state->ownedProcess(), $signal);
+                    $state->event('terminate-direct-child', ['signal' => $signal,
+                        'qualification' => PHP_OS_FAMILY === 'Windows' ? 'numeric termination request; not POSIX signal proof' : 'POSIX termination request']);
+                    $requested = proc_terminate($state->ownedProcess(), $signal);
+                    $state->evidence?->termination($state, $signal, $requested);
                     $deadline = microtime(true) + 2;
                     while (SubprocessObservation::running($state) && microtime(true) < $deadline) { usleep(20_000); }
+                    $state->evidence?->afterTermination($state);
                 }
                 if (SubprocessObservation::running($state)) { throw new RuntimeException('Direct test child closure unconfirmed'); }
                 $exit = proc_close($state->ownedProcess());

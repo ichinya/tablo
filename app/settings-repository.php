@@ -41,4 +41,10 @@ final class SettingsRepository
         $statement->bindValue(1, (int) $value, PDO::PARAM_INT);
         $statement->execute();
     }
+
+    public function getIdleTimeout(): int
+    { return (new IdleTimeoutSettings($this->db))->get(); }
+
+    public function updateIdleTimeout(mixed $input): void
+    { (new IdleTimeoutSettings($this->db))->update($input); }
 }

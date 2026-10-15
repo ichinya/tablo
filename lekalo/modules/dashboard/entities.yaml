@@ -730,8 +730,8 @@
         {
             "id": "dashboard.installation_settings",
             "kind": "entity",
-            "version": 1,
-            "description": "Singleton schema 4 installation setting. Positive integer minutes default 10; raw decimal input and safe integer conversion validated at runtime. Reads do not rewrite defaults.",
+            "version": 2,
+            "description": "Singleton composed schema9 retains worker interval default10 and adds independently persisted administrator idle timeout default30, inclusive1..720 minutes. Missing singleton reads defaults without insertion. Raw ASCII decimal input permits leading zeroes, rejects signs/spaces/floats/Unicode/overflow and is bounded before conversion. Each one-column UPSERT preserves the sibling setting; corrupt stored policy refuses authenticated admission.",
             "identity": [
                 "id"
             ],
@@ -745,6 +745,13 @@
                 },
                 {
                     "name": "check_interval_minutes",
+                    "type": {
+                        "ref": "dashboard.number"
+                    },
+                    "required": true
+                },
+                {
+                    "name": "session_idle_timeout_minutes",
                     "type": {
                         "ref": "dashboard.number"
                     },

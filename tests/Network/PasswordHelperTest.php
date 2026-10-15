@@ -8,6 +8,9 @@ use Tablo\Auth;
 use Tablo\Database;
 use Tablo\Tests\Support\Subprocess;
 use Tablo\Tests\Support\TemporaryDirectory;
+use Tablo\Tests\Support\PasswordHelperCase;
+use Tablo\Tests\Support\PasswordHelperEvidence;
+use Throwable;
 use Testo\Assert;
 use Testo\Core\Exception\SkipTest;
 use Testo\Test;
@@ -36,35 +39,50 @@ final class PasswordHelperTest
             foreach ([['default', 'unicode', 0], ['bom', 'unicode', 0], ['bomless', 'unicode', 0], ['cp866', 'unicode', 0],
                 ['bom', 'min', 0], ['bom', 'max', 0], ['bom', 'short', 2], ['bom', 'long', 2],
                 ['bom', 'startFailure', 1], ['bom', 'cancel', 1], ['bom', 'encodingFailure', 1]] as [$encoding, $scenario, $exit]) {
-                $directory = new TemporaryDirectory('tablo-helper-');
-                $db = null;
-                try {
-                    $path = $directory->path . '/fixture.sqlite';
-                    $db = Database::connect($path);
-                    (new Auth($db))->setup(\Tablo\Tests\Support\FixtureCredentials::value(label: 'fixture-password'), \Tablo\Tests\Support\FixtureCredentials::value(label: 'fixture-password'));
-                    $old = \Tablo\Tests\Support\FixtureValue::string(\Tablo\SqlStatement::checked($db->query('SELECT password_hash FROM users'))->fetchColumn());
-                    $db = null;
-                    $command = PasswordHelperCommand::forHost($shell, $encoding, $scenario);
-                    $environment = ['TABLO_DB' => $path, 'TABLO_STORAGE_DIR' => $directory->path];
-                    $result = Subprocess::run(command: $command, directory: $directory, environment: $environment, options: new \Tablo\Tests\Support\CommandOptions(timeout: 20));
-                    self::assertMetadata($result, $exit);
-                    $db = new PDO('sqlite:' . $path);
-                    $hash = \Tablo\Tests\Support\FixtureValue::string(\Tablo\SqlStatement::checked($db->query('SELECT password_hash FROM users'))->fetchColumn());
-                    if ($exit === 0) {
-                        $password = match ($scenario) { 'min' => str_repeat('x', times: 12), 'max' => str_repeat('x', times: 72),
-                            default => "  \u{0436}\u{4e2d}\u{1f642}-unicode-  " };
-                        Assert::true(password_verify($password, \Tablo\Tests\Support\FixtureValue::string($hash)), 'exact UTF-8 and retained spaces');
-                        Assert::true(!password_verify(\Tablo\Tests\Support\FixtureCredentials::value(label: 'fixture-password'), \Tablo\Tests\Support\FixtureValue::string($hash)));
-                        Assert::true(!str_contains($result['stdout'] . $result['stderr'], $password));
-                        $repeat = Subprocess::run(command: $command, directory: $directory, environment: $environment, options: new \Tablo\Tests\Support\CommandOptions(timeout: 20));
-                        Assert::same($repeat['exit_code'], 2, 'same-password refusal propagates');
-                        self::assertMetadata($repeat, 2);
-                        Assert::true(hash_equals(\Tablo\Tests\Support\FixtureValue::string($hash), \Tablo\Tests\Support\FixtureValue::string(\Tablo\SqlStatement::checked($db->query('SELECT password_hash FROM users'))->fetchColumn())));
-                        continue;
-                    }
-                    Assert::true(hash_equals(\Tablo\Tests\Support\FixtureValue::string($old), \Tablo\Tests\Support\FixtureValue::string($hash)), 'failure retains the original credential');
-                } finally { $db = null; $directory->close(); }
+                self::runCase($shell, $encoding, $scenario, $exit);
             }
         }
+    }
+
+    private static function runCase(string $shell, string $encoding, string $scenario, int $exit): void
+    {
+        $directory = new TemporaryDirectory('tablo-helper-');
+        $db = null;
+        $evidence = null;
+        try {
+            $evidence = new PasswordHelperEvidence($directory, PasswordHelperCase::helper($shell, $encoding, $scenario, 'primary'));
+            $path = $directory->path . '/fixture.sqlite';
+            $db = Database::connect($path);
+            (new Auth($db))->setup(\Tablo\Tests\Support\FixtureCredentials::value(label: 'fixture-password'), \Tablo\Tests\Support\FixtureCredentials::value(label: 'fixture-password'));
+            $old = \Tablo\Tests\Support\FixtureValue::string(\Tablo\SqlStatement::checked($db->query('SELECT password_hash FROM users'))->fetchColumn());
+            $db = null;
+            $command = PasswordHelperCommand::forEvidence($evidence);
+            $environment = ['TABLO_DB' => $path, 'TABLO_STORAGE_DIR' => $directory->path];
+            $result = Subprocess::run(command: $command, directory: $directory, environment: $environment, options: new \Tablo\Tests\Support\CommandOptions(timeout: 20));
+            self::assertMetadata($result, $exit);
+            $evidence->assertCollected();
+            $db = new PDO('sqlite:' . $path);
+            $hash = \Tablo\Tests\Support\FixtureValue::string(\Tablo\SqlStatement::checked($db->query('SELECT password_hash FROM users'))->fetchColumn());
+            if ($exit === 0) {
+                $password = match ($scenario) { 'min' => str_repeat('x', times: 12), 'max' => str_repeat('x', times: 72),
+                    default => "  \u{0436}\u{4e2d}\u{1f642}-unicode-  " };
+                Assert::true(password_verify($password, \Tablo\Tests\Support\FixtureValue::string($hash)), 'exact UTF-8 and retained spaces');
+                Assert::true(!password_verify(\Tablo\Tests\Support\FixtureCredentials::value(label: 'fixture-password'), \Tablo\Tests\Support\FixtureValue::string($hash)));
+                Assert::true(!str_contains($result['stdout'] . $result['stderr'], $password));
+                $evidence = new PasswordHelperEvidence($directory, PasswordHelperCase::helper($shell, $encoding, $scenario, 'repeat'));
+                $command = PasswordHelperCommand::forEvidence($evidence);
+                $repeat = Subprocess::run(command: $command, directory: $directory, environment: $environment, options: new \Tablo\Tests\Support\CommandOptions(timeout: 20));
+                Assert::same($repeat['exit_code'], 2, 'same-password refusal propagates');
+                self::assertMetadata($repeat, 2);
+                $evidence->assertCollected();
+                Assert::true(hash_equals(\Tablo\Tests\Support\FixtureValue::string($hash), \Tablo\Tests\Support\FixtureValue::string(\Tablo\SqlStatement::checked($db->query('SELECT password_hash FROM users'))->fetchColumn())));
+                return;
+            }
+            Assert::true(hash_equals(\Tablo\Tests\Support\FixtureValue::string($old), \Tablo\Tests\Support\FixtureValue::string($hash)), 'failure retains the original credential');
+        } catch (Throwable $error) {
+            $directory->retainFailure($error);
+            $evidence?->failure($error);
+            throw $error;
+        } finally { $db = null; $directory->cleanup($directory->close(...)); }
     }
 }

@@ -16,11 +16,13 @@ final class SiteBranchesPage extends WebPage
             }
         }
         // Credentials travel only in this authenticated, CSRF-protected POST.
-        session_write_close();
+        WebSession::recordActivity();
+        $snapshot = WebSession::release();
         try {
-            return $this->json($this->github->branches(SiteProjection::withoutEndpointCredential($_POST), SiteProjection::gitCredentials($site)));
+            $response = $this->json($this->github->branches(SiteProjection::withoutEndpointCredential($_POST), SiteProjection::gitCredentials($site)));
         } catch (ValidationException $e) {
-            return $this->json(['error' => implode(' ', $e->errors)], 422);
+            $response = $this->json(['error' => implode(' ', $e->errors)], 422);
         }
+        return WebSession::resume($snapshot) ?? $response;
     }
 }

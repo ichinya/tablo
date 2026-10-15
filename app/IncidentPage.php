@@ -12,7 +12,7 @@ final class IncidentPage extends WebPage
     public function register(Micro $app): void
     {
         $web = $this;
-        $app->get('/incidents', new WebAction($web->incidentList(...)));
+        $app->get('/incidents', new WebAction($web->incidentList(...), SessionActivity::HumanPage));
     }
     private function incidentList(): Response
     {

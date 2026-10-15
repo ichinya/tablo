@@ -54,7 +54,7 @@ final class SqlSchemaAdmissionTest extends SqlSchemaFixtureCase
                 $db->exec('DELETE FROM check_history');
                 Database::migrate($db);
                 Assert::same(self::insertHistory($db), 901);
-                Assert::same((int) \Tablo\SqlStatement::checked($db->query('PRAGMA user_version'))->fetchColumn(), 8);
+                Assert::same((int) \Tablo\SqlStatement::checked($db->query('PRAGMA user_version'))->fetchColumn(), \Tablo\Database::CURRENT_SCHEMA_VERSION);
                 Assert::same(\Tablo\SqlStatement::checked($db->query('PRAGMA foreign_key_check'))->fetchAll(PDO::FETCH_ASSOC), []);
             }
         }

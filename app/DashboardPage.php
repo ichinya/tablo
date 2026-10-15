@@ -12,7 +12,7 @@ final class DashboardPage extends WebPage
     public function register(Micro $app): void
     {
         $web = $this;
-        $app->get('/', new WebAction($web->dashboard(...)));
+        $app->get('/', new WebAction($web->dashboard(...), SessionActivity::HumanPage));
     }
     private function dashboard(): Response
     {

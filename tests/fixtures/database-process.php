@@ -131,7 +131,10 @@ default:
 }
     $ddl = $db instanceof MigrationPdo ? count(array_filter($db->statements,
         static fn (string $sql): bool => preg_match('/^\s*(CREATE|ALTER)\b/i', $sql) === 1)) : null;
+    $ddlStatements = $db instanceof MigrationPdo ? array_values(array_filter($db->statements,
+        static fn (string $sql): bool => preg_match('/^\s*(CREATE|ALTER)\b/i', $sql) === 1)) : [];
     $result = $details + ['version' => (int) \Tablo\SqlStatement::checked($db->query('PRAGMA user_version'))->fetchColumn(), 'ddl' => $ddl,
+        'ddl_statements' => $ddlStatements,
         'journal' => \Tablo\SqlStatement::checked($db->query('PRAGMA journal_mode'))->fetchColumn(),
         'foreign_keys' => (int) \Tablo\SqlStatement::checked($db->query('PRAGMA foreign_keys'))->fetchColumn()];
     if ($mode !== 'writer') { $result['users'] = (int) \Tablo\SqlStatement::checked($db->query('SELECT count(*) FROM users'))->fetchColumn(); }

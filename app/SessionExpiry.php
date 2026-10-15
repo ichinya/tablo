@@ -5,15 +5,11 @@ namespace Tablo;
 
 final class SessionExpiry
 {
-    public static function expire(): void
+    public static function live(mixed $authenticatedAt, mixed $lastActivityAt, mixed $observedAt, int $now, int $minutes): bool
     {
-        if (self::expired($_SESSION['authenticated_at'] ?? null)) {
-            WebSession::invalidateAuthentication();
-        }
-    }
-
-    private static function expired(mixed $authenticatedAt): bool
-    {
-        return $authenticatedAt !== null && (!is_int($authenticatedAt) || time() - $authenticatedAt > 43_200);
+        if (!is_int($authenticatedAt) || !is_int($lastActivityAt) || !is_int($observedAt)
+            || $authenticatedAt < 0 || $lastActivityAt < $authenticatedAt || $observedAt < $lastActivityAt
+            || $now < $observedAt || $minutes < 1 || $minutes > 720) { return false; }
+        return $now - $authenticatedAt < 43_200 && $now - $lastActivityAt < $minutes * 60;
     }
 }

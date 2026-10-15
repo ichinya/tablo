@@ -64,7 +64,7 @@ final class AuthenticationLifecycleTest extends DashboardFixtureCase
         Assert::true(\Tablo\Tests\Support\FixtureValue::object($this->web)->request('/logout', ['_csrf' => $csrf])['status'] === 303, 'logout succeeds');
         $anonymous = \Tablo\Tests\Support\FixtureValue::object($this->web)->request('/');
         Assert::true($anonymous['status'] === 303 && str_contains($anonymous['headers'], 'Location: /login'), 'dashboard requires login');
-        Assert::true(\Tablo\Tests\Support\FixtureValue::object($this->web)->request('/sites/branches', $lookup)['status'] === 303, 'branch loading requires login');
+        Assert::true(\Tablo\Tests\Support\FixtureValue::object($this->web)->request('/sites/branches', $lookup)['status'] === 401, 'branch loading requires login');
         Assert::true(\Tablo\Tests\Support\FixtureValue::object($this->web)->request('/settings')['status'] === 303 && \Tablo\Tests\Support\FixtureValue::object($this->web)->request('/settings/tokens/new', $shared)['status'] === 303, 'token settings require login');
         $login = \Tablo\Tests\Support\FixtureValue::object($this->web)->request('/login');
         Assert::true($login['status'] === 200 && str_contains($login['body'], 'Войти в Tablo'), 'login page renders');

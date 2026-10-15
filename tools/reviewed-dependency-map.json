@@ -5,33 +5,12 @@
       "Hosted pinned contract and native PHP gates"
     ]
   },
-  "Dockerfile": {
-    "owner": "docker-image:tablo",
-    "consumers": [
-      "Application image and serving liveness"
-    ]
-  },
-  "README.md": {
-    "owner": "One-shot CLI documentation",
-    "consumers": [
-      "tablo/check/v1 local consumers"
-    ]
-  },
   "app/AddressRange.php": {
     "owner": "Tablo\\AddressRange",
     "consumers": [
       "Composer lint",
       "Composer analyze",
       "Composer verify"
-    ]
-  },
-  "app/AdminPasswordCommand.php": {
-    "owner": "Tablo\\AdminPasswordCommand",
-    "consumers": [
-      "Local administrator password CLI",
-      "Composer lint",
-      "Composer verify",
-      "Composer analyze"
     ]
   },
   "app/AdministratorCredentialWrite.php": {
@@ -58,8 +37,67 @@
       "Composer analyze"
     ]
   },
+  "app/AdminPasswordCommand.php": {
+    "owner": "Tablo\\AdminPasswordCommand",
+    "consumers": [
+      "Local administrator password CLI",
+      "Composer lint",
+      "Composer verify",
+      "Composer analyze"
+    ]
+  },
+  "app/auth.php": {
+    "owner": "Tablo\\Auth",
+    "consumers": [
+      "Composer lint",
+      "Composer verify",
+      "Composer analyze"
+    ]
+  },
+  "app/authentication-pages.php": {
+    "owner": "Tablo\\AuthenticationPages",
+    "consumers": [
+      "Composer lint",
+      "Composer verify",
+      "Composer analyze"
+    ]
+  },
+  "app/base-schema.php": {
+    "owner": "Tablo\\BaseSchema",
+    "consumers": [
+      "Composer lint",
+      "Composer verify",
+      "Composer analyze"
+    ]
+  },
+  "app/bootstrap.php": {
+    "owner": "php-script:app/bootstrap.php",
+    "consumers": [
+      "Application environment selection",
+      "Local administrator password CLI",
+      "Composer lint",
+      "Composer verify",
+      "Composer analyze"
+    ]
+  },
   "app/BranchPresentation.php": {
     "owner": "Tablo\\BranchPresentation",
+    "consumers": [
+      "Composer lint",
+      "Composer verify",
+      "Composer analyze"
+    ]
+  },
+  "app/check-command.php": {
+    "owner": "Tablo\\CheckCommand",
+    "consumers": [
+      "Composer lint",
+      "Composer verify",
+      "Composer analyze"
+    ]
+  },
+  "app/check-history-repository.php": {
+    "owner": "Tablo\\CheckHistoryRepository",
     "consumers": [
       "Composer lint",
       "Composer verify",
@@ -479,6 +517,22 @@
       "Composer analyze"
     ]
   },
+  "app/git-hub-connection.php": {
+    "owner": "Tablo\\GitHubConnection",
+    "consumers": [
+      "Composer lint",
+      "Composer verify",
+      "Composer analyze"
+    ]
+  },
+  "app/git-token-repository.php": {
+    "owner": "Tablo\\GitTokenRepository",
+    "consumers": [
+      "Composer lint",
+      "Composer verify",
+      "Composer analyze"
+    ]
+  },
   "app/GitBranchItem.php": {
     "owner": "Tablo\\GitBranchItem",
     "consumers": [
@@ -809,6 +863,14 @@
       "Composer analyze"
     ]
   },
+  "app/history-schema.php": {
+    "owner": "Tablo\\HistorySchema",
+    "consumers": [
+      "Composer lint",
+      "Composer verify",
+      "Composer analyze"
+    ]
+  },
   "app/HistoryCodeDomain.php": {
     "owner": "Tablo\\HistoryCodeDomain",
     "consumers": [
@@ -980,6 +1042,43 @@
   },
   "app/HttpSizeBudget.php": {
     "owner": "Tablo\\HttpSizeBudget",
+    "consumers": [
+      "Composer lint",
+      "Composer verify",
+      "Composer analyze"
+    ]
+  },
+  "app/IdleTimeoutInput.php": {
+    "owner": "Tablo\\IdleTimeoutInput",
+    "consumers": [
+      "dashboard.setup",
+      "dashboard.login",
+      "dashboard.get_idle_timeout",
+      "dashboard.update_idle_timeout",
+      "Administrator HTTP session admission"
+    ]
+  },
+  "app/IdleTimeoutSettings.php": {
+    "owner": "Tablo\\IdleTimeoutSettings",
+    "consumers": [
+      "dashboard.setup",
+      "dashboard.login",
+      "dashboard.get_idle_timeout",
+      "dashboard.update_idle_timeout",
+      "Administrator HTTP session admission"
+    ]
+  },
+  "app/incident-repository.php": {
+    "owner": "Tablo\\IncidentRepository",
+    "consumers": [
+      "dashboard.read_incidents",
+      "Composer lint",
+      "Composer verify",
+      "Composer analyze"
+    ]
+  },
+  "app/incident-schema.php": {
+    "owner": "Tablo\\IncidentSchema",
     "consumers": [
       "Composer lint",
       "Composer verify",
@@ -1244,6 +1343,55 @@
   "app/NativeWarning.php": {
     "owner": "Tablo\\NativeWarning",
     "consumers": [
+      "Composer lint",
+      "Composer verify",
+      "Composer analyze"
+    ]
+  },
+  "app/notification-delivery.php": {
+    "owner": "Tablo\\NotificationDelivery",
+    "consumers": [
+      "dashboard.check_site",
+      "dashboard.run_worker_pass",
+      "Composer lint",
+      "Composer verify",
+      "Composer analyze"
+    ]
+  },
+  "app/notification-outbox.php": {
+    "owner": "Tablo\\NotificationOutbox",
+    "consumers": [
+      "dashboard.deliver_notification",
+      "dashboard.read_notification_status",
+      "Composer lint",
+      "Composer verify",
+      "Composer analyze"
+    ]
+  },
+  "app/notification-projector.php": {
+    "owner": "Tablo\\NotificationProjector",
+    "consumers": [
+      "dashboard.store_check",
+      "dashboard.settle_worker_check",
+      "Composer lint",
+      "Composer verify",
+      "Composer analyze"
+    ]
+  },
+  "app/notification-schema.php": {
+    "owner": "Tablo\\NotificationSchema",
+    "consumers": [
+      "Actual additive schema7 migration",
+      "Composer lint",
+      "Composer verify",
+      "Composer analyze"
+    ]
+  },
+  "app/notification-settings.php": {
+    "owner": "Tablo\\NotificationSettings",
+    "consumers": [
+      "dashboard.get_notifications",
+      "dashboard.update_notifications",
       "Composer lint",
       "Composer verify",
       "Composer analyze"
@@ -1517,6 +1665,14 @@
       "Composer analyze"
     ]
   },
+  "app/periodic-worker.php": {
+    "owner": "Tablo\\PeriodicWorker",
+    "consumers": [
+      "Composer lint",
+      "Composer verify",
+      "Composer analyze"
+    ]
+  },
   "app/PresentationTime.php": {
     "owner": "Tablo\\PresentationTime",
     "consumers": [
@@ -1666,6 +1822,14 @@
       "Composer analyze"
     ]
   },
+  "app/schema-layout-upgrade.php": {
+    "owner": "Tablo\\SchemaLayoutUpgrade",
+    "consumers": [
+      "Composer lint",
+      "Composer verify",
+      "Composer analyze"
+    ]
+  },
   "app/SchemaCheckShape.php": {
     "owner": "Tablo\\SchemaCheckShape",
     "consumers": [
@@ -1763,6 +1927,26 @@
       "Composer analyze"
     ]
   },
+  "app/SessionActivity.php": {
+    "owner": "Tablo\\SessionActivity",
+    "consumers": [
+      "dashboard.setup",
+      "dashboard.login",
+      "dashboard.get_idle_timeout",
+      "dashboard.update_idle_timeout",
+      "Administrator HTTP session admission"
+    ]
+  },
+  "app/SessionAdmission.php": {
+    "owner": "Tablo\\SessionAdmission",
+    "consumers": [
+      "dashboard.setup",
+      "dashboard.login",
+      "dashboard.get_idle_timeout",
+      "dashboard.update_idle_timeout",
+      "Administrator HTTP session admission"
+    ]
+  },
   "app/SessionAuthentication.php": {
     "owner": "Tablo\\SessionAuthentication",
     "consumers": [
@@ -1787,8 +1971,46 @@
       "Composer analyze"
     ]
   },
+  "app/SessionResponse.php": {
+    "owner": "Tablo\\SessionResponse",
+    "consumers": [
+      "dashboard.setup",
+      "dashboard.login",
+      "dashboard.get_idle_timeout",
+      "dashboard.update_idle_timeout",
+      "Administrator HTTP session admission"
+    ]
+  },
+  "app/SessionResumption.php": {
+    "owner": "Tablo\\SessionResumption",
+    "consumers": [
+      "dashboard.setup",
+      "dashboard.login",
+      "dashboard.get_idle_timeout",
+      "dashboard.update_idle_timeout",
+      "Administrator HTTP session admission"
+    ]
+  },
   "app/SessionSetupState.php": {
     "owner": "Tablo\\SessionSetupState",
+    "consumers": [
+      "Composer lint",
+      "Composer verify",
+      "Composer analyze"
+    ]
+  },
+  "app/SessionSnapshot.php": {
+    "owner": "Tablo\\SessionSnapshot",
+    "consumers": [
+      "dashboard.setup",
+      "dashboard.login",
+      "dashboard.get_idle_timeout",
+      "dashboard.update_idle_timeout",
+      "Administrator HTTP session admission"
+    ]
+  },
+  "app/settings-repository.php": {
+    "owner": "Tablo\\SettingsRepository",
     "consumers": [
       "Composer lint",
       "Composer verify",
@@ -1823,6 +2045,32 @@
   "app/SingletonAdministrator.php": {
     "owner": "Tablo\\SingletonAdministrator",
     "consumers": [
+      "Composer lint",
+      "Composer verify",
+      "Composer analyze"
+    ]
+  },
+  "app/site-checker.php": {
+    "owner": "Tablo\\SiteChecker",
+    "consumers": [
+      "Composer lint",
+      "Composer verify",
+      "Composer analyze"
+    ]
+  },
+  "app/site-pages.php": {
+    "owner": "Tablo\\SitePages",
+    "consumers": [
+      "Composer lint",
+      "Composer verify",
+      "Composer analyze"
+    ]
+  },
+  "app/site-repository.php": {
+    "owner": "Tablo\\SiteRepository",
+    "consumers": [
+      "dashboard.store_check",
+      "dashboard.settle_worker_check",
       "Composer lint",
       "Composer verify",
       "Composer analyze"
@@ -1988,6 +2236,16 @@
       "Composer verify"
     ]
   },
+  "app/SiteSaveValidation.php": {
+    "owner": "Tablo\\SiteSaveValidation",
+    "consumers": [
+      "dashboard.setup",
+      "dashboard.login",
+      "dashboard.get_idle_timeout",
+      "dashboard.update_idle_timeout",
+      "Administrator HTTP session admission"
+    ]
+  },
   "app/SiteSnapshotId.php": {
     "owner": "Tablo\\SiteSnapshotId",
     "consumers": [
@@ -2068,6 +2326,22 @@
       "Composer verify"
     ]
   },
+  "app/SqlGithubCooldownsEligibleAtResourceScopeRow.php": {
+    "owner": "Tablo\\SqlGithubCooldownsEligibleAtResourceScopeRow",
+    "consumers": [
+      "Composer lint",
+      "Composer analyze",
+      "Composer verify"
+    ]
+  },
+  "app/SqlGithubCooldownsResourceScopeRow.php": {
+    "owner": "Tablo\\SqlGithubCooldownsResourceScopeRow",
+    "consumers": [
+      "Composer lint",
+      "Composer analyze",
+      "Composer verify"
+    ]
+  },
   "app/SqlGitTokensCreatedAtEncryptedTokenIdRow.php": {
     "owner": "Tablo\\SqlGitTokensCreatedAtEncryptedTokenIdRow",
     "consumers": [
@@ -2094,22 +2368,6 @@
   },
   "app/SqlGitTokensEncryptedTokenRow.php": {
     "owner": "Tablo\\SqlGitTokensEncryptedTokenRow",
-    "consumers": [
-      "Composer lint",
-      "Composer analyze",
-      "Composer verify"
-    ]
-  },
-  "app/SqlGithubCooldownsEligibleAtResourceScopeRow.php": {
-    "owner": "Tablo\\SqlGithubCooldownsEligibleAtResourceScopeRow",
-    "consumers": [
-      "Composer lint",
-      "Composer analyze",
-      "Composer verify"
-    ]
-  },
-  "app/SqlGithubCooldownsResourceScopeRow.php": {
-    "owner": "Tablo\\SqlGithubCooldownsResourceScopeRow",
     "consumers": [
       "Composer lint",
       "Composer analyze",
@@ -2552,46 +2810,6 @@
       "Composer analyze"
     ]
   },
-  "app/WebPage.php": {
-    "owner": "Tablo\\WebPage",
-    "consumers": [
-      "Composer lint",
-      "Composer verify",
-      "Composer analyze"
-    ]
-  },
-  "app/WebPostAdmission.php": {
-    "owner": "Tablo\\WebPostAdmission",
-    "consumers": [
-      "Composer lint",
-      "Composer verify",
-      "Composer analyze"
-    ]
-  },
-  "app/WebRouteAdmission.php": {
-    "owner": "Tablo\\WebRouteAdmission",
-    "consumers": [
-      "Composer lint",
-      "Composer verify",
-      "Composer analyze"
-    ]
-  },
-  "app/WebRoutes.php": {
-    "owner": "Tablo\\WebRoutes",
-    "consumers": [
-      "Composer lint",
-      "Composer verify",
-      "Composer analyze"
-    ]
-  },
-  "app/WebSession.php": {
-    "owner": "Tablo\\WebSession",
-    "consumers": [
-      "Composer lint",
-      "Composer verify",
-      "Composer analyze"
-    ]
-  },
   "app/WebhookAddress.php": {
     "owner": "Tablo\\WebhookAddress",
     "consumers": [
@@ -2749,6 +2967,54 @@
       "Composer analyze"
     ]
   },
+  "app/WebPage.php": {
+    "owner": "Tablo\\WebPage",
+    "consumers": [
+      "Composer lint",
+      "Composer verify",
+      "Composer analyze"
+    ]
+  },
+  "app/WebPostAdmission.php": {
+    "owner": "Tablo\\WebPostAdmission",
+    "consumers": [
+      "Composer lint",
+      "Composer verify",
+      "Composer analyze"
+    ]
+  },
+  "app/WebRouteAdmission.php": {
+    "owner": "Tablo\\WebRouteAdmission",
+    "consumers": [
+      "Composer lint",
+      "Composer verify",
+      "Composer analyze"
+    ]
+  },
+  "app/WebRoutes.php": {
+    "owner": "Tablo\\WebRoutes",
+    "consumers": [
+      "Composer lint",
+      "Composer verify",
+      "Composer analyze"
+    ]
+  },
+  "app/WebSession.php": {
+    "owner": "Tablo\\WebSession",
+    "consumers": [
+      "Composer lint",
+      "Composer verify",
+      "Composer analyze"
+    ]
+  },
+  "app/worker-state-repository.php": {
+    "owner": "Tablo\\WorkerStateRepository",
+    "consumers": [
+      "Composer lint",
+      "Composer verify",
+      "Composer analyze"
+    ]
+  },
   "app/WorkerFieldOrder.php": {
     "owner": "Tablo\\WorkerFieldOrder",
     "consumers": [
@@ -2816,204 +3082,6 @@
   },
   "app/WorkerSitePriority.php": {
     "owner": "Tablo\\WorkerSitePriority",
-    "consumers": [
-      "Composer lint",
-      "Composer verify",
-      "Composer analyze"
-    ]
-  },
-  "app/auth.php": {
-    "owner": "Tablo\\Auth",
-    "consumers": [
-      "Composer lint",
-      "Composer verify",
-      "Composer analyze"
-    ]
-  },
-  "app/authentication-pages.php": {
-    "owner": "Tablo\\AuthenticationPages",
-    "consumers": [
-      "Composer lint",
-      "Composer verify",
-      "Composer analyze"
-    ]
-  },
-  "app/base-schema.php": {
-    "owner": "Tablo\\BaseSchema",
-    "consumers": [
-      "Composer lint",
-      "Composer verify",
-      "Composer analyze"
-    ]
-  },
-  "app/bootstrap.php": {
-    "owner": "php-script:app/bootstrap.php",
-    "consumers": [
-      "Application environment selection",
-      "Local administrator password CLI",
-      "Composer lint",
-      "Composer verify",
-      "Composer analyze"
-    ]
-  },
-  "app/check-command.php": {
-    "owner": "Tablo\\CheckCommand",
-    "consumers": [
-      "Composer lint",
-      "Composer verify",
-      "Composer analyze"
-    ]
-  },
-  "app/check-history-repository.php": {
-    "owner": "Tablo\\CheckHistoryRepository",
-    "consumers": [
-      "Composer lint",
-      "Composer verify",
-      "Composer analyze"
-    ]
-  },
-  "app/git-hub-connection.php": {
-    "owner": "Tablo\\GitHubConnection",
-    "consumers": [
-      "Composer lint",
-      "Composer verify",
-      "Composer analyze"
-    ]
-  },
-  "app/git-token-repository.php": {
-    "owner": "Tablo\\GitTokenRepository",
-    "consumers": [
-      "Composer lint",
-      "Composer verify",
-      "Composer analyze"
-    ]
-  },
-  "app/history-schema.php": {
-    "owner": "Tablo\\HistorySchema",
-    "consumers": [
-      "Composer lint",
-      "Composer verify",
-      "Composer analyze"
-    ]
-  },
-  "app/incident-repository.php": {
-    "owner": "Tablo\\IncidentRepository",
-    "consumers": [
-      "dashboard.read_incidents",
-      "Composer lint",
-      "Composer verify",
-      "Composer analyze"
-    ]
-  },
-  "app/incident-schema.php": {
-    "owner": "Tablo\\IncidentSchema",
-    "consumers": [
-      "Composer lint",
-      "Composer verify",
-      "Composer analyze"
-    ]
-  },
-  "app/notification-delivery.php": {
-    "owner": "Tablo\\NotificationDelivery",
-    "consumers": [
-      "dashboard.check_site",
-      "dashboard.run_worker_pass",
-      "Composer lint",
-      "Composer verify",
-      "Composer analyze"
-    ]
-  },
-  "app/notification-outbox.php": {
-    "owner": "Tablo\\NotificationOutbox",
-    "consumers": [
-      "dashboard.deliver_notification",
-      "dashboard.read_notification_status",
-      "Composer lint",
-      "Composer verify",
-      "Composer analyze"
-    ]
-  },
-  "app/notification-projector.php": {
-    "owner": "Tablo\\NotificationProjector",
-    "consumers": [
-      "dashboard.store_check",
-      "dashboard.settle_worker_check",
-      "Composer lint",
-      "Composer verify",
-      "Composer analyze"
-    ]
-  },
-  "app/notification-schema.php": {
-    "owner": "Tablo\\NotificationSchema",
-    "consumers": [
-      "Actual additive schema7 migration",
-      "Composer lint",
-      "Composer verify",
-      "Composer analyze"
-    ]
-  },
-  "app/notification-settings.php": {
-    "owner": "Tablo\\NotificationSettings",
-    "consumers": [
-      "dashboard.get_notifications",
-      "dashboard.update_notifications",
-      "Composer lint",
-      "Composer verify",
-      "Composer analyze"
-    ]
-  },
-  "app/periodic-worker.php": {
-    "owner": "Tablo\\PeriodicWorker",
-    "consumers": [
-      "Composer lint",
-      "Composer verify",
-      "Composer analyze"
-    ]
-  },
-  "app/schema-layout-upgrade.php": {
-    "owner": "Tablo\\SchemaLayoutUpgrade",
-    "consumers": [
-      "Composer lint",
-      "Composer verify",
-      "Composer analyze"
-    ]
-  },
-  "app/settings-repository.php": {
-    "owner": "Tablo\\SettingsRepository",
-    "consumers": [
-      "Composer lint",
-      "Composer verify",
-      "Composer analyze"
-    ]
-  },
-  "app/site-checker.php": {
-    "owner": "Tablo\\SiteChecker",
-    "consumers": [
-      "Composer lint",
-      "Composer verify",
-      "Composer analyze"
-    ]
-  },
-  "app/site-pages.php": {
-    "owner": "Tablo\\SitePages",
-    "consumers": [
-      "Composer lint",
-      "Composer verify",
-      "Composer analyze"
-    ]
-  },
-  "app/site-repository.php": {
-    "owner": "Tablo\\SiteRepository",
-    "consumers": [
-      "dashboard.store_check",
-      "dashboard.settle_worker_check",
-      "Composer lint",
-      "Composer verify",
-      "Composer analyze"
-    ]
-  },
-  "app/worker-state-repository.php": {
-    "owner": "Tablo\\WorkerStateRepository",
     "consumers": [
       "Composer lint",
       "Composer verify",
@@ -3111,6 +3179,12 @@
       "Composer analyze"
     ]
   },
+  "Dockerfile": {
+    "owner": "docker-image:tablo",
+    "consumers": [
+      "Application image and serving liveness"
+    ]
+  },
   "mago.toml": {
     "owner": "Complete default Mago lint configuration",
     "consumers": [
@@ -3136,6 +3210,29 @@
   },
   "public/router.php": {
     "owner": "php-script:public/router.php",
+    "consumers": [
+      "Composer lint",
+      "Composer verify",
+      "Composer analyze"
+    ]
+  },
+  "README.md": {
+    "owner": "Administrator session and CLI documentation",
+    "consumers": [
+      "tablo/check/v1 local consumers",
+      "Administrator idle timeout policy"
+    ]
+  },
+  "tests/browser-fixture.php": {
+    "owner": "php-script:tests/browser-fixture.php",
+    "consumers": [
+      "Composer lint",
+      "Composer verify",
+      "Composer analyze"
+    ]
+  },
+  "tests/endpoint-router.php": {
+    "owner": "php-script:tests/endpoint-router.php",
     "consumers": [
       "Composer lint",
       "Composer verify",
@@ -3185,6 +3282,440 @@
   },
   "tests/FixtureGitHubStatus.php": {
     "owner": "FixtureGitHubStatus",
+    "consumers": [
+      "Composer lint",
+      "Composer verify",
+      "Composer analyze"
+    ]
+  },
+  "tests/fixtures/Capabilities.php": {
+    "owner": "Owned simulated cURL capability control",
+    "consumers": [
+      "Application cURL platform preflight",
+      "Composer lint",
+      "Composer verify",
+      "Composer analyze"
+    ]
+  },
+  "tests/fixtures/check-router.php": {
+    "owner": "Owned synthetic one-shot HTTP peer",
+    "consumers": [
+      "dashboard.run_checks",
+      "Composer lint",
+      "Composer verify",
+      "Composer analyze"
+    ]
+  },
+  "tests/fixtures/check-stderr-barrier.php": {
+    "owner": "Owned failed stderr OS sink barrier",
+    "consumers": [
+      "dashboard.run_checks",
+      "Native CLI direct-child receipts",
+      "Composer lint",
+      "Composer verify",
+      "Composer analyze"
+    ]
+  },
+  "tests/fixtures/check-transport.php": {
+    "owner": "Synthetic CLI Git transport and encoding controls",
+    "consumers": [
+      "dashboard.run_checks",
+      "Composer lint",
+      "Composer verify",
+      "Composer analyze"
+    ]
+  },
+  "tests/fixtures/database-process.php": {
+    "owner": "php-script:tests/fixtures/database-process.php",
+    "consumers": [
+      "Composer lint",
+      "Composer verify",
+      "Composer analyze"
+    ]
+  },
+  "tests/fixtures/DatabaseScheduleChild.php": {
+    "owner": "DatabaseScheduleChild",
+    "consumers": [
+      "Composer lint",
+      "Composer verify",
+      "Composer analyze"
+    ]
+  },
+  "tests/fixtures/endpoint-token-router.php": {
+    "owner": "php-script:tests/fixtures/endpoint-token-router.php",
+    "consumers": [
+      "Composer lint",
+      "Composer verify",
+      "Composer analyze"
+    ]
+  },
+  "tests/fixtures/EndpointNativeControl.php": {
+    "owner": "Isolated native endpoint privacy control",
+    "consumers": [
+      "dashboard.check_site",
+      "dashboard.create_site",
+      "dashboard.update_site",
+      "Composer lint",
+      "Composer verify",
+      "Composer analyze"
+    ]
+  },
+  "tests/fixtures/environment-bootstrap.php": {
+    "owner": "php-script:tests/fixtures/environment-bootstrap.php",
+    "consumers": [
+      "Composer lint",
+      "Composer verify",
+      "Composer analyze"
+    ]
+  },
+  "tests/fixtures/github-budget-cli.php": {
+    "owner": "php-script:tests/fixtures/github-budget-cli.php",
+    "consumers": [
+      "Composer lint",
+      "Composer verify",
+      "Composer analyze"
+    ]
+  },
+  "tests/fixtures/github-budget-router.php": {
+    "owner": "php-script:tests/fixtures/github-budget-router.php",
+    "consumers": [
+      "Composer lint",
+      "Composer verify",
+      "Composer analyze"
+    ]
+  },
+  "tests/fixtures/github-credential-native-case.php": {
+    "owner": "php-script:tests/fixtures/github-credential-native-case.php",
+    "consumers": [
+      "Composer lint",
+      "Composer analyze",
+      "Composer verify",
+      "TraceTestIsolation native whole-case privacy and locked Testo assertions"
+    ]
+  },
+  "tests/fixtures/github-key-preview.php": {
+    "owner": "php-script:tests/fixtures/github-key-preview.php",
+    "consumers": [
+      "Composer lint",
+      "Composer verify",
+      "Composer analyze"
+    ]
+  },
+  "tests/fixtures/github-response-router.php": {
+    "owner": "php-script:tests/fixtures/github-response-router.php",
+    "consumers": [
+      "Composer lint",
+      "Composer verify",
+      "Composer analyze"
+    ]
+  },
+  "tests/fixtures/historical-schema/common0.sql": {
+    "owner": "Frozen historical schema fixture",
+    "consumers": [
+      "Independent native migration acceptance"
+    ]
+  },
+  "tests/fixtures/historical-schema/common1.sql": {
+    "owner": "Frozen historical schema fixture",
+    "consumers": [
+      "Independent native migration acceptance"
+    ]
+  },
+  "tests/fixtures/historical-schema/common2.sql": {
+    "owner": "Frozen historical schema fixture",
+    "consumers": [
+      "Independent native migration acceptance"
+    ]
+  },
+  "tests/fixtures/historical-schema/common3.sql": {
+    "owner": "Frozen historical schema fixture",
+    "consumers": [
+      "Independent native migration acceptance"
+    ]
+  },
+  "tests/fixtures/historical-schema/common4.sql": {
+    "owner": "Frozen historical schema fixture",
+    "consumers": [
+      "Independent native migration acceptance"
+    ]
+  },
+  "tests/fixtures/historical-schema/endpoint5.sql": {
+    "owner": "Frozen historical schema fixture",
+    "consumers": [
+      "Independent native migration acceptance"
+    ]
+  },
+  "tests/fixtures/historical-schema/history5.sql": {
+    "owner": "Frozen historical schema fixture",
+    "consumers": [
+      "Independent native migration acceptance"
+    ]
+  },
+  "tests/fixtures/historical-schema/incident6.sql": {
+    "owner": "Frozen historical schema fixture",
+    "consumers": [
+      "Independent native migration acceptance"
+    ]
+  },
+  "tests/fixtures/historical-schema/notification7.sql": {
+    "owner": "Frozen historical schema fixture",
+    "consumers": [
+      "Independent native migration acceptance"
+    ]
+  },
+  "tests/fixtures/historical-schema/provenance.json": {
+    "owner": "Frozen historical schema fixture",
+    "consumers": [
+      "Independent native migration acceptance"
+    ]
+  },
+  "tests/fixtures/history-diagnostics-router.php": {
+    "owner": "php-script:tests/fixtures/history-diagnostics-router.php",
+    "consumers": [
+      "Composer lint",
+      "Composer verify",
+      "Composer analyze"
+    ]
+  },
+  "tests/fixtures/history-empty-retention.php": {
+    "owner": "php-script:tests/fixtures/history-empty-retention.php",
+    "consumers": [
+      "Composer lint",
+      "Composer verify",
+      "Composer analyze"
+    ]
+  },
+  "tests/fixtures/history-process.php": {
+    "owner": "php-script:tests/fixtures/history-process.php",
+    "consumers": [
+      "Composer lint",
+      "Composer verify",
+      "Composer analyze"
+    ]
+  },
+  "tests/fixtures/incident-process.php": {
+    "owner": "php-script:tests/fixtures/incident-process.php",
+    "consumers": [
+      "Composer lint",
+      "Composer verify",
+      "Composer analyze"
+    ]
+  },
+  "tests/fixtures/incident-router.php": {
+    "owner": "php-script:tests/fixtures/incident-router.php",
+    "consumers": [
+      "Composer lint",
+      "Composer verify",
+      "Composer analyze"
+    ]
+  },
+  "tests/fixtures/notification-claim.php": {
+    "owner": "php-script:tests/fixtures/notification-claim.php",
+    "consumers": [
+      "Composer lint",
+      "Composer verify",
+      "Composer analyze"
+    ]
+  },
+  "tests/fixtures/password-file-race.php": {
+    "owner": "php-script:tests/fixtures/password-file-race.php",
+    "consumers": [
+      "Composer lint",
+      "Composer verify",
+      "Composer analyze"
+    ]
+  },
+  "tests/fixtures/password-hash-failure.php": {
+    "owner": "php-script:tests/fixtures/password-hash-failure.php",
+    "consumers": [
+      "Composer lint",
+      "Composer verify",
+      "Composer analyze"
+    ]
+  },
+  "tests/fixtures/password-login.php": {
+    "owner": "php-script:tests/fixtures/password-login.php",
+    "consumers": [
+      "Composer lint",
+      "Composer verify",
+      "Composer analyze"
+    ]
+  },
+  "tests/fixtures/password-privacy.php": {
+    "owner": "php-script:tests/fixtures/password-privacy.php",
+    "consumers": [
+      "Composer lint",
+      "Composer verify",
+      "Composer analyze"
+    ]
+  },
+  "tests/fixtures/password-write-barrier.php": {
+    "owner": "php-script:tests/fixtures/password-write-barrier.php",
+    "consumers": [
+      "Composer lint",
+      "Composer verify",
+      "Composer analyze"
+    ]
+  },
+  "tests/fixtures/PasswordOutputFailure.php": {
+    "owner": "PasswordOutputFailure",
+    "consumers": [
+      "Composer lint",
+      "Composer verify",
+      "Composer analyze"
+    ]
+  },
+  "tests/fixtures/process-diagnostic.php": {
+    "owner": "php-script:tests/fixtures/process-diagnostic.php",
+    "consumers": [
+      "Composer lint",
+      "Composer verify",
+      "Composer analyze"
+    ]
+  },
+  "tests/fixtures/raw-http-server.php": {
+    "owner": "php-script:tests/fixtures/raw-http-server.php",
+    "consumers": [
+      "Composer lint",
+      "Composer verify",
+      "Composer analyze"
+    ]
+  },
+  "tests/fixtures/redirect-server.php": {
+    "owner": "Owned synthetic redirect receiver",
+    "consumers": [
+      "Native bounded redirect controls",
+      "Composer lint",
+      "Composer verify",
+      "Composer analyze"
+    ]
+  },
+  "tests/fixtures/session-automatic.php": {
+    "owner": "Owned native session fixture: tests/fixtures/session-automatic.php",
+    "consumers": [
+      "Administrator session policy native controls"
+    ]
+  },
+  "tests/fixtures/session-cookie-client.php": {
+    "owner": "Owned shared native libcurl cookie client",
+    "consumers": [
+      "Original session snapshot and real browser cookie ordering controls",
+      "tests/Http/SessionCookieRaceTest.php",
+      "Synthetic shared-cookie new-login CSRF old-response race"
+    ]
+  },
+  "tests/fixtures/session-request.php": {
+    "owner": "Owned native session fixture: tests/fixtures/session-request.php",
+    "consumers": [
+      "Administrator session policy native controls"
+    ]
+  },
+  "tests/fixtures/settings-process.php": {
+    "owner": "php-script:tests/fixtures/settings-process.php",
+    "consumers": [
+      "Composer lint",
+      "Composer verify",
+      "Composer analyze"
+    ]
+  },
+  "tests/fixtures/trace-inspector-control.php": {
+    "owner": "php-script:tests/fixtures/trace-inspector-control.php",
+    "consumers": [
+      "Composer lint",
+      "Composer verify",
+      "Composer analyze"
+    ]
+  },
+  "tests/fixtures/trusted-proxy-router.php": {
+    "owner": "php-script:tests/fixtures/trusted-proxy-router.php",
+    "consumers": [
+      "Composer lint",
+      "Composer verify",
+      "Composer analyze"
+    ]
+  },
+  "tests/fixtures/webhook-shutdown-child.php": {
+    "owner": "php-script:tests/fixtures/webhook-shutdown-child.php",
+    "consumers": [
+      "Composer lint",
+      "Composer verify",
+      "Composer analyze"
+    ]
+  },
+  "tests/fixtures/webhook-shutdown-parent.php": {
+    "owner": "php-script:tests/fixtures/webhook-shutdown-parent.php",
+    "consumers": [
+      "Composer lint",
+      "Composer verify",
+      "Composer analyze"
+    ]
+  },
+  "tests/fixtures/webhook-supervisor-dns.php": {
+    "owner": "php-script:tests/fixtures/webhook-supervisor-dns.php",
+    "consumers": [
+      "Composer lint",
+      "Composer verify",
+      "Composer analyze"
+    ]
+  },
+  "tests/fixtures/webhook-supervisor-hang.php": {
+    "owner": "php-script:tests/fixtures/webhook-supervisor-hang.php",
+    "consumers": [
+      "Composer lint",
+      "Composer verify",
+      "Composer analyze"
+    ]
+  },
+  "tests/fixtures/webhook-supervisor-ok.php": {
+    "owner": "php-script:tests/fixtures/webhook-supervisor-ok.php",
+    "consumers": [
+      "Composer lint",
+      "Composer verify",
+      "Composer analyze"
+    ]
+  },
+  "tests/fixtures/webhook-supervisor-partial.php": {
+    "owner": "php-script:tests/fixtures/webhook-supervisor-partial.php",
+    "consumers": [
+      "Composer lint",
+      "Composer verify",
+      "Composer analyze"
+    ]
+  },
+  "tests/fixtures/webhook-tls.php": {
+    "owner": "php-script:tests/fixtures/webhook-tls.php",
+    "consumers": [
+      "Composer lint",
+      "Composer verify",
+      "Composer analyze"
+    ]
+  },
+  "tests/fixtures/webhook-trace.php": {
+    "owner": "php-script:tests/fixtures/webhook-trace.php",
+    "consumers": [
+      "Composer lint",
+      "Composer verify",
+      "Composer analyze"
+    ]
+  },
+  "tests/fixtures/worker-process.php": {
+    "owner": "php-script:tests/fixtures/worker-process.php",
+    "consumers": [
+      "Composer lint",
+      "Composer verify",
+      "Composer analyze"
+    ]
+  },
+  "tests/fixtures/worker-router.php": {
+    "owner": "php-script:tests/fixtures/worker-router.php",
+    "consumers": [
+      "Composer lint",
+      "Composer verify",
+      "Composer analyze"
+    ]
+  },
+  "tests/fixtures/WorkerReadonlyControl.php": {
+    "owner": "WorkerReadonlyControl",
     "consumers": [
       "Composer lint",
       "Composer verify",
@@ -3407,14 +3938,6 @@
       "Composer analyze"
     ]
   },
-  "tests/Http/InFlightCommand.php": {
-    "owner": "Tablo\\Tests\\Http\\InFlightCommand",
-    "consumers": [
-      "Composer lint",
-      "Composer verify",
-      "Composer analyze"
-    ]
-  },
   "tests/Http/IncidentQualifiersTest.php": {
     "owner": "Tablo\\Tests\\Http\\IncidentQualifiersTest",
     "consumers": [
@@ -3425,6 +3948,14 @@
   },
   "tests/Http/IncidentsTest.php": {
     "owner": "Tablo\\Tests\\Http\\IncidentsTest",
+    "consumers": [
+      "Composer lint",
+      "Composer verify",
+      "Composer analyze"
+    ]
+  },
+  "tests/Http/InFlightCommand.php": {
+    "owner": "Tablo\\Tests\\Http\\InFlightCommand",
     "consumers": [
       "Composer lint",
       "Composer verify",
@@ -3597,6 +4128,60 @@
       "Composer lint",
       "Composer verify",
       "Composer analyze"
+    ]
+  },
+  "tests/Http/SessionActionAdmissionTest.php": {
+    "owner": "Tablo\\Tests\\Http\\SessionActionAdmissionTest",
+    "consumers": [
+      "Administrator session policy native controls"
+    ]
+  },
+  "tests/Http/SessionClockAction.php": {
+    "owner": "Tablo\\Tests\\Http\\SessionClockAction",
+    "consumers": [
+      "Administrator session policy native controls"
+    ]
+  },
+  "tests/Http/SessionConcurrentAction.php": {
+    "owner": "Tablo\\Tests\\Http\\SessionConcurrentAction",
+    "consumers": [
+      "Administrator session policy native controls"
+    ]
+  },
+  "tests/Http/SessionCookieRaceTest.php": {
+    "owner": "Tablo\\Tests\\Http\\SessionCookieRaceTest",
+    "consumers": [
+      "Original session snapshot and real browser cookie ordering controls"
+    ]
+  },
+  "tests/Http/SessionIdleTimeoutTest.php": {
+    "owner": "Tablo\\Tests\\Http\\SessionIdleTimeoutTest",
+    "consumers": [
+      "Administrator session policy native controls"
+    ]
+  },
+  "tests/Http/SessionNetworkRaceTest.php": {
+    "owner": "Tablo\\Tests\\Http\\SessionNetworkRaceTest",
+    "consumers": [
+      "Administrator session policy native controls"
+    ]
+  },
+  "tests/Http/SessionPolicyAdoptionTest.php": {
+    "owner": "Tablo\\Tests\\Http\\SessionPolicyAdoptionTest",
+    "consumers": [
+      "Administrator session policy native controls"
+    ]
+  },
+  "tests/Http/SessionRaceAssertions.php": {
+    "owner": "Tablo\\Tests\\Http\\SessionRaceAssertions",
+    "consumers": [
+      "Administrator session policy native controls"
+    ]
+  },
+  "tests/Http/SessionTimestampAdmissionTest.php": {
+    "owner": "Tablo\\Tests\\Http\\SessionTimestampAdmissionTest",
+    "consumers": [
+      "Administrator session policy native controls"
     ]
   },
   "tests/Http/SettingsTest.php": {
@@ -4245,7 +4830,10 @@
     "consumers": [
       "Composer lint",
       "Composer verify",
-      "Composer analyze"
+      "Composer analyze",
+      "tests/Network/PasswordHelperTest.php",
+      "tests/Network/PasswordHelperDiagnosticsTest.php",
+      "tests/Network/PasswordHelperRetentionTest.php"
     ]
   },
   "tests/Network/PasswordHelperTest.php": {
@@ -4358,6 +4946,12 @@
       "Composer lint",
       "Composer verify",
       "Composer analyze"
+    ]
+  },
+  "tests/Network/SessionAutomaticTest.php": {
+    "owner": "Tablo\\Tests\\Network\\SessionAutomaticTest",
+    "consumers": [
+      "Administrator session policy native controls"
     ]
   },
   "tests/Network/TracePrivateState.php": {
@@ -4544,6 +5138,22 @@
       "Composer analyze"
     ]
   },
+  "tests/password-cli-router.php": {
+    "owner": "php-script:tests/password-cli-router.php",
+    "consumers": [
+      "Composer lint",
+      "Composer verify",
+      "Composer analyze"
+    ]
+  },
+  "tests/password-race-router.php": {
+    "owner": "php-script:tests/password-race-router.php",
+    "consumers": [
+      "Composer lint",
+      "Composer verify",
+      "Composer analyze"
+    ]
+  },
   "tests/Support/BarrierSignal.php": {
     "owner": "Tablo\\Tests\\Support\\BarrierSignal",
     "consumers": [
@@ -4697,7 +5307,9 @@
     "consumers": [
       "Composer lint",
       "Composer verify",
-      "Composer analyze"
+      "Composer analyze",
+      "tests/Http/SessionCookieRaceTest.php",
+      "Synthetic shared-cookie new-login CSRF old-response race"
     ]
   },
   "tests/Support/FixtureFailureEvidence.php": {
@@ -5029,12 +5641,36 @@
       "Composer analyze"
     ]
   },
+  "tests/Support/ServerClosure.php": {
+    "owner": "Tablo\\Tests\\Support\\ServerClosure",
+    "consumers": [
+      "Administrator session policy native controls"
+    ]
+  },
+  "tests/Support/ServerCommand.php": {
+    "owner": "Tablo\\Tests\\Support\\ServerCommand",
+    "consumers": [
+      "Administrator session policy native controls"
+    ]
+  },
   "tests/Support/ServerPort.php": {
     "owner": "Tablo\\Tests\\Support\\ServerPort",
     "consumers": [
       "Composer lint",
       "Composer verify",
       "Composer analyze"
+    ]
+  },
+  "tests/Support/SessionEvidence.php": {
+    "owner": "Tablo\\Tests\\Support\\SessionEvidence",
+    "consumers": [
+      "Administrator session policy native controls"
+    ]
+  },
+  "tests/Support/SessionFixture.php": {
+    "owner": "Tablo\\Tests\\Support\\SessionFixture",
+    "consumers": [
+      "Administrator session policy native controls"
     ]
   },
   "tests/Support/SharedDeadlineProbe.php": {
@@ -5067,7 +5703,10 @@
     "consumers": [
       "Composer lint",
       "Composer verify",
-      "Composer analyze"
+      "Composer analyze",
+      "tests/Network/PasswordHelperTest.php",
+      "tests/Network/PasswordHelperDiagnosticsTest.php",
+      "tests/Network/PasswordHelperRetentionTest.php"
     ]
   },
   "tests/Support/SubprocessCompletion.php": {
@@ -5115,7 +5754,10 @@
     "consumers": [
       "Composer lint",
       "Composer verify",
-      "Composer analyze"
+      "Composer analyze",
+      "tests/Network/PasswordHelperTest.php",
+      "tests/Network/PasswordHelperDiagnosticsTest.php",
+      "tests/Network/PasswordHelperRetentionTest.php"
     ]
   },
   "tests/Support/SubprocessReceipt.php": {
@@ -5123,7 +5765,10 @@
     "consumers": [
       "Composer lint",
       "Composer verify",
-      "Composer analyze"
+      "Composer analyze",
+      "tests/Network/PasswordHelperTest.php",
+      "tests/Network/PasswordHelperDiagnosticsTest.php",
+      "tests/Network/PasswordHelperRetentionTest.php"
     ]
   },
   "tests/Support/SubprocessReceiptData.php": {
@@ -5163,7 +5808,10 @@
     "consumers": [
       "Composer lint",
       "Composer verify",
-      "Composer analyze"
+      "Composer analyze",
+      "tests/Network/PasswordHelperTest.php",
+      "tests/Network/PasswordHelperDiagnosticsTest.php",
+      "tests/Network/PasswordHelperRetentionTest.php"
     ]
   },
   "tests/Support/TemporaryDirectory.php": {
@@ -5265,14 +5913,6 @@
       "Composer analyze"
     ]
   },
-  "tests/Support/WebRequestOptions.php": {
-    "owner": "Tablo\\Tests\\Support\\WebRequestOptions",
-    "consumers": [
-      "Composer lint",
-      "Composer verify",
-      "Composer analyze"
-    ]
-  },
   "tests/Support/WebhookCertificate.php": {
     "owner": "Tablo\\Tests\\Support\\WebhookCertificate",
     "consumers": [
@@ -5283,6 +5923,14 @@
   },
   "tests/Support/WebhookReceiver.php": {
     "owner": "Tablo\\Tests\\Support\\WebhookReceiver",
+    "consumers": [
+      "Composer lint",
+      "Composer verify",
+      "Composer analyze"
+    ]
+  },
+  "tests/Support/WebRequestOptions.php": {
+    "owner": "Tablo\\Tests\\Support\\WebRequestOptions",
     "consumers": [
       "Composer lint",
       "Composer verify",
@@ -6153,6 +6801,24 @@
       "Composer analyze"
     ]
   },
+  "tests/Unit/SessionLifetimeTest.php": {
+    "owner": "Tablo\\Tests\\Unit\\SessionLifetimeTest",
+    "consumers": [
+      "Administrator session policy native controls"
+    ]
+  },
+  "tests/Unit/SessionSettingsMigrationTest.php": {
+    "owner": "Tablo\\Tests\\Unit\\SessionSettingsMigrationTest",
+    "consumers": [
+      "Administrator session policy native controls"
+    ]
+  },
+  "tests/Unit/SessionSettingsTest.php": {
+    "owner": "Tablo\\Tests\\Unit\\SessionSettingsTest",
+    "consumers": [
+      "Administrator session policy native controls"
+    ]
+  },
   "tests/Unit/SettingsRepositoryTest.php": {
     "owner": "Tablo\\Tests\\Unit\\SettingsRepositoryTest",
     "consumers": [
@@ -6337,452 +7003,6 @@
       "Composer analyze"
     ]
   },
-  "tests/browser-fixture.php": {
-    "owner": "php-script:tests/browser-fixture.php",
-    "consumers": [
-      "Composer lint",
-      "Composer verify",
-      "Composer analyze"
-    ]
-  },
-  "tests/endpoint-router.php": {
-    "owner": "php-script:tests/endpoint-router.php",
-    "consumers": [
-      "Composer lint",
-      "Composer verify",
-      "Composer analyze"
-    ]
-  },
-  "tests/fixtures/Capabilities.php": {
-    "owner": "Owned simulated cURL capability control",
-    "consumers": [
-      "Application cURL platform preflight",
-      "Composer lint",
-      "Composer verify",
-      "Composer analyze"
-    ]
-  },
-  "tests/fixtures/DatabaseScheduleChild.php": {
-    "owner": "DatabaseScheduleChild",
-    "consumers": [
-      "Composer lint",
-      "Composer verify",
-      "Composer analyze"
-    ]
-  },
-  "tests/fixtures/EndpointNativeControl.php": {
-    "owner": "Isolated native endpoint privacy control",
-    "consumers": [
-      "dashboard.check_site",
-      "dashboard.create_site",
-      "dashboard.update_site",
-      "Composer lint",
-      "Composer verify",
-      "Composer analyze"
-    ]
-  },
-  "tests/fixtures/PasswordOutputFailure.php": {
-    "owner": "PasswordOutputFailure",
-    "consumers": [
-      "Composer lint",
-      "Composer verify",
-      "Composer analyze"
-    ]
-  },
-  "tests/fixtures/WorkerReadonlyControl.php": {
-    "owner": "WorkerReadonlyControl",
-    "consumers": [
-      "Composer lint",
-      "Composer verify",
-      "Composer analyze"
-    ]
-  },
-  "tests/fixtures/check-router.php": {
-    "owner": "Owned synthetic one-shot HTTP peer",
-    "consumers": [
-      "dashboard.run_checks",
-      "Composer lint",
-      "Composer verify",
-      "Composer analyze"
-    ]
-  },
-  "tests/fixtures/check-stderr-barrier.php": {
-    "owner": "Owned failed stderr OS sink barrier",
-    "consumers": [
-      "dashboard.run_checks",
-      "Native CLI direct-child receipts",
-      "Composer lint",
-      "Composer verify",
-      "Composer analyze"
-    ]
-  },
-  "tests/fixtures/check-transport.php": {
-    "owner": "Synthetic CLI Git transport and encoding controls",
-    "consumers": [
-      "dashboard.run_checks",
-      "Composer lint",
-      "Composer verify",
-      "Composer analyze"
-    ]
-  },
-  "tests/fixtures/database-process.php": {
-    "owner": "php-script:tests/fixtures/database-process.php",
-    "consumers": [
-      "Composer lint",
-      "Composer verify",
-      "Composer analyze"
-    ]
-  },
-  "tests/fixtures/endpoint-token-router.php": {
-    "owner": "php-script:tests/fixtures/endpoint-token-router.php",
-    "consumers": [
-      "Composer lint",
-      "Composer verify",
-      "Composer analyze"
-    ]
-  },
-  "tests/fixtures/environment-bootstrap.php": {
-    "owner": "php-script:tests/fixtures/environment-bootstrap.php",
-    "consumers": [
-      "Composer lint",
-      "Composer verify",
-      "Composer analyze"
-    ]
-  },
-  "tests/fixtures/github-budget-cli.php": {
-    "owner": "php-script:tests/fixtures/github-budget-cli.php",
-    "consumers": [
-      "Composer lint",
-      "Composer verify",
-      "Composer analyze"
-    ]
-  },
-  "tests/fixtures/github-budget-router.php": {
-    "owner": "php-script:tests/fixtures/github-budget-router.php",
-    "consumers": [
-      "Composer lint",
-      "Composer verify",
-      "Composer analyze"
-    ]
-  },
-  "tests/fixtures/github-credential-native-case.php": {
-    "owner": "php-script:tests/fixtures/github-credential-native-case.php",
-    "consumers": [
-      "Composer lint",
-      "Composer analyze",
-      "Composer verify",
-      "TraceTestIsolation native whole-case privacy and locked Testo assertions"
-    ]
-  },
-  "tests/fixtures/github-key-preview.php": {
-    "owner": "php-script:tests/fixtures/github-key-preview.php",
-    "consumers": [
-      "Composer lint",
-      "Composer verify",
-      "Composer analyze"
-    ]
-  },
-  "tests/fixtures/github-response-router.php": {
-    "owner": "php-script:tests/fixtures/github-response-router.php",
-    "consumers": [
-      "Composer lint",
-      "Composer verify",
-      "Composer analyze"
-    ]
-  },
-  "tests/fixtures/historical-schema/common0.sql": {
-    "owner": "Frozen historical schema fixture",
-    "consumers": [
-      "Independent native migration acceptance"
-    ]
-  },
-  "tests/fixtures/historical-schema/common1.sql": {
-    "owner": "Frozen historical schema fixture",
-    "consumers": [
-      "Independent native migration acceptance"
-    ]
-  },
-  "tests/fixtures/historical-schema/common2.sql": {
-    "owner": "Frozen historical schema fixture",
-    "consumers": [
-      "Independent native migration acceptance"
-    ]
-  },
-  "tests/fixtures/historical-schema/common3.sql": {
-    "owner": "Frozen historical schema fixture",
-    "consumers": [
-      "Independent native migration acceptance"
-    ]
-  },
-  "tests/fixtures/historical-schema/common4.sql": {
-    "owner": "Frozen historical schema fixture",
-    "consumers": [
-      "Independent native migration acceptance"
-    ]
-  },
-  "tests/fixtures/historical-schema/endpoint5.sql": {
-    "owner": "Frozen historical schema fixture",
-    "consumers": [
-      "Independent native migration acceptance"
-    ]
-  },
-  "tests/fixtures/historical-schema/history5.sql": {
-    "owner": "Frozen historical schema fixture",
-    "consumers": [
-      "Independent native migration acceptance"
-    ]
-  },
-  "tests/fixtures/historical-schema/incident6.sql": {
-    "owner": "Frozen historical schema fixture",
-    "consumers": [
-      "Independent native migration acceptance"
-    ]
-  },
-  "tests/fixtures/historical-schema/notification7.sql": {
-    "owner": "Frozen historical schema fixture",
-    "consumers": [
-      "Independent native migration acceptance"
-    ]
-  },
-  "tests/fixtures/historical-schema/provenance.json": {
-    "owner": "Frozen historical schema fixture",
-    "consumers": [
-      "Independent native migration acceptance"
-    ]
-  },
-  "tests/fixtures/history-diagnostics-router.php": {
-    "owner": "php-script:tests/fixtures/history-diagnostics-router.php",
-    "consumers": [
-      "Composer lint",
-      "Composer verify",
-      "Composer analyze"
-    ]
-  },
-  "tests/fixtures/history-empty-retention.php": {
-    "owner": "php-script:tests/fixtures/history-empty-retention.php",
-    "consumers": [
-      "Composer lint",
-      "Composer verify",
-      "Composer analyze"
-    ]
-  },
-  "tests/fixtures/history-process.php": {
-    "owner": "php-script:tests/fixtures/history-process.php",
-    "consumers": [
-      "Composer lint",
-      "Composer verify",
-      "Composer analyze"
-    ]
-  },
-  "tests/fixtures/incident-process.php": {
-    "owner": "php-script:tests/fixtures/incident-process.php",
-    "consumers": [
-      "Composer lint",
-      "Composer verify",
-      "Composer analyze"
-    ]
-  },
-  "tests/fixtures/incident-router.php": {
-    "owner": "php-script:tests/fixtures/incident-router.php",
-    "consumers": [
-      "Composer lint",
-      "Composer verify",
-      "Composer analyze"
-    ]
-  },
-  "tests/fixtures/notification-claim.php": {
-    "owner": "php-script:tests/fixtures/notification-claim.php",
-    "consumers": [
-      "Composer lint",
-      "Composer verify",
-      "Composer analyze"
-    ]
-  },
-  "tests/fixtures/password-file-race.php": {
-    "owner": "php-script:tests/fixtures/password-file-race.php",
-    "consumers": [
-      "Composer lint",
-      "Composer verify",
-      "Composer analyze"
-    ]
-  },
-  "tests/fixtures/password-hash-failure.php": {
-    "owner": "php-script:tests/fixtures/password-hash-failure.php",
-    "consumers": [
-      "Composer lint",
-      "Composer verify",
-      "Composer analyze"
-    ]
-  },
-  "tests/fixtures/password-login.php": {
-    "owner": "php-script:tests/fixtures/password-login.php",
-    "consumers": [
-      "Composer lint",
-      "Composer verify",
-      "Composer analyze"
-    ]
-  },
-  "tests/fixtures/password-privacy.php": {
-    "owner": "php-script:tests/fixtures/password-privacy.php",
-    "consumers": [
-      "Composer lint",
-      "Composer verify",
-      "Composer analyze"
-    ]
-  },
-  "tests/fixtures/password-write-barrier.php": {
-    "owner": "php-script:tests/fixtures/password-write-barrier.php",
-    "consumers": [
-      "Composer lint",
-      "Composer verify",
-      "Composer analyze"
-    ]
-  },
-  "tests/fixtures/process-diagnostic.php": {
-    "owner": "php-script:tests/fixtures/process-diagnostic.php",
-    "consumers": [
-      "Composer lint",
-      "Composer verify",
-      "Composer analyze"
-    ]
-  },
-  "tests/fixtures/raw-http-server.php": {
-    "owner": "php-script:tests/fixtures/raw-http-server.php",
-    "consumers": [
-      "Composer lint",
-      "Composer verify",
-      "Composer analyze"
-    ]
-  },
-  "tests/fixtures/redirect-server.php": {
-    "owner": "Owned synthetic redirect receiver",
-    "consumers": [
-      "Native bounded redirect controls",
-      "Composer lint",
-      "Composer verify",
-      "Composer analyze"
-    ]
-  },
-  "tests/fixtures/settings-process.php": {
-    "owner": "php-script:tests/fixtures/settings-process.php",
-    "consumers": [
-      "Composer lint",
-      "Composer verify",
-      "Composer analyze"
-    ]
-  },
-  "tests/fixtures/trace-inspector-control.php": {
-    "owner": "php-script:tests/fixtures/trace-inspector-control.php",
-    "consumers": [
-      "Composer lint",
-      "Composer verify",
-      "Composer analyze"
-    ]
-  },
-  "tests/fixtures/trusted-proxy-router.php": {
-    "owner": "php-script:tests/fixtures/trusted-proxy-router.php",
-    "consumers": [
-      "Composer lint",
-      "Composer verify",
-      "Composer analyze"
-    ]
-  },
-  "tests/fixtures/webhook-shutdown-child.php": {
-    "owner": "php-script:tests/fixtures/webhook-shutdown-child.php",
-    "consumers": [
-      "Composer lint",
-      "Composer verify",
-      "Composer analyze"
-    ]
-  },
-  "tests/fixtures/webhook-shutdown-parent.php": {
-    "owner": "php-script:tests/fixtures/webhook-shutdown-parent.php",
-    "consumers": [
-      "Composer lint",
-      "Composer verify",
-      "Composer analyze"
-    ]
-  },
-  "tests/fixtures/webhook-supervisor-dns.php": {
-    "owner": "php-script:tests/fixtures/webhook-supervisor-dns.php",
-    "consumers": [
-      "Composer lint",
-      "Composer verify",
-      "Composer analyze"
-    ]
-  },
-  "tests/fixtures/webhook-supervisor-hang.php": {
-    "owner": "php-script:tests/fixtures/webhook-supervisor-hang.php",
-    "consumers": [
-      "Composer lint",
-      "Composer verify",
-      "Composer analyze"
-    ]
-  },
-  "tests/fixtures/webhook-supervisor-ok.php": {
-    "owner": "php-script:tests/fixtures/webhook-supervisor-ok.php",
-    "consumers": [
-      "Composer lint",
-      "Composer verify",
-      "Composer analyze"
-    ]
-  },
-  "tests/fixtures/webhook-supervisor-partial.php": {
-    "owner": "php-script:tests/fixtures/webhook-supervisor-partial.php",
-    "consumers": [
-      "Composer lint",
-      "Composer verify",
-      "Composer analyze"
-    ]
-  },
-  "tests/fixtures/webhook-tls.php": {
-    "owner": "php-script:tests/fixtures/webhook-tls.php",
-    "consumers": [
-      "Composer lint",
-      "Composer verify",
-      "Composer analyze"
-    ]
-  },
-  "tests/fixtures/webhook-trace.php": {
-    "owner": "php-script:tests/fixtures/webhook-trace.php",
-    "consumers": [
-      "Composer lint",
-      "Composer verify",
-      "Composer analyze"
-    ]
-  },
-  "tests/fixtures/worker-process.php": {
-    "owner": "php-script:tests/fixtures/worker-process.php",
-    "consumers": [
-      "Composer lint",
-      "Composer verify",
-      "Composer analyze"
-    ]
-  },
-  "tests/fixtures/worker-router.php": {
-    "owner": "php-script:tests/fixtures/worker-router.php",
-    "consumers": [
-      "Composer lint",
-      "Composer verify",
-      "Composer analyze"
-    ]
-  },
-  "tests/password-cli-router.php": {
-    "owner": "php-script:tests/password-cli-router.php",
-    "consumers": [
-      "Composer lint",
-      "Composer verify",
-      "Composer analyze"
-    ]
-  },
-  "tests/password-race-router.php": {
-    "owner": "php-script:tests/password-race-router.php",
-    "consumers": [
-      "Composer lint",
-      "Composer verify",
-      "Composer analyze"
-    ]
-  },
   "tests/web-router.php": {
     "owner": "php-script:tests/web-router.php",
     "consumers": [
@@ -6791,8 +7011,23 @@
       "Composer analyze"
     ]
   },
-  "tools/BindingSymbol.php": {
-    "owner": "Tablo\\Tools\\BindingSymbol",
+  "tools/admin-password.bash": {
+    "owner": "Bash protected input helper",
+    "consumers": [
+      "Local administrator password CLI stdin"
+    ]
+  },
+  "tools/admin-password.ps1": {
+    "owner": "PowerShell protected input helper",
+    "consumers": [
+      "Local or Docker administrator password CLI stdin",
+      "tests/Network/PasswordHelperTest.php",
+      "tests/Network/PasswordHelperDiagnosticsTest.php",
+      "tests/Network/PasswordHelperRetentionTest.php"
+    ]
+  },
+  "tools/analyze.php": {
+    "owner": "tools/analyze.php",
     "consumers": [
       "Composer lint",
       "Composer analyze",
@@ -6807,12 +7042,63 @@
       "Composer verify"
     ]
   },
+  "tools/BindingSymbol.php": {
+    "owner": "Tablo\\Tools\\BindingSymbol",
+    "consumers": [
+      "Composer lint",
+      "Composer analyze",
+      "Composer verify"
+    ]
+  },
+  "tools/capture-bindings.php": {
+    "owner": "php-script:tools/capture-bindings.php",
+    "consumers": [
+      "dashboard.run_worker_pass",
+      "Composer lint",
+      "Composer verify",
+      "Composer analyze"
+    ]
+  },
+  "tools/capture-reviewed-dependencies.php": {
+    "owner": "php-script:tools/capture-reviewed-dependencies.php",
+    "consumers": [
+      "Explicit reviewed dependency capture",
+      "Composer lint",
+      "Composer verify",
+      "Composer analyze"
+    ]
+  },
   "tools/CaptureModel.php": {
     "owner": "Tablo\\Tools\\CaptureModel",
     "consumers": [
       "Composer lint",
       "Composer analyze",
       "Composer verify"
+    ]
+  },
+  "tools/install-mago.php": {
+    "owner": "Dependency-free project installer",
+    "consumers": [
+      "Pinned CI and operator tool installation",
+      "Composer lint",
+      "Composer verify",
+      "Composer analyze"
+    ]
+  },
+  "tools/lint.php": {
+    "owner": "Dependency-free full-scope lint entrypoint",
+    "consumers": [
+      "Composer lint",
+      "Composer verify",
+      "Composer analyze"
+    ]
+  },
+  "tools/mago-pin.json": {
+    "owner": "Reviewed cross-platform Mago release pin",
+    "consumers": [
+      "Explicit project installer",
+      "Composer lint",
+      "Composer analyze"
     ]
   },
   "tools/MagoAnalyze.php": {
@@ -6942,69 +7228,6 @@
       "Composer analyze"
     ]
   },
-  "tools/admin-password.bash": {
-    "owner": "Bash protected input helper",
-    "consumers": [
-      "Local administrator password CLI stdin"
-    ]
-  },
-  "tools/admin-password.ps1": {
-    "owner": "PowerShell protected input helper",
-    "consumers": [
-      "Local or Docker administrator password CLI stdin"
-    ]
-  },
-  "tools/analyze.php": {
-    "owner": "tools/analyze.php",
-    "consumers": [
-      "Composer lint",
-      "Composer analyze",
-      "Composer verify"
-    ]
-  },
-  "tools/capture-bindings.php": {
-    "owner": "php-script:tools/capture-bindings.php",
-    "consumers": [
-      "dashboard.run_worker_pass",
-      "Composer lint",
-      "Composer verify",
-      "Composer analyze"
-    ]
-  },
-  "tools/capture-reviewed-dependencies.php": {
-    "owner": "php-script:tools/capture-reviewed-dependencies.php",
-    "consumers": [
-      "Explicit reviewed dependency capture",
-      "Composer lint",
-      "Composer verify",
-      "Composer analyze"
-    ]
-  },
-  "tools/install-mago.php": {
-    "owner": "Dependency-free project installer",
-    "consumers": [
-      "Pinned CI and operator tool installation",
-      "Composer lint",
-      "Composer verify",
-      "Composer analyze"
-    ]
-  },
-  "tools/lint.php": {
-    "owner": "Dependency-free full-scope lint entrypoint",
-    "consumers": [
-      "Composer lint",
-      "Composer verify",
-      "Composer analyze"
-    ]
-  },
-  "tools/mago-pin.json": {
-    "owner": "Reviewed cross-platform Mago release pin",
-    "consumers": [
-      "Explicit project installer",
-      "Composer lint",
-      "Composer analyze"
-    ]
-  },
   "tools/verify.php": {
     "owner": "php-script:tools/verify.php",
     "consumers": [
@@ -7032,6 +7255,156 @@
       "dashboard.get_notifications",
       "dashboard.update_notifications",
       "dashboard.read_notification_status"
+    ]
+  },
+  "tests/Network/PasswordHelperDiagnosticsTest.php": {
+    "owner": "Tablo\\Tests\\Network\\PasswordHelperDiagnosticsTest",
+    "consumers": [
+      "Composer lint",
+      "Composer analyze",
+      "Composer verify",
+      "tests/Network/PasswordHelperTest.php",
+      "tests/Network/PasswordHelperDiagnosticsTest.php",
+      "tests/Network/PasswordHelperRetentionTest.php",
+      "Native dashboard.setup/login/change_admin_password attachment"
+    ]
+  },
+  "tests/Network/PasswordHelperRetentionTest.php": {
+    "owner": "Tablo\\Tests\\Network\\PasswordHelperRetentionTest",
+    "consumers": [
+      "Composer lint",
+      "Composer analyze",
+      "Composer verify",
+      "tests/Network/PasswordHelperTest.php",
+      "tests/Network/PasswordHelperDiagnosticsTest.php",
+      "tests/Network/PasswordHelperRetentionTest.php",
+      "Native dashboard.setup/login/change_admin_password attachment"
+    ]
+  },
+  "tests/Support/PasswordHelperCapture.php": {
+    "owner": "Tablo\\Tests\\Support\\PasswordHelperCapture",
+    "consumers": [
+      "Composer lint",
+      "Composer analyze",
+      "Composer verify",
+      "tests/Network/PasswordHelperTest.php",
+      "tests/Network/PasswordHelperDiagnosticsTest.php",
+      "tests/Network/PasswordHelperRetentionTest.php",
+      "Native dashboard.setup/login/change_admin_password attachment"
+    ]
+  },
+  "tests/Support/PasswordHelperCase.php": {
+    "owner": "Tablo\\Tests\\Support\\PasswordHelperCase",
+    "consumers": [
+      "Composer lint",
+      "Composer analyze",
+      "Composer verify",
+      "tests/Network/PasswordHelperTest.php",
+      "tests/Network/PasswordHelperDiagnosticsTest.php",
+      "tests/Network/PasswordHelperRetentionTest.php",
+      "Native dashboard.setup/login/change_admin_password attachment"
+    ]
+  },
+  "tests/Support/PasswordHelperEvidence.php": {
+    "owner": "Tablo\\Tests\\Support\\PasswordHelperEvidence",
+    "consumers": [
+      "Composer lint",
+      "Composer analyze",
+      "Composer verify",
+      "tests/Network/PasswordHelperTest.php",
+      "tests/Network/PasswordHelperDiagnosticsTest.php",
+      "tests/Network/PasswordHelperRetentionTest.php",
+      "Native dashboard.setup/login/change_admin_password attachment"
+    ]
+  },
+  "tests/Support/PasswordHelperEvidenceFiles.php": {
+    "owner": "Tablo\\Tests\\Support\\PasswordHelperEvidenceFiles",
+    "consumers": [
+      "Composer lint",
+      "Composer analyze",
+      "Composer verify",
+      "tests/Network/PasswordHelperTest.php",
+      "tests/Network/PasswordHelperDiagnosticsTest.php",
+      "tests/Network/PasswordHelperRetentionTest.php",
+      "Native dashboard.setup/login/change_admin_password attachment"
+    ]
+  },
+  "tests/Support/PasswordHelperEvidenceStart.php": {
+    "owner": "Tablo\\Tests\\Support\\PasswordHelperEvidenceStart",
+    "consumers": [
+      "Composer lint",
+      "Composer analyze",
+      "Composer verify",
+      "tests/Network/PasswordHelperTest.php",
+      "tests/Network/PasswordHelperDiagnosticsTest.php",
+      "tests/Network/PasswordHelperRetentionTest.php",
+      "Native dashboard.setup/login/change_admin_password attachment"
+    ]
+  },
+  "tests/Support/PasswordHelperFailureState.php": {
+    "owner": "Tablo\\Tests\\Support\\PasswordHelperFailureState",
+    "consumers": [
+      "Composer lint",
+      "Composer analyze",
+      "Composer verify",
+      "tests/Network/PasswordHelperTest.php",
+      "tests/Network/PasswordHelperDiagnosticsTest.php",
+      "tests/Network/PasswordHelperRetentionTest.php",
+      "Native dashboard.setup/login/change_admin_password attachment"
+    ]
+  },
+  "tests/fixtures/helper-diagnostic.php": {
+    "owner": "php-script:tests/fixtures/helper-diagnostic.php",
+    "consumers": [
+      "Composer lint",
+      "Composer analyze",
+      "Composer verify",
+      "tests/Network/PasswordHelperTest.php",
+      "tests/Network/PasswordHelperDiagnosticsTest.php",
+      "tests/Network/PasswordHelperRetentionTest.php",
+      "Native dashboard.setup/login/change_admin_password attachment"
+    ]
+  },
+  "tests/fixtures/password-helper-input.ps1": {
+    "owner": "powershell-script:tests/fixtures/password-helper-input.ps1",
+    "consumers": [
+      "Composer lint",
+      "Composer analyze",
+      "Composer verify",
+      "tests/Network/PasswordHelperTest.php",
+      "tests/Network/PasswordHelperDiagnosticsTest.php",
+      "tests/Network/PasswordHelperRetentionTest.php",
+      "Native dashboard.setup/login/change_admin_password attachment"
+    ]
+  },
+  "tests/Support/PasswordHelperDatabaseFixture.php": {
+    "owner": "Tablo\\Tests\\Support\\PasswordHelperDatabaseFixture",
+    "consumers": [
+      "Composer lint",
+      "Composer analyze",
+      "Composer verify",
+      "tests/Network/PasswordHelperRetentionTest.php",
+      "Private explicitly seeded synthetic database preservation; excluded from default helper artifact"
+    ]
+  },
+  "tests/Support/PasswordHelperDatabaseTarget.php": {
+    "owner": "Tablo\\Tests\\Support\\PasswordHelperDatabaseTarget",
+    "consumers": [
+      "Composer lint",
+      "Composer analyze",
+      "Composer verify",
+      "tests/Network/PasswordHelperRetentionTest.php",
+      "Private explicitly seeded synthetic database preservation; excluded from default helper artifact"
+    ]
+  },
+  "tests/Support/PasswordHelperDatabaseExport.php": {
+    "owner": "Tablo\\Tests\\Support\\PasswordHelperDatabaseExport",
+    "consumers": [
+      "Composer lint",
+      "Composer analyze",
+      "Composer verify",
+      "tests/Network/PasswordHelperRetentionTest.php",
+      "Private explicitly seeded synthetic database preservation; excluded from default helper artifact"
     ]
   }
 }

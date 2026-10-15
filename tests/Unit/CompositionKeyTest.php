@@ -51,7 +51,7 @@ final class CompositionKeyTest
                 Assert::same(hash_file('sha256',$path),$before,$family);
                 Assert::same(file_get_contents($key),$bytes);
                 $db=Database::connect($path,new TokenVault($key,true));
-                Assert::same((int)\Tablo\SqlStatement::checked($db->query('PRAGMA user_version'))->fetchColumn(),8);
+                Assert::same((int)\Tablo\SqlStatement::checked($db->query('PRAGMA user_version'))->fetchColumn(),\Tablo\Database::CURRENT_SCHEMA_VERSION);
                 Assert::true(SiteKeyState::hasEstablishedKeyState($db),$family);
                 Assert::same(file_get_contents($key),$bytes);
                 Assert::false(is_file($directory->path.'/github-token.key'));

@@ -19,7 +19,7 @@ final class EndpointTokenMigrationTest
     #[Test]
     public function upgradeIsNullableAtomicAndCurrentOrFutureSchemasDoNoDdl(): void
     {
-        foreach (['ALTER TABLE sites ADD COLUMN endpoint_token', 'PRAGMA main.user_version = 8', 'COMMIT', null] as $failure) {
+        foreach (['ALTER TABLE sites ADD COLUMN endpoint_token', 'PRAGMA main.user_version = 9', 'COMMIT', null] as $failure) {
             $db = new MigrationPdo(':memory:');
             $db->exec(\Tablo\RequiredFile::bytes(file_get_contents(dirname(__DIR__) . '/fixtures/historical-schema/common4.sql')));
             $db->exec("
@@ -46,13 +46,13 @@ final class EndpointTokenMigrationTest
             $db->statements = [];
             Database::migrate($db);
             Assert::same(count(array_filter($db->statements, static fn (string $sql): bool => preg_match('/^(BEGIN|ALTER|CREATE|COMMIT)/', $sql) === 1)), 0);
-            $db->exec('PRAGMA user_version=9');
+            $db->exec('PRAGMA user_version=' . (Database::CURRENT_SCHEMA_VERSION + 1));
             $db->statements = [];
             $failed = false;
             try { Database::migrate($db); } catch (\RuntimeException) { $failed = true; }
             Assert::true($failed);
             Assert::same(count(array_filter($db->statements, static fn (string $sql): bool => preg_match('/^(BEGIN|ALTER|CREATE|COMMIT)/', $sql) === 1)), 0);
-            Assert::same((int) \Tablo\SqlStatement::checked($db->query('PRAGMA user_version'))->fetchColumn(), 9);
+            Assert::same((int) \Tablo\SqlStatement::checked($db->query('PRAGMA user_version'))->fetchColumn(), Database::CURRENT_SCHEMA_VERSION + 1);
         }
     }
 

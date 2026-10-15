@@ -10,7 +10,8 @@ final class Web
 {
     private readonly PageResponse $page;
     private readonly WebRoutes $routes;
-    public function __construct(?HttpClient $githubHttp = null, ?string $runtimeDirectory = null)
+    /** @param \Closure(): int|null $clock Internal test dependency only. */
+    public function __construct(?HttpClient $githubHttp = null, ?string $runtimeDirectory = null, private readonly ?\Closure $clock = null)
     {
         // Validate proxy configuration before opening the selected database, as before.
         new ClientAddress(getenv('TABLO_TRUSTED_PROXIES'));
@@ -31,10 +32,15 @@ final class Web
         header('Cache-Control: no-store');
         $requestedPath = parse_url($_SERVER['REQUEST_URI'] ?? '/', PHP_URL_PATH);
         $path = $requestedPath ? $requestedPath : '/';
-        $refusal = WebSession::admit($this->routes->auth, $this->page, $path);
-        if ($refusal !== null) { $refusal->send(); return; }
         $app = new Micro(new FactoryDefault());
         $this->routes->register($app);
+        $router = $app->getRouter();
+        $router->handle($path);
+        $matched = $router->getMatchedRoute();
+        $handler = $matched === null ? null : ($app->getHandlers()[$matched->getRouteId()] ?? null);
+        $response = $handler instanceof WebAction ? $handler->response : SessionResponse::Html;
+        $refusal = WebSession::admit(new SessionAdmission($this->routes->auth, $this->routes->settings, $this->page, $response, $this->clock ?? time(...)), $path);
+        if ($refusal !== null) { $refusal->send(); return; }
         $app->notFound(new WebAction($this->page->notFound(...)));
         $app->handle($path);
     }

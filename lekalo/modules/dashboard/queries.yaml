@@ -4,8 +4,8 @@
         {
             "id": "dashboard.list_sites",
             "kind": "query",
-            "version": 1,
-            "description": "Administrator dashboard, sorted by sort_order then id, with explicit unverified, paused, stale and partial-error states.",
+            "version": 2,
+            "description": "Administrator dashboard, sorted by sort_order then id, with explicit unverified, paused, stale and partial-error states. Administrator HTTP admission enforces current committed idle policy and fixed12h absolute cap before resource lookup or protected effects; handler-owned human navigation200 and resource-admitted CSRF-valid deliberate forms/manual checks count, including validation422 and successful POST303. Caller headers/query flags never select activity; explicit Automatic handlers only advance observed time. Unlocked network results require the same original session ID/CSRF/auth start/fingerprint and current lifetime before result/notice writes. CLI/worker lifetime remains independent.",
             "reads": [
                 "dashboard.site"
             ],
@@ -58,8 +58,8 @@
         {
             "id": "dashboard.read_incidents",
             "kind": "query",
-            "version": 1,
-            "description": "Authenticated read-only GET, optional positive existing site filter, default50/limit1..100, LIMIT+1, DESC stable opening ID, fixed first-page MAX(id) ceiling. Strict canonical scope-bound cursor cap256; arrays/coercions/overflow/malformed422, missing/deletedsite404. Escaped current names and finite opening reason/status, observed UTC/recovery/interval and uncertainty/pause/stale/current-revision/clock qualifiers. No COUNTall, history replay/rebuild, DB mutation, HTTP or private payload. Recovery/deletion may alter later pages; no snapshot/count guarantee.",
+            "version": 2,
+            "description": "Authenticated read-only GET, optional positive existing site filter, default50/limit1..100, LIMIT+1, DESC stable opening ID, fixed first-page MAX(id) ceiling. Strict canonical scope-bound cursor cap256; arrays/coercions/overflow/malformed422, missing/deletedsite404. Escaped current names and finite opening reason/status, observed UTC/recovery/interval and uncertainty/pause/stale/current-revision/clock qualifiers. No COUNTall, history replay/rebuild, DB mutation, HTTP or private payload. Recovery/deletion may alter later pages; no snapshot/count guarantee. Administrator HTTP admission enforces current committed idle policy and fixed12h absolute cap before resource lookup or protected effects; handler-owned human navigation200 and resource-admitted CSRF-valid deliberate forms/manual checks count, including validation422 and successful POST303. Caller headers/query flags never select activity; explicit Automatic handlers only advance observed time. Unlocked network results require the same original session ID/CSRF/auth start/fingerprint and current lifetime before result/notice writes. CLI/worker lifetime remains independent.",
             "reads": [
                 "dashboard.incident",
                 "dashboard.incident_checkpoint",
@@ -93,6 +93,18 @@
                 "list": {
                     "ref": "dashboard.notification_status"
                 }
+            }
+        },
+        {
+            "id": "dashboard.get_idle_timeout",
+            "kind": "query",
+            "version": 1,
+            "description": "Committed administrator idle timeout minutes, default30 without insertion for a missing singleton; stored integer1..720 required. Authenticated admission reads this policy before route/resource/action/network work on every request.",
+            "reads": [
+                "dashboard.installation_settings"
+            ],
+            "returns": {
+                "ref": "dashboard.number"
             }
         }
     ]

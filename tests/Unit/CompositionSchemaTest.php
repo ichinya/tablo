@@ -21,7 +21,7 @@ final class CompositionSchemaTest extends CompositionSchemaFixtureCase
             if ($name === 'endpoint5') { $db->exec("UPDATE sites SET endpoint_token='original-cipher', enabled=0"); }
             $before = self::snapshot($db);
             Database::migrate($db);
-            Assert::same((int) \Tablo\SqlStatement::checked($db->query('PRAGMA user_version'))->fetchColumn(), 8, $name);
+            Assert::same((int) \Tablo\SqlStatement::checked($db->query('PRAGMA user_version'))->fetchColumn(), \Tablo\Database::CURRENT_SCHEMA_VERSION, $name);
             foreach ($before as $table => $rows) {
                 if (in_array($table, ['schema', 'version', 'sqlite_sequence'], strict: true)) { continue; }
                 $actual = SchemaShape::rows($db, 'SELECT * FROM "' . $table . '" ORDER BY rowid');

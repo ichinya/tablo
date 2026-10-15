@@ -6,6 +6,22 @@ chdir($root);
 $selectedLekalo = getenv('LEKALO_BIN');
 $lekalo = $selectedLekalo ? $selectedLekalo : 'lekalo';
 
+/** @return resource|false */
+function gate_capture_stream(?string $prefix, string $channel): mixed
+{
+    return $prefix === null ? tmpfile() : fopen($prefix . '.' . $channel, mode: 'x+b');
+}
+
+function record_gate_state(?string $prefix, string $phase, array $state): void
+{
+    if ($prefix === null) { return; }
+    if ($phase === 'closed') {
+        $state['stdout_sha256'] = hash_file('sha256', $prefix . '.stdout');
+        $state['stderr_sha256'] = hash_file('sha256', $prefix . '.stderr');
+    }
+    file_put_contents($prefix . '-' . $phase . '.json', json_encode($state, JSON_PRETTY_PRINT | JSON_THROW_ON_ERROR));
+}
+
 /** @param list<string> $command */
 function run_gate(array $command): void
 {
@@ -13,7 +29,10 @@ function run_gate(array $command): void
     fflush(STDOUT);
     // Independent file streams capture both channels without pipe backpressure
     // or unsupported Windows nonblocking APIs. Read only after direct closure.
-    $stdout = tmpfile(); $stderr = tmpfile();
+    $captureDirectory = getenv('TABLO_VERIFY_CAPTURE_DIRECTORY');
+    $capturePrefix = $captureDirectory ? $captureDirectory . '/gate-' . bin2hex(random_bytes(8)) : null;
+    $stdout = gate_capture_stream($capturePrefix, channel: 'stdout');
+    $stderr = gate_capture_stream($capturePrefix, channel: 'stderr');
     if (!is_resource($stdout) || !is_resource($stderr)) {
         if (is_resource($stdout)) { fclose($stdout); }
         if (is_resource($stderr)) { fclose($stderr); }
@@ -27,10 +46,20 @@ function run_gate(array $command): void
             options: ['bypass_shell' => true]);
         if (is_resource($process)) {
             $initial = proc_get_status($process);
+            fwrite(STDOUT, 'Gate started pid: ' . $initial['pid'] . PHP_EOL);
+            fflush(STDOUT);
+            record_gate_state($capturePrefix, phase: 'started', state: [
+                'pid' => $initial['pid'], 'argv' => $command, 'cwd' => getcwd(),
+                'started_at' => gmdate('c'), 'initial_status' => $initial,
+            ]);
             $closed = proc_close($process);
             $process = null;
             $exit = !$initial['running'] && $initial['exitcode'] !== -1 ? $initial['exitcode']
                 : (match (true) { ($closed !== -1) => $closed, default => null });
+            record_gate_state($capturePrefix, phase: 'closed', state: [
+                'pid' => $initial['pid'], 'argv' => $command, 'cwd' => getcwd(),
+                'closed_at' => gmdate('c'), 'proc_close' => $closed, 'exit' => $exit,
+            ]);
             foreach ([[$stdout, STDOUT], [$stderr, STDERR]] as [$capture, $output]) {
                 if (!rewind($capture) || stream_copy_to_stream($capture, $output) === false) {
                     throw new RuntimeException('Gate stream capture failed');
@@ -83,6 +112,7 @@ try {
                 'dashboard.create_site', 'dashboard.update_site' => 'tests/Unit/SiteRepositoryTest.php,tests/Unit/SiteCredentialCrudTest.php,tests/Unit/SiteTokenRotationTest.php,tests/Unit/SiteHistoricalCrudTest.php,tests/Unit/JsonChecksTest.php,tests/Unit/JsonObservationTest.php,tests/Unit/JsonConfigurationTest.php,tests/Unit/HealthChecksTest.php,tests/Unit/HealthUrlTest.php,tests/Unit/HealthFailurePolicyTest.php,tests/Unit/ExplicitHealthChecksTest.php,tests/Unit/HealthPersistenceTest.php',
                 'dashboard.logout' => 'tests/Http/AdminPasswordTest.php,tests/Http/PasswordSessionAdmissionTest.php,tests/Http/PasswordLoginRaceTest.php,tests/Http/PasswordCommitVisibilityTest.php',
                 'dashboard.get_settings', 'dashboard.update_settings' => 'tests/Unit/SettingsRepositoryTest.php,tests/Http/SettingsTest.php,tests/Network/WorkerSettingsTest.php',
+                'dashboard.get_idle_timeout', 'dashboard.update_idle_timeout' => 'tests/Unit/SessionLifetimeTest.php,tests/Unit/SessionSettingsTest.php,tests/Unit/SessionSettingsMigrationTest.php,tests/Http/SessionIdleTimeoutTest.php,tests/Http/SessionTimestampAdmissionTest.php,tests/Http/SessionPolicyAdoptionTest.php,tests/Http/SessionActionAdmissionTest.php,tests/Http/SessionNetworkRaceTest.php,tests/Http/SessionCookieRaceTest.php,tests/Network/SessionAutomaticTest.php',
                 'dashboard.run_worker_pass' => 'tests/Unit/PeriodicWorkerTest.php,tests/Network/PeriodicWorkerTest.php,tests/Network/WorkerAbaAdmissionTest.php,tests/Network/WorkerProcessCustodyTest.php,tests/Network/WorkerStartupAdmissionTest.php,tests/Network/WorkerFairnessTest.php,tests/Network/WorkerSearchDebtTest.php,tests/Network/WorkerBudgetDebtTest.php,tests/Unit/GitHubBudgetTest.php,tests/Unit/GitHubCooldownPersistenceTest.php,tests/Unit/GitHubRequestBoundsTest.php,tests/Unit/GitHubMemoRotationTest.php,tests/Network/GitHubSweepTest.php,tests/Network/GitHubCorrectionsTest.php,tests/Network/GitHubEquivalentScopeTest.php,tests/Network/GitHubResponseAdmissionTest.php,tests/Unit/SiteCheckerTest.php,tests/Unit/HealthFailureEvidenceTest.php,tests/Unit/VersionFailureEvidenceTest.php,tests/Http/HealthChecksTest.php,tests/Http/HomepageUrlTest.php,tests/Http/ExplicitHealthPathsTest.php,tests/Http/HealthPartialResultsTest.php,tests/Http/HealthInFlightTest.php,tests/Network/HttpFramingTest.php,tests/Http/HttpFramingTest.php',
                 'dashboard.request_worker_stop' => 'tests/Network/PeriodicWorkerTest.php,tests/Network/WorkerAbaAdmissionTest.php,tests/Network/WorkerProcessCustodyTest.php,tests/Network/WorkerStartupAdmissionTest.php,tests/Unit/PeriodicWorkerTest.php',
                 'dashboard.store_check', 'dashboard.settle_worker_check' => 'tests/Unit/CheckHistoryTest.php,tests/Unit/WorkerSettlementTest.php,tests/Network/HistoryConcurrencyTest.php,tests/Network/HistoryDiagnosticsTest.php,tests/Network/PeriodicWorkerTest.php,tests/Network/WorkerAbaAdmissionTest.php,tests/Network/WorkerProcessCustodyTest.php,tests/Network/WorkerStartupAdmissionTest.php,tests/Http/HealthChecksTest.php',
@@ -96,6 +126,7 @@ try {
                 default => 'tests/Unit/SiteRepositoryTest.php,tests/Unit/SiteCredentialCrudTest.php,tests/Unit/SiteTokenRotationTest.php,tests/Unit/SiteHistoricalCrudTest.php',
             };
             if (in_array($symbol['id'], ['dashboard.setup', 'dashboard.login', 'dashboard.change_admin_password'], strict: true)) {
+                $unitTests .= ',tests/Network/PasswordHelperDiagnosticsTest.php,tests/Network/PasswordHelperRetentionTest.php';
                 $unitTests .= ',tests/Unit/PasswordServiceTest.php,tests/Unit/PasswordPrivacyTest.php,tests/Unit/AdminPasswordTest.php,tests/Network/AdminPasswordTest.php,tests/Network/AdminPasswordSelectionTest.php,tests/Network/AdminPasswordStorageTest.php,tests/Network/AdminPasswordConflictTest.php,tests/Network/PasswordHelperTest.php,tests/Http/AdminPasswordTest.php,tests/Http/PasswordSessionAdmissionTest.php,tests/Http/PasswordLoginRaceTest.php,tests/Http/PasswordCommitVisibilityTest.php';
             }
             if (in_array($symbol['id'], ['dashboard.list_branches', 'dashboard.check_site', 'dashboard.create_site', 'dashboard.update_site'], strict: true)) {

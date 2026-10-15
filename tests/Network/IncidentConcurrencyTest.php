@@ -39,9 +39,14 @@ final class IncidentConcurrencyTest
             $b = $second->wait();
             Assert::same($a['code'], 0);
             Assert::same($b['code'], 0);
-            Assert::same(\Tablo\Tests\Support\FixtureValue::at(\Tablo\JsonRecord::checked(json_decode($a['stdout'], associative: true)), 'ddl'), 14,
-                'endpoint ALTER plus four history widening CREATE/ALTER statements plus four incident and five notification CREATE statements');
+            $firstObservation = \Tablo\JsonRecord::decode($a['stdout']);
+            $statements = array_map(\Tablo\Tests\Support\FixtureValue::string(...), \Tablo\JsonRecord::checked(\Tablo\Tests\Support\FixtureValue::at($firstObservation, 'ddl_statements')));
+            $idleStatements = array_values(array_filter($statements, static fn (string $sql): bool => str_starts_with($sql, 'ALTER TABLE installation_settings ADD COLUMN session_idle_timeout_minutes')));
+            Assert::same(count($idleStatements), 1, 'exact idle ALTER executes once');
+            Assert::same(count($statements) - count($idleStatements), 14, 'preserve original endpoint/history/incident/notification DDL count');
+            Assert::same(\Tablo\Tests\Support\FixtureValue::at($firstObservation, 'ddl'), 15, 'original fourteen statements plus exactly one idle ALTER');
             Assert::same(\Tablo\Tests\Support\FixtureValue::at(\Tablo\JsonRecord::checked(json_decode($b['stdout'], associative: true)), 'ddl'), 0);
+            Assert::same(\Tablo\Tests\Support\FixtureValue::at(\Tablo\JsonRecord::decode($b['stdout']), 'ddl_statements'), [], 'waiting opener replays no DDL');
             $db = Database::connect($path);
             Assert::same((int) \Tablo\SqlStatement::checked($db->query('SELECT COUNT(*) FROM check_history'))->fetchColumn(), 1);
             Assert::same(\Tablo\SqlRows::all(\Tablo\SqlStatement::checked($db->query('SELECT * FROM incidents'))->fetchAll(), \Tablo\SqlIncidentsClockInvalidConfigRevisionEndReasonRow::checked(...)), []);

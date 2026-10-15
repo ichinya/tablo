@@ -18,8 +18,10 @@ final class SubprocessCompletion
                 $stdout = file_get_contents($state->files['stdout']);
                 $stderr = file_get_contents($state->files['stderr']);
                 if ($stdout === false || $stderr === false) { throw new RuntimeException('Cannot read closed test command streams'); }
-                return ['exit_code' => $state->exitCode, 'stdout' => $stdout,
+                $result = ['exit_code' => $state->exitCode, 'stdout' => $stdout,
                     'stderr' => $stderr, 'files' => $state->files];
+                SessionEvidence::child($result);
+                return $result;
             }
             usleep(20_000);
         } while (microtime(true) < $deadline);
