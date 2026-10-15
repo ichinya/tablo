@@ -1,37 +1,113 @@
 document.addEventListener('DOMContentLoaded', () => {
-  const cards = [...document.querySelectorAll('[data-site]')];
-  const search = document.querySelector('#site-search');
-  const tabs = [...document.querySelectorAll('[data-filter]')];
-  let filter = 'all';
-  const apply = () => {
-    const query = (search?.value || '').trim().toLocaleLowerCase();
-    let visible = 0;
-    cards.forEach(card => {
-      const match = card.dataset.search.toLocaleLowerCase().includes(query)
-        && (filter === 'all' || card.dataset[filter] === '1');
-      card.hidden = !match;
-      visible += Number(match);
+  const dashboard = document.querySelector('[data-dashboard]');
+  if (dashboard) {
+    const search = dashboard.querySelector('#site-search');
+    const filters = [...dashboard.querySelectorAll('[data-filter]')];
+    const modes = [...dashboard.querySelectorAll('[data-view]')];
+    const views = [...dashboard.querySelectorAll('[data-dashboard-view]')];
+    const groups = new Map();
+    dashboard.querySelectorAll('[data-site]').forEach(item => {
+      const id = item.dataset.siteId;
+      if (!groups.has(id)) groups.set(id, []);
+      groups.get(id).push(item);
     });
-    const empty = document.querySelector('.no-results');
-    if (empty) empty.hidden = visible > 0 || (cards.length === 0 && !query && filter === 'all');
-    const add = document.querySelector('.add-card');
-    if (add) add.hidden = filter !== 'all' || Boolean(query);
-  };
-  tabs.forEach(tab => tab.addEventListener('click', () => {
-    filter = tab.dataset.filter;
-    tabs.forEach(item => {
-      item.classList.toggle('selected', item === tab);
-      item.setAttribute('aria-pressed', String(item === tab));
+    let filter = 'all';
+    let view = 'tile';
+    let storage;
+    // Accessing the storage object, reading it and writing it can each throw.
+    try { storage = window.localStorage; } catch {}
+    try {
+      const saved = storage?.getItem('tablo.dashboard.view.v1');
+      if (saved === 'tile' || saved === 'table') view = saved;
+    } catch {}
+    let historyTimer;
+    const remember = () => {
+      clearTimeout(historyTimer);
+      try {
+        const current = history.state;
+        const base = current && typeof current === 'object' && !Array.isArray(current) ? current : {};
+        history.replaceState({...base, tabloDashboard: {query: search.value, filter}}, '');
+      } catch {}
+    };
+    const restore = () => {
+      let state;
+      try { state = history.state?.tabloDashboard; } catch {}
+      search.value = state && typeof state.query === 'string' ? state.query : '';
+      filter = ['all', 'attention', 'paused'].includes(state?.filter) ? state.filter : 'all';
+    };
+    const apply = () => {
+      const query = search.value.trim().toLocaleLowerCase();
+      let visible = 0;
+      const active = document.activeElement;
+      groups.forEach(items => {
+        const site = items[0];
+        const match = site.dataset.search.toLocaleLowerCase().includes(query)
+          && (filter === 'all' || site.dataset[filter] === '1');
+        items.forEach(item => { item.hidden = !match; });
+        visible += Number(match);
+      });
+      views.forEach(item => { item.hidden = item.dataset.dashboardView !== view || (view === 'table' && visible === 0); });
+      modes.forEach(button => { button.setAttribute('aria-pressed', String(button.dataset.view === view)); });
+      filters.forEach(button => {
+        const selected = button.dataset.filter === filter;
+        button.classList.toggle('selected', selected);
+        button.setAttribute('aria-pressed', String(selected));
+      });
+      dashboard.querySelector('.no-results').hidden = visible > 0 || groups.size === 0;
+      dashboard.querySelector('.add-card').hidden = filter !== 'all' || Boolean(query);
+      dashboard.querySelector('[data-table-add]').hidden = view !== 'table';
+      // A hidden row/view must not leave keyboard focus inside an invisible action.
+      if (active instanceof HTMLElement && active.closest('[data-site]') && active.closest('[hidden]')) {
+        modes.find(button => button.dataset.view === view)?.focus();
+      }
+    };
+    modes.forEach(button => button.addEventListener('click', () => {
+      view = button.dataset.view;
+      try { storage?.setItem('tablo.dashboard.view.v1', view); } catch {}
+      apply();
+    }));
+    filters.forEach(button => button.addEventListener('click', () => {
+      filter = button.dataset.filter;
+      remember();
+      apply();
+    }));
+    search.addEventListener('input', () => {
+      apply();
+      clearTimeout(historyTimer);
+      historyTimer = setTimeout(remember, 150);
     });
+    window.addEventListener('pagehide', remember);
+    window.addEventListener('popstate', () => { clearTimeout(historyTimer); restore(); apply(); });
+    window.addEventListener('pageshow', () => { clearTimeout(historyTimer); restore(); apply(); });
+    restore();
     apply();
-  }));
-  search?.addEventListener('input', apply);
-  document.querySelectorAll('[data-check]').forEach(form => form.addEventListener('submit', () => {
-    const button = form.querySelector('button');
-    button.disabled = true;
-    button.classList.add('checking');
-    button.setAttribute('aria-label', 'Проверка выполняется');
-  }));
+    dashboard.querySelector('[data-dashboard-controls]').hidden = false;
+  }
+  document.querySelectorAll('[data-check]').forEach(checkForm => {
+    const buttons = [...checkForm.elements].filter(element => element.matches('[data-check-button]'));
+    const labels = new Map(buttons.map(button => [button, button.getAttribute('aria-label')]));
+    let pending = false;
+    checkForm.addEventListener('submit', event => {
+      if (pending || checkForm.dataset.paused === '1') { event.preventDefault(); return; }
+      pending = true;
+      buttons.forEach(button => {
+        button.disabled = true;
+        button.classList.add('checking');
+        button.setAttribute('aria-label', 'Проверка выполняется');
+      });
+    });
+    // Only a restored navigation entry can complete its old pending UI state.
+    // Synthetic pageshow or local interactions cannot revive a pending check.
+    window.addEventListener('pageshow', event => {
+      if (!event.isTrusted || !event.persisted) return;
+      pending = false;
+      buttons.forEach(button => {
+        button.disabled = checkForm.dataset.paused === '1';
+        button.classList.remove('checking');
+        button.setAttribute('aria-label', labels.get(button));
+      });
+    });
+  });
 
   const form = document.querySelector('[data-site-form]');
   if (!form) return;

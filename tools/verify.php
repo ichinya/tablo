@@ -189,7 +189,10 @@ try {
                 $tests .= ',tests/Network/ProcessDiagnosticTest.php,tests/Unit/HealthCheckDiagnosticsTest.php';
             }
             if ($symbol['id'] === 'dashboard.list_sites') {
-                $tests .= ',tests/Unit/PresenterTest.php';
+                $tests .= ',tests/Unit/PresenterTest.php,tests/Http/DashboardModesTest.php,tests/Http/DashboardModeActionsTest.php,tests/Network/DashboardModesFixtureCleanupTest.php';
+            }
+            if ($symbol['id'] === 'dashboard.check_site') {
+                $tests .= ',tests/Http/DashboardModeActionsTest.php,tests/Network/DashboardModesFixtureCleanupTest.php';
             }
             $testFiles = array_values(array_unique(explode(',', $tests)));
             $selectors = Tablo\Tools\NativeTestAttachments::selectors($testFiles);

@@ -10,6 +10,30 @@
 @media(prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important}}
 @media(max-width:380px){.sidebar{flex-wrap:wrap}.sidebar nav{width:100%;justify-content:space-between}}
 .health-mode-fields{margin-top:21px}
+/* One toolbar and logical site set, with a bounded, keyboard-scrollable table. */
+.workspace-main,.main-content,.sites-section,.site-identity,.site-identity>div,.repo-line{min-width:0}
+.stats{grid-template-columns:repeat(4,minmax(0,1fr))}.stat-card{min-width:0}.stat-label{flex-wrap:wrap;overflow-wrap:anywhere}
+.site-identity h2,.site-host,.repo-line a,.branch,.version-values code{overflow-wrap:anywhere;min-width:0}
+.section-toolbar{flex-wrap:wrap;gap:14px}.filter-tabs{flex-wrap:wrap}
+.dashboard-controls{display:flex;align-items:center;gap:12px;min-width:0;flex-wrap:wrap}
+.view-switch{display:flex;border:1px solid var(--line);border-radius:6px;background:#fff;flex-shrink:0}
+.view-switch button{border:0;background:transparent;padding:9px 12px;font:inherit;font-size:11px;color:#75868b;cursor:pointer;border-radius:5px}
+.view-switch button[aria-pressed=true]{background:#edf5f0;color:var(--green);font-weight:600}
+.view-switch button:focus-visible,.dashboard-table-region:focus-visible,.sites-section a:focus-visible,.sites-section button:focus-visible{outline:2px solid var(--green);outline-offset:3px}
+.dashboard-table-region{max-width:100%;width:100%;overflow:auto;border:1px solid var(--line);border-radius:10px;background:#fff;margin-bottom:20px}
+.dashboard-table{width:100%;min-width:1090px;table-layout:fixed;border-collapse:collapse;font-size:11px;text-align:left}
+.dashboard-table caption{text-align:left;padding:15px 17px;color:#71847c;font-weight:500;border-bottom:1px solid var(--line)}
+.dashboard-table th,.dashboard-table td{padding:15px 12px;vertical-align:top;border-bottom:1px solid var(--line);overflow-wrap:anywhere;line-height:1.6}
+.dashboard-table thead th{background:#f7faf8;color:#71847c;font-size:10px;font-weight:600}
+.dashboard-table th:nth-child(1){width:132px}.dashboard-table th:nth-child(2){width:128px}.dashboard-table th:nth-child(3){width:140px}.dashboard-table th:nth-child(4){width:100px}.dashboard-table th:nth-child(5){width:150px}.dashboard-table th:nth-child(6),.dashboard-table th:nth-child(7){width:50px}.dashboard-table th:nth-child(8){width:65px}.dashboard-table th:nth-child(9){width:135px}.dashboard-table th:nth-child(10){width:90px}
+.dashboard-table tbody th{font-weight:400}.dashboard-table tbody tr:last-child>*{border-bottom:0}
+.table-site-name{font-size:12px;font-weight:600}.table-secondary{display:block;margin-top:6px;color:#89979d;font-size:10px;font-weight:400}
+.dashboard-table code{overflow-wrap:anywhere;font-size:11px}.dashboard-table .comparison{margin-top:9px;align-items:flex-start;line-height:1.6}.dashboard-table .comparison svg{flex-shrink:0}
+.dashboard-table .check-error{margin:10px 0 0}.dashboard-table .status-pill{white-space:nowrap}.table-metric{font-variant-numeric:tabular-nums}
+.dashboard-table .card-actions{justify-content:flex-start}.table-add{margin-bottom:20px}
+@media(max-width:980px){.stats{grid-template-columns:repeat(2,minmax(0,1fr))}.dashboard-controls{width:100%}.dashboard-controls .search{flex:1;min-width:130px}.filter-tabs{order:0}}
+@media(max-width:480px){.sidebar nav{flex-wrap:wrap}.topbar-path{min-width:0;overflow-wrap:anywhere}.topbar{gap:8px}.account{flex-shrink:0}}
+@media(max-width:680px){.dashboard-controls{gap:10px}.view-switch button{font-size:10px}.filter-tabs{gap:10px}.stat-value{flex-wrap:wrap}.card-header{gap:10px}.site-identity{gap:8px}.site-monogram{flex-shrink:0}.card-footer>span{min-width:0;flex-wrap:wrap}.version-values{gap:8px}}
 .json-check-fields{margin-top:20px}.json-condition-row{display:grid;grid-template-columns:110px minmax(0,1fr);gap:18px;margin-top:18px}.version-check-fields{border-top:1px solid var(--line);margin-top:25px;padding-top:25px}.field-error{font-size:11px;line-height:1.6;color:#a75454;margin-top:7px}[aria-invalid="true"]{border-color:#c57a7a!important}@media(max-width:680px){.json-condition-row{grid-template-columns:90px minmax(0,1fr);gap:12px}}
 /* Incident observations share the existing authenticated layout. */
 .incident-filter{display:flex;gap:12px;align-items:center;flex-wrap:wrap;margin:24px 0}

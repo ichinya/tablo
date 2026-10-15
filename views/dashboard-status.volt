@@ -1,0 +1,1 @@
+<span class="status-pill {{ site['tone'] }}" title="{{ site['health_reason_label'] }}" data-health-error="{{ site['health_error_code'] }}"><span class="status-dot {{ site['tone'] }}"></span>{{ site['status'] }}</span>
