@@ -12,11 +12,14 @@ services:
       TABLO_DB: /var/www/tablo/storage/tablo.sqlite
       TABLO_ALLOW_PRIVATE_NETWORK: "${TABLO_ALLOW_PRIVATE_NETWORK:-0}"
       TABLO_COOKIE_SECURE: "${TABLO_COOKIE_SECURE:-0}"
+      TABLO_TRUSTED_PROXIES: "${TABLO_TRUSTED_PROXIES:-}"
     restart: unless-stopped
   tablo-worker:
     build: .
     image: tablo-local
     command: ["php", "bin/worker.php"]
+    healthcheck:
+      disable: true
     user: www-data
     init: true
     stop_signal: SIGTERM

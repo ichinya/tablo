@@ -6,6 +6,7 @@ namespace Tablo\Tests\Network;
 use RuntimeException;
 use Tablo\Database;
 use Tablo\Tests\Support\MigrationPdo;
+use Tablo\Tests\Support\DatabaseConnectSchedule;
 use Tablo\Tests\Support\MigrationProcess;
 use Tablo\Tests\Support\TemporaryDirectory;
 use Testo\Assert;
@@ -13,6 +14,71 @@ use Testo\Test;
 
 final class DatabaseMigrationTest
 {
+    #[Test]
+    public function retriesRealWalBusyAfterCompetingMigratorFinishes(): void
+    {
+        foreach (['fresh', 'legacy', 'version-one'] as $schema) {
+            $directory = new TemporaryDirectory('tablo-connect-wal-race-');
+            try {
+                $path = $directory->path . '/test.sqlite';
+                if ($schema !== 'fresh') { self::legacy($path, $schema === 'version-one'); }
+                $schedule = new DatabaseConnectSchedule($directory);
+                $result = $schedule->race($path);
+                foreach (['A', 'B'] as $name) {
+                    Assert::same($result[$name]['code'], 0, 'Scheduled actual connect failed: ' . $result[$name]['stdout']);
+                    Assert::same($result[$name]['data']['version'], Database::CURRENT_SCHEMA_VERSION);
+                    Assert::same($result[$name]['data']['journal'], 'wal');
+                    Assert::same($result[$name]['data']['timeout'], 5000);
+                    Assert::same($result[$name]['data']['foreignKeys'], 1);
+                    Assert::same($result[$name]['data']['errorMode'], \PDO::ERRMODE_EXCEPTION);
+                    Assert::same($result[$name]['data']['fetchMode'], \PDO::FETCH_ASSOC);
+                    Assert::same($result[$name]['data']['returnedPdoReleased'], true);
+                }
+                $busy = array_values(array_filter($result['A']['events'], static fn (array $event): bool => $event['stage'] === 'attempt-finished'));
+                Assert::same(count($busy), 1);
+                Assert::same([$busy[0]['sqliteCode'], $busy[0]['cleanupFailed'], $busy[0]['statementRetained']], [5, false, false]);
+                $db = Database::connect($path);
+                Assert::same($db->query('PRAGMA integrity_check')->fetchColumn(), 'ok');
+                Assert::same($db->query('PRAGMA foreign_key_check')->fetchAll(), []);
+                if ($schema !== 'fresh') {
+                    Assert::same($db->query('SELECT password_hash FROM users')->fetchColumn(), 'synthetic-hash');
+                    Assert::same($db->query('SELECT github_token FROM sites')->fetchColumn(), 'synthetic-ciphertext');
+                }
+            } finally { unset($db); $directory->close(); }
+        }
+    }
+
+    #[Test]
+    public function currentDeleteWalNegotiationReleasesOrExhaustsOneBudget(): void
+    {
+        foreach ([true, false] as $release) {
+            $directory = new TemporaryDirectory('tablo-connect-wal-current-');
+            try {
+                $path = $directory->path . '/test.sqlite';
+                $db = Database::connect($path);
+                $db->exec('PRAGMA journal_mode = DELETE');
+                unset($db);
+                $result = (new DatabaseConnectSchedule($directory))->current($path, $release);
+                Assert::same($result['holder']['code'], 0);
+                Assert::same($result['A']['code'], $release ? 0 : 1);
+                if ($release) { Assert::same($result['A']['data']['timeout'], 5000); }
+                else {
+                    Assert::same($result['A']['data']['sqliteCode'], 5);
+                    Assert::true($result['A']['data']['elapsedMs'] >= 4900 && $result['A']['data']['elapsedMs'] < 8000,
+                        'Unexpected cooperative WAL budget under the test scheduler');
+                }
+                $events = $result['A']['events'];
+                $phase = array_values(array_filter($events, static fn (array $event): bool => $event['stage'] === 'phase-start'))[0];
+                foreach ($events as $event) {
+                    if ($event['stage'] === 'attempt-start') { Assert::true($event['ns'] < $phase['deadline'], 'WAL attempt began after deadline'); }
+                }
+                $db = new \PDO('sqlite:' . $path);
+                Assert::same($db->query('PRAGMA journal_mode')->fetchColumn(), $release ? 'wal' : 'delete');
+                Assert::same($db->query('PRAGMA integrity_check')->fetchColumn(), 'ok');
+            } finally { unset($db); $directory->close(); }
+        }
+    }
+
     private static function legacy(string $path, bool $versionOne = false): void
     {
         $db = new MigrationPdo($path);
@@ -195,7 +261,7 @@ final class DatabaseMigrationTest
             $process?->close();
             $directory->close();
         }
-        Assert::true(str_contains($message ?? '', 'unable to open database file'));
+        Assert::true(str_contains($message ?? '', '"sqliteCode":14'));
         Assert::false(is_dir($root));
     }
 }
