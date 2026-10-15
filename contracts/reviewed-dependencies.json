@@ -8,7 +8,7 @@
                 "Composer verify",
                 "Reviewed dependency capture"
             ],
-            "fingerprint": "sha256:f7424ca83ab50e61fb660df16bd6f24581918e6e90fb7b35ddd02780020bfdae"
+            "fingerprint": "sha256:b8fe014e0a5ed025d013c254a09d62c73c6432ee7277c0a11f723b727bab7878"
         },
         {
             "path": "tools/reviewed-dependencies.php",
@@ -445,7 +445,7 @@
                 "Composer verify",
                 "Composer analyze"
             ],
-            "fingerprint": "sha256:47693dc9ef48568f3d5023a8cab5a36d836f528248cb8c3f7cbae252233413d8"
+            "fingerprint": "sha256:ad885f91f96d4ac98c0fc5375349c980c7bd1eb65dbb8d4881a9c1c4789dd2c0"
         },
         {
             "path": "app/DeploymentFields.php",
@@ -2310,7 +2310,7 @@
                 "Composer verify",
                 "Composer analyze"
             ],
-            "fingerprint": "sha256:45dcde750d1bb87481c5e199ddfd20e18cc6915a98ad99f743da23cfc4cd4387"
+            "fingerprint": "sha256:c793866b8996065803f0119e3e48c976d635a7d62ebf0330fceaaeed79f8691e"
         },
         {
             "path": "app/SchemaCheckShape.php",
@@ -2370,7 +2370,7 @@
                 "Composer verify",
                 "Composer analyze"
             ],
-            "fingerprint": "sha256:fd6b2fb2e1e5f4f0e2008b98220bf5251959713bea9d124514fba837df54af94"
+            "fingerprint": "sha256:579ed7c20981ca26f79b22d18a8c62ec43f37b6db7bb78101afc552e2b71b28a"
         },
         {
             "path": "app/SchemaLineage.php",
@@ -2390,7 +2390,7 @@
                 "Composer verify",
                 "Composer analyze"
             ],
-            "fingerprint": "sha256:bcfd9246a22b556d7593f8417381d17c859c6bea573a989722717eaf3714973b"
+            "fingerprint": "sha256:aa247b2ad272c8c103fa7dde5704f0587e5cdbc1e52d3592718dbc1773280825"
         },
         {
             "path": "app/SchemaShape.php",
@@ -2551,7 +2551,7 @@
                 "Composer verify",
                 "Composer analyze"
             ],
-            "fingerprint": "sha256:46540ac0447c41a3e6e542e0a82792c5faaf06ba3a765d7023db5015a72f01e7"
+            "fingerprint": "sha256:13be520d56168b0380811547192585ee9dd739a076599c9a0bca03132a296bd8"
         },
         {
             "path": "app/SettlementKind.php",
@@ -3765,7 +3765,7 @@
                 "Composer verify",
                 "Composer analyze"
             ],
-            "fingerprint": "sha256:acba8387cd08b26a26c2563d43e64e53369b6090666e52a0fadaaf5f0f8bc6b2"
+            "fingerprint": "sha256:28089730c43cba79413cb69eddccce768c1fb177280873ea248539afb373343c"
         },
         {
             "path": "app/WebSession.php",
@@ -4026,7 +4026,7 @@
                 "Composer verify",
                 "Composer analyze"
             ],
-            "fingerprint": "sha256:4a55513a6ba41a833d09fc772251a1c4abaf6fcf83868d4ac4c4c62ef9f73011"
+            "fingerprint": "sha256:f28571c647da9e57234c04c328b0688e5962872a26607f1f670a30c970a73087"
         },
         {
             "path": "public/router.php",
@@ -4045,7 +4045,7 @@
                 "tablo/check/v1 local consumers",
                 "Administrator idle timeout policy"
             ],
-            "fingerprint": "sha256:36ead1328b3fe9cc2bc977d433bdc393a1ed7e070a4ac6ed1adfe48a27498a6f"
+            "fingerprint": "sha256:455ba2905a4958146179df7b8495368234c9061eaffc4a914c0f647a0a54cdd9"
         },
         {
             "path": "tests/browser-fixture.php",
@@ -5935,7 +5935,7 @@
                 "Composer verify",
                 "Composer analyze"
             ],
-            "fingerprint": "sha256:1f73d572b78003f0e72a4eaae71520db7b5015bfe417dd885aa9363e73137956"
+            "fingerprint": "sha256:3851f92957ca27fe86c28172ab8776c508d820e5abb5ffb8405d6a2212eff3ab"
         },
         {
             "path": "tests/Network/IncidentPublicTest.php",
@@ -7613,7 +7613,7 @@
                 "Composer verify",
                 "Composer analyze"
             ],
-            "fingerprint": "sha256:a8eb475d8c9ecaf75c3af1166689bd21311e1824dbc9cdb7ead639c2d7284511"
+            "fingerprint": "sha256:f2f45aaea436145e89417b822798e9acbc298a552b9edebce6a10dbe6c36db99"
         },
         {
             "path": "tests/Unit/CompositionSchemaFixtureCase.php",
@@ -7717,7 +7717,7 @@
                 "Composer verify",
                 "Composer analyze"
             ],
-            "fingerprint": "sha256:bfc621ccd2156e666eb0248fbc9916b0013bcee4de0ac34ac0e5a1cd0121af32"
+            "fingerprint": "sha256:c6f7290905833b20b234ac6c4292bfc116d583721bc7d4c3c4b2dfd856eb893a"
         },
         {
             "path": "tests/Unit/DatabaseHistoricalImportTest.php",
@@ -7767,7 +7767,7 @@
                 "Composer verify",
                 "Composer analyze"
             ],
-            "fingerprint": "sha256:1ab773203f542d1193d552424bb86ebe0001240896a134da2c197dfca65f2076"
+            "fingerprint": "sha256:738fe86be74a630de2af342d601e6c17af98f058f31f2a307f3cfab543051b1f"
         },
         {
             "path": "tests/Unit/DatabaseWalCleanupTest.php",
@@ -7887,7 +7887,7 @@
                 "Composer verify",
                 "Composer analyze"
             ],
-            "fingerprint": "sha256:d99221ae13cab97e70c93f27ef0b7f921cf584cc109ee6595529505481dedc1d"
+            "fingerprint": "sha256:bfd9a16fa11104c03e1c27f9330e313e5baa7f0b0b39c3d59adf1b84128c836f"
         },
         {
             "path": "tests/Unit/EndpointTokenRepositoryTest.php",
@@ -8039,7 +8039,7 @@
                 "Composer verify",
                 "Composer analyze"
             ],
-            "fingerprint": "sha256:466b0782e1e0dc311a8ae2673822ac8d47d057e4b442f9e24b34ffb2bec91b1d"
+            "fingerprint": "sha256:b6f76ba2564be792787d6c020b70b06200b5fe3e24cdeab2737ae1d6d30351eb"
         },
         {
             "path": "tests/Unit/GitHubProviderTest.php",
@@ -8159,7 +8159,7 @@
                 "Composer verify",
                 "Composer analyze"
             ],
-            "fingerprint": "sha256:cbb5fb1a1e628c616a6a819b8b18b1db65e0a0c687b6e11af8db3681c53f2e07"
+            "fingerprint": "sha256:0e8df3a11a804944efd3e03886a869be6512106c826ae5364dfa7d3264867351"
         },
         {
             "path": "tests/Unit/HistoryReadRetentionTest.php",
@@ -8209,7 +8209,7 @@
                 "Composer verify",
                 "Composer analyze"
             ],
-            "fingerprint": "sha256:674d89ca0e5df6e9e32cfea820f03916523950741e0d4ef11aa8b0634d33b324"
+            "fingerprint": "sha256:6033a91c4586331ecbd4bb962051c91bb327e4de0283636461b2b4beab2a18bc"
         },
         {
             "path": "tests/Unit/IncidentReadTest.php",
@@ -8349,7 +8349,7 @@
                 "Composer verify",
                 "Composer analyze"
             ],
-            "fingerprint": "sha256:dce2d288e7659763521a5fb5be05f88457665a47019453b3af1f492f2a86f7ec"
+            "fingerprint": "sha256:31dab38737fdc96a1e49639f8696311be336bb3e7ed23b7d9037badfb96f1b56"
         },
         {
             "path": "tests/Unit/NotificationOutboxTest.php",
@@ -8535,7 +8535,7 @@
             "consumers": [
                 "Administrator session policy native controls"
             ],
-            "fingerprint": "sha256:76b68542d05990206647504bf420d4df5e2bb8abc5228d331fa1f0281267b73c"
+            "fingerprint": "sha256:8dec3f95793c8d77f159dae718b9c313c1048ee83f37f2d1d0e70dbfa42bfc46"
         },
         {
             "path": "tests/Unit/SessionSettingsTest.php",
@@ -8763,7 +8763,7 @@
                 "Composer verify",
                 "Composer analyze"
             ],
-            "fingerprint": "sha256:bf7964f4f0b7d471578cc95f2b5ec9a21b7902259f3575ce3293d1689f8b72a5"
+            "fingerprint": "sha256:2832a0032308d4db4de7e0f574cd88aacac8ab5352170675b606f62d8f394cff"
         },
         {
             "path": "tests/Unit/WorkerSettlementTest.php",
@@ -8843,7 +8843,7 @@
                 "Composer verify",
                 "Composer analyze"
             ],
-            "fingerprint": "sha256:98ab299786bee5a4a4a6836a9dadff4d4cd3604afe2185605fa81f76eb55b94e"
+            "fingerprint": "sha256:1b0110cc86048ff30300e3d6144d8017856d04d88695aa2d1ceb9403f0064696"
         },
         {
             "path": "tools/capture-reviewed-dependencies.php",
@@ -9063,7 +9063,7 @@
                 "Composer verify",
                 "Composer analyze"
             ],
-            "fingerprint": "sha256:2c5d500960b3f61353c1088fdc577d6c9f5dbd29e560ca03f9c24af58fef8b97"
+            "fingerprint": "sha256:86a24414f3d59ecec827996abf5eca24f7ddc45b6489063f82482bc7d2c20810"
         },
         {
             "path": "views/incidents.volt",
@@ -9089,7 +9089,7 @@
                 "dashboard.update_notifications",
                 "dashboard.read_notification_status"
             ],
-            "fingerprint": "sha256:711033976bba63bb91ff6314f3770aede52e47bc97838a0000642243e2ffebac"
+            "fingerprint": "sha256:87420a2e0912b18957cf9e1fbb0e202016b2070e3cd604504e42c8077cb23f9d"
         },
         {
             "path": "tests/Network/PasswordHelperDiagnosticsTest.php",
@@ -9266,6 +9266,371 @@
                 "Private explicitly seeded synthetic database preservation; excluded from default helper artifact"
             ],
             "fingerprint": "sha256:777c59211aefc2fa9e61e221842f89aae0bfaafa4902b7e8606b4a1591b5d4e2"
+        },
+        {
+            "path": "app/ApiSiteDto.php",
+            "owner": "Read API and singleton token implementation",
+            "consumers": [
+                "Composer lint",
+                "Composer analyze",
+                "Composer verify",
+                "Native read API tests"
+            ],
+            "fingerprint": "sha256:b132722a5a42005e29a1650b3bbdd8b8e4c453c755e981751562a6708c0ebb81"
+        },
+        {
+            "path": "app/ApiSiteState.php",
+            "owner": "Read API and singleton token implementation",
+            "consumers": [
+                "Composer lint",
+                "Composer analyze",
+                "Composer verify",
+                "Native read API tests"
+            ],
+            "fingerprint": "sha256:01cd3a8510dac092f99ccfb3e92dddb2dd98ab6a71f9066b8e6fa1b74c3ab006"
+        },
+        {
+            "path": "app/read-api-repository.php",
+            "owner": "Read API and singleton token implementation",
+            "consumers": [
+                "Composer lint",
+                "Composer analyze",
+                "Composer verify",
+                "Native read API tests"
+            ],
+            "fingerprint": "sha256:af14e4df823ddcf69d7d79d41ac7c1b04d32ff8ea0f9b751afe6d7e9f5fd2e94"
+        },
+        {
+            "path": "app/read-api-token-repository.php",
+            "owner": "Read API and singleton token implementation",
+            "consumers": [
+                "Composer lint",
+                "Composer analyze",
+                "Composer verify",
+                "Native read API tests"
+            ],
+            "fingerprint": "sha256:ef992531510687c243d56cbf923be3c1bc3a565498341505f99d218867cce71d"
+        },
+        {
+            "path": "app/read-api-token-schema.php",
+            "owner": "Read API and singleton token implementation",
+            "consumers": [
+                "Composer lint",
+                "Composer analyze",
+                "Composer verify",
+                "Native read API tests"
+            ],
+            "fingerprint": "sha256:43e5c9521e4b4d70a9266e80b0cc824fd55e6b64fd6b2c2bba04211188bf5885"
+        },
+        {
+            "path": "app/ReadApi.php",
+            "owner": "Read API and singleton token implementation",
+            "consumers": [
+                "Composer lint",
+                "Composer analyze",
+                "Composer verify",
+                "Native read API tests"
+            ],
+            "fingerprint": "sha256:c7313a4fb5b53918128523f34c3589fe000aa4830065baa820b7013d6a554639"
+        },
+        {
+            "path": "app/ReadApiConnection.php",
+            "owner": "Read API and singleton token implementation",
+            "consumers": [
+                "Composer lint",
+                "Composer analyze",
+                "Composer verify",
+                "Native read API tests"
+            ],
+            "fingerprint": "sha256:1189cee4f9f8da15f625ea4b16c2a0a3e87a85b8202e60df2a13f5984a9f5595"
+        },
+        {
+            "path": "app/ReadApiRepository.php",
+            "owner": "Read API and singleton token implementation",
+            "consumers": [
+                "Composer lint",
+                "Composer analyze",
+                "Composer verify",
+                "Native read API tests"
+            ],
+            "fingerprint": "sha256:019677722f11d423cc1cb4c74f398c08249d4b60cffc992dfe9d42c515e1482f"
+        },
+        {
+            "path": "app/ReadApiRequest.php",
+            "owner": "Read API and singleton token implementation",
+            "consumers": [
+                "Composer lint",
+                "Composer analyze",
+                "Composer verify",
+                "Native read API tests"
+            ],
+            "fingerprint": "sha256:0f3e0cd51f6966c41f9890c480e0e8ad668ac3da450976faeb0ee157bc7dc06e"
+        },
+        {
+            "path": "app/ReadApiResponse.php",
+            "owner": "Read API and singleton token implementation",
+            "consumers": [
+                "Composer lint",
+                "Composer analyze",
+                "Composer verify",
+                "Native read API tests"
+            ],
+            "fingerprint": "sha256:85a3ea504bdaac48fb7b6985ca824136b14541c38c8942cee4f062b55e1533c9"
+        },
+        {
+            "path": "app/ReadApiSchemaAdmission.php",
+            "owner": "Read API and singleton token implementation",
+            "consumers": [
+                "Composer lint",
+                "Composer analyze",
+                "Composer verify",
+                "Native read API tests"
+            ],
+            "fingerprint": "sha256:83b4fb50abe82c1a928aac427b6f015ef8064085ef1c4403fd0eec3760be0e6f"
+        },
+        {
+            "path": "app/ReadApiToken.php",
+            "owner": "Read API and singleton token implementation",
+            "consumers": [
+                "Composer lint",
+                "Composer analyze",
+                "Composer verify",
+                "Native read API tests"
+            ],
+            "fingerprint": "sha256:fdef1c945eb409740e24fef4b803da942348026d5f38a391e9b7b32791b350ae"
+        },
+        {
+            "path": "app/ReadApiTokenPages.php",
+            "owner": "Read API and singleton token implementation",
+            "consumers": [
+                "Composer lint",
+                "Composer analyze",
+                "Composer verify",
+                "Native read API tests"
+            ],
+            "fingerprint": "sha256:017764227fd8402aaa3d5d4fd0ae7d5083a31324d1530db377b09aab4e3ef8d6"
+        },
+        {
+            "path": "app/ReadApiTokenRepository.php",
+            "owner": "Read API and singleton token implementation",
+            "consumers": [
+                "Composer lint",
+                "Composer analyze",
+                "Composer verify",
+                "Native read API tests"
+            ],
+            "fingerprint": "sha256:f5ef661d1b54e3246dc19d3f1304107dff1c5e5878b19658f5d9e8ec7ecdfa24"
+        },
+        {
+            "path": "app/ReadApiTokenSchema.php",
+            "owner": "Read API and singleton token implementation",
+            "consumers": [
+                "Composer lint",
+                "Composer analyze",
+                "Composer verify",
+                "Native read API tests"
+            ],
+            "fingerprint": "sha256:eff50d2dd21281b29a49e7ea5780de5343af360d11d2b1ac749a709f552b65b0"
+        },
+        {
+            "path": "contracts/read-api-v1.schema.json",
+            "owner": "Version 1 external read contract",
+            "consumers": [
+                "Read API documentation and privacy review"
+            ],
+            "fingerprint": "sha256:b32c5f6883a32ef90ce2a2a4c153912de73e0104fcf565294bec30808a1fbb6b"
+        },
+        {
+            "path": "docs/read-api.md",
+            "owner": "Version 1 external read contract",
+            "consumers": [
+                "Read API documentation and privacy review"
+            ],
+            "fingerprint": "sha256:83e510c3bfdfede433fee95abc9d89e33bf61bdf0285152b1d0b2144a88fc519"
+        },
+        {
+            "path": "tests/fixtures/read-api-router.php",
+            "owner": "Read API synthetic acceptance evidence",
+            "consumers": [
+                "Composer lint",
+                "Composer analyze",
+                "Composer verify",
+                "Native read API tests"
+            ],
+            "fingerprint": "sha256:985281da6866be032a0fa94a3ea697be4f00c4902da85e3c069f3076399027b0"
+        },
+        {
+            "path": "tests/Http/ReadApiAuthenticationTest.php",
+            "owner": "Read API synthetic acceptance evidence",
+            "consumers": [
+                "Composer lint",
+                "Composer analyze",
+                "Composer verify",
+                "Native read API tests"
+            ],
+            "fingerprint": "sha256:eed0aaea41835a695f9238a4037c3b7030a6647c1c7349f9170b699cd49b3d23"
+        },
+        {
+            "path": "tests/Http/ReadApiHttpTest.php",
+            "owner": "Read API synthetic acceptance evidence",
+            "consumers": [
+                "Composer lint",
+                "Composer analyze",
+                "Composer verify",
+                "Native read API tests"
+            ],
+            "fingerprint": "sha256:a9e4096ebff280e20fa4d580561d717ca21073be569dcd1050c867916710e292"
+        },
+        {
+            "path": "tests/Http/ReadApiParametersTest.php",
+            "owner": "Read API synthetic acceptance evidence",
+            "consumers": [
+                "Composer lint",
+                "Composer analyze",
+                "Composer verify",
+                "Native read API tests"
+            ],
+            "fingerprint": "sha256:10860b81a99f5b880185db21b00898e7d0de5fcdcc3ca2e58bc8da88e21209d7"
+        },
+        {
+            "path": "tests/Http/ReadApiPrivacyTest.php",
+            "owner": "Read API synthetic acceptance evidence",
+            "consumers": [
+                "Composer lint",
+                "Composer analyze",
+                "Composer verify",
+                "Native read API tests"
+            ],
+            "fingerprint": "sha256:7a2df415a5905df99263bff13825af31e496cf2dadea94d39ca54144cb0dfaeb"
+        },
+        {
+            "path": "tests/Http/ReadApiSessionContractTest.php",
+            "owner": "Read API synthetic acceptance evidence",
+            "consumers": [
+                "Composer lint",
+                "Composer analyze",
+                "Composer verify",
+                "Native read API tests"
+            ],
+            "fingerprint": "sha256:aa9eb79d25127bd74713ec426b1dbe6316d64c08864a70dac1bf6b7ea07ca609"
+        },
+        {
+            "path": "tests/Http/ReadApiTokenManagementTest.php",
+            "owner": "Read API synthetic acceptance evidence",
+            "consumers": [
+                "Composer lint",
+                "Composer analyze",
+                "Composer verify",
+                "Native read API tests"
+            ],
+            "fingerprint": "sha256:e8333b2f94d1776cdfe0ca9a1a8e8292895632464f93d4faf69c91280819cd0f"
+        },
+        {
+            "path": "tests/Network/ReadApiBoundaryTest.php",
+            "owner": "Read API synthetic acceptance evidence",
+            "consumers": [
+                "Composer lint",
+                "Composer analyze",
+                "Composer verify",
+                "Native read API tests"
+            ],
+            "fingerprint": "sha256:7dcdace65a87404fdb61c69d6880f23608663b4dbff606158e24b316d1b8c016"
+        },
+        {
+            "path": "tests/Support/ReadApiAssertions.php",
+            "owner": "Read API synthetic acceptance evidence",
+            "consumers": [
+                "Composer lint",
+                "Composer analyze",
+                "Composer verify",
+                "Native read API tests"
+            ],
+            "fingerprint": "sha256:0d678278288c8357b0edeaa6ced9831dcdecf56a5968ab8b23ffc1842a8cccbc"
+        },
+        {
+            "path": "tests/Support/ReadApiFixture.php",
+            "owner": "Read API synthetic acceptance evidence",
+            "consumers": [
+                "Composer lint",
+                "Composer analyze",
+                "Composer verify",
+                "Native read API tests"
+            ],
+            "fingerprint": "sha256:6426c42084dbc7fbfe12a6e2cf7db3f6575ee76fda9e41a7c425deeaaf01ef0a"
+        },
+        {
+            "path": "tests/Unit/ApiSiteDtoTest.php",
+            "owner": "Read API synthetic acceptance evidence",
+            "consumers": [
+                "Composer lint",
+                "Composer analyze",
+                "Composer verify",
+                "Native read API tests"
+            ],
+            "fingerprint": "sha256:637a95ee3ab041f2a96b08b5ce0bc53503f62667e2acde27631ab407ca6b4cfb"
+        },
+        {
+            "path": "tests/Unit/ReadApiRepositoryTest.php",
+            "owner": "Read API synthetic acceptance evidence",
+            "consumers": [
+                "Composer lint",
+                "Composer analyze",
+                "Composer verify",
+                "Native read API tests"
+            ],
+            "fingerprint": "sha256:768aa2a4011e40c7763e09fe7d9714cf1447c832b5c7885a1108e161ea5ce6c1"
+        },
+        {
+            "path": "tests/Unit/ReadApiRequestTest.php",
+            "owner": "Read API synthetic acceptance evidence",
+            "consumers": [
+                "Composer lint",
+                "Composer analyze",
+                "Composer verify",
+                "Native read API tests"
+            ],
+            "fingerprint": "sha256:a25850f2c195643696df6d49d0826a5e63d05c038dc08ed4f0ec0a22da941062"
+        },
+        {
+            "path": "tests/Unit/ReadApiSchemaTest.php",
+            "owner": "Read API synthetic acceptance evidence",
+            "consumers": [
+                "Composer lint",
+                "Composer analyze",
+                "Composer verify",
+                "Native read API tests"
+            ],
+            "fingerprint": "sha256:6facd50050417ff00521ea42545457c1241a87e0b89ad53e231af7cd30ab5964"
+        },
+        {
+            "path": "tests/Unit/ReadApiTokenMigrationTest.php",
+            "owner": "Read API synthetic acceptance evidence",
+            "consumers": [
+                "Composer lint",
+                "Composer analyze",
+                "Composer verify",
+                "Native read API tests"
+            ],
+            "fingerprint": "sha256:7b35a8876e8fa40f76e9f9942f22b065f2f7cdcdc63fbd6322518cf7379a0e0c"
+        },
+        {
+            "path": "tests/Unit/ReadApiTokenTest.php",
+            "owner": "Read API synthetic acceptance evidence",
+            "consumers": [
+                "Composer lint",
+                "Composer analyze",
+                "Composer verify",
+                "Native read API tests"
+            ],
+            "fingerprint": "sha256:34be8ade7e21611957980f21b95f53e18ec667f2fe2c3af5081cd49835260651"
+        },
+        {
+            "path": "views/read-api-token-issued.volt",
+            "owner": "Version 1 external read contract",
+            "consumers": [
+                "Read API documentation and privacy review"
+            ],
+            "fingerprint": "sha256:70d6cfbf260d23ab89c637e7b30c7a22360a03cc266c1a52edc3463aa649ceba"
         }
     ]
 }

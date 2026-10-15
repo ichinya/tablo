@@ -28,6 +28,7 @@ final class SchemaLayoutUpgrade
             if (!$layout['incidents']) { foreach (IncidentSchema::STATEMENTS as $statement) { $db->exec($statement); } }
             if (!$layout['notifications']) { NotificationSchema::migrate($db); }
             if ($layout['version'] < 9) { self::addSessionSettings($db); }
+            if ($layout['version'] < 10) { ReadApiTokenSchema::migrate($db); }
     }
 
     public static function addSessionSettings(\PDO $db): void

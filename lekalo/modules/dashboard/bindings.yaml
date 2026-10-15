@@ -134,6 +134,38 @@
             "method": "POST",
             "path": "/settings/session-timeout",
             "invokes": "dashboard.update_idle_timeout"
+        },
+        {
+            "id": "dashboard.read_api_sites_endpoint",
+            "kind": "endpoint",
+            "version": 1,
+            "method": "GET",
+            "path": "/api/v1/sites",
+            "invokes": "dashboard.read_api_sites"
+        },
+        {
+            "id": "dashboard.read_api_site_endpoint",
+            "kind": "endpoint",
+            "version": 1,
+            "method": "GET",
+            "path": "/api/v1/sites/{id}",
+            "invokes": "dashboard.read_api_site"
+        },
+        {
+            "id": "dashboard.rotate_read_api_token_endpoint",
+            "kind": "endpoint",
+            "version": 1,
+            "method": "POST",
+            "path": "/settings/read-api-token/rotate",
+            "invokes": "dashboard.rotate_read_api_token"
+        },
+        {
+            "id": "dashboard.revoke_read_api_token_endpoint",
+            "kind": "endpoint",
+            "version": 1,
+            "method": "POST",
+            "path": "/settings/read-api-token/revoke",
+            "invokes": "dashboard.revoke_read_api_token"
         }
     ]
 }

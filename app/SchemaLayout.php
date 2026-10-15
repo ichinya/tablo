@@ -19,6 +19,7 @@ final class SchemaLayout
         7 => [[false, true, true, true]],
         8 => [[true, true, true, true]],
         9 => [[true, true, true, true]],
+        10 => [[true, true, true, true]],
     ];
     /** @return Layout */
     public static function observe(PDO $db, int $version): array
@@ -37,6 +38,7 @@ final class SchemaLayout
             $present[$group] = $count !== 0;
         }
         if (($objects['_tablo_history_upgrade'] ?? null) !== null) { SchemaShape::refuse(); }
+        if (($version >= 10) !== array_key_exists('read_api_token', $objects)) { SchemaShape::refuse(); }
         $features = [$endpoint, $present['history'], $present['incidents'], $present['notifications']];
         if (!array_key_exists($version, self::LINEAGES)) { SchemaShape::refuse(); }
         $valid = in_array($features, self::LINEAGES[$version], strict: true);
