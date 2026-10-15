@@ -6,9 +6,9 @@ namespace Tablo\Tests\Network;
 use PDO;
 use RuntimeException;
 use Tablo\Tests\Support\DashboardModesFixture;
+use Tablo\Tests\Support\DashboardPortObserver;
 use Tablo\Tests\Support\FixtureValue;
 use Tablo\Tests\Support\SessionEvidence;
-use Tablo\Tests\Support\Subprocess;
 use Tablo\Tests\Support\TemporaryDirectory;
 use Tablo\Tests\Support\TestServer;
 use Tablo\Tests\Support\WebFixture;
@@ -39,6 +39,28 @@ final class DashboardModesFixtureCleanupTest
     #[Test]
     public function cleansDefaultSnapshotsAndRetainsLateFailures(): void
     { dashboard_default_snapshot_controls(); }
+
+    #[Test]
+    public function retainsTheDefaultSnapshotWhenFinalResourceObservationFails(): void
+    {
+        dashboard_final_cleanup_control();
+        dashboard_final_cleanup_control(static function (TemporaryDirectory $owner): void {
+            Assert::false(is_file($owner->path . '/web/test.sqlite'), 'Controlled primary before final resource observation');
+        });
+    }
+
+    #[Test]
+    public function enforcesTheObserverJournalAndNativeCompletionContract(): void
+    { dashboard_observer_contract_controls(); }
+
+    #[Test]
+    public function exercisePropagatesFinalResourceErrorsAndPreservesTheOriginalPrimary(): void
+    {
+        dashboard_exercise_control();
+        dashboard_exercise_control(static function (string $input): void {
+            Assert::false(is_file($input . '/web/test.sqlite'), 'Controlled original primary inside exercise callback');
+        });
+    }
 }
 
 function dashboard_oracle_control(): void
@@ -81,6 +103,7 @@ function dashboard_success_control(?callable $afterDisposal = null): void
     $ports = [$fixture->peer->port, $fixture->web->server->port];
     $database = WeakReference::create($fixture->web->database());
     $snapshot = null;
+    $primary = null;
     try {
         $snapshot = dashboard_success_snapshot($fixture);
         $fixture->close();
@@ -90,16 +113,20 @@ function dashboard_success_control(?callable $afterDisposal = null): void
         if ($afterDisposal !== null) { $afterDisposal($snapshot); }
     }
     catch (Throwable $error) {
+        $primary = $error;
         $snapshot?->retainFailure($error);
         $fixture->directory->retainFailure($error); $fixture->web->directory->retainFailure($error); throw $error;
     }
-    finally { dashboard_finish_success($fixture, $snapshot); }
+    finally { dashboard_finish_success($fixture, $snapshot, $primary); }
 }
 
-function dashboard_finish_success(DashboardModesFixture $fixture, ?TemporaryDirectory $snapshot): void
+function dashboard_finish_success(DashboardModesFixture $fixture, ?TemporaryDirectory $snapshot, ?Throwable $primary): void
 {
-    try { $fixture->directory->cleanup($fixture->close(...)); }
-    catch (Throwable $cleanup) { $snapshot?->recordCleanupFailure($cleanup); throw $cleanup; }
+    try { $fixture->close(); }
+    catch (Throwable $cleanup) {
+        if ($snapshot !== null) { \Tablo\Tests\Support\dashboard_cleanup_failure([$snapshot], $cleanup); }
+        if ($primary === null) { throw $cleanup; }
+    }
     finally { dashboard_release_default_snapshot($snapshot); }
 }
 
@@ -331,19 +358,35 @@ function dashboard_assert_windows_port(int $port): void
         $script = dirname(__DIR__) . '/fixtures/dashboard-port-observation.ps1';
         $scriptHash = hash_file('sha256', $script);
         if ($scriptHash === false) { throw new RuntimeException('Windows port observer input is unavailable'); }
-        $command = [$system . '/System32/WindowsPowerShell/v1.0/powershell.exe', '-NoLogo', '-NoProfile', '-NonInteractive', '-File', $script, '-Port', (string) $port];
-        $result = Subprocess::run($command, $directory, environment: []);
-        if ($result['exit_code'] !== 0 || $result['stderr'] !== '') { throw new RuntimeException('Windows port observer did not complete cleanly'); }
-        $observation = \Tablo\JsonRecord::decode($result['stdout'], 32);
+        $journal = $directory->path . '/stages.jsonl';
+        $command = [$system . '/System32/WindowsPowerShell/v1.0/powershell.exe', '-NoLogo', '-NoProfile', '-NonInteractive', '-File', $script, '-Port', (string) $port, '-Journal', $journal];
+        $result = DashboardPortObserver::run($command, $directory);
+        $observation = dashboard_accept_observer($result, $directory, $port);
         $available = dashboard_windows_observation($observation, $port);
-        $receipt = \Tablo\JsonRecord::decode(\Tablo\RequiredFile::bytes(file_get_contents($result['files']['receipt'])), 32);
-        dashboard_observer_closed($receipt, $observation);
+        SessionEvidence::rawFile($journal, 'dashboard-port-stages');
+        foreach (['launch-requested', 'native-completion'] as $stage) {
+            SessionEvidence::rawFile($directory->path . '/budget-' . $stage . '.json', 'dashboard-port-budget-' . $stage);
+        }
         dashboard_write_manifest($directory->path . '/observation.json', ['port' => $port, 'observation' => $observation,
-            'script_sha256' => $scriptHash]);
-        SessionEvidence::record('dashboard-port-observation', ['port' => $port, 'observation' => $observation]);
+            'script_sha256' => $scriptHash, 'journal_sha256' => \Tablo\RequiredFile::digest($journal)]);
+        SessionEvidence::record('dashboard-port-observation', ['port' => $port, 'observation' => $observation,
+            'script_sha256' => $scriptHash, 'journal_sha256' => \Tablo\RequiredFile::digest($journal)]);
         Assert::true($available, 'The Windows kernel grants exclusive use of the owned port');
     } catch (Throwable $error) { $directory->retainFailure($error); throw $error; }
     finally { $directory->cleanup(static fn () => dashboard_finish_observer($directory)); }
+}
+
+/** @param array{exit_code: ?int, stdout: string, stderr: string, files: array{stdout: string, stderr: string, receipt: string}} $result
+ * @return array<array-key, mixed> */
+function dashboard_accept_observer(array $result, TemporaryDirectory $directory, int $port): array
+{
+    if ($result['exit_code'] !== 0 || $result['stderr'] !== '') { throw new RuntimeException('Windows port observer did not complete cleanly'); }
+    $observation = \Tablo\JsonRecord::decode($result['stdout'], 32);
+    dashboard_windows_observation($observation, $port);
+    $receipt = \Tablo\JsonRecord::decode(\Tablo\RequiredFile::bytes(file_get_contents($result['files']['receipt'])), 32);
+    dashboard_observer_closed($receipt, $observation);
+    dashboard_observer_journal($directory->path . '/stages.jsonl', $port, $observation);
+    return $observation;
 }
 
 /** @param array<array-key, mixed> $observation */
@@ -382,6 +425,24 @@ function dashboard_observer_closed(array $receipt, array $observation): void
     if (($receipt['pid'] ?? null) !== ($observation['pid'] ?? null) || ($receipt['closed'] ?? null) !== true
         || ($receipt['root_exit_observed'] ?? null) !== true || ($receipt['exit_code'] ?? null) !== 0) {
         throw new RuntimeException('Windows observer direct-child closure is unknown');
+    }
+}
+
+/** @param array<array-key, mixed> $observation */
+function dashboard_observer_journal(string $path, int $port, array $observation): void
+{
+    if (!is_file($path)) { throw new RuntimeException('Windows observer script entry was not observed'); }
+    $lines = \Tablo\Tests\Support\FixtureFiles::lines($path, FILE_IGNORE_NEW_LINES | FILE_SKIP_EMPTY_LINES);
+    $stages = ['entry', 'binding', 'released', 'complete'];
+    if (count($lines) !== count($stages)) { throw new RuntimeException('Windows observer stage journal is incomplete'); }
+    $previous = 0;
+    foreach ($lines as $index => $line) {
+        $stage = \Tablo\JsonRecord::decode($line, 16);
+        $elapsed = dashboard_observer_scalar($stage['elapsed_ms'] ?? null);
+        if (($stage['pid'] ?? null) !== ($observation['pid'] ?? null) || ($stage['port'] ?? null) !== $port
+            || ($stage['stage'] ?? null) !== FixtureValue::at($stages, $index) || (!is_int($elapsed) && !is_float($elapsed))
+            || !is_finite($elapsed) || $elapsed < $previous) { throw new RuntimeException('Windows observer stage identity, order or timing is unknown'); }
+        $previous = $elapsed;
     }
 }
 
@@ -469,4 +530,344 @@ function dashboard_copy_control(string $source, string $target, array &$files = 
             'source_before_sha256' => $before, 'source_after_sha256' => hash_file('sha256', $file->getPathname()),
             'captured_at_utc' => gmdate('c'), 'source_mtime_utc' => $mtime === false ? null : gmdate('c', $mtime)];
     }
+}
+
+/** @param null|callable(TemporaryDirectory): void $priorAssertion */
+function dashboard_final_cleanup_control(?callable $priorAssertion = null): void
+{
+    $evidence = new TemporaryDirectory('tablo-dashboard-final-evidence-');
+    $previous = getenv('TABLO_SESSION_EVIDENCE_DIRECTORY');
+    $diagnostics = getenv('TABLO_HELPER_DIAGNOSTICS_DIRECTORY');
+    putenv('TABLO_SESSION_EVIDENCE_DIRECTORY=' . $evidence->path);
+    putenv('TABLO_HELPER_DIAGNOSTICS_DIRECTORY');
+    $evidence->retainFailure(new RuntimeException('Controlled final cleanup input retention'));
+    try { dashboard_final_cleanup_branch($evidence, $priorAssertion); }
+    catch (Throwable $error) { $evidence->retainFailure($error); throw $error; }
+    finally {
+        putenv($previous === false ? 'TABLO_SESSION_EVIDENCE_DIRECTORY' : 'TABLO_SESSION_EVIDENCE_DIRECTORY=' . $previous);
+        putenv($diagnostics === false ? 'TABLO_HELPER_DIAGNOSTICS_DIRECTORY' : 'TABLO_HELPER_DIAGNOSTICS_DIRECTORY=' . $diagnostics);
+        SessionEvidence::record('dashboard-final-evidence-location', ['path' => $evidence->path, 'priorPrimary' => $priorAssertion !== null]);
+    }
+}
+
+/** @param null|callable(TemporaryDirectory): void $priorAssertion */
+function dashboard_final_cleanup_branch(TemporaryDirectory $evidence, ?callable $priorAssertion): void
+{
+    /** @var array{owner: ?TemporaryDirectory, listener: resource|null, port: ?int, expected: ?ComparisonFailure} $control */
+    $control = ['owner' => null, 'listener' => null, 'port' => null, 'expected' => null];
+    $actual = null;
+    try {
+        dashboard_success_control(static function (?TemporaryDirectory $snapshot) use ($evidence, $priorAssertion, &$control): void {
+            dashboard_final_listener($snapshot, $evidence, $priorAssertion, $control);
+        });
+    } catch (Throwable $error) { $actual = $error; }
+    finally {
+        if (is_resource($control['listener'])) {
+            $closed = fclose($control['listener']);
+            SessionEvidence::record('dashboard-final-listener-closed', ['port' => $control['port'], 'closed' => $closed]);
+            Assert::true($closed, 'The directly owned final-control listener closes');
+            dashboard_released_port(FixtureValue::integer($control['port']));
+        }
+    }
+    $owner = dashboard_default_snapshot_owner($control['owner']);
+    SessionEvidence::record('dashboard-final-result', ['priorPrimary' => $priorAssertion !== null, 'type' => $actual === null ? null : $actual::class,
+        'defaultCopyPresent' => is_dir($owner->path), 'defaultCopyRetained' => $owner->hasFailure(),
+        'preFinalCopyPresent' => is_file($evidence->path . '/input-before-final/web/test.sqlite')]);
+    dashboard_assert_final_failure($actual, $control['expected']);
+    dashboard_final_snapshot_retained($owner, $evidence, $control['expected']);
+}
+
+function dashboard_assert_final_failure(?Throwable $actual, ?ComparisonFailure $expected): void
+{
+    if ($expected !== null) { Assert::same($actual, $expected, 'Final cleanup preserves the exact original primary'); return; }
+    Assert::true($actual instanceof RuntimeException, 'Final resource observation must propagate its new cleanup failure');
+    Assert::same(FixtureValue::object($actual)->getMessage(), 'Owned listener remains after closure', 'The actual final resource observation is the failure');
+}
+
+/** @param array{owner: ?TemporaryDirectory, listener: resource|null, port: ?int, expected: ?ComparisonFailure} $control
+ * @param null|callable(TemporaryDirectory): void $priorAssertion */
+function dashboard_final_listener(?TemporaryDirectory $snapshot, TemporaryDirectory $evidence, ?callable $priorAssertion, array &$control): void
+{
+    $owner = dashboard_default_snapshot_owner($snapshot);
+    $control['owner'] = $owner;
+    dashboard_copy_control($owner->path, $evidence->path . '/input-before-final');
+    $port = dashboard_final_peer_port($evidence);
+    $control['port'] = $port;
+    $listener = stream_socket_server('tcp://127.0.0.1:' . $port);
+    if (!is_resource($listener)) { throw new RuntimeException('Cannot acquire the owned final-cleanup listener'); }
+    $control['listener'] = $listener;
+    $address = stream_socket_get_name($listener, remote: false);
+    Assert::same($address, '127.0.0.1:' . $port, 'The final control owns the actual released peer port');
+    SessionEvidence::record('dashboard-final-listener', ['port' => $port, 'address' => $address,
+        'snapshot' => $owner->path, 'inputBeforeFinal' => $evidence->path . '/input-before-final', 'priorPrimary' => $priorAssertion !== null]);
+    dashboard_expect_rejection(static fn () => dashboard_released_port($port), meaning: 'The final-control exact peer port is actually occupied');
+    SessionEvidence::record('dashboard-final-occupied-confirmed', ['port' => $port, 'priorPrimary' => $priorAssertion !== null]);
+    if ($priorAssertion === null) { return; }
+    try { $priorAssertion($owner); }
+    catch (ComparisonFailure $primary) { $control['expected'] = $primary; throw $primary; }
+}
+
+function dashboard_final_peer_port(TemporaryDirectory $evidence): int
+{
+    $closures = dashboard_control_records($evidence->path, kind: 'dashboard-closure');
+    Assert::same(count($closures), 1, 'The first actual fixture close completed before the final control');
+    $closure = FixtureValue::row($closures[0] ?? null);
+    $ports = \Tablo\JsonRecord::checked($closure['ports'] ?? null);
+    if (count($ports) !== 2 || !array_is_list($ports)) { throw new RuntimeException('Actual disposed fixture ports are unavailable'); }
+    $starts = dashboard_control_records($evidence->path, kind: 'server-start');
+    $closes = dashboard_control_records($evidence->path, kind: 'server-close');
+    Assert::same(count($starts), 2, 'The control acquired two real direct servers');
+    Assert::same(count($closes), 2, 'Both real direct servers closed before the occupied-port control');
+    foreach ($starts as $start) {
+        $pid = \Tablo\SqlColumn::integer($start, 'pid');
+        $matching = array_values(array_filter($closes, static fn (array $record): bool => ($record['pid'] ?? null) === $pid));
+        Assert::same(count($matching), 1, 'The actual closure receipt matches the direct server PID');
+        $receipt = FixtureValue::row($matching[0] ?? null);
+        Assert::same($receipt['closed'] ?? null, true);
+        dashboard_assert_termination($pid, $receipt);
+    }
+    return FixtureValue::integer(FixtureValue::at($ports, 1));
+}
+
+function dashboard_final_snapshot_retained(TemporaryDirectory $owner, TemporaryDirectory $evidence, ?ComparisonFailure $primary): void
+{
+    Assert::true($owner->hasFailure(), 'The final failure retains the managed default snapshot');
+    Assert::true(is_file($owner->path . '/web/test.sqlite'), 'The actual final-failure DB copy remains');
+    Assert::true(is_file($owner->path . '/input-manifest.json'), 'The actual final-failure manifest remains');
+    Assert::same(\Tablo\RequiredFile::digest($owner->path . '/web/test.sqlite'),
+        \Tablo\RequiredFile::digest($evidence->path . '/input-before-final/web/test.sqlite'), 'The retained DB bytes equal the pre-final input');
+    $records = dashboard_control_records($owner->path, kind: 'failure');
+    Assert::true(count(array_filter($records, static fn (array $record): bool => ($record['kind'] ?? null) === 'cleanup'
+        && ($record['type'] ?? null) === RuntimeException::class)) > 0, 'The new final-cleanup error has a sanitized retention record');
+    if ($primary !== null) {
+        Assert::true(count(array_filter($records, static fn (array $record): bool => ($record['kind'] ?? null) === 'primary'
+            && ($record['type'] ?? null) === ComparisonFailure::class)) > 0, 'The exact original primary also has a sanitized retention record');
+    }
+}
+
+function dashboard_observer_contract_controls(): void
+{
+    $directory = new TemporaryDirectory('tablo-dashboard-observer-journal-');
+    $primary = null;
+    try {
+        dashboard_journal_controls($directory);
+        if (PHP_OS_FAMILY !== 'Windows') { return; }
+        foreach (['late-entry', 'incomplete', 'lingering'] as $mode) { dashboard_observer_process_control($mode); }
+    } catch (Throwable $error) { $primary = $error; $directory->retainFailure($error); throw $error; }
+    finally { dashboard_finish_observer_control($directory, $primary); }
+}
+
+function dashboard_journal_controls(TemporaryDirectory $directory): void
+{
+    $stages = [];
+    foreach (['entry', 'binding', 'released', 'complete'] as $index => $stage) {
+        $stages[] = ['pid' => 1, 'port' => 1, 'stage' => $stage, 'elapsed_ms' => $index];
+    }
+    $path = $directory->path . '/valid.jsonl';
+    dashboard_write_stages($path, $stages);
+    dashboard_observer_journal($path, port: 1, observation: ['pid' => 1]);
+    $cases = ['missing-entry' => array_slice($stages, offset: 1), 'out-of-order' => [FixtureValue::at($stages, 1), FixtureValue::at($stages, 0), FixtureValue::at($stages, 2), FixtureValue::at($stages, 3)]];
+    foreach (['pid' => 2, 'port' => 2, 'elapsed_ms' => -1, 'stage' => 'unknown'] as $field => $value) {
+        $changed = $stages;
+        $changed[2] = array_replace(FixtureValue::at($stages, 2), [$field => $value]);
+        $cases['wrong-' . $field] = $changed;
+    }
+    foreach ($cases as $name => $rows) {
+        $path = $directory->path . '/' . $name . '.jsonl';
+        dashboard_write_stages($path, $rows);
+        $failure = null;
+        try { dashboard_observer_journal($path, port: 1, observation: ['pid' => 1]); }
+        catch (RuntimeException $error) { $failure = $error; $directory->retainFailure($error); }
+        Assert::true($failure instanceof RuntimeException, 'Incomplete or wrong-identity stage data cannot pass');
+    }
+    SessionEvidence::record('dashboard-observer-journal-controls', ['path' => $directory->path, 'cases' => count($cases),
+        'qualification' => 'Data-level protocol controls; no native port availability is inferred from these synthetic records']);
+}
+
+/** @param list<array<string, mixed>> $stages */
+function dashboard_write_stages(string $path, array $stages): void
+{
+    $bytes = '';
+    foreach ($stages as $stage) { $bytes .= \Tablo\RequiredFile::bytes(json_encode($stage, JSON_THROW_ON_ERROR)) . "\n"; }
+    if (file_put_contents($path, $bytes) !== strlen($bytes)) { throw new RuntimeException('Cannot write owned observer journal control'); }
+}
+
+function dashboard_observer_process_control(string $mode): void
+{
+    $directory = new TemporaryDirectory('tablo-dashboard-observer-contract-');
+    $primary = null;
+    try {
+        $system = getenv('SystemRoot');
+        if ($system === false || $system === '') { throw new RuntimeException('Windows control observer is unavailable'); }
+        $port = dashboard_observer_control_port();
+        dashboard_write_observer_control($directory);
+        $command = [$system . '/System32/WindowsPowerShell/v1.0/powershell.exe', '-NoLogo', '-NoProfile', '-NonInteractive',
+            '-File', $directory->path . '/control.ps1', '-Observer', dirname(__DIR__) . '/fixtures/dashboard-port-observation.ps1',
+            '-Port', (string) $port, '-Journal', $directory->path . '/stages.jsonl', '-Mode', $mode];
+        if ($mode === 'lingering') { dashboard_lingering_observer($command, $directory, $port); return; }
+        $result = DashboardPortObserver::run($command, $directory);
+        dashboard_observer_result_control($mode, $result, $directory, $port);
+        SessionEvidence::record('dashboard-observer-contract-control', ['mode' => $mode, 'port' => $port, 'path' => $directory->path]);
+    } catch (Throwable $error) { $primary = $error; $directory->retainFailure($error); throw $error; }
+    finally { dashboard_finish_observer_control($directory, $primary); }
+}
+
+/** @param array{exit_code: ?int, stdout: string, stderr: string, files: array{stdout: string, stderr: string, receipt: string}} $result */
+function dashboard_observer_result_control(string $mode, array $result, TemporaryDirectory $directory, int $port): void
+{
+    if ($mode === 'incomplete') {
+        $failure = null;
+        try { dashboard_accept_observer($result, $directory, $port); }
+        catch (RuntimeException $error) { $failure = $error; $directory->retainFailure($error); }
+        Assert::same($failure?->getMessage(), 'Windows observer stage journal is incomplete', 'Native exit alone cannot replace the completion journal');
+        return;
+    }
+    $observation = dashboard_accept_observer($result, $directory, $port);
+    Assert::true(dashboard_windows_observation($observation, $port), 'Delayed entry still performs a real exclusive free-port probe');
+    $timing = \Tablo\JsonRecord::decode(\Tablo\RequiredFile::bytes(file_get_contents($directory->path . '/budget-native-completion.json')), 16);
+    $elapsed = dashboard_observer_scalar($timing['elapsed_ms'] ?? null);
+    Assert::true((is_int($elapsed) || is_float($elapsed)) && $elapsed >= 200, 'The entry delay consumes the original parent budget');
+}
+
+function dashboard_finish_observer_control(TemporaryDirectory $directory, ?Throwable $primary): void
+{
+    try { dashboard_finish_observer($directory); }
+    catch (Throwable $cleanup) {
+        $directory->recordCleanupFailure($cleanup);
+        if ($primary === null) { throw $cleanup; }
+    }
+}
+
+function dashboard_observer_control_port(): int
+{
+    $listener = stream_socket_server('tcp://127.0.0.1:0');
+    if (!is_resource($listener)) { throw new RuntimeException('Cannot acquire an owned observer control port'); }
+    try {
+        $address = stream_socket_get_name($listener, remote: false);
+        if ($address === false) { throw new RuntimeException('Cannot observe the owned observer control port'); }
+        $separator = strrpos($address, needle: ':');
+        if ($separator === false) { throw new RuntimeException('Invalid owned observer control address'); }
+        return (int) substr($address, $separator + 1);
+    } finally { fclose($listener); }
+}
+
+function dashboard_write_observer_control(TemporaryDirectory $directory): void
+{
+    $bytes = <<<'POWERSHELL'
+param([string]$Observer,[int]$Port,[string]$Journal,[string]$Mode)
+$ErrorActionPreference = 'Stop'
+if ($Mode -eq 'late-entry') { Start-Sleep -Milliseconds 200 }
+& $Observer -Port $Port -Journal $Journal
+if ($Mode -eq 'incomplete') {
+    [System.IO.File]::Copy($Journal, $Journal + '.complete')
+    $first = ([System.IO.File]::ReadAllLines($Journal))[0]
+    [System.IO.File]::WriteAllText($Journal, $first + [Environment]::NewLine, [System.Text.UTF8Encoding]::new($false))
+}
+if ($Mode -eq 'lingering') { Start-Sleep -Seconds 30 }
+POWERSHELL;
+    if (file_put_contents($directory->path . '/control.ps1', $bytes) !== strlen($bytes)) { throw new RuntimeException('Cannot write the owned observer process control'); }
+}
+
+/** @param list<string> $command */
+function dashboard_lingering_observer(array $command, TemporaryDirectory $directory, int $port): void
+{
+    $failure = null;
+    try { DashboardPortObserver::run($command, $directory); }
+    catch (RuntimeException $error) { $failure = $error; }
+    Assert::true($failure instanceof RuntimeException && str_contains($failure->getMessage(), 'stage=timeout'), 'Complete output from a still-live observer cannot pass');
+    $stdout = FixtureValue::string(\Tablo\RequiredFile::bytes(file_get_contents(\Tablo\Tests\Support\FixtureFiles::first($directory->path . '/command-*.out'))));
+    $observation = \Tablo\JsonRecord::decode($stdout, 32);
+    Assert::true(dashboard_windows_observation($observation, $port), 'The lingering child really performed the exclusive probe');
+    dashboard_observer_journal($directory->path . '/stages.jsonl', $port, $observation);
+    $receipt = \Tablo\JsonRecord::decode(\Tablo\RequiredFile::bytes(file_get_contents(\Tablo\Tests\Support\FixtureFiles::first($directory->path . '/command-*.json'))), 32);
+    Assert::same($receipt['pid'] ?? null, $observation['pid'] ?? null, 'Closure belongs to the actual lingering observer');
+    Assert::same($receipt['closed'] ?? null, true);
+    Assert::same($receipt['root_exit_observed'] ?? null, true);
+    $exit = dashboard_observer_scalar($receipt['exit_code'] ?? null);
+    Assert::true(is_int($exit) && $exit !== -1, 'The timed-out observer has an actual native exit');
+    Assert::true($directory->hasFailure(), 'All failed observer inputs remain retained');
+    SessionEvidence::record('dashboard-observer-contract-control', ['mode' => 'lingering', 'port' => $port, 'path' => $directory->path,
+        'pid' => $observation['pid'] ?? null, 'exit' => $exit, 'closed' => true, 'timeoutRejected' => true]);
+}
+
+/** @param null|callable(string): void $priorAssertion */
+function dashboard_exercise_control(?callable $priorAssertion = null): void
+{
+    $evidence = new TemporaryDirectory('tablo-dashboard-exercise-evidence-');
+    $previous = getenv('TABLO_SESSION_EVIDENCE_DIRECTORY');
+    $diagnostics = getenv('TABLO_HELPER_DIAGNOSTICS_DIRECTORY');
+    putenv('TABLO_SESSION_EVIDENCE_DIRECTORY=' . $evidence->path);
+    putenv('TABLO_HELPER_DIAGNOSTICS_DIRECTORY');
+    $evidence->retainFailure(new RuntimeException('Controlled exercise input retention'));
+    try { dashboard_exercise_branch($evidence, $priorAssertion); }
+    catch (Throwable $error) { $evidence->retainFailure($error); throw $error; }
+    finally {
+        putenv($previous === false ? 'TABLO_SESSION_EVIDENCE_DIRECTORY' : 'TABLO_SESSION_EVIDENCE_DIRECTORY=' . $previous);
+        putenv($diagnostics === false ? 'TABLO_HELPER_DIAGNOSTICS_DIRECTORY' : 'TABLO_HELPER_DIAGNOSTICS_DIRECTORY=' . $diagnostics);
+        SessionEvidence::record('dashboard-exercise-evidence-location', ['path' => $evidence->path, 'priorPrimary' => $priorAssertion !== null]);
+    }
+}
+
+/** @param null|callable(string): void $priorAssertion */
+function dashboard_exercise_branch(TemporaryDirectory $evidence, ?callable $priorAssertion): void
+{
+    /** @var array{listener: resource|null, port: ?int, expected: ?ComparisonFailure} $control */
+    $control = ['listener' => null, 'port' => null, 'expected' => null];
+    $actual = null;
+    try {
+        DashboardModesFixture::exercise(static function (DashboardModesFixture $fixture) use ($evidence, $priorAssertion, &$control): void {
+            dashboard_exercise_listener($fixture, $evidence, $priorAssertion, $control);
+        });
+    } catch (Throwable $error) { $actual = $error; }
+    finally {
+        if (is_resource($control['listener'])) {
+            $closed = fclose($control['listener']);
+            SessionEvidence::record('dashboard-exercise-listener-closed', ['port' => $control['port'], 'closed' => $closed]);
+            Assert::true($closed, 'The directly owned exercise listener closes');
+            dashboard_released_port(FixtureValue::integer($control['port']));
+        }
+    }
+    SessionEvidence::record('dashboard-exercise-result', ['priorPrimary' => $priorAssertion !== null, 'normalReturn' => $actual === null,
+        'type' => $actual === null ? null : $actual::class, 'inputPresent' => is_file($evidence->path . '/input-before-first-close/web/test.sqlite'),
+        'inputOwnerRetained' => $evidence->hasFailure()]);
+    if ($actual !== null) { $evidence->retainFailure($actual); }
+    Assert::true(is_file($evidence->path . '/input-before-first-close/web/test.sqlite'), 'The actual original exercise DB input remains retained');
+    if ($priorAssertion !== null) { Assert::true($control['expected'] instanceof ComparisonFailure, 'The real original exercise assertion failed before final cleanup'); }
+    dashboard_assert_exercise_failure($actual, $control['expected']);
+    Assert::true(is_file($evidence->path . '/input-before-first-close/input-manifest.json'), 'The original exercise raw-input manifest remains');
+}
+
+/** @param array{listener: resource|null, port: ?int, expected: ?ComparisonFailure} $control
+ * @param null|callable(string): void $priorAssertion */
+function dashboard_exercise_listener(DashboardModesFixture $fixture, TemporaryDirectory $evidence, ?callable $priorAssertion, array &$control): void
+{
+    $input = $evidence->path . '/input-before-first-close';
+    $database = WeakReference::create($fixture->web->database());
+    dashboard_capture_success_input($fixture, $input, retention: 'exercise-control');
+    $fixture->close();
+    Assert::same($database->get(), null, 'Exercise control releases the actual parent PDO before the final failure');
+    foreach ([$fixture->directory->path, $fixture->web->directory->path] as $path) { Assert::false(is_dir($path), 'The first exercise disposal removed its original fixture directory'); }
+    $port = dashboard_final_peer_port($evidence);
+    Assert::same($port, $fixture->peer->port, 'The exercise control observes its exact real peer port');
+    foreach ([$fixture->web->server->port, $port] as $released) { dashboard_released_port($released); }
+    $listener = stream_socket_server('tcp://127.0.0.1:' . $port);
+    if (!is_resource($listener)) { throw new RuntimeException('Cannot acquire the owned exercise listener'); }
+    $control['listener'] = $listener;
+    $control['port'] = $port;
+    $address = stream_socket_get_name($listener, remote: false);
+    Assert::same($address, '127.0.0.1:' . $port, 'The actual exercise listener occupies the released peer port');
+    SessionEvidence::record('dashboard-exercise-listener', ['port' => $port, 'address' => $address, 'inputBeforeFailure' => $input,
+        'inputDbSha256' => \Tablo\RequiredFile::digest($input . '/web/test.sqlite'), 'priorPrimary' => $priorAssertion !== null]);
+    dashboard_expect_rejection(static fn () => dashboard_released_port($port), meaning: 'The exercise finalizer receives the actual occupied peer port');
+    SessionEvidence::record('dashboard-exercise-occupied-confirmed', ['port' => $port, 'priorPrimary' => $priorAssertion !== null]);
+    if ($priorAssertion === null) { return; }
+    try { $priorAssertion($input); }
+    catch (ComparisonFailure $primary) { $control['expected'] = $primary; throw $primary; }
+}
+
+function dashboard_assert_exercise_failure(?Throwable $actual, ?ComparisonFailure $expected): void
+{
+    if ($expected !== null) { Assert::same($actual, $expected, 'Exercise finalization preserves the exact original primary'); return; }
+    Assert::true($actual instanceof RuntimeException, 'Dashboard exercise must propagate its new final cleanup failure');
+    Assert::same(FixtureValue::object($actual)->getMessage(), 'Owned listener remains after closure', 'The exercise caller propagates the actual final resource observation failure');
 }

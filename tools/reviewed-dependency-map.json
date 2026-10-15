@@ -5331,6 +5331,13 @@
       "Synthetic dashboard HTTP/browser fixtures"
     ]
   },
+  "tests/Support/DashboardPortObserver.php": {
+    "owner": "Tablo\\Tests\\Support\\DashboardPortObserver",
+    "consumers": [
+      "Dashboard cleanup observer-only budget and stage journal contract",
+      "Dashboard actual delayed-entry, incomplete-journal and live-child controls"
+    ]
+  },
   "tests/Support/DatabaseAssertions.php": {
     "owner": "Tablo\\Tests\\Support\\DatabaseAssertions",
     "consumers": [

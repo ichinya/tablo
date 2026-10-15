@@ -33,11 +33,8 @@ final class DashboardModesFixture
     {
         $fixture = new self();
         try { $assertions($fixture); }
-        catch (Throwable $error) {
-            $fixture->web->directory->retainFailure($error);
-            $fixture->directory->retainFailure($error);
-            throw $error;
-        } finally { $fixture->directory->cleanup($fixture->close(...)); }
+        catch (Throwable $primary) { fail_dashboard_modes($primary, $fixture->directory, $fixture->web, $fixture->peer); }
+        $fixture->close();
     }
 
     public function clock(int $epoch): void

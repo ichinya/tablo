@@ -8,7 +8,7 @@
                 "Composer verify",
                 "Reviewed dependency capture"
             ],
-            "fingerprint": "sha256:a110aa446a32424c87f725af3d23d49d8b15b7d2fd58c300e8c3f5254c19e68e"
+            "fingerprint": "sha256:222b1824e58f305f0326bfc979b2206ecabb0015c4d1162b6e0b4c1bd3a5fd0e"
         },
         {
             "path": "tools/reviewed-dependencies.php",
@@ -4238,7 +4238,7 @@
                 "Dashboard cleanup Windows exclusive loopback-port observation",
                 "Dashboard live and closed owned PHP listener control"
             ],
-            "fingerprint": "sha256:645ddcf52d2a9c6290134e654c473a64e6c6b693db025ffb22b0bf2a09d91847"
+            "fingerprint": "sha256:b0a62879a40a82801c90abc4a82561fc91ec78470c44e03fe7dc6f50eeb09c95"
         },
         {
             "path": "tests/fixtures/database-process.php",
@@ -5588,7 +5588,7 @@
                 "dashboard.list_sites native test",
                 "dashboard.check_site native test"
             ],
-            "fingerprint": "sha256:2941ffddb050d58aaa62c6daede9628ad9145aa266e48f401021df99d0411a33"
+            "fingerprint": "sha256:00ab7e33090bffa5d12e483d974acabc103bf18fa229013bab2bc3b70557950a"
         },
         {
             "path": "tests/Network/DatabaseMigrationCustodyTest.php",
@@ -6687,7 +6687,16 @@
             "consumers": [
                 "Synthetic dashboard HTTP/browser fixtures"
             ],
-            "fingerprint": "sha256:46468bad547832d82131b864ceae50beeb1333ead1b8f6339875b58b485b04a1"
+            "fingerprint": "sha256:07451c783000b3fe6fa450e98c3a0ae1945b3736cc58af887976078b00dd78b7"
+        },
+        {
+            "path": "tests/Support/DashboardPortObserver.php",
+            "owner": "Tablo\\Tests\\Support\\DashboardPortObserver",
+            "consumers": [
+                "Dashboard cleanup observer-only budget and stage journal contract",
+                "Dashboard actual delayed-entry, incomplete-journal and live-child controls"
+            ],
+            "fingerprint": "sha256:648d8216f4d79597e2de97d46fe10656ce5faf76a5a01b39dee7023bca060116"
         },
         {
             "path": "tests/Support/DatabaseAssertions.php",
