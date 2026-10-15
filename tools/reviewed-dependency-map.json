@@ -3369,6 +3369,13 @@
       "Dashboard fixture real application setup GET and controlled authentication refusal"
     ]
   },
+  "tests/fixtures/dashboard-port-observation.ps1": {
+    "owner": "tests/fixtures/dashboard-port-observation.ps1",
+    "consumers": [
+      "Dashboard cleanup Windows exclusive loopback-port observation",
+      "Dashboard live and closed owned PHP listener control"
+    ]
+  },
   "tests/fixtures/database-process.php": {
     "owner": "php-script:tests/fixtures/database-process.php",
     "consumers": [

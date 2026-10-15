@@ -8,7 +8,7 @@
                 "Composer verify",
                 "Reviewed dependency capture"
             ],
-            "fingerprint": "sha256:2e5395e0ecdc4b14d28bc79c8af5988cbfbf20166d05c851dc999cbd610f09e5"
+            "fingerprint": "sha256:a110aa446a32424c87f725af3d23d49d8b15b7d2fd58c300e8c3f5254c19e68e"
         },
         {
             "path": "tools/reviewed-dependencies.php",
@@ -4232,6 +4232,15 @@
             "fingerprint": "sha256:56c3a835de446288d62af1de7c4b453fba74bf63fc82bdac693c552de24384f6"
         },
         {
+            "path": "tests/fixtures/dashboard-port-observation.ps1",
+            "owner": "tests/fixtures/dashboard-port-observation.ps1",
+            "consumers": [
+                "Dashboard cleanup Windows exclusive loopback-port observation",
+                "Dashboard live and closed owned PHP listener control"
+            ],
+            "fingerprint": "sha256:645ddcf52d2a9c6290134e654c473a64e6c6b693db025ffb22b0bf2a09d91847"
+        },
+        {
             "path": "tests/fixtures/database-process.php",
             "owner": "php-script:tests/fixtures/database-process.php",
             "consumers": [
@@ -5579,7 +5588,7 @@
                 "dashboard.list_sites native test",
                 "dashboard.check_site native test"
             ],
-            "fingerprint": "sha256:f7fdd79dfe7c46ed838356f332d9f41fb8ce6e4898ba7f4b9f7e47d781bf7a14"
+            "fingerprint": "sha256:2941ffddb050d58aaa62c6daede9628ad9145aa266e48f401021df99d0411a33"
         },
         {
             "path": "tests/Network/DatabaseMigrationCustodyTest.php",
