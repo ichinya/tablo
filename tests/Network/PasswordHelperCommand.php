@@ -9,8 +9,16 @@ final class PasswordHelperCommand
     /** @return list<string> */
     public static function forEvidence(\Tablo\Tests\Support\PasswordHelperEvidence $evidence): array
     {
-        $case = $evidence->case->identity;
-        return self::forHost($case['host'], $case['encoding'], $case['scenario'], $evidence->nativePath);
+        return self::forCase($evidence->case, $evidence->path);
+    }
+
+    /** @return list<string> */
+    public static function forCase(\Tablo\Tests\Support\PasswordHelperCase $case, string $path): array
+    {
+        $identity = $case->identity;
+        return [...self::forHost($identity['host'], $identity['encoding'], $identity['scenario'], $path . '/native-observation.jsonl'),
+            '-FixtureObservationPath', $path . '/fixture-observation.jsonl', '-CaseId', basename($path),
+            '-CasePhase', $identity['phase'], '-FixtureControl', $identity['phase'] === 'fixture-control' ? 'pre-helper-stall' : 'none'];
     }
 
     /** @return list<string> */

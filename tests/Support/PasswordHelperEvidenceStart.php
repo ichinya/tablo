@@ -23,15 +23,19 @@ final class PasswordHelperEvidenceStart
     {
         $repo = dirname(__DIR__, levels: 2);
         $argv = $case->identity['phase'] === 'negative-control' ? $case->argv :
-            \Tablo\Tests\Network\PasswordHelperCommand::forHost($case->identity['host'], $case->identity['encoding'], $case->identity['scenario'], $path . '/native-observation.jsonl');
+            \Tablo\Tests\Network\PasswordHelperCommand::forCase($case, $path);
         PasswordHelperEvidenceFiles::record($path . '/started.json', ['classification' => 'STARTED, closure UNKNOWN',
             'utc' => gmdate('c'), 'monotonic_ns' => hrtime(true), 'case' => $case->identity,
             'controller_pid' => getmypid(), 'direct_parent_pid' => getmypid(), 'direct_pid' => null,
             'argv' => $argv, 'cwd' => $repo, 'php_version' => PHP_VERSION, 'os' => PHP_OS_FAMILY,
+            'observation' => ['fixture' => ['configured' => $case->identity['phase'] !== 'negative-control', 'state' => 'not-observed'],
+                'native' => ['configured' => $case->identity['phase'] !== 'negative-control', 'state' => 'not-observed'],
+                'limitation' => 'configuration is not emission; missing stages remain UNKNOWN'],
             'pins' => PasswordHelperEvidenceFiles::pins([PHP_BINARY, FixtureValue::at($case->argv, 0),
                 $repo . '/composer.lock', $repo . '/lekalo.lock', $repo . '/tools/mago-pin.json',
                 $repo . '/mago.toml', $repo . '/tools/admin-password.ps1', $repo . '/tests/fixtures/helper-diagnostic.php',
-                $repo . '/tests/fixtures/password-helper-input.ps1', $repo . '/tests/Network/PasswordHelperTest.php']),
+                $repo . '/tests/fixtures/password-helper-input.ps1', $repo . '/tests/fixtures/password-helper-fixture-observation.ps1',
+                $repo . '/tests/Support/PasswordHelperFixtureObservation.php', $repo . '/tests/Network/PasswordHelperTest.php']),
             'nested_closure' => 'UNKNOWN; only native handle observations can establish exit']);
     }
 }

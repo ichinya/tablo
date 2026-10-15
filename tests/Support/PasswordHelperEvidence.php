@@ -14,6 +14,7 @@ final class PasswordHelperEvidence
     private static ?WeakMap $active = null;
     public readonly string $path;
     public readonly string $nativePath;
+    public readonly string $fixturePath;
     private int $sequence = 0;
     /** @var list<string> */
     private array $collectorFailures = [];
@@ -24,6 +25,7 @@ final class PasswordHelperEvidence
     {
         $this->path = PasswordHelperEvidenceStart::create($directory, $case, $sink);
         $this->nativePath = $this->path . '/native-observation.jsonl';
+        $this->fixturePath = $this->path . '/fixture-observation.jsonl';
         self::$active ??= new WeakMap();
         self::$active[$directory] = $this;
     }
@@ -68,6 +70,7 @@ final class PasswordHelperEvidence
     public function assertCollected(): void
     {
         if ($this->collectorFailures !== []) { throw new RuntimeException('Synthetic helper evidence collector failed; original child outcome retained'); }
+        PasswordHelperFixtureObservation::assertCollected($this);
         $stderr = $this->path . '/final.stderr';
         if (is_file($stderr) && str_contains(\Tablo\RequiredFile::bytes(file_get_contents($stderr)), 'HELPER_OBSERVER_FAILURE=')) {
             throw new RuntimeException('Synthetic native helper observer failed; original child outcome retained');
