@@ -56,20 +56,41 @@ final class MigrationProcess
         return file_get_contents($this->stdout) . "\n" . file_get_contents($this->stderr);
     }
 
+    public function terminate(): array
+    {
+        if (!is_resource($this->process)) { throw new RuntimeException('Database process is already closed'); }
+        if (!proc_terminate($this->process, 9)) { throw new RuntimeException('Cannot terminate database process'); }
+        return $this->wait(); // Observe exit before closing resources or removing any fixture files.
+    }
+
+    private function awaitExit(float $timeout): bool
+    {
+        $deadline = microtime(true) + $timeout;
+        do {
+            if (!proc_get_status($this->process)['running']) { return true; }
+            usleep(20_000);
+        } while (microtime(true) < $deadline);
+        return false;
+    }
+
     public function close(): void
     {
         if (!is_resource($this->process)) { return; }
         if (proc_get_status($this->process)['running']) {
             // Let the writer/paused migrator close SQLite normally before falling back to termination.
             file_put_contents($this->directory->path . '/' . $this->name . '.release', 'release');
-            $deadline = microtime(true) + .5;
-            while (proc_get_status($this->process)['running'] && microtime(true) < $deadline) { usleep(20_000); }
+            $this->awaitExit(.5);
         }
         if (proc_get_status($this->process)['running']) {
             proc_terminate($this->process);
-            $deadline = microtime(true) + 2;
-            while (proc_get_status($this->process)['running'] && microtime(true) < $deadline) { usleep(20_000); }
-            if (proc_get_status($this->process)['running']) { proc_terminate($this->process, 9); }
+            $this->awaitExit(2);
+        }
+        if (proc_get_status($this->process)['running']) {
+            proc_terminate($this->process, 9);
+            $this->awaitExit(2);
+        }
+        if (proc_get_status($this->process)['running']) {
+            throw new RuntimeException('Database process did not stop; preserve fixture files' . "\n" . $this->diagnostics());
         }
         proc_close($this->process);
         $this->process = null;

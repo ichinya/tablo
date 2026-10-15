@@ -35,7 +35,8 @@ final class Database
     public static function connect(?string $path = null): PDO
     {
         $path ??= getenv('TABLO_DB') ?: dirname(__DIR__) . '/storage/tablo.sqlite';
-        if ($path !== ':memory:' && !is_dir(dirname($path))) {
+        // SQLite file: URIs are not filesystem paths for PHP's directory functions.
+        if ($path !== ':memory:' && !str_starts_with($path, 'file:') && !is_dir(dirname($path))) {
             mkdir(dirname($path), 0700, true);
         }
         $db = new PDO('sqlite:' . $path, null, null, [
@@ -45,6 +46,14 @@ final class Database
         $db->exec('PRAGMA foreign_keys = ON; PRAGMA busy_timeout = 5000;');
         self::migrate($db);
         if ($path !== ':memory:') {
+            // Configure only accepted schemas; rejected future databases keep their journal metadata.
+            // busy_timeout is already installed before this potentially contended mode transition.
+            $statement = $db->query('PRAGMA journal_mode = WAL');
+            try { $mode = $statement->fetchColumn(); }
+            finally { $statement->closeCursor(); }
+            if ($mode !== 'wal') {
+                throw new RuntimeException('SQLite WAL is required for file databases; use writable local storage.');
+            }
             @chmod($path, 0600);
         }
         return $db;
