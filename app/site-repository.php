@@ -10,10 +10,16 @@ final class SiteRepository
     private readonly TokenVault $tokens;
     private readonly GitTokenRepository $savedTokens;
 
-    public function __construct(private readonly PDO $db, ?TokenVault $tokens = null)
+    public function __construct(private readonly PDO $db, #[\SensitiveParameter] ?TokenVault $tokens = null)
     {
         $this->tokens = $tokens ?? TokenVault::forDatabase($db);
         $this->savedTokens = new GitTokenRepository($db, $this->tokens);
+    }
+
+    // Settlement must write on the exact connection that owns its transaction.
+    public function assertConnection(#[\SensitiveParameter] PDO $db): void
+    {
+        if ($this->db !== $db) { throw new \LogicException('Settlement repository connection mismatch.'); }
     }
 
     public static function defaults(): array
@@ -50,8 +56,9 @@ final class SiteRepository
         return $statement->fetch() ?: null;
     }
 
-    public static function normalize(array $input): array
+    public static function normalize(#[\SensitiveParameter] array $input): array
     {
+        self::endpointTokenInput($input);
         $data = self::defaults();
         $errors = [];
         foreach (['name', 'url', 'repository', 'branch', 'health_path', 'version_path', 'comparison_mode'] as $field) {
@@ -134,7 +141,7 @@ final class SiteRepository
         return $data;
     }
 
-    public static function normalizeRepository(string $repository): string
+    public static function normalizeRepository(#[\SensitiveParameter] string $repository): string
     {
         $repository = trim($repository);
         if (preg_match('~^https://github\.com/([^/?#]+/[^/?#]+)/?$~i', $repository, $match)) {
@@ -148,7 +155,7 @@ final class SiteRepository
         return $repository;
     }
 
-    public static function validateToken(mixed $token): string
+    public static function validateToken(#[\SensitiveParameter] mixed $token): string
     {
         if (!is_string($token) || ($token !== '' && !preg_match('/^[\x21-\x7e]{1,512}$/D', $token))) {
             throw new ValidationException(['github_token' => 'Токен должен содержать до 512 печатных символов без пробелов.']);
@@ -156,7 +163,46 @@ final class SiteRepository
         return $token;
     }
 
-    public function tokenFor(?array $site): string
+    public static function validateEndpointToken(#[\SensitiveParameter] mixed $token): string
+    {
+        if (!is_string($token) || ($token !== '' && preg_match('/^[\x21-\x7e]{1,512}$/D', $token) !== 1)) {
+            throw new ValidationException(['endpoint_token' => 'Токен проверки должен содержать до 512 печатных ASCII-символов без пробелов.']);
+        }
+        return $token;
+    }
+
+    private static function endpointTokenInput(#[\SensitiveParameter] array $input): string
+    {
+        $token = self::validateEndpointToken(array_key_exists('endpoint_token', $input) ? $input['endpoint_token'] : '');
+        if ($token !== '' && self::removesEndpointToken($input)) {
+            throw new ValidationException(['endpoint_token' => 'Выберите замену или удаление токена проверки.']);
+        }
+        return $token;
+    }
+
+    private static function removesEndpointToken(#[\SensitiveParameter] array $input): bool
+    {
+        return in_array($input['remove_endpoint_token'] ?? null, [1, '1', 'on'], true);
+    }
+
+    // Endpoint credentials never enter Git provider/preview closures or public carriers.
+    public static function withoutEndpointCredential(#[\SensitiveParameter] ?array $data): ?array
+    {
+        if ($data === null) { return null; }
+        unset($data['endpoint_token'], $data['remove_endpoint_token']);
+        return $data;
+    }
+
+    public static function publicSite(#[\SensitiveParameter] array $site): array
+    {
+        $site['has_endpoint_token'] = (bool) ($site['has_endpoint_token'] ?? (is_string($site['endpoint_token'] ?? null) && $site['endpoint_token'] !== ''));
+        $site['has_github_token'] = $site['has_github_token'] ?? (is_string($site['github_token'] ?? null) && $site['github_token'] !== '');
+        unset($site['endpoint_token'], $site['remove_endpoint_token'], $site['github_token'],
+            $site['remove_github_token'], $site['selected_token_snapshot']);
+        return $site;
+    }
+
+    public function tokenFor(#[\SensitiveParameter] ?array $site): string
     {
         if (!empty($site['git_token_id'])) {
             return $this->savedTokens->tokenFor((int) $site['git_token_id'], $site['provider'] ?? 'github');
@@ -164,7 +210,7 @@ final class SiteRepository
         return empty($site['github_token']) ? '' : $this->tokens->decrypt($site['github_token']);
     }
 
-    private function selectedToken(array $input, ?array $site): ?int
+    private function selectedToken(#[\SensitiveParameter] array $input, #[\SensitiveParameter] ?array $site): ?int
     {
         $id = $input['git_token_id'] ?? ($site['git_token_id'] ?? '');
         if (!array_key_exists('git_token_id', $input) && ($input['github_token'] ?? '') !== '') { $id = ''; }
@@ -179,7 +225,7 @@ final class SiteRepository
         return (int) $id;
     }
 
-    public function resolveToken(array $input, ?array $site): string
+    public function resolveToken(#[\SensitiveParameter] array $input, #[\SensitiveParameter] ?array $site): string
     {
         $token = self::validateToken($input['github_token'] ?? '');
         $selected = $this->selectedToken($input, $site);
@@ -196,7 +242,7 @@ final class SiteRepository
         return $token;
     }
 
-    public function credentialRevision(array $input, ?array $site): string
+    public function credentialRevision(#[\SensitiveParameter] array $input, #[\SensitiveParameter] ?array $site): string
     {
         $selected = $this->selectedToken($input, $site);
         if ($selected !== null) {
@@ -212,7 +258,7 @@ final class SiteRepository
         return $site['github_token'] ?? '';
     }
 
-    public function credentialScope(array $input, ?array $site): string
+    public function credentialScope(#[\SensitiveParameter] array $input, #[\SensitiveParameter] ?array $site): string
     {
         $selected = $this->selectedToken($input, $site);
         if ($selected !== null) { return 'saved:' . $selected; }
@@ -225,26 +271,36 @@ final class SiteRepository
         if ($token === '') { return null; }
         // Even expired key-derived quota rows retain the original key's custody. A manual
         // read-only preview must not orphan them or either kind of installed ciphertext.
-        return $this->tokens->credentialScope($token, !$this->hasEstablishedKeyState());
+        return $this->tokens->credentialScope($token, !self::hasEstablishedKeyState($this->db));
     }
 
     public function assertWorkerKeyAvailable(): void
     {
-        $this->tokens->assertAvailable($this->hasEstablishedKeyState());
+        $this->tokens->assertAvailable(self::hasEstablishedKeyState($this->db));
     }
 
-    private function hasEstablishedKeyState(): bool
+    public static function hasEstablishedKeyState(PDO $db): bool
     {
-        $statement = $this->db->query("SELECT
-            EXISTS(SELECT 1 FROM git_tokens WHERE encrypted_token <> '')
-            OR EXISTS(SELECT 1 FROM sites WHERE github_token <> '')
-            OR EXISTS(SELECT 1 FROM github_cooldowns WHERE scope LIKE 'credential:v1:%')");
-        try { return (bool) $statement->fetchColumn(); }
-        finally { $statement->closeCursor(); }
+        // Direct repository construction also supports genuine pre-migration fixtures.
+        // Inspect only known physical columns; a missing table is not a lost key.
+        foreach ([['git_tokens', 'encrypted_token', "encrypted_token <> ''"],
+            ['sites', 'github_token', "github_token <> ''"],
+            ['sites', 'endpoint_token', "endpoint_token <> ''"],
+            ['github_cooldowns', 'scope', "scope LIKE 'credential:v1:%'"]] as [$table, $column, $predicate]) {
+            $statement = $db->query('PRAGMA main.table_info(' . $table . ')');
+            try { $columns = array_column($statement->fetchAll(), 'name'); }
+            finally { $statement->closeCursor(); }
+            if (!in_array($column, $columns, true)) { continue; }
+            $statement = $db->query('SELECT EXISTS(SELECT 1 FROM main.' . $table . ' WHERE ' . $predicate . ')');
+            try { if ((bool) $statement->fetchColumn()) { return true; } }
+            finally { $statement->closeCursor(); }
+        }
+        return false;
     }
 
-    public function save(array $input, ?int $id = null): int
+    public function save(#[\SensitiveParameter] array $input, ?int $id = null): int
     {
+        $this->assertWorkerKeyAvailable();
         $data = self::normalize($input);
         $existing = $id === null ? null : $this->find($id);
         if ($id !== null && $existing === null) {
@@ -255,12 +311,15 @@ final class SiteRepository
         if ($data['git_token_id'] !== null && $token !== '') {
             throw new ValidationException(['github_token' => 'Выберите сохранённый токен или введите свой.']);
         }
+        $endpointToken = self::endpointTokenInput($input);
+        $data['endpoint_token'] = $endpointToken !== '' ? $this->tokens->encrypt($endpointToken)
+            : (self::removesEndpointToken($input) ? null : ($existing['endpoint_token'] ?? null));
         $data['github_token'] = $data['git_token_id'] !== null ? null : ($token !== '' ? $this->tokens->encrypt($token)
             : (in_array($input['remove_github_token'] ?? null, [1, '1', 'on'], true) ? null : ($existing['github_token'] ?? null)));
         $fields = array_keys($data);
         if ($id === null) {
             $sql = 'INSERT INTO sites (' . implode(', ', $fields) . ') VALUES (' . implode(', ', array_fill(0, count($fields), '?')) . ')';
-            $this->db->prepare($sql)->execute(array_values($data));
+            $this->executeBound($sql, array_values($data));
             return (int) $this->db->lastInsertId();
         }
         $sql = 'UPDATE sites SET ' . implode(', ', array_map(fn ($f) => "$f = ?", $fields)) . ',
@@ -269,7 +328,7 @@ final class SiteRepository
             latest_commit = NULL, open_issues = NULL, open_prs = NULL, response_time_ms = NULL,
             last_error = NULL, checked_at = NULL, config_revision = config_revision + 1,
             updated_at = strftime(\'%Y-%m-%dT%H:%M:%SZ\', \'now\') WHERE id = ?';
-        $this->db->prepare($sql)->execute([...array_values($data), $id]);
+        $this->executeBound($sql, [...array_values($data), $id]);
         return $id;
     }
 
@@ -278,7 +337,7 @@ final class SiteRepository
         $this->db->prepare('DELETE FROM sites WHERE id = ?')->execute([$id]);
     }
 
-    public function storeCheck(array $site, array $state): bool
+    public function storeCheck(#[\SensitiveParameter] array $site, #[\SensitiveParameter] array $state): bool
     {
         // A result for an old configuration must not overwrite a concurrent edit.
         $fields = ['online', 'health_error_code', 'health_http_status', 'deployed_version', 'deployed_commit', 'latest_release', 'latest_commit',
@@ -288,10 +347,26 @@ final class SiteRepository
             'comparison_mode', 'enabled', 'sort_order', 'config_revision'];
         $sql = 'UPDATE sites SET ' . implode(', ', array_map(fn ($f) => "$f = ?", $fields))
             . ' WHERE id = ? AND ' . implode(' AND ', array_map(fn ($f) => "$f = ?", $config)) . ' AND github_token IS ?
-                AND git_token_id IS ? AND (SELECT encrypted_token FROM git_tokens WHERE id = sites.git_token_id) IS ?';
+                AND endpoint_token IS ? AND git_token_id IS ? AND (SELECT encrypted_token FROM git_tokens WHERE id = sites.git_token_id) IS ?';
+        return $this->executeBound($sql, [...array_map(fn ($f) => $state[$f] ?? null, $fields), $site['id'], ...array_map(fn ($f) => $site[$f], $config),
+            $site['github_token'] ?? null, $site['endpoint_token'] ?? null, $site['git_token_id'] ?? null, $site['selected_token_snapshot'] ?? null]) > 0;
+    }
+
+    private function executeBound(string $sql, #[\SensitiveParameter] array $values): int
+    {
         $statement = $this->db->prepare($sql);
-        $statement->execute([...array_map(fn ($f) => $state[$f] ?? null, $fields), $site['id'], ...array_map(fn ($f) => $site[$f], $config),
-            $site['github_token'] ?? null, $site['git_token_id'] ?? null, $site['selected_token_snapshot'] ?? null]);
-        return $statement->rowCount() > 0;
+        foreach ($values as $index => $value) {
+            try {
+                $statement->bindValue($index + 1, $value, $value === null ? PDO::PARAM_NULL : (is_int($value) ? PDO::PARAM_INT : PDO::PARAM_STR));
+            } catch (\PDOException) {
+                // An invalid binding can retain raw native arguments. Keep its typed
+                // storage failure without retaining that frame or diagnostic.
+                throw new \PDOException('Cannot bind site configuration.');
+            }
+        }
+        // No credential-bearing array enters native execute's argument trace.
+        // Preserve the first real SQL/commit failure and the authoritative transaction.
+        $statement->execute();
+        return $statement->rowCount();
     }
 }

@@ -10,8 +10,9 @@ foreach (glob($root . '/lekalo/modules/dashboard/*.yaml') as $file) {
     }
 }
 $mapping = [
-    'setup' => ['app/auth-service.php', 'public function setup'],
-    'login' => ['app/auth-service.php', 'public function login'],
+    'change_admin_password' => ['app/auth-service.php', 'public function changePassword'],
+    'setup' => ['app/auth-service.php', 'public function setupSession'],
+    'login' => ['app/auth-service.php', 'public function loginSession'],
     'logout' => ['app/web-application.php', "post('/logout'"],
     'create_site' => ['app/web-application.php', 'private function save'],
     'update_site' => ['app/web-application.php', 'private function save'],
@@ -20,7 +21,7 @@ $mapping = [
     'list_sites' => ['app/site-repository.php', 'public function all'],
     'list_branches' => ['app/github-connection.php', 'public function branches'],
     'user' => ['database/schema.sql', 'CREATE TABLE IF NOT EXISTS users'],
-    'site' => ['app/sqlite-database.php', 'private static function migrateToVersionFour'],
+    'site' => ['app/sqlite-database.php', 'private static function migrateToVersionFive'],
     'git_token' => ['database/schema.sql', 'CREATE TABLE IF NOT EXISTS git_tokens'],
     'github_cooldown' => ['app/sqlite-database.php', 'private static function migrateToVersionThree'],
     'list_git_tokens' => ['app/git-token-repository.php', 'public function all'],

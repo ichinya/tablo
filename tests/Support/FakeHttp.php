@@ -11,7 +11,7 @@ final class FakeHttp extends HttpClient
 {
     public array $requests = [];
     public function __construct(private array $responses) {}
-    public function get(string $url, array $headers = []): array
+    public function get(#[\SensitiveParameter] string $url, #[\SensitiveParameter] array $headers = []): array
     {
         $this->requests[] = [$url, $headers];
         $response = array_shift($this->responses);

@@ -163,7 +163,7 @@ final class WorkerSharedFailureTest
                     private readonly \Tablo\HttpClient $real;
                     public function __construct(private \PDO $db, private string $base, private string $key, private string $kind)
                     { $this->real = new \Tablo\HttpClient(true); }
-                    public function get(string $url, array $headers = []): array
+                    public function get(#[\SensitiveParameter] string $url, #[\SensitiveParameter] array $headers = []): array
                     {
                         $api = str_starts_with($url, 'https://api.github.com');
                         $response = $this->real->get($api ? $this->base . substr($url, strlen('https://api.github.com')) : $url, $headers);

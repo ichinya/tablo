@@ -14,7 +14,7 @@ final class FixtureCliGitHubConnection
         $this->policy = new Tablo\GitHubRequestPolicy($sites->githubCooldowns());
     }
 
-    public function provider(array $site): Tablo\GitHubProvider
+    public function provider(#[\SensitiveParameter] array $site): Tablo\GitHubProvider
     {
         return new Tablo\GitHubProvider(new FixtureGitHubHttp(), $this->sites->tokenFor($site), $this->policy,
             new Tablo\GitHubCredential($this->sites->credentialRevision([], $site), $this->sites->credentialScope([], $site),

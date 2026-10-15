@@ -32,7 +32,7 @@ final class HttpClientTest
     public function classifiesDnsAndCurlFailuresWithoutSensitiveDetails(): void
     {
         $http = new class extends HttpClient {
-            protected function resolve(string $host): array { return []; }
+            protected function resolve(#[\SensitiveParameter] string $host): array { return []; }
         };
         $error = null;
         try { $http->get('https://secret-host.example/private-token'); } catch (HttpFailure $caught) { $error = $caught; }

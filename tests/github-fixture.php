@@ -2,9 +2,14 @@
 declare(strict_types=1);
 
 // Synthetic API transport for isolated HTTP/browser tests. Never used by public/index.php.
+if (getenv('TABLO_TEST_ENDPOINT_AUDIT') === '1') {
+    ini_set('zend.exception_ignore_args', '0');
+    ini_set('zend.exception_string_param_max_len', '8192');
+}
+
 final class FixtureGitHubHttp extends Tablo\HttpClient
 {
-    public function get(string $url, array $headers = []): array
+    public function get(#[\SensitiveParameter] string $url, #[\SensitiveParameter] array $headers = []): array
     {
         if (!str_starts_with($url, 'https://api.github.com/')) {
             throw new RuntimeException('Unexpected GitHub origin');
@@ -15,6 +20,11 @@ final class FixtureGitHubHttp extends Tablo\HttpClient
         $responseHeaders = [];
         $log = getenv('TABLO_TEST_GITHUB_LOG');
         if ($log) { file_put_contents($log, $path . "\n", FILE_APPEND); }
+        if ($log && getenv('TABLO_TEST_ENDPOINT_AUDIT') === '1') {
+            $endpointLeaked = str_contains($authorization, Tablo\Tests\Support\EndpointFixture::tokenA())
+                || str_contains($authorization, Tablo\Tests\Support\EndpointFixture::tokenB());
+            file_put_contents($log . '.endpoint-audit', json_encode(['endpoint_leaked' => $endpointLeaked], JSON_THROW_ON_ERROR) . "\n", FILE_APPEND);
+        }
         if (str_contains($authorization, 'Bearer invalid-fixture-token')) {
             $status = 401;
         } elseif (str_contains($authorization, 'Bearer forbidden-fixture-token')) {

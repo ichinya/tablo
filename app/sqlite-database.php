@@ -9,7 +9,7 @@ use Throwable;
 
 final class Database
 {
-    public const CURRENT_SCHEMA_VERSION = 4;
+    public const CURRENT_SCHEMA_VERSION = 5;
 
     // Version 0 installations may lack these additive fields and git_tokens.
     private const SITE_ADDITIONS = [
@@ -32,9 +32,14 @@ final class Database
         'login_limits' => ['key', 'failures', 'window_start'],
     ];
 
-    public static function connect(?string $path = null): PDO
+    public static function connect(#[\SensitiveParameter] ?string $path = null, #[\SensitiveParameter] ?TokenVault $vault = null): PDO
     {
+        $vault ??= TokenVault::configured(); // Explicit file failure precedes any database open.
+        $vault?->assertAvailable(false);
         $path ??= getenv('TABLO_DB') ?: dirname(__DIR__) . '/storage/tablo.sqlite';
+        if ($vault?->isExternal()) {
+            self::validateExistingUri($path); // Preserve the reviewed literal URI/VFS admission.
+        }
         // SQLite file: URIs are not filesystem paths for PHP's directory functions.
         if ($path !== ':memory:' && !str_starts_with($path, 'file:') && !is_dir(dirname($path))) {
             mkdir(dirname($path), 0700, true);
@@ -43,20 +48,274 @@ final class Database
             PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION,
             PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC,
         ]);
+        if ($vault?->isExternal()) {
+            self::authenticateExternalKey($db, $vault);
+        }
         $db->exec('PRAGMA foreign_keys = ON; PRAGMA busy_timeout = 5000;');
         self::migrate($db);
         if ($path !== ':memory:') {
             // Configure only accepted schemas; rejected future databases keep their journal metadata.
-            // busy_timeout is already installed before this potentially contended mode transition.
-            $statement = $db->query('PRAGMA journal_mode = WAL');
-            try { $mode = $statement->fetchColumn(); }
-            finally { $statement->closeCursor(); }
-            if ($mode !== 'wal') {
-                throw new RuntimeException('SQLite WAL is required for file databases; use writable local storage.');
-            }
+            self::ensureWal($db);
             @chmod($path, 0600);
         }
         return $db;
+    }
+
+    private static function ensureWal(PDO $db): void
+    {
+        // Own one cooperative budget; synchronous driver/filesystem calls cannot be preempted.
+        $deadline = hrtime(true) + 5_000_000_000;
+        $failure = null;
+        $lastBusy = null;
+        $delay = 5_000;
+        try {
+            // Do not stack a native busy-handler wait onto each application retry.
+            if ($db->exec('PRAGMA busy_timeout = 0') === false) {
+                throw new RuntimeException('Cannot configure SQLite WAL negotiation timeout.');
+            }
+            while (true) {
+                $error = null;
+                $cleanupFailed = false;
+                foreach (['PRAGMA main.journal_mode', 'PRAGMA main.journal_mode = WAL'] as $sql) {
+                    if (hrtime(true) >= $deadline) {
+                        throw $lastBusy ?? new RuntimeException('SQLite WAL negotiation budget expired.');
+                    }
+                    $statement = null;
+                    try {
+                        $statement = $db->prepare($sql);
+                        if ($statement === false || !$statement->execute()) {
+                            throw new RuntimeException('Cannot execute SQLite WAL negotiation.');
+                        }
+                        $mode = $statement->fetchColumn();
+                    } catch (Throwable $attemptError) {
+                        $error = $attemptError;
+                    }
+                    try {
+                        if ($statement !== null && $statement !== false && !$statement->closeCursor()) {
+                            throw new RuntimeException('Cannot release SQLite WAL cursor.');
+                        }
+                    } catch (Throwable $cleanupError) {
+                        $cleanupFailed = true;
+                        $error ??= $cleanupError;
+                    }
+                    unset($statement);
+                    if ($error !== null) { break; }
+                    if ($mode === 'wal') { break 2; } // Already WAL: no setter or transaction.
+                    if ($sql === 'PRAGMA main.journal_mode = WAL') {
+                        throw new RuntimeException('SQLite WAL is required for file databases; use writable local storage.');
+                    }
+                }
+                // Cleanup failure never enters the contention retry, even if the primary error is BUSY.
+                if ($cleanupFailed || !$error instanceof \PDOException
+                    || !in_array($error->errorInfo[1] ?? null, [5, 261, 773], true)) {
+                    throw $error;
+                }
+                $lastBusy = $error;
+                $remaining = $deadline - hrtime(true);
+                if ($remaining <= 0) { throw $lastBusy; }
+                usleep(min($delay, (int) ($remaining / 1_000)));
+                $delay = min($delay * 2, 25_000);
+                // The next attempt checks again after waking; the deadline never resets.
+            }
+        } catch (Throwable $error) {
+            $failure = $error;
+        }
+        // Both success and every caught failure reach restoration before return/rethrow.
+        try {
+            if ($db->exec('PRAGMA busy_timeout = 5000') === false) {
+                throw new RuntimeException('Cannot restore SQLite busy timeout.');
+            }
+        } catch (Throwable $restoreError) {
+            $failure ??= $restoreError;
+        }
+        if ($failure !== null) { throw $failure; }
+    }
+
+    private static function authenticateExternalKey(PDO $db, #[\SensitiveParameter] TokenVault $vault): void
+    {
+        $present = false;
+        $verified = false;
+        foreach ([['sites', 'github_token'], ['sites', 'endpoint_token'], ['git_tokens', 'encrypted_token']] as [$table, $column]) {
+            $statement = $db->prepare("SELECT type FROM main.sqlite_schema WHERE name = ?");
+            try { $statement->execute([$table]); $type = $statement->fetchColumn(); }
+            finally { $statement->closeCursor(); }
+            if ($type !== 'table' || !in_array($column, array_column(self::columns($db, $table), 'name'), true)) { continue; }
+            $statement = $db->query('SELECT ' . $column . ' FROM main.' . $table . ' WHERE ' . $column . " IS NOT NULL AND " . $column . " <> ''");
+            try {
+                while (($encrypted = $statement->fetchColumn()) !== false) {
+                    $present = true;
+                    try { $plaintext = $vault->decrypt($encrypted); $verified = true; unset($plaintext); }
+                    catch (SharedKeyFailure $error) { throw $error; }
+                    catch (RuntimeException) { /* An individual damaged credential is not a global failure. */ }
+                    finally { unset($encrypted); }
+                }
+            } finally { $statement->closeCursor(); }
+        }
+        if ($present && !$verified) {
+            throw new SharedKeyFailure(SharedKeyFailure::UNVERIFIED_DIAGNOSTIC, SharedKeyFailure::UNVERIFIED);
+        }
+    }
+
+    public static function preflightExternalKey(#[\SensitiveParameter] ?string $path = null): void
+    {
+        $vault = TokenVault::configured();
+        if ($vault === null) { throw new SharedKeyFailure('External token key configuration is required for this preflight.'); }
+        $db = self::openExistingConnection($path);
+        self::authenticateExternalKey($db, $vault);
+        self::schemaVersion($db); // Refuse a future schema; never migrate or configure WAL.
+    }
+
+    private static function resolvePath(#[\SensitiveParameter] ?string $path): string
+    {
+        return $path ?? (getenv('TABLO_DB') ?: dirname(__DIR__) . '/storage/tablo.sqlite');
+    }
+
+    public static function openExisting(#[\SensitiveParameter] ?string $path = null): PDO
+    {
+        $db = self::openExistingConnection($path);
+        try { self::installationIdentity($db); self::existingAdminHash($db); }
+        catch (RuntimeException $error) { self::refuseExistingFailure($error, 'Installation unavailable.'); }
+        return $db;
+    }
+
+    public static function openWorkerControl(#[\SensitiveParameter] ?string $path = null): PDO
+    {
+        $db = self::openExistingConnection($path);
+        self::installationIdentity($db);
+        if (self::schemaVersion($db) !== self::CURRENT_SCHEMA_VERSION
+            || array_diff(['id', 'run_id', 'stop_requested', 'fairness_turn'], array_column(self::columns($db, 'worker_runtime'), 'name')) !== []) {
+            throw new InstallationException('Worker control schema incompatible.');
+        }
+        return $db;
+    }
+
+    private static function openExistingConnection(#[\SensitiveParameter] ?string $path): PDO
+    {
+        $path = self::resolvePath($path);
+        if ($path === '' || $path === ':memory:' || str_contains($path, "\0")) {
+            throw new InstallationException('Installation unavailable.');
+        }
+        self::validateExistingUri($path);
+        try {
+            // URI options cannot grant CREATE when the actual open flags omit it.
+            $flags = PHP_VERSION_ID >= 80400 ? \Pdo\Sqlite::ATTR_OPEN_FLAGS : PDO::SQLITE_ATTR_OPEN_FLAGS;
+            $readWrite = PHP_VERSION_ID >= 80400 ? \Pdo\Sqlite::OPEN_READWRITE : PDO::SQLITE_OPEN_READWRITE;
+            $db = new PDO('sqlite:' . $path, null, null, [
+                PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION,
+                PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC,
+                $flags => $readWrite,
+            ]);
+            $db->exec('PRAGMA foreign_keys = ON; PRAGMA busy_timeout = 5000;');
+            return $db;
+        } catch (RuntimeException $error) {
+            // DSNs and native diagnostics may contain private configuration.
+            self::refuseExistingFailure($error, 'Installation unavailable.');
+        }
+    }
+
+    private static function refuseExistingFailure(#[\SensitiveParameter] RuntimeException $error, string $message): never
+    {
+        $code = $error instanceof \PDOException ? (($error->errorInfo[1] ?? 0) & 255) : 0;
+        if (in_array($code, [5, 6], true)) {
+            $safe = new \PDOException('Installation busy.');
+            $safe->errorInfo = ['HY000', $code, null];
+            throw $safe;
+        }
+        throw new InstallationException($message);
+    }
+
+    private static function validateExistingUri(#[\SensitiveParameter] string $path): void
+    {
+        if (!str_starts_with($path, 'file:')) { return; }
+        $uri = explode('#', $path, 2)[0];
+        if (str_contains(rawurldecode($uri), "\0")) {
+            throw new InstallationException('Installation unavailable.');
+        }
+        $query = explode('?', $uri, 2)[1] ?? '';
+        foreach (explode('&', $query) as $parameter) {
+            [$name, $value] = array_pad(explode('=', $parameter, 2), 2, '');
+            $name = rawurldecode($name);
+            $value = rawurldecode($value);
+            // SQLite decodes URI keys/values, and these options override useful
+            // READWRITE/locking behavior. Explicit VFS selection is unreviewed;
+            // use SQLite's native default. Keep the original URI for actual PDO.
+            if (str_contains($name . $value, "\0")
+                || $name === 'vfs'
+                || ($name === 'mode' && in_array($value, ['ro', 'memory'], true))
+                || (in_array($name, ['immutable', 'nolock'], true)
+                    && !in_array(strtolower($value), ['', '0', 'false', 'off', 'no'], true))) {
+                throw new InstallationException('Installation unavailable.');
+            }
+        }
+    }
+
+    /** Identity comes from the opened connection, never from its requested DSN. */
+    public static function installationIdentity(PDO $db): array
+    {
+        $statement = $db->query('PRAGMA database_list');
+        try { $databases = $statement->fetchAll(); }
+        finally { $statement->closeCursor(); }
+        foreach ($databases as $database) {
+            if ($database['name'] !== 'main') { continue; }
+            $file = $database['file'];
+            $canonical = is_string($file) && $file !== '' ? realpath($file) : false;
+            if ($canonical !== false && is_file($canonical) && is_writable($canonical)) {
+                return ['file' => $canonical, 'admin' => 1, 'schema' => self::schemaVersion($db)];
+            }
+        }
+        throw new InstallationException('Installation unavailable.');
+    }
+
+    public static function existingAdminHash(PDO $db): string
+    {
+        try {
+            $version = self::schemaVersion($db);
+            self::validateSchema($db, true);
+        } catch (RuntimeException $error) {
+            self::refuseExistingFailure($error, 'Installation schema incompatible.');
+        }
+        if ($version !== self::CURRENT_SCHEMA_VERSION) {
+            throw new InstallationException('Installation schema incompatible.');
+        }
+        if (array_diff(['health_error_code', 'health_http_status'], array_column(self::columns($db, 'sites'), 'name')) !== []) {
+            throw new InstallationException('Installation schema incompatible.');
+        }
+        self::validateCurrentAdditions($db);
+        $statement = $db->query("SELECT sql FROM main.sqlite_schema WHERE type = 'table' AND name = 'users'");
+        try { $sql = $statement->fetchColumn(); }
+        finally { $statement->closeCursor(); }
+        // Accept the actual frozen users definition, including its singleton constraint.
+        // An advertised user_version or a CHECK hidden in a comment is insufficient.
+        $expected = "CREATE TABLE users (id INTEGER PRIMARY KEY CHECK (id = 1), password_hash TEXT NOT NULL, created_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%SZ', 'now')))";
+        $normalize = static fn (string $value): string => preg_replace('/\s+/', '', $value);
+        if (!is_string($sql) || $normalize($sql) !== $normalize($expected)) {
+            throw new InstallationException('Installation schema incompatible.');
+        }
+        $statement = $db->query('SELECT id, password_hash FROM main.users');
+        try { $users = $statement->fetchAll(); }
+        finally { $statement->closeCursor(); }
+        $hash = $users[0]['password_hash'] ?? null;
+        if (count($users) !== 1 || (int) $users[0]['id'] !== 1 || !is_string($hash)
+            || password_get_info($hash)['algo'] === null
+            || (str_starts_with($hash, '$2') && preg_match('/^\$2[aby]\$(?:0[4-9]|[12][0-9]|3[01])\$[.\/A-Za-z0-9]{53}$/D', $hash) !== 1)) {
+            throw new InstallationException('Administrator unavailable.');
+        }
+        return $hash;
+    }
+
+    private static function validateCurrentAdditions(PDO $db): void
+    {
+        foreach (['sites' => ['config_revision', 'endpoint_token'], 'github_cooldowns' => ['scope', 'resource', 'eligible_at'],
+            'installation_settings' => ['id', 'check_interval_minutes'],
+            'worker_runtime' => ['id', 'run_id', 'stop_requested', 'fairness_turn'],
+            'worker_progress' => ['site_id', 'config_revision', 'latest_release', 'latest_commit', 'open_issues', 'open_prs']] as $table => $required) {
+            $statement = $db->prepare("SELECT type FROM main.sqlite_schema WHERE name = ?");
+            try { $statement->execute([$table]); $type = $statement->fetchColumn(); }
+            finally { $statement->closeCursor(); }
+            if ($type !== 'table' || array_diff($required, array_column(self::columns($db, $table), 'name')) !== []) {
+                throw new InstallationException('Installation schema incompatible.');
+            }
+        }
     }
 
     public static function migrate(PDO $db): void
@@ -77,6 +336,7 @@ final class Database
                     1 => self::migrateToVersionTwo($db),
                     2 => self::migrateToVersionThree($db),
                     3 => self::migrateToVersionFour($db),
+                    4 => self::migrateToVersionFive($db),
                     default => throw new RuntimeException('No migration for SQLite schema version ' . $version),
                 };
                 $version++;
@@ -163,6 +423,12 @@ final class Database
             open_issues INTEGER NOT NULL DEFAULT 0 CHECK (open_issues >= 0),
             open_prs INTEGER NOT NULL DEFAULT 0 CHECK (open_prs >= 0)
         )");
+    }
+
+    private static function migrateToVersionFive(PDO $db): void
+    {
+        self::validateSchema($db, true);
+        $db->exec('ALTER TABLE sites ADD COLUMN endpoint_token TEXT');
     }
 
     private static function validateSchema(PDO $db, bool $complete): void

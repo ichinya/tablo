@@ -43,11 +43,18 @@ final class TraceInspector
             $seen->offsetSet($value);
             if ($value instanceof \Closure) { $opaque['closure'] = ($opaque['closure'] ?? 0) + 1; continue; }
             $class = new \ReflectionObject($value);
+            if (method_exists($class, 'isUninitializedLazyObject') && $class->isUninitializedLazyObject($value)) {
+                $opaque['lazy-object'] = ($opaque['lazy-object'] ?? 0) + 1;
+                continue; // Never initialize a lazy carrier merely to inspect a trace.
+            }
             do {
                 if ($class->isInternal() && $class->getName() !== \stdClass::class) {
                     $opaque['internal-state'] = ($opaque['internal-state'] ?? 0) + 1;
                 }
                 foreach ($class->getProperties() as $property) {
+                    if (!$property->isStatic() && !$property->isInitialized($value)) {
+                        $opaque['uninitialized-property'] = ($opaque['uninitialized-property'] ?? 0) + 1;
+                    }
                     if (!$property->isStatic() && method_exists($property, 'isVirtual') && $property->isVirtual()) {
                         $opaque['virtual-property'] = ($opaque['virtual-property'] ?? 0) + 1;
                     }

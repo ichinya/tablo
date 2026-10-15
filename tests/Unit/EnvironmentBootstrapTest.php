@@ -79,6 +79,30 @@ final class EnvironmentBootstrapTest
 
     private function project(): TemporaryDirectory
     {
+        return $this->createProject();
+    }
+
+    #[Test]
+    public function externalKeySelectionKeepsDotenvProcessAndExplicitEmptyPriority(): void
+    {
+        $directory = $this->createProject();
+        try {
+            $key = str_replace('\\', '/', $directory->path) . '/dotenv-key';
+            $override = str_replace('\\', '/', $directory->path) . '/process-key';
+            file_put_contents($key, random_bytes(32)); file_put_contents($override, random_bytes(32));
+            file_put_contents($directory->path . '/.env', 'TABLO_TOKEN_KEY_FILE="' . $key . '"' . "\n", FILE_APPEND);
+            foreach (['empty' => '', 'unset' => $key, 'override' => $override] as $mode => $expected) {
+                $result = $this->run($directory, ['TABLO_TEST_KEY_MODE' => $mode, 'TABLO_TOKEN_KEY_FILE' => $override,
+                    'TABLO_TEST_EXPECTED_KEY_PATH' => $expected], ['external']);
+                Assert::same($result['exit_code'], 0);
+                $data = json_decode($result['stdout'], true, 16, JSON_THROW_ON_ERROR);
+                Assert::same($data, ['matches' => true, 'legacy' => $mode === 'empty', 'roundtrip' => true], $mode . ':' . json_encode($data));
+            }
+        } finally { $directory->close(); }
+    }
+
+    private function createProject(): TemporaryDirectory
+    {
         $directory = new TemporaryDirectory('tablo-env-');
         try {
             $root = dirname(__DIR__, levels: 2);

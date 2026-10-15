@@ -13,7 +13,7 @@ final class MeasuredGitHubHttp extends HttpClient
 
     public function __construct(private readonly string $base) { $this->real = new HttpClient(true); }
 
-    public function get(string $url, array $headers = []): array
+    public function get(#[\SensitiveParameter] string $url, #[\SensitiveParameter] array $headers = []): array
     {
         if (!str_starts_with($url, 'https://api.github.com/')) { throw new \RuntimeException('Unexpected fixture origin'); }
         $path = substr($url, strlen('https://api.github.com'));

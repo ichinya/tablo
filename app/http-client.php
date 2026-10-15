@@ -9,7 +9,7 @@ class HttpClient
 
     public function __construct(private readonly bool $allowPrivate = false) {}
 
-    public function getBefore(string $url, array $headers, int $deadline): array
+    public function getBefore(#[\SensitiveParameter] string $url, #[\SensitiveParameter] array $headers, int $deadline): array
     {
         $previous = $this->deadline;
         $this->deadline = $deadline;
@@ -25,7 +25,20 @@ class HttpClient
         return min(6000, $remaining);
     }
 
-    public function get(string $url, array $headers = []): array
+    public function get(#[\SensitiveParameter] string $url, #[\SensitiveParameter] array $headers = []): array
+    {
+        try { return $this->request($url, $headers); }
+        catch (\PDOException | SharedKeyFailure $error) { throw $error; }
+        catch (\Throwable $error) {
+            // Native frames/options/callback captures are discarded, including previous chains.
+            // Only a genuine typed contract reason crosses this boundary.
+            $reason = $error instanceof HttpFailure ? $error->reason : 'check-error';
+            unset($error);
+            throw new HttpFailure($reason);
+        }
+    }
+
+    private function request(#[\SensitiveParameter] string $url, #[\SensitiveParameter] array $headers): array
     {
         $this->remainingMs();
         $parts = parse_url($url);
@@ -55,47 +68,50 @@ class HttpClient
         // Synchronous SSRF preflight DNS has an OS resolver bound, not a PHP deadline.
         // Re-check afterwards so an overrun never starts the subsequent cURL request.
         $remainingMs = $this->remainingMs();
-        $curl = curl_init($url);
+        $curl = null;
         $body = '';
         $tooLarge = false;
         $responseHeaders = [];
-        curl_setopt_array($curl, [
-            CURLOPT_RETURNTRANSFER => false,
-            CURLOPT_FOLLOWLOCATION => false,
-            CURLOPT_CONNECTTIMEOUT_MS => min(3000, $remainingMs),
-            CURLOPT_TIMEOUT_MS => $remainingMs,
-            CURLOPT_PROTOCOLS => CURLPROTO_HTTP | CURLPROTO_HTTPS,
-            CURLOPT_USERAGENT => 'Tablo/0.1',
-            CURLOPT_HTTPHEADER => $headers,
-            CURLOPT_RESOLVE => $resolve,
-            CURLOPT_PROXY => '',
-            CURLOPT_HEADERFUNCTION => static function ($curl, string $line) use (&$responseHeaders): int {
-                // Discard interim header blocks and never retain arbitrary headers or credentials.
-                if (str_starts_with($line, 'HTTP/')) { $responseHeaders = []; }
-                $colon = strpos($line, ':');
-                if ($colon !== false) {
-                    $name = strtolower(substr($line, 0, $colon));
-                    if (in_array($name, ['retry-after', 'x-ratelimit-limit', 'x-ratelimit-remaining',
-                        'x-ratelimit-used', 'x-ratelimit-reset', 'x-ratelimit-resource'], true)) {
-                        $value = trim(substr($line, $colon + 1));
-                        $valid = $name === 'x-ratelimit-resource' ? in_array($value, ['core', 'search'], true)
-                            : (bool) preg_match('/^[0-9]{1,18}$/D', $value);
-                        // Duplicate/conflicting values fail closed, including identical duplicates.
-                        $responseHeaders[$name] = !array_key_exists($name, $responseHeaders) && $valid ? $value : null;
-                    }
-                }
-                return strlen($line);
-            },
-            CURLOPT_WRITEFUNCTION => static function ($curl, string $chunk) use (&$body, &$tooLarge): int {
-                if (strlen($body) + strlen($chunk) > 1048576) {
-                    $tooLarge = true;
-                    return 0;
-                }
-                $body .= $chunk;
-                return strlen($chunk);
-            },
-        ]);
         try {
+            $curl = curl_init($url);
+            if ($curl === false) { throw new HttpFailure('check-error'); }
+            $options = [
+                CURLOPT_RETURNTRANSFER => false,
+                CURLOPT_FOLLOWLOCATION => false,
+                CURLOPT_CONNECTTIMEOUT_MS => min(3000, $remainingMs),
+                CURLOPT_TIMEOUT_MS => $remainingMs,
+                CURLOPT_PROTOCOLS => CURLPROTO_HTTP | CURLPROTO_HTTPS,
+                CURLOPT_USERAGENT => 'Tablo/0.1',
+                CURLOPT_HTTPHEADER => $headers,
+                CURLOPT_RESOLVE => $resolve,
+                CURLOPT_PROXY => '',
+                CURLOPT_HEADERFUNCTION => static function (#[\SensitiveParameter] $curl, #[\SensitiveParameter] string $line) use (&$responseHeaders): int {
+                    // Discard interim header blocks and never retain arbitrary headers or credentials.
+                    if (str_starts_with($line, 'HTTP/')) { $responseHeaders = []; }
+                    $colon = strpos($line, ':');
+                    if ($colon !== false) {
+                        $name = strtolower(substr($line, 0, $colon));
+                        if (in_array($name, ['retry-after', 'x-ratelimit-limit', 'x-ratelimit-remaining',
+                            'x-ratelimit-used', 'x-ratelimit-reset', 'x-ratelimit-resource'], true)) {
+                            $value = trim(substr($line, $colon + 1));
+                            $valid = $name === 'x-ratelimit-resource' ? in_array($value, ['core', 'search'], true)
+                                : (bool) preg_match('/^[0-9]{1,18}$/D', $value);
+                            // Duplicate/conflicting values fail closed, including identical duplicates.
+                            $responseHeaders[$name] = !array_key_exists($name, $responseHeaders) && $valid ? $value : null;
+                        }
+                    }
+                    return strlen($line);
+                },
+                CURLOPT_WRITEFUNCTION => static function (#[\SensitiveParameter] $curl, #[\SensitiveParameter] string $chunk) use (&$body, &$tooLarge): int {
+                    if (strlen($body) + strlen($chunk) > 1048576) {
+                        $tooLarge = true;
+                        return 0;
+                    }
+                    $body .= $chunk;
+                    return strlen($chunk);
+                },
+                ];
+            if (!curl_setopt_array($curl, $options)) { throw new HttpFailure('check-error'); }
             $ok = curl_exec($curl);
             if ($ok === false) {
                 if ($tooLarge) { throw new HttpFailure('size'); }
@@ -108,11 +124,11 @@ class HttpClient
                 'time_ms' => (int) round(curl_getinfo($curl, CURLINFO_TOTAL_TIME) * 1000)];
         } finally {
             // The handle is released by PHP when it leaves scope.
-            unset($curl);
+            unset($options, $curl);
         }
     }
 
-    private static function hasMalformedChunkFraming(\CurlHandle $curl): bool
+    private static function hasMalformedChunkFraming(#[\SensitiveParameter] \CurlHandle $curl): bool
     {
         // libcurl's HTTP chunk decoder also uses errno 56 for framing errors.
         // Match only its known decoder diagnostics (lib/http_chunks.c). Never
@@ -125,7 +141,7 @@ class HttpClient
         ) === 1;
     }
 
-    protected function resolve(string $host): array
+    protected function resolve(#[\SensitiveParameter] string $host): array
     {
         $addresses = [];
         foreach (@dns_get_record($host, DNS_A | DNS_AAAA) ?: [] as $record) {

@@ -118,7 +118,7 @@ final class GitHubCredentialTest
             $snapshot = $sites->find($id);
             $loading = new class($sites, $base, $id) extends HttpClient {
                 public function __construct(private SiteRepository $sites, private array $base, private int $id) {}
-                public function get(string $url, array $headers = []): array
+                public function get(#[\SensitiveParameter] string $url, #[\SensitiveParameter] array $headers = []): array
                 {
                     $this->sites->save($this->base + ['git_token_id' => '', 'remove_github_token' => 1], $this->id);
                     return UnitFixtures::response(200, '{"tag_name":"obsolete-private"}');

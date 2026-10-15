@@ -15,6 +15,7 @@ final class PeriodicWorker
     private readonly Closure $clock;
     private readonly Closure $sleep;
     private readonly Closure $output;
+    private readonly TokenVault $vault;
     private bool $stop = false;
 
     public function __construct(
@@ -24,10 +25,12 @@ final class PeriodicWorker
         ?Closure $clock = null,
         ?Closure $sleep = null,
         ?Closure $output = null,
+        #[\SensitiveParameter] ?TokenVault $vault = null,
     ) {
-        $this->sites = new SiteRepository($db);
+        $this->vault = $vault ?? TokenVault::forDatabase($db);
+        $this->sites = new SiteRepository($db, $this->vault);
         $this->settings = new SettingsRepository($db);
-        $this->state = new WorkerStateRepository($db);
+        $this->state = new WorkerStateRepository($db, $this->sites);
         $sites = $this->sites;
         $this->connection = $connection ?? static fn (): GitHubConnection => new GitHubConnection($sites, $http, worker: true);
         $this->clock = $clock ?? static fn (): float => hrtime(true) / 1e9;
@@ -39,6 +42,7 @@ final class PeriodicWorker
 
     public function run(): int
     {
+        $this->sites->assertWorkerKeyAvailable(); // Refuse before lock/control initialization.
         $lock = new WorkerLock();
         if (!$lock->acquire($this->db)) { ($this->output)('Worker already running.'); return 2; }
         $generation = null;
@@ -90,7 +94,7 @@ final class PeriodicWorker
             $site = $this->sites->find($id);
             if ($site === null || !$site['enabled']) { continue; }
             try {
-                $eligible = $connection->provider($site)->eligibleResources();
+                $eligible = $connection->provider(SiteRepository::withoutEndpointCredential($site))->eligibleResources();
                 $turns = $this->state->turns($id, $site['config_revision']);
                 $available = array_filter($turns, static fn (string $field): bool =>
                     $eligible[in_array($field, ['open_issues', 'open_prs'], true) ? 'search' : 'core'], ARRAY_FILTER_USE_KEY);
@@ -107,7 +111,7 @@ final class PeriodicWorker
                 $site = $this->sites->find($id);
                 if ($site === null || !$site['enabled']) { continue; }
                 try {
-                    $provider = $connection->provider($site);
+                    $provider = $connection->provider(SiteRepository::withoutEndpointCredential($site));
                     $order = $this->fieldOrder($site, $provider);
                 } catch (\PDOException | SharedKeyFailure $error) { throw $error; }
                 catch (\Throwable) {
@@ -115,7 +119,7 @@ final class PeriodicWorker
                     $order = WorkerStateRepository::FIELDS;
                     ($this->output)('Worker credentials unavailable.');
                 }
-                $result = (new SiteChecker($this->http, $provider))->check($site, $order);
+                $result = (new SiteChecker($this->http, $provider, $this->vault))->check($site, $order);
                 $this->sites->assertWorkerKeyAvailable();
                 $stored = $this->state->settle($site, $result);
                 ($this->output)($stored ? 'Worker site checked.' : 'Worker site changed.');

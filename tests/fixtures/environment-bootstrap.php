@@ -19,7 +19,24 @@ foreach (['TABLO_DOTENV_TEST_DIR', 'TABLO_DOTENV_TEST_VALUE', 'TABLO_DOTENV_TEST
     unset($_ENV[$name], $_SERVER[$name]);
 }
 chdir($root . '/public');
+if (($argv[2] ?? '') === 'external') {
+    if (getenv('TABLO_TEST_KEY_MODE') === 'unset') { putenv('TABLO_TOKEN_KEY_FILE'); }
+    if (getenv('TABLO_TEST_KEY_MODE') === 'empty') { putenv('TABLO_TOKEN_KEY_FILE'); putenv('TABLO_TOKEN_KEY_FILE='); }
+    unset($_ENV['TABLO_TOKEN_KEY_FILE'], $_SERVER['TABLO_TOKEN_KEY_FILE']);
+    // Windows removes empty putenv values. Preserve the explicit empty override
+    // in dotenv's normal immutable reader too; getenv's absent/empty legacy policy agrees.
+    if (getenv('TABLO_TEST_KEY_MODE') === 'empty') { $_ENV['TABLO_TOKEN_KEY_FILE'] = ''; }
+}
 require $root . '/app/bootstrap.php';
+
+if (($argv[2] ?? '') === 'external') {
+    $vault = Tablo\TokenVault::configured();
+    $expectedKey = getenv('TABLO_TEST_KEY_MODE') === 'empty' ? '' : getenv('TABLO_TEST_EXPECTED_KEY_PATH');
+    $actualKey = getenv('TABLO_TOKEN_KEY_FILE');
+    echo json_encode(['matches' => ($actualKey === false ? '' : $actualKey) === $expectedKey,
+        'legacy' => $vault === null, 'roundtrip' => $vault === null || $vault->decrypt($vault->encrypt('synthetic')) === 'synthetic']);
+    exit;
+}
 
 if (($argv[2] ?? '') === 'check') {
     require $root . '/bin/check.php';

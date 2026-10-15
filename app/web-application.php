@@ -15,11 +15,18 @@ final class Web
     private readonly GitTokenRepository $tokens;
     private readonly SettingsRepository $installation;
     private readonly Auth $auth;
+    private readonly ClientAddress $clientAddress;
     private readonly GitHubConnection $github;
     private readonly Simple $view;
+    private readonly TokenVault $vault;
 
     public function __construct(?HttpClient $githubHttp = null, ?string $runtimeDirectory = null)
     {
+        $this->clientAddress = new ClientAddress(getenv('TABLO_TRUSTED_PROXIES'));
+        $vault = TokenVault::configured();
+        $db = Database::connect(vault: $vault);
+        $vault ??= TokenVault::forDatabase($db);
+        $this->vault = $vault;
         $root = dirname(__DIR__);
         $runtimeDirectory ??= $root . '/storage';
         foreach (['sessions', 'views'] as $dir) {
@@ -37,13 +44,12 @@ final class Web
         ]);
         session_start();
         $_SESSION['csrf'] ??= bin2hex(random_bytes(32));
-        if (isset($_SESSION['authenticated_at']) && time() - $_SESSION['authenticated_at'] > 43200) {
-            unset($_SESSION['authenticated_at']);
-            $_SESSION['csrf'] = bin2hex(random_bytes(32));
+        if (isset($_SESSION['authenticated_at']) && (!is_int($_SESSION['authenticated_at'])
+            || time() - $_SESSION['authenticated_at'] > 43200)) {
+            $this->invalidateAuthentication();
         }
-        $db = Database::connect();
-        $this->sites = new SiteRepository($db);
-        $this->tokens = new GitTokenRepository($db);
+        $this->sites = new SiteRepository($db, $vault);
+        $this->tokens = new GitTokenRepository($db, $vault);
         $this->installation = new SettingsRepository($db);
         $this->auth = new Auth($db);
         $this->github = new GitHubConnection($this->sites, $githubHttp ?? new HttpClient());
@@ -67,9 +73,14 @@ final class Web
         header('Cache-Control: no-store');
         $path = parse_url($_SERVER['REQUEST_URI'] ?? '/', PHP_URL_PATH) ?: '/';
         $needsSetup = $this->auth->needsSetup();
-        if ($needsSetup && isset($_SESSION['authenticated_at'])) {
-            session_regenerate_id(true);
-            $_SESSION = ['csrf' => bin2hex(random_bytes(32))];
+        if (isset($_SESSION['authenticated_at']) || isset($_SESSION['auth_fingerprint'])) {
+            $marker = $_SESSION['auth_fingerprint'] ?? null;
+            $current = $this->auth->credentialFingerprint();
+            if ($needsSetup || !isset($_SESSION['authenticated_at']) || !is_string($marker)
+                || preg_match('/^[a-f0-9]{64}$/D', $marker) !== 1 || $current === null
+                || !hash_equals($current, $marker)) {
+                $this->invalidateAuthentication();
+            }
         }
         if (!$needsSetup && $path === '/setup') {
             $this->notFound()->send();
@@ -103,8 +114,8 @@ final class Web
                 return $web->notFound();
             }
             try {
-                $web->auth->setup($web->input('password'), $web->input('confirmation'));
-                $web->authenticate();
+                $fingerprint = $web->auth->setupSession($web->input('password'), $web->input('confirmation'));
+                $web->authenticate($fingerprint);
                 return $web->redirect('/');
             } catch (ValidationException $e) {
                 return $web->render('auth', ['setup' => true, 'title' => 'Добро пожаловать', 'errors' => $e->errors], 422);
@@ -114,10 +125,11 @@ final class Web
         $app->post('/login', function () use ($web) {
             try {
                 $password = $web->input('password');
-                if (strlen($password) > 72 || !$web->auth->login($password, $_SERVER['REMOTE_ADDR'] ?? 'unknown')) {
+                $fingerprint = strlen($password) > 72 ? null : $web->auth->loginSession($password, $web->clientAddress->resolve($_SERVER));
+                if ($fingerprint === null) {
                     throw new ValidationException(['password' => 'Неверный пароль.']);
                 }
-                $web->authenticate();
+                $web->authenticate($fingerprint);
                 return $web->redirect('/');
             } catch (ValidationException $e) {
                 return $web->render('auth', ['setup' => false, 'title' => 'С возвращением', 'errors' => $e->errors], 422);
@@ -164,7 +176,7 @@ final class Web
         $app->post('/sites/{id:[0-9]+}/edit', fn ($id) => $web->save((int) $id));
         $app->get('/sites/{id:[0-9]+}/delete', function ($id) use ($web) {
             $site = $web->sites->find((int) $id);
-            return $site ? $web->render('delete', ['title' => 'Удалить сайт', 'site' => $site]) : $web->notFound();
+            return $site ? $web->render('delete', ['title' => 'Удалить сайт', 'site' => SiteRepository::publicSite($site)]) : $web->notFound();
         });
         $app->post('/sites/{id:[0-9]+}/delete', function ($id) use ($web) {
             if (!$web->sites->find((int) $id)) {
@@ -185,7 +197,8 @@ final class Web
                 // Release the session lock while network requests are in progress.
                 session_write_close();
                 try {
-                    $checker = new SiteChecker(new HttpClient(getenv('TABLO_ALLOW_PRIVATE_NETWORK') === '1'), $web->github->provider($site));
+                    $checker = new SiteChecker(new HttpClient(getenv('TABLO_ALLOW_PRIVATE_NETWORK') === '1'),
+                        $web->github->provider(SiteRepository::withoutEndpointCredential($site)), $web->vault);
                     $stored = $web->sites->storeCheck($site, $checker->check($site));
                     $notice = $stored ? 'Проверка завершена. Результаты обновлены.' : 'Настройки изменились во время проверки. Запустите её ещё раз.';
                 } catch (ValidationException $e) {
@@ -200,11 +213,18 @@ final class Web
         $app->handle($path);
     }
 
-    private function authenticate(): void
+    private function authenticate(#[\SensitiveParameter] string $fingerprint): void
     {
         session_regenerate_id(true);
         $_SESSION['authenticated_at'] = time();
+        $_SESSION['auth_fingerprint'] = $fingerprint;
         $_SESSION['csrf'] = bin2hex(random_bytes(32));
+    }
+
+    private function invalidateAuthentication(): void
+    {
+        session_regenerate_id(true);
+        $_SESSION = ['csrf' => bin2hex(random_bytes(32))];
     }
 
     private function input(string $name): string
@@ -219,7 +239,8 @@ final class Web
             return $this->notFound();
         }
         try {
-            $this->github->validate($_POST, $existing);
+            SiteRepository::normalize($_POST); // Reject invalid endpoint input before any Git request.
+            $this->github->validate(SiteRepository::withoutEndpointCredential($_POST), SiteRepository::withoutEndpointCredential($existing));
             $this->sites->save($_POST, $id);
             $_SESSION['notice'] = $id === null ? 'Сайт добавлен. Запустите первую проверку.' : 'Настройки сохранены. Запустите новую проверку.';
             return $this->redirect('/');
@@ -233,16 +254,25 @@ final class Web
             $data['enabled'] = isset($_POST['enabled']) && is_string($_POST['enabled']) ? 1 : 0;
             $data['id'] = $id;
             $data['has_github_token'] = !empty($existing['github_token']);
+            $data['has_endpoint_token'] = SiteRepository::publicSite($existing ?? [])['has_endpoint_token'];
             $data['git_token_id'] = is_string($_POST['git_token_id'] ?? null) ? $_POST['git_token_id'] : ($existing['git_token_id'] ?? '');
-            return $this->form($data, $id, $e instanceof ValidationException ? $e->errors : ['github_token' => $e->getMessage()], 422);
+            $errors = $e instanceof ValidationException ? $e->errors : ($e instanceof \PDOException
+                ? ['storage' => 'Не удалось сохранить настройки. Проверьте доступ к хранилищу.'] : ['github_token' => $e->getMessage()]);
+            // Rejected userinfo/query may contain credentials. Valid endpoint query syntax
+            // is still accepted by normalize; this only limits error-page repopulation.
+            foreach (['url', 'health_path', 'version_path'] as $field) {
+                $sensitiveQuery = preg_match('/[?&](?:token|access_token|api_key|password|secret|authorization|key)=/i', rawurldecode($data[$field])) === 1;
+                if (($field === 'url' && strpbrk($data[$field], '@?#') !== false)
+                    || ($field !== 'url' && (isset($errors[$field]) || $sensitiveQuery))) { $data[$field] = ''; }
+            }
+            return $this->form($data, $id, $errors, 422);
         }
     }
 
-    private function form(array $site, ?int $id = null, array $errors = [], int $status = 200): Response
+    private function form(#[\SensitiveParameter] array $site, ?int $id = null, array $errors = [], int $status = 200): Response
     {
-        $site['has_github_token'] = $site['has_github_token'] ?? !empty($site['github_token']);
+        $site = SiteRepository::publicSite($site);
         $site['git_token_id'] ??= '';
-        unset($site['github_token'], $site['selected_token_snapshot']);
         return $this->render('form', ['title' => $id === null ? 'Добавить сайт' : 'Настройки сайта', 'site' => $site,
             'action' => $id === null ? '/sites/new' : '/sites/' . $id . '/edit', 'editing' => $id !== null,
             'errors' => $errors, 'json_operators' => JsonField::OPERATORS,
@@ -301,7 +331,7 @@ final class Web
         // Credentials travel only in this authenticated, CSRF-protected POST.
         session_write_close();
         try {
-            return $this->json($this->github->branches($_POST, $site));
+            return $this->json($this->github->branches(SiteRepository::withoutEndpointCredential($_POST), SiteRepository::withoutEndpointCredential($site)));
         } catch (ValidationException $e) {
             return $this->json(['error' => implode(' ', $e->errors)], 422);
         }

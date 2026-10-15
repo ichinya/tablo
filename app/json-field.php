@@ -14,12 +14,12 @@ final class JsonField
     public const MAX_PATH_BYTES = 512;
     public const MAX_EXPECTED_LENGTH = 512;
 
-    public static function validatePath(string $path): void
+    public static function validatePath(#[\SensitiveParameter] string $path): void
     {
         self::segments($path);
     }
 
-    public static function decode(string $body): mixed
+    public static function decode(#[\SensitiveParameter] string $body): mixed
     {
         try {
             return json_decode($body, false, 16, JSON_THROW_ON_ERROR | JSON_BIGINT_AS_STRING);
@@ -28,7 +28,7 @@ final class JsonField
         }
     }
 
-    public static function extract(mixed $document, string $path): string|int|float|bool
+    public static function extract(#[\SensitiveParameter] mixed $document, #[\SensitiveParameter] string $path): string|int|float|bool
     {
         $value = $document;
         foreach (self::segments($path) as [$kind, $key]) {
@@ -52,7 +52,7 @@ final class JsonField
         return $value;
     }
 
-    public static function compare(string|int|float|bool $value, string $operator, string $expected): bool
+    public static function compare(#[\SensitiveParameter] string|int|float|bool $value, string $operator, #[\SensitiveParameter] string $expected): bool
     {
         if (!in_array($operator, self::OPERATORS, true)) {
             throw new InvalidArgumentException('Выберите допустимое условие JSON-проверки.');
@@ -70,7 +70,7 @@ final class JsonField
         };
     }
 
-    public static function number(string $value): int|float
+    public static function number(#[\SensitiveParameter] string $value): int|float
     {
         if (!is_numeric($value) || !is_finite((float) $value)) {
             throw new InvalidArgumentException('Для этого условия нужно конечное число.');
@@ -78,7 +78,7 @@ final class JsonField
         return $value + 0;
     }
 
-    private static function segments(string $path): array
+    private static function segments(#[\SensitiveParameter] string $path): array
     {
         if ($path === '' || strlen($path) > self::MAX_PATH_BYTES || $path[0] !== '$') {
             throw new InvalidArgumentException('Укажите JSON path от $, до 512 байт.');
