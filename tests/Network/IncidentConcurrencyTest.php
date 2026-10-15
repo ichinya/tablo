@@ -28,7 +28,8 @@ final class IncidentConcurrencyTest
             $sites = new SiteRepository($db);
             $id = $sites->save(F::site());
             F::accept($sites, $id, 0, '2020-01-01T00:00:00Z');
-            $db->exec('DROP TABLE incident_checkpoints; DROP TABLE incidents; PRAGMA user_version=5');
+            $db->exec('DROP TABLE notification_slots; DROP TABLE notification_checkpoints; DROP TABLE notification_settings;
+                DROP TABLE incident_checkpoints; DROP TABLE incidents; PRAGMA user_version=5');
             unset($sites, $db);
             $first = new MigrationProcess($directory, 'first', 'migrate-first', $path);
             $first->awaitSignal('first.locked');
@@ -39,7 +40,7 @@ final class IncidentConcurrencyTest
             $b = $second->wait();
             Assert::same($a['code'], 0);
             Assert::same($b['code'], 0);
-            Assert::same(json_decode($a['stdout'], true)['ddl'], 4);
+            Assert::same(json_decode($a['stdout'], true)['ddl'], 9, 'four actual6 and five additive7 CREATE statements');
             Assert::same(json_decode($b['stdout'], true)['ddl'], 0);
             $db = Database::connect($path);
             Assert::same((int) $db->query('SELECT COUNT(*) FROM check_history')->fetchColumn(), 1);

@@ -135,4 +135,66 @@ class HttpClient
         }
         return array_unique($addresses);
     }
+
+    public function postBefore(#[\SensitiveParameter] string $url, #[\SensitiveParameter] string $payload,
+        string $eventId, #[\SensitiveParameter] string $bearer, int $deadline): int
+    {
+        set_error_handler(static function (): never { throw new WebhookFailure('network'); });
+        try { return $this->webhookRequest($url,$payload,$eventId,$bearer,$deadline); }
+        catch (WebhookFailure $error) { throw new WebhookFailure($error->reason); }
+        catch (\Throwable) { throw new WebhookFailure('network'); }
+        finally { restore_error_handler(); }
+    }
+
+    private function webhookRequest(#[\SensitiveParameter] string $url, #[\SensitiveParameter] string $payload,
+        string $eventId, #[\SensitiveParameter] string $bearer, int $deadline): int
+    {
+        try { $parts=WebhookAddress::parts($url); }
+        catch (ValidationException) { throw new WebhookFailure('invalid-url'); }
+        if (strlen($payload)>8192 || !preg_match('/^[a-zA-Z0-9:_-]{1,128}$/D',$eventId)
+            || ($bearer!=='' && !preg_match('/^[\x21-\x7e]{1,512}$/D',$bearer))) { throw new WebhookFailure('invalid-data'); }
+        $host=trim($parts['host'],'[]'); $port=$parts['port']??443;
+        $addresses=$this->webhookAddresses($host);
+        $remaining=(int)floor(($deadline-hrtime(true))/1000000);
+        if ($remaining<1) { throw new WebhookFailure('timeout'); }
+        $address=$addresses[0];
+        $pin=filter_var($host,FILTER_VALIDATE_IP)?[]:["$host:$port:".(str_contains($address,':')?"[$address]":$address)];
+        $headers=['Content-Type: application/json','Accept: application/json','Idempotency-Key: '.$eventId];
+        if ($bearer!=='') { $headers[]='Authorization: Bearer '.$bearer; }
+        $curl=curl_init($url); $bodyBytes=0; $headerBytes=0; $large=false;
+        try {
+            $this->configureWebhook($curl);
+            curl_setopt_array($curl,[CURLOPT_POST=>true,CURLOPT_POSTFIELDS=>$payload,CURLOPT_HTTPHEADER=>$headers,
+                CURLOPT_RETURNTRANSFER=>false,CURLOPT_FOLLOWLOCATION=>false,CURLOPT_MAXREDIRS=>0,
+                CURLOPT_PROXY=>'',CURLOPT_PROTOCOLS=>CURLPROTO_HTTPS,CURLOPT_RESOLVE=>$pin,
+                CURLOPT_SSL_VERIFYPEER=>true,CURLOPT_SSL_VERIFYHOST=>2,
+                CURLOPT_CONNECTTIMEOUT_MS=>min(3000,$remaining),CURLOPT_TIMEOUT_MS=>min(6000,$remaining),
+                CURLOPT_USERAGENT=>'Tablo/0.1',
+                CURLOPT_HEADERFUNCTION=>static function (#[\SensitiveParameter] $handle, #[\SensitiveParameter] string $line) use (&$headerBytes,&$large): int {
+                    $headerBytes+=strlen($line); if ($headerBytes>16384) { $large=true; return 0; } return strlen($line);
+                },
+                CURLOPT_WRITEFUNCTION=>static function (#[\SensitiveParameter] $handle, #[\SensitiveParameter] string $chunk) use (&$bodyBytes,&$large): int {
+                    $bodyBytes+=strlen($chunk); if ($bodyBytes>4096) { $large=true; return 0; } return strlen($chunk);
+                }]);
+            if (curl_exec($curl)===false) {
+                if ($large) { throw new WebhookFailure('size'); }
+                if (self::hasMalformedChunkFraming($curl)) { throw new WebhookFailure('invalid-response'); }
+                $error=HttpFailure::fromCurl(curl_errno($curl),(int)curl_getinfo($curl,CURLINFO_OS_ERRNO));
+                throw new WebhookFailure($error->reason);
+            }
+            $status=(int)curl_getinfo($curl,CURLINFO_RESPONSE_CODE);
+            if ($status<100 || $status>599) { throw new WebhookFailure('invalid-response'); }
+            return $status;
+        } finally { unset($curl); }
+    }
+
+    protected function webhookAddresses(string $host): array
+    {
+        $addresses=filter_var($host,FILTER_VALIDATE_IP)?[$host]:$this->resolve($host);
+        if ($addresses===[]) { throw new WebhookFailure('dns'); }
+        foreach ($addresses as $address) { if (!WebhookAddress::globallyRoutable($address)) { throw new WebhookFailure('ssrf'); } }
+        return $addresses;
+    }
+
+    protected function configureWebhook(#[\SensitiveParameter] \CurlHandle $curl): void {}
 }

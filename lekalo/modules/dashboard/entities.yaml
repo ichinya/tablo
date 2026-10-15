@@ -1535,6 +1535,619 @@
                     "required": true
                 }
             ]
+        },
+        {
+            "id": "dashboard.notification_settings",
+            "kind": "entity",
+            "version": 1,
+            "description": "Actual schema7 singleton. Only encrypted endpoint/Bearer storage; safe queries expose presence, flags and revision. Installation namespace is public random event identity, never a key witness.",
+            "fields": [
+                {
+                    "name": "id",
+                    "type": {
+                        "ref": "dashboard.number"
+                    },
+                    "required": true
+                },
+                {
+                    "name": "installation_id",
+                    "type": {
+                        "ref": "dashboard.text"
+                    },
+                    "required": true
+                },
+                {
+                    "name": "revision",
+                    "type": {
+                        "ref": "dashboard.number"
+                    },
+                    "required": true
+                },
+                {
+                    "name": "activation_id",
+                    "type": {
+                        "ref": "dashboard.number"
+                    },
+                    "required": true
+                },
+                {
+                    "name": "enabled",
+                    "type": {
+                        "ref": "dashboard.flag"
+                    },
+                    "required": true
+                },
+                {
+                    "name": "blocked",
+                    "type": {
+                        "ref": "dashboard.flag"
+                    },
+                    "required": true
+                },
+                {
+                    "name": "endpoint_cipher",
+                    "type": {
+                        "optional": {
+                            "ref": "dashboard.text"
+                        }
+                    }
+                },
+                {
+                    "name": "bearer_cipher",
+                    "type": {
+                        "optional": {
+                            "ref": "dashboard.text"
+                        }
+                    }
+                },
+                {
+                    "name": "unavailable",
+                    "type": {
+                        "ref": "dashboard.flag"
+                    },
+                    "required": true
+                },
+                {
+                    "name": "recovery",
+                    "type": {
+                        "ref": "dashboard.flag"
+                    },
+                    "required": true
+                },
+                {
+                    "name": "version_lag",
+                    "type": {
+                        "ref": "dashboard.flag"
+                    },
+                    "required": true
+                },
+                {
+                    "name": "include_name",
+                    "type": {
+                        "ref": "dashboard.flag"
+                    },
+                    "required": true
+                },
+                {
+                    "name": "include_url",
+                    "type": {
+                        "ref": "dashboard.flag"
+                    },
+                    "required": true
+                }
+            ],
+            "identity": [
+                "id"
+            ]
+        },
+        {
+            "id": "dashboard.notification_checkpoint",
+            "kind": "entity",
+            "version": 1,
+            "description": "Actual bounded prospective JSON confirmation/handled identity checkpoint, FK cascade; written only by accepted SiteRepository transaction.",
+            "fields": [
+                {
+                    "name": "site_id",
+                    "type": {
+                        "ref": "dashboard.number"
+                    },
+                    "required": true
+                },
+                {
+                    "name": "last_history_id",
+                    "type": {
+                        "ref": "dashboard.number"
+                    },
+                    "required": true
+                },
+                {
+                    "name": "config_revision",
+                    "type": {
+                        "ref": "dashboard.number"
+                    },
+                    "required": true
+                },
+                {
+                    "name": "state",
+                    "type": {
+                        "ref": "dashboard.text"
+                    },
+                    "required": true
+                }
+            ],
+            "identity": [
+                "site_id"
+            ]
+        },
+        {
+            "id": "dashboard.notification_slot",
+            "kind": "entity",
+            "version": 1,
+            "description": "Actual three fixed-kind slots/site. Immutable logical key, bounded attempts/TTL and observable coalescing. Private opted-in name/origin encrypted. Conditional tokens fence old generations; transport duplicates remain possible.",
+            "fields": [
+                {
+                    "name": "site_id",
+                    "type": {
+                        "ref": "dashboard.number"
+                    },
+                    "required": true
+                },
+                {
+                    "name": "event",
+                    "type": {
+                        "ref": "dashboard.text"
+                    },
+                    "required": true
+                },
+                {
+                    "name": "event_id",
+                    "type": {
+                        "ref": "dashboard.text"
+                    },
+                    "required": true
+                },
+                {
+                    "name": "source_id",
+                    "type": {
+                        "ref": "dashboard.number"
+                    },
+                    "required": true
+                },
+                {
+                    "name": "config_revision",
+                    "type": {
+                        "ref": "dashboard.number"
+                    },
+                    "required": true
+                },
+                {
+                    "name": "channel_revision",
+                    "type": {
+                        "ref": "dashboard.number"
+                    },
+                    "required": true
+                },
+                {
+                    "name": "payload",
+                    "type": {
+                        "ref": "dashboard.text"
+                    },
+                    "required": true
+                },
+                {
+                    "name": "private_cipher",
+                    "type": {
+                        "optional": {
+                            "ref": "dashboard.text"
+                        }
+                    }
+                },
+                {
+                    "name": "created_at",
+                    "type": {
+                        "ref": "dashboard.number"
+                    },
+                    "required": true
+                },
+                {
+                    "name": "expires_at",
+                    "type": {
+                        "ref": "dashboard.number"
+                    },
+                    "required": true
+                },
+                {
+                    "name": "due_at",
+                    "type": {
+                        "ref": "dashboard.number"
+                    },
+                    "required": true
+                },
+                {
+                    "name": "status",
+                    "type": {
+                        "ref": "dashboard.text"
+                    },
+                    "required": true
+                },
+                {
+                    "name": "attempts",
+                    "type": {
+                        "ref": "dashboard.number"
+                    },
+                    "required": true
+                },
+                {
+                    "name": "claim",
+                    "type": {
+                        "optional": {
+                            "ref": "dashboard.text"
+                        }
+                    }
+                },
+                {
+                    "name": "lease_until",
+                    "type": {
+                        "optional": {
+                            "ref": "dashboard.number"
+                        }
+                    }
+                },
+                {
+                    "name": "last_code",
+                    "type": {
+                        "optional": {
+                            "ref": "dashboard.text"
+                        }
+                    }
+                },
+                {
+                    "name": "http_status",
+                    "type": {
+                        "optional": {
+                            "ref": "dashboard.number"
+                        }
+                    }
+                },
+                {
+                    "name": "acknowledged_at",
+                    "type": {
+                        "optional": {
+                            "ref": "dashboard.number"
+                        }
+                    }
+                },
+                {
+                    "name": "coalesced",
+                    "type": {
+                        "ref": "dashboard.number"
+                    },
+                    "required": true
+                }
+            ],
+            "identity": [
+                "site_id",
+                "event"
+            ]
+        },
+        {
+            "id": "dashboard.notification_input",
+            "kind": "value-object",
+            "version": 1,
+            "description": "Sensitive submitted strings, never stored plaintext; blank keep, explicit remove, safe conflict/type/length validation.",
+            "fields": [
+                {
+                    "name": "revision",
+                    "type": {
+                        "ref": "dashboard.text"
+                    },
+                    "required": true
+                },
+                {
+                    "name": "endpoint",
+                    "type": {
+                        "optional": {
+                            "ref": "dashboard.text"
+                        }
+                    }
+                },
+                {
+                    "name": "bearer",
+                    "type": {
+                        "optional": {
+                            "ref": "dashboard.text"
+                        }
+                    }
+                },
+                {
+                    "name": "enabled",
+                    "type": {
+                        "optional": {
+                            "ref": "dashboard.text"
+                        }
+                    }
+                },
+                {
+                    "name": "unavailable",
+                    "type": {
+                        "optional": {
+                            "ref": "dashboard.text"
+                        }
+                    }
+                },
+                {
+                    "name": "recovery",
+                    "type": {
+                        "optional": {
+                            "ref": "dashboard.text"
+                        }
+                    }
+                },
+                {
+                    "name": "version_lag",
+                    "type": {
+                        "optional": {
+                            "ref": "dashboard.text"
+                        }
+                    }
+                },
+                {
+                    "name": "include_name",
+                    "type": {
+                        "optional": {
+                            "ref": "dashboard.text"
+                        }
+                    }
+                },
+                {
+                    "name": "include_url",
+                    "type": {
+                        "optional": {
+                            "ref": "dashboard.text"
+                        }
+                    }
+                },
+                {
+                    "name": "remove_endpoint",
+                    "type": {
+                        "optional": {
+                            "ref": "dashboard.text"
+                        }
+                    }
+                },
+                {
+                    "name": "remove_bearer",
+                    "type": {
+                        "optional": {
+                            "ref": "dashboard.text"
+                        }
+                    }
+                }
+            ]
+        },
+        {
+            "id": "dashboard.notification_metadata",
+            "kind": "value-object",
+            "version": 1,
+            "fields": [
+                {
+                    "name": "revision",
+                    "type": {
+                        "ref": "dashboard.number"
+                    },
+                    "required": true
+                },
+                {
+                    "name": "enabled",
+                    "type": {
+                        "ref": "dashboard.flag"
+                    },
+                    "required": true
+                },
+                {
+                    "name": "blocked",
+                    "type": {
+                        "ref": "dashboard.flag"
+                    },
+                    "required": true
+                },
+                {
+                    "name": "unavailable",
+                    "type": {
+                        "ref": "dashboard.flag"
+                    },
+                    "required": true
+                },
+                {
+                    "name": "recovery",
+                    "type": {
+                        "ref": "dashboard.flag"
+                    },
+                    "required": true
+                },
+                {
+                    "name": "version_lag",
+                    "type": {
+                        "ref": "dashboard.flag"
+                    },
+                    "required": true
+                },
+                {
+                    "name": "include_name",
+                    "type": {
+                        "ref": "dashboard.flag"
+                    },
+                    "required": true
+                },
+                {
+                    "name": "include_url",
+                    "type": {
+                        "ref": "dashboard.flag"
+                    },
+                    "required": true
+                },
+                {
+                    "name": "endpoint_present",
+                    "type": {
+                        "ref": "dashboard.flag"
+                    },
+                    "required": true
+                },
+                {
+                    "name": "bearer_present",
+                    "type": {
+                        "ref": "dashboard.flag"
+                    },
+                    "required": true
+                }
+            ]
+        },
+        {
+            "id": "dashboard.notification_status",
+            "kind": "value-object",
+            "version": 1,
+            "fields": [
+                {
+                    "name": "site_id",
+                    "type": {
+                        "ref": "dashboard.number"
+                    },
+                    "required": true
+                },
+                {
+                    "name": "event",
+                    "type": {
+                        "ref": "dashboard.text"
+                    },
+                    "required": true
+                },
+                {
+                    "name": "status",
+                    "type": {
+                        "ref": "dashboard.text"
+                    },
+                    "required": true
+                },
+                {
+                    "name": "attempts",
+                    "type": {
+                        "ref": "dashboard.number"
+                    },
+                    "required": true
+                },
+                {
+                    "name": "due_at",
+                    "type": {
+                        "ref": "dashboard.number"
+                    },
+                    "required": true
+                },
+                {
+                    "name": "expires_at",
+                    "type": {
+                        "ref": "dashboard.number"
+                    },
+                    "required": true
+                },
+                {
+                    "name": "last_code",
+                    "type": {
+                        "optional": {
+                            "ref": "dashboard.text"
+                        }
+                    }
+                },
+                {
+                    "name": "http_status",
+                    "type": {
+                        "optional": {
+                            "ref": "dashboard.number"
+                        }
+                    }
+                },
+                {
+                    "name": "acknowledged_at",
+                    "type": {
+                        "optional": {
+                            "ref": "dashboard.number"
+                        }
+                    }
+                },
+                {
+                    "name": "coalesced",
+                    "type": {
+                        "ref": "dashboard.number"
+                    },
+                    "required": true
+                }
+            ]
+        },
+        {
+            "id": "dashboard.notification_claim",
+            "kind": "value-object",
+            "version": 1,
+            "description": "Sensitive internal committed claim only; never exposed by HTTP/status.",
+            "fields": [
+                {
+                    "name": "slot",
+                    "type": {
+                        "ref": "dashboard.notification_slot"
+                    },
+                    "required": true
+                },
+                {
+                    "name": "claim",
+                    "type": {
+                        "ref": "dashboard.text"
+                    },
+                    "required": true
+                },
+                {
+                    "name": "attempt",
+                    "type": {
+                        "ref": "dashboard.number"
+                    },
+                    "required": true
+                },
+                {
+                    "name": "settings",
+                    "type": {
+                        "ref": "dashboard.notification_settings"
+                    },
+                    "required": true
+                }
+            ]
+        },
+        {
+            "id": "dashboard.notification_result",
+            "kind": "value-object",
+            "version": 1,
+            "description": "Finite safe observed result. sent requires bounded2xx and current conditional ACK; no exactly-once/unconditional guarantee.",
+            "fields": [
+                {
+                    "name": "code",
+                    "type": {
+                        "ref": "dashboard.text"
+                    },
+                    "required": true
+                },
+                {
+                    "name": "http_status",
+                    "type": {
+                        "optional": {
+                            "ref": "dashboard.number"
+                        }
+                    }
+                },
+                {
+                    "name": "elapsed_ms",
+                    "type": {
+                        "optional": {
+                            "ref": "dashboard.number"
+                        }
+                    }
+                }
+            ]
         }
     ]
 }

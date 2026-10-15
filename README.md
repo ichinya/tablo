@@ -227,7 +227,7 @@ wildcard, фильтры и рекурсивный поиск. Ограниче�
 Для публичного репозитория токен необязателен. Поле пароля администратора и поле
 GitHub token — разные учётные данные.
 
-Сохранённые и отдельные токены проектов хранятся в SQLite зашифрованными AES-256-GCM. Ключ
+Сохранённые и отдельные токены проектов хранятся в SQLite зашифрованными AES-256-GCM. В legacy-режиме ключ
 `github-token.key` создаётся рядом с файлом БД при первом сохранении токена или
 первом authenticated preview в пустой установке. Если сохранены зашифрованные
 credentials или private quota identities, preview при утрате ключа требует
@@ -262,8 +262,10 @@ Docker Compose читает `.env` для подстановки значени�
 | Переменная | Значение |
 | --- | --- |
 | `TABLO_DB` | Путь к SQLite; по умолчанию `storage/tablo.sqlite`. |
+| `TABLO_TOKEN_KEY_FILE` | Пусто по умолчанию: legacy-ключ рядом с БД. Непустое значение — существующий read-only файл с оригинальными 32 сырыми байтами; относительный путь от корня проекта. |
 | `TABLO_ALLOW_PRIVATE_NETWORK` | `1` для осознанного мониторинга localhost/private сетей; по умолчанию `0`. |
 | `TABLO_COOKIE_SECURE` | `1` при работе через HTTPS reverse proxy. Прямой HTTPS определяется автоматически. |
+| `TABLO_TRUSTED_PROXIES` | Пусто по умолчанию. Список точных IP доверенных прокси через запятую для режима приложения; правила ниже. |
 
 По умолчанию health/version запросы запрещают private/reserved IP, фиксируют
 разрешённый DNS-адрес на время запроса, не используют proxy из окружения и не
@@ -284,9 +286,11 @@ GitHub search API. Код выхода `1` означает ошибку, Offlin
 ## Миграции SQLite
 
 Версия схемы хранится в `PRAGMA user_version`. При первом подключении пустая
-или совместимая старая база с версией `0` автоматически обновляется до версии `2`.
-База версии `1` получает только новый переход: nullable `health_error_code` и
-`health_http_status`; существующие сайты, endpoints и результаты сохраняются.
+или совместимая старая база с версией `0` автоматически обновляется до версии `4`.
+Переход `1 → 2` добавляет nullable `health_error_code` и `health_http_status`;
+`2 → 3` добавляет сохранённые GitHub cooldown; `3 → 4` — настройки интервала,
+revision сайта и состояние/прогресс воркера. Применяются только недостающие переходы;
+существующие сайты, endpoints, credentials и результаты сохраняются.
 Создание таблиц, добавление недостающих колонок и запись номера версии выполняются
 в одной транзакции. При ошибке переход откатывается; повторное подключение может
 повторить его. Пароль администратора, сайты, ключ шифрования и сохранённые токены
@@ -460,6 +464,113 @@ docker compose up --build -d
 сервер, если он занимает этот порт. Для публикации используйте HTTPS reverse
 proxy и `TABLO_COOKIE_SECURE=1`. DocumentRoot всегда должен указывать на `public/`.
 
+### Адрес клиента и доверенные прокси
+
+Лимит входа сохраняет пять неудачных попыток на адрес на 900 секунд в SQLite.
+Установка выбирает **один** из двух взаимоисключающих способов восстановления
+адреса. Смена способа не меняет схему БД. `TABLO_TRUSTED_PROXIES` не влияет на
+HTTPS, cookie, время сессии или исходящие проверки сайтов.
+
+**Режим приложения:** PHP получает исходный `REMOTE_ADDR` соединения. Задайте
+`TABLO_TRUSTED_PROXIES=192.0.2.10,2001:db8::10`, заменив примеры проверенными
+адресами своих прокси. Разрешены только точные IPv4/IPv6, пробелы и табуляция
+вокруг элементов. Не разрешены CIDR, wildcard, DNS-имена, URL, порты, скобки,
+zone ID, неопределённые `0.0.0.0`/`::` и пустые элементы. Максимум 4096 байт
+и 32 элемента до удаления эквивалентных дублей конфигурации. Частичная настройка
+не принимается: ошибка `Invalid TABLO_TRUSTED_PROXIES configuration.` останавливает
+Web до создания runtime, сессии или открытия БД; значения в диагностике отсутствуют.
+Аргумент конфигурации помечен PHP 8.2 `SensitiveParameter`: при включённом сборе
+аргументов исключения сохраняют `SensitiveParameterValue` вместо исходной строки.
+Unset и ровно пустая строка отключают доверие; строка из пробелов является ошибкой.
+Private/loopback/Docker-сети автоматически не доверяются.
+
+На проверенной native Windows PHP 8.5 сборке пустая переменная окружения при
+запуске дочернего PHP-процесса теряется, после чего Dotenv может снова загрузить
+сохранённое значение из `.env`. Внутри процесса `getenv()` при этом может возвращать
+пустую строку; это не универсальная семантика удаления переменной. Для отключения
+доверия на Windows очистите или измените также сохранённый `TABLO_TRUSTED_PROXIES`
+в `.env` и перезапустите PHP. На проверенных Linux PHP 8.2/8.4 пустая переменная,
+действительно переданная процессу через `env TABLO_TRUSTED_PROXIES= php ...`,
+сохраняется и блокирует загрузку сохранённого доверия. Передача пустой записи
+массивом окружения PHP `proc_open` на этих Linux сборках тоже теряет её: проверяйте
+реальное окружение дочернего процесса, а не только настройки средства запуска.
+
+Пустая настройка или недоверенный непосредственный peer полностью игнорирует
+X-Forwarded-For и использует канонический `REMOTE_ADDR`. Неверные транспортные
+данные попадают в один фиксированный ключ `unknown`. `Forwarded`, `X-Real-IP`,
+`Client-IP`, `X-Forwarded-Proto` и другие алиасы никогда не выбирают адрес.
+Доверенный непосредственный peer обязан передать корректный X-Forwarded-For:
+не более 4096 байт и 32 IP, разделённых запятыми; вокруг IP допустимы SP/HTAB.
+Пустые элементы, controls, `unknown`, имена, CIDR, кавычки, скобки, порты и зоны
+отклоняются. Проверяется вся цепочка, затем обход идёт справа налево, пока текущий
+узел доверенный. Выбирается первый недоверенный узел. Например, при доверенных
+`.20` и `.10`, peer `192.0.2.20` и заголовке
+`203.0.113.99,198.51.100.42,192.0.2.10` выбирается `198.51.100.42`.
+Если `.10` недоверенный, выбирается `192.0.2.10`; значения левее не имеют авторитета.
+Повторённые IP остаются отдельными hop, цепочка не сортируется и не дедуплицируется.
+IPv6 регистр/сжатие нормализуются; IPv4-mapped IPv6 сводится к IPv4 для доверия
+и ключа лимита, например `::ffff:c633:642a` и `198.51.100.42` имеют один ключ.
+Отсутствующая, неверная, превышающая лимит или целиком доверенная цепочка даёт
+422 `Invalid trusted proxy address chain.` до Auth: нет запасного ключа peer,
+проверки пароля, сброса счётчика или авторизации.
+
+Публичный nginx edge должен **перезаписывать** входящий XFF наблюдаемым адресом:
+
+```nginx
+location / {
+    proxy_set_header Host $host;
+    proxy_set_header X-Forwarded-For $remote_addr;
+    proxy_pass http://tablo_backend;
+}
+```
+
+Внутренний прокси может использовать
+`proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;` только за проверенным
+edge и при ограниченном доступе от контролируемого предшественника. Append не
+очищает историю. Прокси обязан перезаписывать либо отвергать дубли wire-полей
+на публичной границе: PHP SAPI может объединить несколько XFF в одну строку,
+неотличимую от обычной цепочки. Приложение не гарантирует обнаружение этих дублей.
+См. [nginx proxy module](https://nginx.org/en/docs/http/ngx_http_proxy_module.html).
+
+**Режим PHP-сервера:** оставьте `TABLO_TRUSTED_PROXIES` пустым. На Apache,
+который обслуживает PHP, явно загрузите доступный `mod_remoteip` и задайте:
+
+```apache
+RemoteIPHeader X-Forwarded-For
+RemoteIPTrustedProxy 192.0.2.10
+RemoteIPTrustedProxy 2001:db8::10
+```
+
+`RemoteIPHeader` без списка доверяет всем отправителям. Для контролируемых
+внутренних прокси с private-адресами клиентов вместо `RemoteIPTrustedProxy`
+нужен `RemoteIPInternalProxy` с теми же точными источниками. Модуль идёт справа
+налево и может изменить/удалить XFF. Проверьте полученный PHP `REMOTE_ADDR`.
+Стандартный Dockerfile Tablo не включает remoteip автоматически.
+См. [Apache mod_remoteip](https://httpd.apache.org/docs/2.4/mod/mod_remoteip.html).
+
+Для nginx, обслуживающего PHP через FastCGI, нужны доступный real-IP module,
+точные `set_real_ip_from 192.0.2.10;` / `set_real_ip_from 2001:db8::10;`,
+`real_ip_header X-Forwarded-For; real_ip_recursive on;` и передача восстановленного
+`$remote_addr` в FastCGI `REMOTE_ADDR`. Установка real-IP только на HTTP reverse
+proxy не восстанавливает адрес в Apache backend: выберите режим приложения
+либо восстановление на Apache. См.
+[nginx real-IP](https://nginx.org/en/docs/http/ngx_http_realip_module.html).
+
+Не совмещайте восстановление сервером с разбором в приложении. До включения
+режима проверьте наблюдаемый backend peer, модули, sanitization и доступ только
+через предназначенный прокси, включая прямые запросы с поддельными заголовками.
+Docker/NAT может показывать gateway, а не localhost; не расширяйте доверие на всю
+bridge-сеть. Общий NAT или IP соседа не подтверждает владение прокси: нужен
+выделенный ingress/ACL. Публикация Compose остаётся `127.0.0.1:8087:80`.
+Результаты локальных fixtures не доказывают корректность развёрнутой топологии.
+
+При rollout/rollback политики, канонизации или списка доверия существующие
+необратимые хеши адресов могут выбрать другие ключи. Для строгого сохранения
+лимита закройте `/login` на ingress и выждите **строго более 900 секунд** с
+последней разрешённой попытки перед изменением и открытием входа. Сохраняйте
+БД, ключи и сессии; не удаляйте счётчики/storage. Rollback не требует downgrade
+БД, но может снова объединить клиентов за прокси в один лимит.
+
 Создайте администратора при первоначальной локальной настройке до публикации.
 Для бэкапа/восстановления следуйте разделу SQLite WAL выше; вместе
 с БД сохраняется хеш пароля. Если используются токены сайтов, обязательно
@@ -468,94 +579,149 @@ proxy и `TABLO_COOKIE_SECURE=1`. DocumentRoot всегда должен ука�
 сайтов и администратора. Исходники, SQLite, .env
 и зависимости не должны быть доступны из web root.
 
-## Сброс пароля администратора
+## Локальная смена пароля администратора
 
-Если пароль забыт, удалите только запись администратора и ограничения попыток
-входа, затем создайте новый пароль через `/setup`. Сайты, результаты проверок и
-Git-токены сохранятся. Старые сессии будут завершены. Удалять всю SQLite или
-`github-token.key` не нужно: потеря ключа сделает сохранённые токены недоступными.
+Существующего администратора меняет локальная команда `bin/admin-password.php`.
+Сервер может работать: строка администратора 1 присутствует непрерывно, а
+GET/POST `/setup` остаются 404 до, во время и после смены или отката.
+Если SQLite не допускает новое чтение (например, PENDING lock при ожидании
+COMMIT), запрос может получить существующий HTTP 500 по ошибке хранения;
+форма setup при этом не открывается. Гарантия 404 предполагает доступное чтение БД.
+Команда обновляет только хеш пароля; ID, created_at, схема, сайты, результаты,
+зашифрованные Git-токены и байты ключа сохраняются. Ключ не читается и не создаётся;
+его отсутствие или недоступность не мешают смене пароля. Файлы сессий не удаляются.
+Не удаляйте администратора, SQLite или ключ для восстановления доступа.
 
-1. Остановите сервер и запланированные проверки `bin/check.php`. Для локального
-   `composer serve` нажмите `Ctrl+C` в его терминале; если PHP запущен в фоне,
-   остановите соответствующий процесс `php -S`. Для Docker используйте команду
-   ниже. Если панель опубликована, временно закройте внешний доступ: после сброса
-   `/setup` доступен до создания нового пароля.
-2. Откройте PowerShell в корне проекта и сохраните следующий скрипт в переменную.
-   Он использует `TABLO_DB` или `storage/tablo.sqlite`, проверяет наличие базы,
-   создаёт её резервную копию вместе с ключом токенов и сбрасывает доступ.
-   Для локального запуска задайте тот же `TABLO_DB`, что использует сервер.
+Сначала проверьте выбранную установку из корня нужного проекта:
 
 ```powershell
-$resetAdminScript = @'
-<?php
-$path = getenv('TABLO_DB') ?: __DIR__ . '/storage/tablo.sqlite';
-$path = realpath($path);
-if ($path === false || !is_file($path)) {
-    throw new RuntimeException('База не найдена. Проверьте TABLO_DB и каталог запуска.');
-}
-$db = new PDO('sqlite:' . $path, null, null, [PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION]);
-$db->exec('PRAGMA foreign_keys = ON; PRAGMA busy_timeout = 5000');
-$backup = dirname($path) . '/backups/password-reset-' . gmdate('Ymd-His') . '-' . bin2hex(random_bytes(4));
-if (!mkdir($backup, 0700, true)) {
-    throw new RuntimeException('Не удалось создать каталог резервной копии.');
-}
-$db->exec('VACUUM INTO ' . $db->quote($backup . '/tablo.sqlite'));
-chmod($backup . '/tablo.sqlite', 0600);
-$key = dirname($path) . '/github-token.key';
-if (is_file($key)) {
-    if (!copy($key, $backup . '/github-token.key')) {
-        throw new RuntimeException('Не удалось сохранить ключ токенов. Сброс отменён.');
-    }
-    chmod($backup . '/github-token.key', 0600);
-}
-$db->exec('BEGIN IMMEDIATE');
-try {
-    $db->exec('DELETE FROM users WHERE id = 1');
-    $db->exec('DELETE FROM login_limits');
-    $db->exec('COMMIT');
-} catch (Throwable $e) {
-    $db->exec('ROLLBACK');
-    throw $e;
-}
-foreach (glob(__DIR__ . '/storage/sessions/sess_*') ?: [] as $session) {
-    if (is_file($session) && !unlink($session)) {
-        throw new RuntimeException('Пароль сброшен, но не удалось удалить старую сессию.');
-    }
-}
-echo "Пароль сброшен. Резервная копия: $backup\n";
-'@
+php bin/admin-password.php --show-installation
 ```
 
-3. Выполните **один** из вариантов, соответствующий вашей установке.
+Вывод содержит канонический путь **фактически открытой** БД, ID администратора и
+версию схемы; управляющие символы пути экранированы. Разрешение пути прежнее:
+явный путь в database API, затем process `TABLO_DB`, корневой `.env` без
+перезаписи process environment, иначе `storage/tablo.sqlite`. Относительный
+TABLO_DB зависит от рабочего каталога. Поддерживаются существующие файловые URI.
+Read-only/memory URI, в том числе с percent-encoded параметрами, и включённые или
+неоднозначные immutable/nolock отвергаются: смене нужны запись и блокировки SQLite.
+Явные false/0/off/no для immutable/nolock допустимы; исходный URI передаётся PDO без переписывания.
+При повторных параметрах любое read-only/memory или unsafe значение отвергается,
+чтобы не полагаться на разные правила выбора повторов SQLite core и VFS.
+Любой явный параметр `vfs` (включая пустой, percent-encoded и повторный)
+отвергается **до открытия PDO**: нестандартный VFS может обходить блокировки.
+Файловые URI без явного `vfs` используют штатный выбор SQLite. Имена параметров
+учитывают регистр; `+`, точки и подчёркивания не нормализуются как HTML form.
+Настоящий fragment после `#` SQLite игнорирует. `cache=shared/private` и `psow`
+сохраняют прежнюю обработку: доказанного нарушения блокировок для них нет;
+это не гарантия сохранности при сбое оборудования или файловой системы.
+CLI не создаёт БД/каталоги, не выполняет миграцию, chmod или смену journal mode.
+Отсутствующая/временная/повреждённая/непригодная БД, несовместимая схема, неверная
+таблица users или отсутствующий администратор дают отказ. Старую схему обновите
+отдельно обычным поддерживаемым запуском приложения; команда восстановления
+не является способом миграции. Backup/restore и замена файла работающей БД
+требуют отдельной координации оператора.
 
-Локальный PHP, при остановленном сервере:
+Windows PowerShell 5.1 или PowerShell 7: скрытые запросы и прямой UTF-8 stdin.
+Запускайте helper из нужной установки; пароль не передаётся через аргументы,
+переменные окружения, PowerShell pipeline или JSON.
 
 ```powershell
-$resetAdminScript | php
-if ($LASTEXITCODE -ne 0) { throw 'Исправьте ошибку сброса перед запуском сервера.' }
-composer serve
+powershell -NoProfile -File tools/admin-password.ps1
+# PowerShell 7, если установлен:
+pwsh -NoProfile -File tools/admin-password.ps1
 ```
 
-Docker Compose использует базу из тома `tablo-data`, а не локальную `storage/`:
+Helper использует SecureString, UseShellExecute=false и StandardInput.BaseStream.
+Он создаёт stdin без UTF-8 BOM, включая Windows PowerShell 5.1 с BOM-кодировкой
+хоста: временная Console.InputEncoding действует только при создании дочернего
+процесса и его writer, затем прежняя кодировка восстанавливается в finally,
+в том числе при ошибке запуска. Настройка кодировки вызывающей стороной не нужна.
+Он освобождает BSTR через ZeroFreeBSTR, очищает временные char/byte buffers и
+возвращает exit PHP/Docker. Это не гарантия стирания всех копий в управляемой
+памяти. Ctrl+C на запросе не запускает дочернюю команду; при прерывании уже
+переданных данных сначала проверьте обычный вход: COMMIT мог успеть завершиться.
+
+Linux **Bash** (read -s не является переносимым sh):
+
+```bash
+php bin/admin-password.php --show-installation
+bash tools/admin-password.bash
+```
+
+Bash helper отключает xtrace до ввода, использует IFS= read -r -s из /dev/tty,
+посылает две строки через встроенный printf и возвращает exit команды.
+EXIT/INT/TERM очищают переменные; отмена запроса не запускает CLI. Не включайте
+трассировку или запись секретов в своём producer. У автоматизации пароль должен
+поступать из защищённого источника прямо в stdin, без литералов в командах,
+истории, argv, логах или файлов общего доступа.
+
+Протокол `--password-stdin`: ровно две UTF-8 строки (пароль и подтверждение),
+каждая заканчивается LF или CRLF, затем EOF. Только окончания строк удаляются;
+пробелы сохраняются. TTY, BOM, NUL, лишние/незавершённые строки, неподдерживаемая
+кодировка/framing, несовпадение и переполнение дают отказ. Общая web/CLI проверка:
+12–72 **байта**, точное подтверждение без trim, PASSWORD_DEFAULT и случайная соль.
+Пароли с переводом строки допустимы общей web-проверкой, но не представимы
+в этом отдельном stdin-протоколе. Команда не может проверить безопасность
+стороннего producer.
+
+Docker Compose использует БД подключённого тома установки, а не локальную storage.
+В текущем образе PHP работает как www-data (UID 33); команды выполняйте от того
+же пользователя, без публикации дополнительных портов и без удаления тома.
+Выберите правильный Compose project/конфигурацию до preflight:
+
+```bash
+docker compose exec -T --user www-data tablo php bin/admin-password.php --show-installation
+bash tools/admin-password.bash Docker
+# Если служба уже остановлена:
+docker compose run --rm --no-deps -T --user www-data --entrypoint php tablo bin/admin-password.php --show-installation
+bash tools/admin-password.bash DockerStopped
+```
+
+Для Windows тот же защищённый ввод и фиксированный Docker argv:
 
 ```powershell
-docker compose stop tablo
-if ($LASTEXITCODE -ne 0) { throw 'Не удалось остановить Tablo.' }
-$resetAdminScript | docker compose run --rm --no-deps -T --user www-data --entrypoint php tablo
-if ($LASTEXITCODE -ne 0) { throw 'Исправьте ошибку сброса перед запуском сервера.' }
-docker compose up -d tablo
+powershell -NoProfile -File tools/admin-password.ps1 -Mode Docker
+# Если служба уже остановлена:
+powershell -NoProfile -File tools/admin-password.ps1 -Mode DockerStopped
 ```
 
-Служебный контейнер подключает тот же том с данными и запускает скрипт без
-публикации портов ([документация Compose run](https://github.com/docker/compose/blob/main/docs/reference/compose_run.md)).
-Не используйте `docker compose down -v`: эта команда удалит том с данными.
-Резервная копия находится в `backups/password-reset-.../` рядом с исходной базой;
-для Docker этот каталог остаётся внутри тома `tablo-data`.
+Helper передаёт stdin в `docker compose exec -T --user www-data tablo php
+bin/admin-password.php --password-stdin` либо в `docker compose run --rm
+--no-deps -T --user www-data --entrypoint php tablo bin/admin-password.php
+--password-stdin`. Stopped-service вариант подключает тот же том, не запускает
+зависимости и не публикует service ports. Останавливать работающую службу ради
+смены пароля не требуется. См. [Compose exec](https://github.com/docker/compose/blob/main/docs/reference/compose_exec.md)
+и [Compose run](https://github.com/docker/compose/blob/main/docs/reference/compose_run.md).
 
-4. Откройте <http://127.0.0.1:8087/setup> (или `/setup` на адресе вашей установки),
-   задайте новый пароль дважды: от 12 до 72 байт. После сохранения убедитесь, что
-   прежние сайты и токены отображаются, и восстановите внешний доступ, если
-   закрывали его. `/setup` снова закроется после создания администратора.
+Выбранный хеш фиксируется **до** stdin. Два процесса с одним старым снимком
+не перезаписывают результат друг друга: один завершится успешно, другой получит
+конфликт/занятость. Намеренная последующая смена с новым снимком допустима.
+Тот же текущий пароль и повтор завершённой смены дают отказ без перехеширования.
+Нет автоматического повторного захвата снимка или retry. Валидация/хеширование
+происходят до BEGIN IMMEDIATE; собственная незавершённая транзакция откатывается
+при ошибке. Ошибка rollback, смерть процесса или потеря вывода после COMMIT
+не дают гарантии прежнего состояния: проверьте обычный вход перед новой попыткой.
+
+Прежние пароли перестают проходить проверку, а старые сессии отклоняются перед
+каждым следующим защищённым GET/POST (включая старый CSRF). Сессии содержат только
+доменный производный маркер, не хеш пароля. Legacy-сессии без маркера после
+обновления потребуют входа. Вход, проверивший старый пароль до COMMIT, может
+создать cookie позднее, но оно будет отклонено на следующем защищённом запросе.
+Rehash привязывает вызывающую сессию к её собственному новому хешу и отзывает
+предыдущие снимки. Уже допущенная работа может завершиться; ретроактивная отмена
+не обещается. Cookie, CSRF и срок сессии 12 часов сохраняют прежнюю политику.
+
+CLI не меняет ни одной строки login_limits. Заблокированный адрес остаётся
+заблокированным до конца своего существующего окна 900 секунд даже с новым
+паролем. Незаблокированный клиент может войти; обычный успешный вход очищает
+только собственную корзину (сохраняется обычная очистка истёкших окон).
+
+Коды завершения: 0 — COMMIT/preflight/help; 2 — invocation/input/password;
+3 — непригодная установка/администратор/схема; 4 — busy/stale conflict;
+1 — storage/unexpected error. stdout содержит выбор и статус, stderr — только
+фиксированную безопасную ошибку. Пароли, DSN/query, конфигурация, токены, ключи,
+хеши и маркеры не выводятся. `--help` перечисляет единственные допустимые режимы.
 
 ## Работа через Lekalo
 
@@ -570,8 +736,8 @@ composer verify
 
 Проверка запускает:
 
-1. `lekalo validate --no-cache` и `lekalo lock --check --offline`;
-2. проверку сохранённых SHA256 исходников;
+1. проверку project-local зависимостей из `contracts/reviewed-dependencies.json`;
+2. `lekalo validate --no-cache`, `lekalo lock --check --offline` и SHA256 declaring owners;
 3. регистрацию сохранённых bindings и привязку native tests;
 4. `lekalo contract check --module dashboard --no-cache`;
 5. три набора Testo: Unit, Network (реальные локальные cURL проверки JSON,
@@ -584,17 +750,120 @@ composer verify
 
 ```powershell
 php tools/capture-bindings.php
-# Просмотрите изменения contracts/php-bindings.json.
+# Просмотрите contracts/php-bindings.json и contracts/reviewed-dependencies.json.
 composer verify
 ```
 
 Capture фиксирует канонические контракты, source locations и fingerprints;
 это локальная декларация проекта, а не полноценный Phalcon target adapter
-или анализатор тел PHP. Runtime-семантика подтверждается native tests. Проверка
-никогда сама не пересоздаёт fingerprints. Встроенный PHP/Laravel adapter Lekalo
+или анализатор тел PHP. Runtime-семантика подтверждается native tests.
+Отдельный project-local manifest `contracts/reviewed-dependencies.json` фиксирует
+полные байты `app/client-address.php`, его владельца `Tablo\ClientAddress` и потребителя
+`Tablo\Web::__construct`. Это зависимость Web, а не declaration команды login/setup:
+их фактический владелец остаётся Auth. `composer verify` проверяет этот manifest
+до contract update/attach и тестов; даже изменение комментария требует review и
+явного capture. Проверка не обновляет ни один fingerprint автоматически.
+Встроенный PHP/Laravel adapter Lekalo
 не используется для Phalcon. Грамматика endpoint в текущем Model не принимает
 корневой `/`, поэтому dashboard описан query `dashboard.list_sites`, без
 вымышленного transport endpoint. Остальные POST endpoints есть в модели.
+
+Общий manifest `schema=tablo/reviewed-dependencies/v1` содержит строгий
+`dependencies=[{path,owner,consumers,fingerprint}]`: все девять зависимостей
+worker, ClientAddress, все семь зависимостей password CLI и критические
+entrypoint/bootstrap/Compose зависимости внешнего ключа. Это project-local ownership,
+а не новые declaring owners Lekalo. Отсутствие, неверный состав/ownership,
+повтор пути или drift байтов даёт отказ до contract update, attachments и тестов.
+Capture явный и детерминированный; verify его не вызывает. Каждая ветка проверяет
+свой reviewed набор; будущая композиция требует обычного merge и явного review
+объединённого набора и проверок, без импорта чужих непринятых исходников.
+
+## Внешний read-only ключ токенов
+
+`TABLO_TOKEN_KEY_FILE` задаёт только путь к существующему файлу **ровно 32 сырых
+байта**. Не используйте hex/base64, текстовый редактор, `echo`, trim или перевод
+строки. NUL, пробелы и LF внутри этих 32 байт сохраняются буквально. Отсутствующая
+или точно пустая переменная оставляет прежний `github-token.key` рядом с базой;
+строка `0` выбирает внешний файл. Process env имеет приоритет над проектным `.env`,
+включая явное пустое значение. Относительный путь ключа всегда считается от корня
+проекта, где находятся `composer.json` и `app/`, независимо от CWD. Правила пути
+`TABLO_DB` остаются прежними. Поддерживаются локальные drive-пути Windows, пробелы,
+Unicode и symlink на обычный файл; URI/wrapper, сеть, NUL, каталоги/FIFO/device
+отвергаются. Для установки предпочтителен абсолютный путь и ACL реального пользователя.
+
+Пустое значение должно действительно попасть в PHP. Некоторые Windows launcher и
+массив окружения `proc_open` теряют пустую запись, после чего `.env` может заполнить
+переменную снова (как для trusted proxies выше). Для отключения внешнего режима
+очистите также `TABLO_TOKEN_KEY_FILE` в `.env` и перезапустите consumers; проверьте
+выбранный режим без вывода ключа.
+
+Внешний файл открывается только `rb`, чтение ограничено 33 байтами, принимается
+ровно 32. Приложение никогда не создаёт, не меняет права, не перезаписывает и не
+удаляет этот файл, не генерирует замену и не откатывается к соседнему ключу.
+Один vault используется сайтами, сохранёнными токенами и Git policy/worker.
+`Database::connect($path, $vault)` применяет external-проверки по выбранному vault,
+включая явно переданный `new TokenVault($path, true)` при unset/empty selector.
+Worker settlement повторно проверяет тот же lifetime vault до BEGIN и сохраняет
+результат и service credit одной транзакцией; control-only stop не выбирает ключ.
+Изменившиеся байты, исчезновение или повреждение после первого чтения прекращают
+новую admission/save/pass; замена ключа в работающем процессе не является rotation.
+
+Ошибка файла выявляется до открытия SQLite, session/runtime и worker lock/control.
+Затем существующие известные колонки ciphertext читаются до migration/WAL/chmod
+и application writes. Если хотя бы один сохранённый токен аутентифицируется AES-GCM,
+отдельный повреждённый токен сохраняет обычное per-site поведение. Если ciphertext
+есть, но ни один не аутентифицируется, старт отказывает с фиксированным `unverified`
+diagnostic: неверный ключ и повреждение всех ciphertext неразличимы. Если ciphertext
+вообще нет (включая только ручной HMAC cooldown), историческую подлинность любых
+32 байт проверить невозможно; точный перенос исходных байтов — обязанность оператора.
+Никакой sentinel/hash/verifier в базе не добавляется. Чтение существующей SQLite
+может создавать bookkeeping/sidecars; обещание — отсутствие application/schema writes,
+а не отсутствие всех filesystem effects. Формат AES-256-GCM `v1:` и schema 4 неизменны.
+
+Password CLI и явный `php bin/worker.php --stop` намеренно независимы от token key.
+Stop открывает существующую совместимую control-базу без create/migration, условно
+помечает наблюдаемую generation и не является доказательством фактического выхода.
+Обычный check/worker не обходят key validation.
+
+Для Compose используйте opt-in overlay; обычный `compose.yaml` не требует secret:
+
+```powershell
+$env:TABLO_TOKEN_KEY_SOURCE = 'C:/protected/tablo/original-vault.key'
+docker compose -f compose.yaml -f compose.secret.yaml config
+docker compose -f compose.yaml -f compose.secret.yaml up -d --build
+docker compose -f compose.yaml -f compose.secret.yaml exec -T --user www-data tablo php bin/key-preflight.php
+```
+
+Web и реальный worker получают один read-only файл `/run/secrets/tablo_token_key`;
+CLI внутри service наследует ту же настройку. Проверьте чтение именно UID33/www-data.
+Для [file-backed Compose secrets](https://docs.docker.com/reference/compose-file/services/#secrets)
+`uid/gid/mode` не remap-ят bind mount; доступ задаётся на host. Local Compose не
+обещает encrypted distribution/storage Docker Swarm.
+
+Перенос установленной базы выполняется в окно обслуживания:
+
+1. Остановите Web, все CLI и worker; дождитесь их фактического выхода и закрытия PDO.
+   Запишите deployment revision/configuration. Сделайте согласованный SQLite backup
+   через описанный выше `VACUUM INTO` в **новую** цель и отдельный backup исходного ключа.
+2. Скопируйте исходные 32 байта в защищённый путь вне DB volume и source tree;
+   сравните байты приватно, без вывода содержимого или hash. Не создавайте новый ключ
+   для существующей установки. Не перезаписывайте непроверенную цель.
+3. Настройте одинаковый файл для всех consumers и права фактических пользователей.
+   При остановленных writers выполните `php bin/key-preflight.php` в configured
+   service/native env: команда использует existing-only PDO без migration/WAL/chmod,
+   session или сети, печатает только фиксированный результат и честную границу witness.
+4. Запустите consumers одного revision. Проверьте старые site/saved токены и сохранённые
+   cooldown. Соседняя копия ключа не удаляется автоматически; убрать/архивировать её
+   может только оператор после подтверждённого переноса. До этого компрометация volume
+   всё ещё может открыть пригодный соседний ключ.
+5. Храните matching DB/key backup отдельно с независимым доступом и provenance.
+   Restore выполняйте в изолированную чистую цель с matching key/config, затем preflight
+   и проверка ciphertext/cooldown/integrity. Не стирайте WAL/SHM и не заменяйте live storage.
+6. Rollback — под остановленными consumers, на совместимую predecessor schema 4,
+   с теми же байтами в legacy adjacent location и пустым `TABLO_TOKEN_KEY_FILE`.
+   Проверяйте destination до копирования. Более старый schema2/3 binary не является
+   допустимым rollback. При потере установленного ключа восстановите только оригинал;
+   rotation/re-encryption требуют отдельной атомарной процедуры.
 
 ## Тесты и CI
 
@@ -707,3 +976,10 @@ See [atomic persistence, pagination and retention limits](docs/check-history.md)
 Authenticated `/incidents` lists first observed Offline, recovery and qualified observation intervals.
 Tracking starts with newly accepted checks after installation; migration and reads never replay old
 history or fabricate incidents from current values. See [lifecycle, activation and paging boundaries](docs/incidents.md).
+
+## Notifications
+
+Settings provides one encrypted HTTPS webhook channel, disabled by default, for selected
+unavailable, recovery and version-lag observations. Delivery follows accepted commits and
+is bounded best effort; receivers deduplicate stable event keys. See [settings, privacy,
+confirmation, retries and supervision limits](docs/notifications.md).

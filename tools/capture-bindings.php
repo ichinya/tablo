@@ -10,8 +10,9 @@ foreach (glob($root . '/lekalo/modules/dashboard/*.yaml') as $file) {
     }
 }
 $mapping = [
-    'setup' => ['app/auth-service.php', 'public function setup'],
-    'login' => ['app/auth-service.php', 'public function login'],
+    'change_admin_password' => ['app/auth-service.php', 'public function changePassword'],
+    'setup' => ['app/auth-service.php', 'public function setupSession'],
+    'login' => ['app/auth-service.php', 'public function loginSession'],
     'logout' => ['app/web-application.php', "post('/logout'"],
     'create_site' => ['app/web-application.php', 'private function save'],
     'update_site' => ['app/web-application.php', 'private function save'],
@@ -42,6 +43,16 @@ $mapping = [
     'incident' => ['app/sqlite-database.php', 'CREATE TABLE incidents'],
     'incident_checkpoint' => ['app/sqlite-database.php', 'CREATE TABLE incident_checkpoints'],
     'read_incidents' => ['app/incident-repository.php', 'public function page'],
+    'notification_settings' => ['app/notification-schema.php', 'CREATE TABLE notification_settings'],
+    'notification_checkpoint' => ['app/notification-schema.php', 'CREATE TABLE notification_checkpoints'],
+    'notification_slot' => ['app/notification-schema.php', 'CREATE TABLE notification_slots'],
+    'get_notifications' => ['app/notification-settings.php', 'public function get'],
+    'update_notifications' => ['app/notification-settings.php', 'public function update'],
+    'project_notifications' => ['app/notification-projector.php', 'public function accepted'],
+    'read_notification_status' => ['app/notification-outbox.php', 'public function status'],
+    'claim_notification' => ['app/notification-outbox.php', 'public function claim'],
+    'ack_notification' => ['app/notification-outbox.php', 'public function acknowledge'],
+    'deliver_notification' => ['app/notification-delivery.php', 'public function runOne'],
 ];
 function typeName(array $type): string
 {

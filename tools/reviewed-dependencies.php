@@ -5,6 +5,21 @@ declare(strict_types=1);
 function workerDependencies(): array
 {
     return [
+        'app/bootstrap.php' => ['owner' => 'php-script:app/bootstrap.php', 'consumers' => ['Application environment selection', 'Local administrator password CLI']],
+        'bin/check.php' => ['owner' => 'php-script:bin/check.php', 'consumers' => ['dashboard.check_site']],
+        'bin/key-preflight.php' => ['owner' => 'php-script:bin/key-preflight.php', 'consumers' => ['External key operator preflight']],
+        'public/index.php' => ['owner' => 'php-script:public/index.php', 'consumers' => ['Application HTTP safe initialization']],
+        'compose.yaml' => ['owner' => 'compose-service:tablo and tablo-worker', 'consumers' => ['Application and worker runtime selection']],
+        'compose.secret.yaml' => ['owner' => 'compose-secret:tablo_token_key', 'consumers' => ['Application and worker external key selection']],
+        'tools/capture-reviewed-dependencies.php' => ['owner' => 'php-script:tools/capture-reviewed-dependencies.php', 'consumers' => ['Explicit reviewed dependency capture']],
+        'app/password-service.php' => ['owner' => 'Tablo\\PasswordService', 'consumers' => ['Tablo\Auth setup and password change']],
+        'app/admin-password-command.php' => ['owner' => 'Tablo\\AdminPasswordCommand', 'consumers' => ['Local administrator password CLI']],
+        'bin/admin-password.php' => ['owner' => 'Local CLI bootstrap and safe error boundary', 'consumers' => ['Local administrator password CLI']],
+        'app/installation-exception.php' => ['owner' => 'Tablo\\InstallationException', 'consumers' => ['Existing installation refusal and CLI exit']],
+        'app/password-conflict.php' => ['owner' => 'Tablo\\PasswordConflict', 'consumers' => ['Snapshot conflict and CLI exit']],
+        'tools/admin-password.bash' => ['owner' => 'Bash protected input helper', 'consumers' => ['Local administrator password CLI stdin']],
+        'tools/admin-password.ps1' => ['owner' => 'PowerShell protected input helper', 'consumers' => ['Local or Docker administrator password CLI stdin']],
+        'app/client-address.php' => ['owner' => 'Tablo\\ClientAddress', 'consumers' => ['Tablo\\Web::__construct']],
         'app/worker-lock.php' => ['owner' => 'Tablo\\WorkerLock', 'consumers' => ['dashboard.run_worker_pass']],
         'bin/worker.php' => ['owner' => 'php-script:bin/worker.php', 'consumers' => ['dashboard.run_worker_pass', 'dashboard.request_worker_stop']],
         'app/token-vault.php' => ['owner' => 'Tablo\\TokenVault', 'consumers' => ['dashboard.run_worker_pass']],
@@ -27,6 +42,19 @@ function workerDependencies(): array
         'views/incidents.volt' => ['owner' => 'volt-template:views/incidents.volt', 'consumers' => ['dashboard.read_incidents']],
         'views/layout.volt' => ['owner' => 'volt-template:views/layout.volt', 'consumers' => ['dashboard.read_incidents']],
         'public/assets/app.css' => ['owner' => 'asset:public/assets/app.css', 'consumers' => ['dashboard.read_incidents']],
+        'app/notification-schema.php' => ['owner' => 'Tablo\NotificationSchema', 'consumers' => ['Actual additive schema7 migration']],
+        'app/notification-settings.php' => ['owner' => 'Tablo\NotificationSettings', 'consumers' => ['dashboard.get_notifications', 'dashboard.update_notifications']],
+        'app/notification-projector.php' => ['owner' => 'Tablo\NotificationProjector', 'consumers' => ['dashboard.store_check', 'dashboard.settle_worker_check']],
+        'app/notification-outbox.php' => ['owner' => 'Tablo\NotificationOutbox', 'consumers' => ['dashboard.deliver_notification', 'dashboard.read_notification_status']],
+        'app/notification-delivery.php' => ['owner' => 'Tablo\NotificationDelivery', 'consumers' => ['dashboard.check_site', 'dashboard.run_worker_pass']],
+        'app/notification-lock.php' => ['owner' => 'Tablo\NotificationLock', 'consumers' => ['dashboard.deliver_notification', 'dashboard.update_notifications']],
+        'app/webhook-supervisor.php' => ['owner' => 'Tablo\WebhookSupervisor', 'consumers' => ['dashboard.deliver_notification']],
+        'app/webhook-address.php' => ['owner' => 'Tablo\WebhookAddress', 'consumers' => ['Tablo\HttpClient::postBefore', 'dashboard.update_notifications']],
+        'app/webhook-failure.php' => ['owner' => 'Tablo\WebhookFailure', 'consumers' => ['Tablo\HttpClient::postBefore', 'Tablo\WebhookSupervisor']],
+        'app/http-client.php' => ['owner' => 'Tablo\HttpClient', 'consumers' => ['dashboard.check_site', 'dashboard.deliver_notification']],
+        'bin/webhook-attempt.php' => ['owner' => 'php-script:bin/webhook-attempt.php', 'consumers' => ['Tablo\WebhookSupervisor']],
+        'views/settings.volt' => ['owner' => 'volt-template:views/settings.volt', 'consumers' => ['dashboard.get_notifications', 'dashboard.update_notifications', 'dashboard.read_notification_status']],
+        '.github/workflows/verify.yml' => ['owner' => 'github-workflow:Verify', 'consumers' => ['Hosted pinned contract and native PHP gates']],
     ];
 }
 
@@ -43,12 +71,13 @@ function dependencyHash(string $root, string $path): string
 function verifyWorkerDependencies(string $root): void
 {
     $path = $root . '/contracts/reviewed-dependencies.json';
-    if (!is_file($path)) { throw new RuntimeException('Missing reviewed dependencies. Explicit capture required.'); }
-    $manifest = json_decode(file_get_contents($path), true, 32, JSON_THROW_ON_ERROR);
+    if (!is_file($path)) { throw new RuntimeException('Missing project-local reviewed dependencies. Explicit capture required.'); }
+    try { $manifest = json_decode(file_get_contents($path), true, 32, JSON_THROW_ON_ERROR); }
+    catch (JsonException) { throw new RuntimeException('Malformed project-local reviewed dependencies.'); }
     if (!is_array($manifest) || array_keys($manifest) !== ['schema', 'dependencies']
         || $manifest['schema'] !== 'tablo/reviewed-dependencies/v1' || !is_array($manifest['dependencies'])
         || !array_is_list($manifest['dependencies']) || count($manifest['dependencies']) !== count(workerDependencies())) {
-        throw new RuntimeException('Invalid reviewed dependencies manifest.');
+        throw new RuntimeException('Invalid project-local reviewed dependencies manifest.');
     }
     foreach (array_keys(workerDependencies()) as $index => $path) {
         $entry = $manifest['dependencies'][$index];
@@ -56,10 +85,13 @@ function verifyWorkerDependencies(string $root): void
         if (!is_array($entry) || array_keys($entry) !== ['path', 'owner', 'consumers', 'fingerprint']
             || $entry['path'] !== $path || $entry['owner'] !== $metadata['owner'] || $entry['consumers'] !== $metadata['consumers']
             || !is_string($entry['fingerprint']) || !preg_match('/^sha256:[a-f0-9]{64}$/D', $entry['fingerprint'])) {
-            throw new RuntimeException('Invalid reviewed dependency metadata: ' . $path);
+            throw new RuntimeException('Invalid project-local reviewed dependency metadata: ' . $path);
         }
         if (!hash_equals($entry['fingerprint'], dependencyHash($root, $path))) {
-            throw new RuntimeException('Unreviewed dependency drift: ' . $path . '. Review source and explicitly capture bindings.');
+            throw new RuntimeException('Unreviewed dependency source drift: ' . $path . '. Review source and explicitly capture bindings.');
         }
     }
 }
+
+function requiredReviewedDependencies(): array { return workerDependencies(); }
+function checkReviewedDependencies(string $root): void { verifyWorkerDependencies($root); }

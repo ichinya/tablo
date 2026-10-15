@@ -68,6 +68,32 @@
             "returns": {
                 "ref": "dashboard.incident_page"
             }
+        },
+        {
+            "id": "dashboard.get_notifications",
+            "kind": "query",
+            "version": 1,
+            "description": "Presence-only authenticated settings query; no decrypt, DNS or sends.",
+            "reads": [
+                "dashboard.notification_settings"
+            ],
+            "returns": {
+                "ref": "dashboard.notification_metadata"
+            }
+        },
+        {
+            "id": "dashboard.read_notification_status",
+            "kind": "query",
+            "version": 1,
+            "description": "Safe status projection LIMIT50 with an explicit bounded truncation probe; authenticated settings GET can filter an integer site ID to reach every site's at most3 retained slots. Finite codes, counts/coalescing and observed times, never endpoint/token/name/cipher/payload. GET performs no outbox/settings mutation or delivery.",
+            "reads": [
+                "dashboard.notification_slot"
+            ],
+            "returns": {
+                "list": {
+                    "ref": "dashboard.notification_status"
+                }
+            }
         }
     ]
 }

@@ -7,7 +7,7 @@ final class GitHubConnection
 {
     private readonly GitHubRequestPolicy $policy;
 
-    public function __construct(private readonly SiteRepository $sites, private readonly HttpClient $http, ?GitHubRequestPolicy $policy = null,
+    public function __construct(#[\SensitiveParameter] private readonly SiteRepository $sites, private readonly HttpClient $http, ?GitHubRequestPolicy $policy = null,
         private readonly bool $worker = false)
     {
         $this->policy = $policy ?? new GitHubRequestPolicy($sites->githubCooldowns());
