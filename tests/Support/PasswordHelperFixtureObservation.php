@@ -52,9 +52,41 @@ final class PasswordHelperFixtureObservation
         if ($status['fixture']['state'] === 'append-failed') {
             throw new RuntimeException('Synthetic fixture observer collector failed; original child outcome retained');
         }
-        if ($status['fixture']['configured'] && self::records($evidence->fixturePath) === []) {
-            throw new RuntimeException('Required fixture observation not-observed; reached stages UNKNOWN');
+        if ($status['fixture']['configured']) {
+            self::assertComplete($evidence->fixturePath, self::caseMetadata(basename($evidence->path), $evidence->case->identity));
         }
+    }
+
+    /** @param array{encoding: string, scenario: string, phase: string, ...} $identity
+     * @return array<string, string> */
+    public static function caseMetadata(string $id, array $identity): array
+    {
+        return ['id' => $id, 'encoding' => $identity['encoding'], 'scenario' => $identity['scenario'],
+            'phase' => $identity['phase'], 'mode' => 'Native',
+            'control' => match ($identity['phase']) { 'fixture-control' => 'pre-helper-stall', default => 'none' }];
+    }
+
+    /** A nonempty prefix is insufficient when the fixed stderr failure signal is unavailable.
+     * @param array<string, string> $expectedCase */
+    public static function assertComplete(string $path, array $expectedCase): void
+    {
+        $records = self::records($path);
+        $stages = match (FixtureValue::at($expectedCase, 'control')) { 'pre-helper-stall' => ['fixture-entry'], default => self::STAGES };
+        $order = ['records' => count($records), 'stages' => array_column($records, 'stage'), 'sequences' => array_column($records, 'sequence')];
+        if ($order !== ['records' => count($stages), 'stages' => $stages, 'sequences' => range(1, count($stages))]) {
+            throw new RuntimeException('Required fixture observation not-observed or incomplete; reached stages UNKNOWN');
+        }
+        $cases = array_map(self::normalizedCase(...), array_column($records, 'case'));
+        if ($cases !== array_fill(0, count($stages), self::normalizedCase($expectedCase))) {
+            throw new RuntimeException('Invalid fixture observation case identity');
+        }
+    }
+
+    private static function normalizedCase(mixed $value): array
+    {
+        $case = JsonRecord::checked($value);
+        ksort($case);
+        return $case;
     }
 
     /** Bounded journal read; metadata is never copied from arbitrary exceptions or inputs.

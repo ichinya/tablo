@@ -39,6 +39,7 @@ function Write-FixtureObservation {
     } catch {
         $fixtureObservationState.failed = $true
         # Fixed collector signal only; PHP reports FAIL after original settlement.
-        [Console]::Error.WriteLine('HELPER_FIXTURE_OBSERVER_FAILURE=append-failed')
+        try { [Console]::Error.WriteLine('HELPER_FIXTURE_OBSERVER_FAILURE=append-failed') }
+        catch { } # Diagnostic channels may both fail; never replace the original outcome.
     }
 }

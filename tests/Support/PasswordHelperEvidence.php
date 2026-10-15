@@ -10,6 +10,16 @@ use WeakMap;
 /** Only an explicit synthetic case activates subprocess observation. */
 final class PasswordHelperEvidence
 {
+    /** @param array{pid: ?int, exit_code: ?int, root_exit_observed: bool, closed: bool, ...} $receipt */
+    public static function assertTerminated(array $receipt): void
+    {
+        $pid = FixtureValue::integer($receipt['pid']);
+        $exit = FixtureValue::integer($receipt['exit_code']);
+        if ($receipt['closed'] !== true || $receipt['root_exit_observed'] !== true || $pid <= 0 || $exit === 0) {
+            throw new RuntimeException('Required known nonzero direct-child closure is unavailable');
+        }
+    }
+
     /** @var WeakMap<TemporaryDirectory, self>|null */
     private static ?WeakMap $active = null;
     public readonly string $path;

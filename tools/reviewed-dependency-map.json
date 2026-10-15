@@ -7740,6 +7740,17 @@
       "Composer verify",
       "tests/Network/PasswordHelperTest.php",
       "tests/Network/PasswordHelperFixtureObservationTest.php",
+      "native-php-tests",
+      "tests/fixtures/password-helper-observer-control.ps1"
+    ]
+  },
+  "tests/fixtures/password-helper-observer-control.ps1": {
+    "owner": "powershell-script:tests/fixtures/password-helper-observer-control.ps1",
+    "consumers": [
+      "Composer lint",
+      "Composer analyze",
+      "Composer verify",
+      "tests/Network/PasswordHelperFixtureObservationTest.php",
       "native-php-tests"
     ]
   }
