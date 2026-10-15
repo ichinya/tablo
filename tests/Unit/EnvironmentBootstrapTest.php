@@ -74,6 +74,7 @@ final class EnvironmentBootstrapTest
             $database = new PDO('sqlite:' . $path);
             Assert::same((int) $database->query('SELECT COUNT(*) FROM sites')->fetchColumn(), 0);
             $database = null;
+        } catch (\Throwable $error) { $directory->retainFailure($error); throw $error;
         } finally { $directory->close(); }
     }
 
@@ -109,6 +110,7 @@ final class EnvironmentBootstrapTest
             foreach (['app', 'bin', 'public', 'vendor'] as $name) { mkdir($directory->path . '/' . $name); }
             copy($root . '/app/bootstrap.php', $directory->path . '/app/bootstrap.php');
             copy($root . '/bin/check.php', $directory->path . '/bin/check.php');
+            copy($root . '/app/check-diagnostics.php', $directory->path . '/app/check-diagnostics.php');
             $autoload = var_export($root . '/vendor/autoload.php', return: true);
             file_put_contents($directory->path . '/vendor/autoload.php', data: '<?php return require ' . $autoload . ';');
             $path = str_replace('\\', replace: '/', subject: $directory->path);

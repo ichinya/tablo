@@ -18,6 +18,7 @@ $mapping = [
     'update_site' => ['app/web-application.php', 'private function save'],
     'delete_site' => ['app/site-repository.php', 'public function delete'],
     'check_site' => ['app/site-checker.php', 'public function check'],
+    'run_checks' => ['app/check-command.php', 'public function run'],
     'list_sites' => ['app/site-repository.php', 'public function all'],
     'list_branches' => ['app/github-connection.php', 'public function branches'],
     'user' => ['database/schema.sql', 'CREATE TABLE IF NOT EXISTS users'],

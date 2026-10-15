@@ -259,6 +259,19 @@
                 "dashboard.list_branches",
                 "dashboard.run_worker_pass"
             ]
+        },
+        {
+            "id": "dashboard.one_shot_json",
+            "kind": "scenario",
+            "version": 1,
+            "summary": "Actual native CLI success/empty/paused/partial/fatal schema validation and negative assertions; independent health/Version/Git, confirmed absent release, true zero, cooldown reuse, fresh SQLite/key/HTTP controls, actual config/token/delete races and previous snapshot versus accepted write. Missing/corrupt/unverified key, damaged individual credential, late shared failure, missing autoload/malformed dotenv/libcurl bootstrap, explicit argv/help, malformed scalar/time/UTF8 and catchable encoding failure retain safe prior fragments. Synthetic reflected secrets have a positive scanner control and no public leak; legacy text/exit and worker state remain unchanged.",
+            "covers": [
+                "dashboard.run_checks",
+                "dashboard.check_site",
+                "dashboard.list_sites",
+                "dashboard.site",
+                "dashboard.github_cooldown"
+            ]
         }
     ]
 }

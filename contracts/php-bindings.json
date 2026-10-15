@@ -5,7 +5,7 @@
         "version": "0.1.0"
     },
     "project": "tablo",
-    "revision": "sha256:d70e750026c5dc4830a01d80bc54cac6fb594cdbc8eca077bf43d051420261bf",
+    "revision": "sha256:a3fa8469b3f1b800712f8e4f159de1a659753676f34411d85a030e80372c7431",
     "symbols": [
         {
             "id": "dashboard.change_admin_password",
@@ -211,13 +211,47 @@
                 "path": "app/site-checker.php",
                 "line": 11
             },
-            "fingerprint": "sha256:b136481f9b3e30a5e77c2d17f09f83bf8fa4ee30a3942f2919c1e3fb1789c980",
+            "fingerprint": "sha256:87a8336e6824645f8f9c610f783afbfa69be7e96695632e7554e9bf55c12d091",
             "signature": {
                 "inputs": [
                     {
                         "name": "id",
                         "type": "dashboard.number",
                         "required": true
+                    }
+                ],
+                "output": null,
+                "reads": []
+            },
+            "effects": [
+                {
+                    "kind": "update",
+                    "subject": "dashboard.site"
+                },
+                {
+                    "kind": "create",
+                    "subject": "dashboard.github_cooldown"
+                },
+                {
+                    "kind": "update",
+                    "subject": "dashboard.github_cooldown"
+                }
+            ]
+        },
+        {
+            "id": "dashboard.run_checks",
+            "kind": "command",
+            "source": {
+                "path": "app/check-command.php",
+                "line": 12
+            },
+            "fingerprint": "sha256:fb1c6fe9b6123f1998eb6dd68c595bf467379a8cbaaa78b7c186ddebf7ba34bc",
+            "signature": {
+                "inputs": [
+                    {
+                        "name": "json",
+                        "type": "optional(dashboard.flag)",
+                        "required": false
                     }
                 ],
                 "output": null,
@@ -262,7 +296,7 @@
                 "path": "app/github-connection.php",
                 "line": 50
             },
-            "fingerprint": "sha256:99b789a92b5f8f5da0a63369e25894a9f49f72258273158c6dcea0fa5c45e044",
+            "fingerprint": "sha256:d162e376940578e8ae78ca3eee6786a2215b99dd1393a43d459634270ef67774",
             "signature": {
                 "inputs": [
                     {

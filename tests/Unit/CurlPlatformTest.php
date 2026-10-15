@@ -54,7 +54,10 @@ final class CurlPlatformTest
         try {
             foreach ([['bin/check.php'], ['bin/worker.php'], ['bin/key-preflight.php'],
                 ['bin/admin-password.php', '--show-installation']] as $arguments) {
-                $result = Subprocess::run([PHP_BINARY, '-d', 'disable_functions=curl_version', ...$arguments],
+                // CLI OPcache on the pinned Windows runtime misdispatches disabled
+                // functions. Keep this negative-capability child uncached; the
+                // ordinary runtime and the actual bootstrap guard stay unchanged.
+                $result = Subprocess::run([PHP_BINARY, '-d', 'opcache.enable_cli=0', '-d', 'disable_functions=curl_version', ...$arguments],
                     $directory, ['TABLO_DB' => $directory->path . '/must-not-exist.sqlite',
                         'TABLO_TOKEN_KEY_FILE' => $directory->path . '/must-not-exist.key']);
                 Assert::same($result['exit_code'], $arguments[0] === 'bin/admin-password.php' ? 3 : 1);

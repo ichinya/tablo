@@ -1,0 +1,802 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Tablo one-shot check output v1",
+  "type": "object",
+  "required": [
+    "schema_version",
+    "run",
+    "sites"
+  ],
+  "additionalProperties": false,
+  "properties": {
+    "schema_version": {
+      "const": "tablo/check/v1"
+    },
+    "run": {
+      "type": "object",
+      "required": [
+        "status",
+        "reason",
+        "exit_code",
+        "started_at",
+        "finished_at"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "status": {
+          "type": "string",
+          "enum": [
+            "success",
+            "partial",
+            "fatal"
+          ]
+        },
+        "reason": {
+          "type": "string",
+          "enum": [
+            "complete",
+            "empty",
+            "help",
+            "attention",
+            "invalid-arguments",
+            "bootstrap-failed",
+            "installation-failed",
+            "storage-failed",
+            "key-unavailable",
+            "check-failed",
+            "serialization-failed"
+          ]
+        },
+        "exit_code": {
+          "type": "integer",
+          "enum": [
+            0,
+            1
+          ]
+        },
+        "started_at": {
+          "anyOf": [
+            {
+              "type": "null"
+            },
+            {
+              "type": "string",
+              "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}Z$"
+            }
+          ]
+        },
+        "finished_at": {
+          "anyOf": [
+            {
+              "type": "null"
+            },
+            {
+              "type": "string",
+              "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}Z$"
+            }
+          ]
+        }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "status": {
+                "const": "success"
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "exit_code": {
+                "const": 0
+              }
+            }
+          },
+          "else": {
+            "properties": {
+              "exit_code": {
+                "const": 1
+              }
+            }
+          }
+        }
+      ]
+    },
+    "sites": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/site"
+      }
+    }
+  },
+  "$defs": {
+    "site": {
+      "type": "object",
+      "required": [
+        "id",
+        "status",
+        "reason",
+        "attention",
+        "observation",
+        "persistence"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "id": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "status": {
+          "type": "string",
+          "enum": [
+            "checked",
+            "paused",
+            "skipped",
+            "failed"
+          ]
+        },
+        "reason": {
+          "type": "string",
+          "enum": [
+            "ok",
+            "attention",
+            "disabled",
+            "stale-result",
+            "run-aborted",
+            "site-validation-failed",
+            "storage-failed",
+            "key-unavailable",
+            "check-failed",
+            "serialization-failed"
+          ]
+        },
+        "attention": {
+          "anyOf": [
+            {
+              "type": "null"
+            },
+            {
+              "type": "boolean"
+            }
+          ]
+        },
+        "observation": {
+          "anyOf": [
+            {
+              "type": "null"
+            },
+            {
+              "$ref": "#/$defs/observation"
+            }
+          ]
+        },
+        "persistence": {
+          "type": "object",
+          "required": [
+            "status",
+            "accepted",
+            "previous_checked_at",
+            "previous_freshness",
+            "accepted_checked_at"
+          ],
+          "additionalProperties": false,
+          "properties": {
+            "status": {
+              "type": "string",
+              "enum": [
+                "accepted",
+                "rejected-stale",
+                "not-attempted",
+                "unknown"
+              ]
+            },
+            "accepted": {
+              "anyOf": [
+                {
+                  "type": "null"
+                },
+                {
+                  "type": "boolean"
+                }
+              ]
+            },
+            "previous_checked_at": {
+              "anyOf": [
+                {
+                  "type": "null"
+                },
+                {
+                  "type": "string",
+                  "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}Z$"
+                }
+              ]
+            },
+            "previous_freshness": {
+              "type": "string",
+              "enum": [
+                "never",
+                "unknown",
+                "fresh",
+                "stale"
+              ]
+            },
+            "accepted_checked_at": {
+              "anyOf": [
+                {
+                  "type": "null"
+                },
+                {
+                  "type": "string",
+                  "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}Z$"
+                }
+              ]
+            }
+          },
+          "allOf": [
+            {
+              "if": {
+                "properties": {
+                  "status": {
+                    "const": "accepted"
+                  }
+                }
+              },
+              "then": {
+                "properties": {
+                  "accepted": {
+                    "const": true
+                  },
+                  "accepted_checked_at": {
+                    "type": "string",
+                    "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}Z$"
+                  }
+                }
+              }
+            },
+            {
+              "if": {
+                "properties": {
+                  "status": {
+                    "const": "rejected-stale"
+                  }
+                }
+              },
+              "then": {
+                "properties": {
+                  "accepted": {
+                    "const": false
+                  },
+                  "accepted_checked_at": {
+                    "const": null
+                  }
+                }
+              }
+            },
+            {
+              "if": {
+                "properties": {
+                  "status": {
+                    "const": "not-attempted"
+                  }
+                }
+              },
+              "then": {
+                "properties": {
+                  "accepted": {
+                    "const": null
+                  },
+                  "accepted_checked_at": {
+                    "const": null
+                  }
+                }
+              }
+            },
+            {
+              "if": {
+                "properties": {
+                  "status": {
+                    "const": "unknown"
+                  }
+                }
+              },
+              "then": {
+                "properties": {
+                  "accepted": {
+                    "const": null
+                  },
+                  "accepted_checked_at": {
+                    "const": null
+                  }
+                }
+              }
+            }
+          ]
+        }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "status": {
+                "const": "paused"
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "reason": {
+                "const": "disabled"
+              },
+              "attention": {
+                "const": null
+              },
+              "observation": {
+                "const": null
+              },
+              "persistence": {
+                "properties": {
+                  "status": {
+                    "const": "not-attempted"
+                  }
+                }
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "status": {
+                "const": "skipped"
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "reason": {
+                "const": "run-aborted"
+              },
+              "attention": {
+                "const": null
+              },
+              "observation": {
+                "const": null
+              },
+              "persistence": {
+                "properties": {
+                  "status": {
+                    "const": "not-attempted"
+                  }
+                }
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "status": {
+                "const": "checked"
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "observation": {
+                "$ref": "#/$defs/observation"
+              },
+              "attention": {
+                "type": "boolean"
+              }
+            }
+          }
+        }
+      ]
+    },
+    "observation": {
+      "type": "object",
+      "required": [
+        "checked_at",
+        "freshness",
+        "health",
+        "version",
+        "git"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "checked_at": {
+          "type": "string",
+          "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}Z$"
+        },
+        "freshness": {
+          "type": "string",
+          "enum": [
+            "fresh",
+            "stale"
+          ]
+        },
+        "health": {
+          "type": "object",
+          "required": [
+            "status",
+            "reason",
+            "http_status",
+            "response_time_ms"
+          ],
+          "additionalProperties": false,
+          "properties": {
+            "status": {
+              "type": "string",
+              "enum": [
+                "online",
+                "offline",
+                "unknown"
+              ]
+            },
+            "reason": {
+              "type": "string",
+              "enum": [
+                "ok",
+                "http",
+                "timeout",
+                "refused",
+                "dns",
+                "ssrf",
+                "tls",
+                "size",
+                "invalid-response",
+                "invalid-url",
+                "redirect-location-missing",
+                "redirect-location-invalid",
+                "redirect-origin",
+                "redirect-cycle",
+                "redirect-limit",
+                "network",
+                "check-error",
+                "json-condition"
+              ]
+            },
+            "http_status": {
+              "anyOf": [
+                {
+                  "type": "null"
+                },
+                {
+                  "type": "integer",
+                  "minimum": 100,
+                  "maximum": 599
+                }
+              ]
+            },
+            "response_time_ms": {
+              "anyOf": [
+                {
+                  "type": "null"
+                },
+                {
+                  "type": "integer",
+                  "minimum": 0
+                }
+              ]
+            }
+          }
+        },
+        "version": {
+          "type": "object",
+          "required": [
+            "status",
+            "reason",
+            "http_status",
+            "has_version",
+            "has_commit"
+          ],
+          "additionalProperties": false,
+          "properties": {
+            "status": {
+              "type": "string",
+              "enum": [
+                "ok",
+                "failed",
+                "skipped"
+              ]
+            },
+            "reason": {
+              "type": "string",
+              "enum": [
+                "ok",
+                "http",
+                "timeout",
+                "refused",
+                "dns",
+                "ssrf",
+                "tls",
+                "size",
+                "invalid-response",
+                "invalid-url",
+                "redirect-location-missing",
+                "redirect-location-invalid",
+                "redirect-origin",
+                "redirect-cycle",
+                "redirect-limit",
+                "network",
+                "check-error",
+                "json-condition",
+                "invalid-data",
+                "not-configured"
+              ]
+            },
+            "http_status": {
+              "anyOf": [
+                {
+                  "type": "null"
+                },
+                {
+                  "type": "integer",
+                  "minimum": 100,
+                  "maximum": 599
+                }
+              ]
+            },
+            "has_version": {
+              "anyOf": [
+                {
+                  "type": "null"
+                },
+                {
+                  "type": "boolean"
+                }
+              ]
+            },
+            "has_commit": {
+              "anyOf": [
+                {
+                  "type": "null"
+                },
+                {
+                  "type": "boolean"
+                }
+              ]
+            }
+          },
+          "allOf": [
+            {
+              "if": {
+                "properties": {
+                  "status": {
+                    "const": "failed"
+                  }
+                }
+              },
+              "then": {
+                "properties": {
+                  "has_version": {
+                    "const": null
+                  },
+                  "has_commit": {
+                    "const": null
+                  }
+                }
+              }
+            },
+            {
+              "if": {
+                "properties": {
+                  "status": {
+                    "const": "skipped"
+                  }
+                }
+              },
+              "then": {
+                "properties": {
+                  "reason": {
+                    "const": "not-configured"
+                  },
+                  "http_status": {
+                    "const": null
+                  },
+                  "has_version": {
+                    "const": null
+                  },
+                  "has_commit": {
+                    "const": null
+                  }
+                }
+              }
+            }
+          ]
+        },
+        "git": {
+          "type": "object",
+          "required": [
+            "status",
+            "fields"
+          ],
+          "additionalProperties": false,
+          "properties": {
+            "status": {
+              "type": "string",
+              "enum": [
+                "success",
+                "partial",
+                "failed"
+              ]
+            },
+            "fields": {
+              "type": "object",
+              "required": [
+                "latest_release",
+                "latest_commit",
+                "open_issues",
+                "open_prs"
+              ],
+              "additionalProperties": false,
+              "properties": {
+                "latest_release": {
+                  "$ref": "#/$defs/gitField"
+                },
+                "latest_commit": {
+                  "$ref": "#/$defs/gitField"
+                },
+                "open_issues": {
+                  "$ref": "#/$defs/gitField"
+                },
+                "open_prs": {
+                  "$ref": "#/$defs/gitField"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "gitField": {
+      "type": "object",
+      "required": [
+        "status",
+        "reason",
+        "http_status",
+        "eligible_at",
+        "has_value",
+        "value"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "status": {
+          "type": "string",
+          "enum": [
+            "ok",
+            "absent",
+            "failed"
+          ]
+        },
+        "reason": {
+          "type": "string",
+          "enum": [
+            "ok",
+            "no-release",
+            "access",
+            "rate-limit",
+            "budget",
+            "credential-changed",
+            "renamed",
+            "branch-unconfirmed",
+            "branches-too-large",
+            "branches-empty",
+            "branches-timeout",
+            "release-unconfirmed",
+            "incomplete-search",
+            "invalid-data",
+            "unavailable"
+          ]
+        },
+        "http_status": {
+          "anyOf": [
+            {
+              "type": "null"
+            },
+            {
+              "type": "integer",
+              "minimum": 100,
+              "maximum": 599
+            }
+          ]
+        },
+        "eligible_at": {
+          "anyOf": [
+            {
+              "type": "null"
+            },
+            {
+              "type": "string",
+              "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}Z$"
+            }
+          ]
+        },
+        "has_value": {
+          "anyOf": [
+            {
+              "type": "null"
+            },
+            {
+              "type": "boolean"
+            }
+          ]
+        },
+        "value": {
+          "anyOf": [
+            {
+              "type": "null"
+            },
+            {
+              "type": "integer",
+              "minimum": 0
+            }
+          ]
+        }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "status": {
+                "const": "failed"
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "has_value": {
+                "const": null
+              },
+              "value": {
+                "const": null
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "status": {
+                "const": "absent"
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "reason": {
+                "const": "no-release"
+              },
+              "has_value": {
+                "const": false
+              },
+              "value": {
+                "const": null
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "status": {
+                "const": "ok"
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "reason": {
+                "const": "ok"
+              },
+              "has_value": {
+                "const": true
+              }
+            }
+          }
+        }
+      ]
+    }
+  }
+}
