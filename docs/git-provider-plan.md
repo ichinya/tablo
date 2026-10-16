@@ -95,12 +95,17 @@ host. GitHub получает `github-public` с API `https://api.github.com` и
 - Provider/origin/mount нельзя редактировать; нужно создать новый host и явно
   перепривязать sites/credentials. Удаление используемого host запрещено.
 
-Repository принимает `owner/repo`, один terminal `.git` либо HTTPS web URL точно
+Для Gitea repository принимает `owner/repo`, один terminal `.git` либо HTTPS web URL точно
 зарегистрированного origin/mount с этими двумя сегментами и необязательным конечным
 slash. Каждый сегмент: 1–100 ASCII `[A-Za-z0-9_][A-Za-z0-9_.-]*`, общий slug
 до 140 байт; case сохраняется, один terminal `.git` удаляется. Это ограниченный
 поднабор Tablo, а не максимумы Gitea. SSH/scp/git, network-path, nested namespace,
 userinfo, encoded repository path, query/fragment и произвольный API URL запрещены.
+
+Эта новая grammar применяется только к Gitea. Для GitHub сохраняются текущий owner
+`^[a-zA-Z0-9][a-zA-Z0-9-]{0,38}$`, repository `[a-zA-Z0-9_.-]{1,100}`
+с запретом `.` и `..`, прежняя нормализация GitHub URL/terminal `.git` и общий
+предел slug 140 байт. Контракт ввода GitHub не расширяется.
 
 Branch остаётся непустой UTF-8 строкой до 128 байт без whitespace/control/NUL.
 Literal кодируется один раз как один path parameter: `feature/topic` →
@@ -109,7 +114,9 @@ Literal кодируется один раз как один path parameter: `fe
 не заменяет отсутствующую ветку. Символ `?` используется как отрицательный тест
 сериализации request-target, без утверждения о допустимости такого имени в Git.
 
-Gitea использует только reusable saved tokens. Достаточный набор —
+Gitea MVP требует reusable saved token: `git_token_id=NULL` вызывает validation
+по `git_token_id` до любых запросов и decrypt. Анонимного режима Gitea в MVP нет;
+существующий анонимный GitHub сохраняется. Достаточный набор прав токена —
 `read:repository` + `read:issue` и права пользователя на private repo и нужные
 units; public-only token недостаточен, admin/write scopes не требуются.
 [API usage 1.26](https://docs.gitea.com/1.26/development/api-usage/)
@@ -171,6 +178,12 @@ foreign origin, prefix escape, opaque cursor или исчерпание cap/dea
 весь picker. Частичного списка нет. Основа wire pagination —
 [API usage 1.26](https://docs.gitea.com/1.26/development/api-usage/).
 
+Конкурентное создание/удаление веток может изменить `X-Total-Count` между страницами
+и вызвать ожидаемый fail-closed отказ по согласованности без частичного списка.
+Позднейший свежий явный preview или новая операция может начать обход заново
+с новым budget; немедленного retry внутри текущего ограниченного обхода нет.
+Это поведение picker, отдельное от периодических worker-проверок HEAD выбранной ветки.
+
 ## Transport, budgets и безопасные ошибки
 
 Git принудительно использует public-only admission независимо от health settings:
@@ -198,13 +211,16 @@ GitHub-only поведение и его отдельные core/search/secondar
 | --- | --- |
 | Невалидный input, unknown host или несовпадение token tuple | Validation 422 до decrypt/HTTP |
 | 401/403/required 404 | `access`; обычный 403 не создаёт cooldown |
-| 3xx | `renamed`, без follow |
+| 3xx, кроме 304 | `renamed`, без follow; 304 остаётся `unavailable` |
 | 429 | `rate-limit`; Retry-After delta/date с локальным floor 60 s и cap 24 h; missing/invalid/duplicate/overflow/past → явно локальные 60 s |
 | Malformed rate headers на 200 | Сохранить валидную метрику, не выдумывать cooldown |
 | 5xx, TLS/DNS/network/timeout, HTML 200, неожиданный 304 | `unavailable` |
 | Плохой shape/SHA/UTF-8/count/pagination | `invalid-data`; несовпавшее имя ветки → `branch-unconfirmed` |
 | Локальный budget или stale credential/config proof | `budget` или `credential-changed`; stale результат не записывается |
 | Empty/too large/timed-out branch preview | `branches-empty`, `branches-too-large`, `branches-timeout` только для preview |
+
+Эта таблица задаёт Gitea; текущая классификация GitHub 301/302 как `renamed`
+и остальных неожиданных 3xx как `unavailable` сохраняется.
 
 Независимые успешные поля сохраняются, failed fields равны null, совокупный Git
 статус может быть partial; health/version не теряют успешные результаты.
@@ -335,8 +351,13 @@ Http проверяет session/CSRF и consumers; SQLite — native migrations/
 отдельная одноразовая установка поддерживаемого Gitea с private repo подтверждает
 реальные scopes/units, proxy encoding, headers и server clamps.
 
-Сохранить все 436 текущих test identities и прежний binding baseline 403;
-исторический subset 403 отдельно не реконструировался. В существующем
+Сохранить все 436 текущих test identities и все уже привязанные test identities
+по [contracts/php-bindings.json на pinned commit df0a5e8](https://github.com/ichinya/tablo/blob/df0a5e81edf8084835ddaec1d0edc0bbb7ff77dd/contracts/php-bindings.json).
+Воспроизводимая инвентаризация на этом commit: прочитать command/query symbols
+декларации, вычислить их native test-file union по правилам `tools/verify.php`
+и перечислить `#[Test]` identities (namespace/class/method) в этих файлах.
+Будущий набор обязан включать каждую identity исходного набора; отдельный
+непроверенный числовой binding baseline не задаётся. В существующем
 `composer verify` reviewed-dependency guard идёт первым, затем Mago lint/analyze
 с Note threshold, model validate/offline lock/source fingerprints и native
 attachment union. Не добавлять suppressions (baseline: 3 analysis, 23 lint),
