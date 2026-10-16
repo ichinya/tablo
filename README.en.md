@@ -447,8 +447,9 @@ and results are preserved.
 Table creation, missing columns, and the version update share one transaction.
 On failure it rolls back and a later connection can retry. Upgrades do not replace
 the administrator password, sites, encryption key, or saved tokens. For a current
-schema, the migrator only reads the version: no DDL or write lock. Concurrent
-processes recheck after acquiring the lock and skip an already completed upgrade.
+schema, the migrator validates the supported physical layout and foreign keys
+without applying DDL or acquiring the migration write lock. Concurrent processes
+recheck after acquiring the lock and skip an already completed upgrade.
 A future version or incompatible old layout is refused without modifying data;
 never lower `user_version` to run an older application. The separate Read API
 reader requires a current installation and never migrates it.
