@@ -12,6 +12,7 @@ use Tablo\Tests\Support\PasswordHelperEvidence;
 use Tablo\Tests\Support\PasswordHelperEvidenceFiles;
 use Tablo\Tests\Support\PasswordHelperEvidenceStart;
 use Tablo\Tests\Support\PasswordHelperFixtureObservation;
+use Tablo\Tests\Support\PasswordHelperFixtureReadiness;
 use Tablo\Tests\Support\Subprocess;
 use Tablo\Tests\Support\TemporaryDirectory;
 use Testo\Assert;
@@ -41,7 +42,8 @@ final class PasswordHelperFixtureObservationTest
             $child = new Subprocess(PasswordHelperCommand::forEvidence($evidence), $directory);
             $child->send('');
             PasswordHelperEvidenceStart::awaitFixtureEntry($evidence->fixturePath,
-                PasswordHelperFixtureObservation::caseMetadata(basename($evidence->path), $evidence->case->identity), $startedNs);
+                PasswordHelperFixtureObservation::caseMetadata(basename($evidence->path), $evidence->case->identity), $startedNs,
+                new PasswordHelperFixtureReadiness($directory, 'HELPER_FIXTURE_CONTROL=pre-helper-stall'));
             $error = self::rejection(static fn() => $child->finish(0.2));
             Assert::instanceOf($error, RuntimeException::class);
             Assert::true(str_contains($error->getMessage(), 'stage=timeout'));
@@ -125,7 +127,7 @@ final class PasswordHelperFixtureObservationTest
             $startedNs = FixtureValue::integer(hrtime(true));
             $child = new Subprocess($argv, $delayed);
             $child->send('');
-            PasswordHelperEvidenceStart::awaitFixtureEntry($journal, $case, $startedNs);
+            PasswordHelperEvidenceStart::awaitFixtureEntry($journal, $case, $startedNs, new PasswordHelperFixtureReadiness($delayed, 'HELPER_OBSERVER_CONTROL=entry'));
             $error = self::rejection(static fn() => $child->finish(0.2));
             Assert::instanceOf($error, RuntimeException::class);
             Assert::true(str_contains($error->getMessage(), 'stage=timeout'));
@@ -146,7 +148,8 @@ final class PasswordHelperFixtureObservationTest
             $startedNs = FixtureValue::integer(hrtime(true));
             $child = new Subprocess($argv, $absent);
             $child->send('');
-            $error = self::rejection(static fn() => PasswordHelperEvidenceStart::awaitFixtureEntry($journal, $case, $startedNs, timeout: 0.2));
+            $error = self::rejection(static fn() => PasswordHelperEvidenceStart::awaitFixtureEntry($journal, $case, $startedNs,
+                new PasswordHelperFixtureReadiness($absent, 'HELPER_OBSERVER_CONTROL=entry'), timeout: 0.2));
             Assert::instanceOf($error, RuntimeException::class);
             Assert::true(str_contains($error->getMessage(), 'stage=fixture-readiness; state=not-observed'));
             $absent->retainFailure($error);

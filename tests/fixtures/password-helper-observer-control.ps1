@@ -1,5 +1,5 @@
 param(
-    [ValidateSet('missing-healthy', 'missing-disposed', 'prefix-healthy', 'prefix-disposed', 'complete', 'complete-extra', 'delayed-entry', 'no-entry')]
+    [ValidateSet('missing-healthy', 'missing-disposed', 'prefix-healthy', 'prefix-disposed', 'complete', 'complete-extra', 'delayed-entry', 'no-entry', 'entry-before-marker', 'entry-no-marker', 'marker-no-entry')]
     [string] $Control,
     [string] $Journal,
     [ValidatePattern('^case-[a-f0-9]{24}$')]
@@ -13,6 +13,22 @@ $ObservationPath = ''; $fixtureObservationPresence = @{}; $fixtureObservationEnc
 . (Join-Path $PSScriptRoot 'password-helper-fixture-observation.ps1')
 
 # Component controls invoke the real writer, never the helper, PHP, or a database.
+if ($Control -in @('entry-before-marker', 'entry-no-marker', 'marker-no-entry')) {
+    $CasePhase = 'fixture-control'; $FixtureControl = 'pre-helper-stall'
+    if ($Control -eq 'marker-no-entry') { [Console]::Out.WriteLine('HELPER_OBSERVER_CONTROL=entry') }
+    else {
+        Write-FixtureObservation 'fixture-entry'
+        [Console]::Out.WriteLine('HELPER_OBSERVER_CONTROL=journal-ready')
+        if ($Control -eq 'entry-before-marker') {
+            $releaseMarker = Join-Path (Split-Path -Parent $Journal) 'release-marker'
+            while (-not (Test-Path -LiteralPath $releaseMarker)) { Start-Sleep -Milliseconds 20 }
+            Start-Sleep -Milliseconds 600
+            [Console]::Out.WriteLine('HELPER_OBSERVER_CONTROL=entry')
+        }
+    }
+    while ($true) { Start-Sleep -Milliseconds 100 }
+}
+
 if ($Control -in @('delayed-entry', 'no-entry')) {
     $CasePhase = 'fixture-control'; $FixtureControl = 'pre-helper-stall'
     if ($Control -eq 'delayed-entry') {
