@@ -4833,7 +4833,8 @@
       "Composer analyze",
       "tests/Network/PasswordHelperTest.php",
       "tests/Network/PasswordHelperDiagnosticsTest.php",
-      "tests/Network/PasswordHelperRetentionTest.php"
+      "tests/Network/PasswordHelperRetentionTest.php",
+      "tests/Network/PasswordHelperFixtureObservationTest.php"
     ]
   },
   "tests/Network/PasswordHelperTest.php": {
@@ -5325,7 +5326,8 @@
     "consumers": [
       "Composer lint",
       "Composer analyze",
-      "Composer verify"
+      "Composer verify",
+      "tests/Network/PasswordHelperFixtureReadinessTest.php"
     ]
   },
   "tests/Support/FixtureJson.php": {
@@ -5389,7 +5391,8 @@
     "consumers": [
       "Composer lint",
       "Composer analyze",
-      "Composer verify"
+      "Composer verify",
+      "tests/Network/PasswordHelperFixtureReadinessTest.php"
     ]
   },
   "tests/Support/FixtureWireRows.php": {
@@ -5695,7 +5698,8 @@
       "Native CLI direct-child receipts",
       "Composer lint",
       "Composer verify",
-      "Composer analyze"
+      "Composer analyze",
+      "tests/Network/PasswordHelperFixtureReadinessTest.php"
     ]
   },
   "tests/Support/SubprocessClosure.php": {
@@ -5768,7 +5772,8 @@
       "Composer analyze",
       "tests/Network/PasswordHelperTest.php",
       "tests/Network/PasswordHelperDiagnosticsTest.php",
-      "tests/Network/PasswordHelperRetentionTest.php"
+      "tests/Network/PasswordHelperRetentionTest.php",
+      "tests/Network/PasswordHelperFixtureReadinessTest.php"
     ]
   },
   "tests/Support/SubprocessReceiptData.php": {
@@ -5820,7 +5825,8 @@
       "Native CLI fixture custody",
       "Composer lint",
       "Composer verify",
-      "Composer analyze"
+      "Composer analyze",
+      "tests/Network/PasswordHelperFixtureReadinessTest.php"
     ]
   },
   "tests/Support/TestServer.php": {
@@ -7290,7 +7296,8 @@
       "tests/Network/PasswordHelperTest.php",
       "tests/Network/PasswordHelperDiagnosticsTest.php",
       "tests/Network/PasswordHelperRetentionTest.php",
-      "Native dashboard.setup/login/change_admin_password attachment"
+      "Native dashboard.setup/login/change_admin_password attachment",
+      "tests/Network/PasswordHelperFixtureObservationTest.php"
     ]
   },
   "tests/Support/PasswordHelperCase.php": {
@@ -7302,7 +7309,8 @@
       "tests/Network/PasswordHelperTest.php",
       "tests/Network/PasswordHelperDiagnosticsTest.php",
       "tests/Network/PasswordHelperRetentionTest.php",
-      "Native dashboard.setup/login/change_admin_password attachment"
+      "Native dashboard.setup/login/change_admin_password attachment",
+      "tests/Network/PasswordHelperFixtureObservationTest.php"
     ]
   },
   "tests/Support/PasswordHelperEvidence.php": {
@@ -7314,7 +7322,9 @@
       "tests/Network/PasswordHelperTest.php",
       "tests/Network/PasswordHelperDiagnosticsTest.php",
       "tests/Network/PasswordHelperRetentionTest.php",
-      "Native dashboard.setup/login/change_admin_password attachment"
+      "Native dashboard.setup/login/change_admin_password attachment",
+      "tests/Network/PasswordHelperFixtureObservationTest.php",
+      "tests/Network/PasswordHelperFixtureReadinessTest.php"
     ]
   },
   "tests/Support/PasswordHelperEvidenceFiles.php": {
@@ -7326,7 +7336,8 @@
       "tests/Network/PasswordHelperTest.php",
       "tests/Network/PasswordHelperDiagnosticsTest.php",
       "tests/Network/PasswordHelperRetentionTest.php",
-      "Native dashboard.setup/login/change_admin_password attachment"
+      "Native dashboard.setup/login/change_admin_password attachment",
+      "tests/Network/PasswordHelperFixtureReadinessTest.php"
     ]
   },
   "tests/Support/PasswordHelperEvidenceStart.php": {
@@ -7338,7 +7349,9 @@
       "tests/Network/PasswordHelperTest.php",
       "tests/Network/PasswordHelperDiagnosticsTest.php",
       "tests/Network/PasswordHelperRetentionTest.php",
-      "Native dashboard.setup/login/change_admin_password attachment"
+      "Native dashboard.setup/login/change_admin_password attachment",
+      "tests/Network/PasswordHelperFixtureObservationTest.php",
+      "tests/Network/PasswordHelperFixtureReadinessTest.php"
     ]
   },
   "tests/Support/PasswordHelperFailureState.php": {
@@ -7374,7 +7387,8 @@
       "tests/Network/PasswordHelperTest.php",
       "tests/Network/PasswordHelperDiagnosticsTest.php",
       "tests/Network/PasswordHelperRetentionTest.php",
-      "Native dashboard.setup/login/change_admin_password attachment"
+      "Native dashboard.setup/login/change_admin_password attachment",
+      "tests/Network/PasswordHelperFixtureObservationTest.php"
     ]
   },
   "tests/Support/PasswordHelperDatabaseFixture.php": {
@@ -7702,6 +7716,75 @@
     "owner": "Version 1 external read contract",
     "consumers": [
       "Read API documentation and privacy review"
+    ]
+  },
+  "tests/Network/PasswordHelperFixtureObservationTest.php": {
+    "owner": "Tablo\\Tests\\Network\\PasswordHelperFixtureObservationTest",
+    "consumers": [
+      "Composer lint",
+      "Composer analyze",
+      "Composer verify",
+      "tests/Network/PasswordHelperTest.php",
+      "tests/Network/PasswordHelperFixtureObservationTest.php",
+      "native-php-tests"
+    ]
+  },
+  "tests/Support/PasswordHelperFixtureObservation.php": {
+    "owner": "Tablo\\Tests\\Support\\PasswordHelperFixtureObservation",
+    "consumers": [
+      "Composer lint",
+      "Composer analyze",
+      "Composer verify",
+      "tests/Network/PasswordHelperTest.php",
+      "tests/Network/PasswordHelperFixtureObservationTest.php",
+      "native-php-tests",
+      "tests/Network/PasswordHelperFixtureReadinessTest.php"
+    ]
+  },
+  "tests/fixtures/password-helper-fixture-observation.ps1": {
+    "owner": "powershell-script:tests/fixtures/password-helper-fixture-observation.ps1",
+    "consumers": [
+      "Composer lint",
+      "Composer analyze",
+      "Composer verify",
+      "tests/Network/PasswordHelperTest.php",
+      "tests/Network/PasswordHelperFixtureObservationTest.php",
+      "native-php-tests",
+      "tests/fixtures/password-helper-observer-control.ps1",
+      "tests/Network/PasswordHelperFixtureReadinessTest.php"
+    ]
+  },
+  "tests/fixtures/password-helper-observer-control.ps1": {
+    "owner": "powershell-script:tests/fixtures/password-helper-observer-control.ps1",
+    "consumers": [
+      "Composer lint",
+      "Composer analyze",
+      "Composer verify",
+      "tests/Network/PasswordHelperFixtureObservationTest.php",
+      "native-php-tests",
+      "tests/Network/PasswordHelperFixtureReadinessTest.php"
+    ]
+  },
+  "tests/Support/PasswordHelperFixtureReadiness.php": {
+    "owner": "Tablo\\Tests\\Support\\PasswordHelperFixtureReadiness",
+    "consumers": [
+      "Composer lint",
+      "Composer analyze",
+      "Composer verify",
+      "tests/Support/PasswordHelperEvidenceStart.php",
+      "tests/Network/PasswordHelperFixtureObservationTest.php",
+      "tests/Network/PasswordHelperFixtureReadinessTest.php",
+      "native-php-tests"
+    ]
+  },
+  "tests/Network/PasswordHelperFixtureReadinessTest.php": {
+    "owner": "Tablo\\Tests\\Network\\PasswordHelperFixtureReadinessTest",
+    "consumers": [
+      "Composer lint",
+      "Composer analyze",
+      "Composer verify",
+      "tests/Network/PasswordHelperFixtureReadinessTest.php",
+      "native-php-tests"
     ]
   }
 }
