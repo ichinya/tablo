@@ -107,7 +107,9 @@ userinfo, encoded repository path, query/fragment и произвольный AP
 с запретом `.` и `..`, прежняя нормализация GitHub URL/terminal `.git` и общий
 предел slug 140 байт. Контракт ввода GitHub не расширяется.
 
-Branch остаётся непустой UTF-8 строкой до 128 байт без whitespace/control/NUL.
+Текущая проверка branch требует непустую строку до 128 байт без regex-whitespace
+(`\s`) и байтов `0x00`–`0x1f`; она дополнительно не проверяет валидность UTF-8
+и не исключает DEL (`0x7f`).
 Literal кодируется один раз как один path parameter: `feature/topic` →
 `feature%2Ftopic`, `x%2Fy` → `x%252Fy`, `release+fix` → `release%2Bfix`.
 Ответ обязан подтвердить точное имя и `commit.id` из 40/64 hex. Tag/ref/commit
