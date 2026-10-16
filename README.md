@@ -1278,3 +1278,5 @@ uses the actual lowercase paths on both Windows and case-sensitive Linux.
 ## Read API
 
 External scripts can read site configuration and latest state through the versioned, readonly bearer API. It starts off; the administrator creates, rotates or revokes its separate token in Settings. See [the v1 contract and privacy limits](docs/read-api.md) and [JSON schema](contracts/read-api-v1.schema.json).
+
+План расширения Git-провайдеров: [Gitea, контракты и будущая приёмка](docs/git-provider-plan.md).
