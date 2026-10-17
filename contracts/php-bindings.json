@@ -1955,7 +1955,7 @@
                 "path": "app/read-api-repository.php",
                 "line": 396
             },
-            "fingerprint": "sha256:db6f80e2b1f86145e747795940368c302c51a3d6ceada92a1459a77ca7dc315b",
+            "fingerprint": "sha256:d239e616aeae59083c2ac6dee631e0540f4cceddeaa5df616d6125f36eaff9d2",
             "signature": {
                 "inputs": [],
                 "output": "dashboard.api_sites_response",
@@ -1972,7 +1972,7 @@
                 "path": "app/read-api-repository.php",
                 "line": 408
             },
-            "fingerprint": "sha256:db6f80e2b1f86145e747795940368c302c51a3d6ceada92a1459a77ca7dc315b",
+            "fingerprint": "sha256:d239e616aeae59083c2ac6dee631e0540f4cceddeaa5df616d6125f36eaff9d2",
             "signature": {
                 "inputs": [],
                 "output": "optional(dashboard.api_site_response)",
