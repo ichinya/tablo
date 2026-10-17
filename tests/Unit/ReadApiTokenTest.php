@@ -12,6 +12,37 @@ use Testo\Test;
 final class ReadApiTokenTest
 {
     #[Test]
+    public function actualLoginUpgradeAndResetInvalidateBearerWithoutTouchingTheCompleteTokenRow(): void
+    {
+        $db = A::database(); $tokens = new ReadApiTokenRepository($db); $auth = new \Tablo\Auth($db);
+        $legacy = password_hash('synthetic-api-migration', PASSWORD_BCRYPT, ['cost' => 4]);
+        \Tablo\SqlStatement::checked($db->prepare('UPDATE users SET password_hash=? WHERE id=1'))->execute([$legacy]);
+        $selected = ReadApiTokenRepository::administrator($db); Assert::notNull($selected);
+        $secret = $tokens->rotate($selected, static fn (): bool => true);
+        $row = A::rows($db, 'SELECT * FROM read_api_token');
+        Assert::false($auth->login('incorrect', 'wrong'));
+        Assert::true($tokens->authenticate($secret)); Assert::same(A::rows($db, 'SELECT * FROM read_api_token'), $row);
+        $db->exec("CREATE TRIGGER refuse_api_upgrade BEFORE UPDATE ON users BEGIN SELECT RAISE(ABORT,'fixture-refusal'); END");
+        $failed = false;
+        try { $auth->loginSession('synthetic-api-migration', 'rollback'); } catch (\PDOException) { $failed = true; }
+        Assert::true($failed); Assert::true($tokens->authenticate($secret));
+        Assert::same(A::rows($db, 'SELECT * FROM read_api_token'), $row);
+        $db->exec('DROP TRIGGER refuse_api_upgrade');
+        Assert::notNull($auth->loginSession('synthetic-api-migration', 'upgrade'));
+        Assert::false($tokens->authenticate($secret)); Assert::same(A::rows($db, 'SELECT * FROM read_api_token'), $row);
+        A::reject(static fn () => $tokens->rotate($selected, static fn (): bool => true));
+        A::reject(static fn () => $tokens->revoke($selected, static fn (): bool => true));
+        Assert::same(A::rows($db, 'SELECT * FROM read_api_token'), $row);
+        $current = ReadApiTokenRepository::administrator($db); Assert::notNull($current);
+        $fresh = $tokens->rotate($current, static fn (): bool => true); $row = A::rows($db, 'SELECT * FROM read_api_token');
+        Assert::true($auth->login('synthetic-api-migration', 'no-op'));
+        Assert::true($tokens->authenticate($fresh)); Assert::same(A::rows($db, 'SELECT * FROM read_api_token'), $row);
+        $auth->changePassword('synthetic-api-replacement', 'synthetic-api-replacement', $current);
+        Assert::false($tokens->authenticate($fresh)); Assert::same(A::rows($db, 'SELECT * FROM read_api_token'), $row);
+        A::reject(static fn () => $tokens->rotate($current, static fn (): bool => true));
+    }
+
+    #[Test]
     public function sensitiveBearerAndRowBoundariesDoNotExposePlaintextInExceptionArguments(): void
     {
         $db = A::database(); $tokens = new ReadApiTokenRepository($db); $secret = ReadApiToken::generate();

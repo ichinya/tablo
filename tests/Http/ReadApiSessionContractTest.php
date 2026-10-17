@@ -10,6 +10,24 @@ use Testo\Test;
 final class ReadApiSessionContractTest
 {
     #[Test]
+    public function samePolicyLoginRotatesItsBrowserSessionWithoutRevokingTheExistingBearer(): void
+    {
+        $fixture = new ReadApiFixture(); $web = $fixture->web;
+        try {
+            $csrf = $web->authenticate(); $secret = $fixture->rotate($csrf);
+            $row = \Tablo\Tests\Support\ReadApiAssertions::rows($web->database(), 'SELECT * FROM read_api_token');
+            $hash = \Tablo\Tests\Support\FixtureValue::string(\Tablo\SqlStatement::checked($web->database()->query('SELECT password_hash FROM users'))->fetchColumn());
+            Assert::same($web->request('/logout', ['_csrf' => $csrf])['status'], 303);
+            $login = $web->request('/login');
+            Assert::same($web->request('/login', ['_csrf' => \Tablo\Tests\Support\WebFixture::csrf($login), 'password' => \Tablo\Tests\Support\FixtureCredentials::value(label: 'fixture-password')])['status'], 303);
+            Assert::same(\Tablo\SqlStatement::checked($web->database()->query('SELECT password_hash FROM users'))->fetchColumn(), $hash);
+            Assert::same(\Tablo\Tests\Support\ReadApiAssertions::rows($web->database(), 'SELECT * FROM read_api_token'), $row);
+            Assert::same($fixture->api(secret: $secret)['status'], 200); Assert::same($web->request('/settings')['status'], 200);
+        } catch (\Throwable $error) { $web->directory->retainFailure($error); throw $error; }
+        finally { $fixture->close(); }
+    }
+
+    #[Test]
     public function bearerReadAtBrowserIdleEqualityDoesNotRefreshOrReviveItsCookie(): void
     {
         $fixture = new ReadApiFixture(['TABLO_TEST_SESSION_CLOCK' => '1']); $web = $fixture->web;

@@ -39,6 +39,7 @@ final class ExistingConnection
     }
     public static function refuseExistingFailure(#[\SensitiveParameter] RuntimeException $error, string $message): never
     {
+        if ($error instanceof PasswordRuntimeFailure) { throw new PasswordRuntimeFailure(); }
         $code = 0;
         if ($error instanceof \PDOException) {
             // PDO SQLite's native driver code is an integer; absent/null stays the prior zero fallback.

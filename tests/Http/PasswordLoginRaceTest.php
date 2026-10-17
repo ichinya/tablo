@@ -8,6 +8,11 @@ use Testo\Test;
 
 final class PasswordLoginRaceTest extends PasswordHttpFixtureCase
 {
+    #[Test]
+    public function aRealResetCommitsAfterLoginEntersButBeforeItsCredentialRead(): void
+    {
+        $this->resetBeforeLoginBegin();
+    }
 
 
     #[Test]

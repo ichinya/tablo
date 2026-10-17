@@ -15,6 +15,69 @@ use Testo\Test;
 final class AdminPasswordTest
 {
     #[Test]
+    public function loginBeginAndCommitFailuresPreserveTheOriginalCredentialAndLimiterSnapshot(): void
+    {
+        foreach ([['BEGIN IMMEDIATE', false], ['COMMIT', false], ['COMMIT', true]] as [$failure, $rollback]) {
+            $db = new MigrationPdo(':memory:');
+            Database::migrate($db);
+            $legacy = password_hash('legacy-login-fixture', PASSWORD_BCRYPT, ['cost' => 4]);
+            \Tablo\SqlStatement::checked($db->prepare('INSERT INTO users(id,password_hash) VALUES(1,?)'))->execute([$legacy]);
+            $db->exec("INSERT INTO login_limits VALUES('expired-sentinel',3,0)");
+            $before = \Tablo\Tests\Support\ReadApiAssertions::snapshot($db);
+            $db->statements = []; $db->failBefore = $failure; $db->failRollback = $rollback;
+            $failed = false;
+            try { (new Auth($db))->loginSession('legacy-login-fixture', 'client'); }
+            catch (\PDOException $error) { $failed = str_contains($error->getMessage(), 'injected_migration_failure'); }
+            Assert::true($failed, 'actual selected transaction boundary failed');
+            Assert::same($db->statements[0] ?? null, 'BEGIN IMMEDIATE');
+            Assert::same(in_array('ROLLBACK', $db->statements, strict: true), $failure !== 'BEGIN IMMEDIATE');
+            Assert::same(count(array_filter($db->statements, static fn (string $sql): bool => $sql === 'SELECT password_hash FROM users WHERE id = 1')),
+                $failure === 'BEGIN IMMEDIATE' ? 0 : 2, 'no credential read before BEGIN; COMMIT control reached owned replacement reread');
+            $db->failBefore = null; $db->failRollback = false;
+            if ($rollback) { $db->exec('ROLLBACK'); }
+            Assert::same(\Tablo\Tests\Support\ReadApiAssertions::snapshot($db), $before);
+        }
+    }
+
+    #[Test]
+    public function resetCanReplaceABcryptPrefixWithADistinctLongCredential(): void
+    {
+        $db = Database::connect(':memory:');
+        $prefix = str_repeat('x', times: 72);
+        $legacy = password_hash($prefix, PASSWORD_BCRYPT, ['cost' => 4]);
+        \Tablo\SqlStatement::checked($db->prepare('INSERT INTO users(id,password_hash) VALUES(1,?)'))->execute([$legacy]);
+        $auth = new Auth($db); $selected = \Tablo\Tests\Support\FixtureValue::string($auth->credentialFingerprint());
+        Assert::true(password_verify($prefix . 'suffix', $legacy), 'native bcrypt alias control');
+        $auth->changePassword($prefix . 'suffix', $prefix . 'suffix', $selected);
+        $hash = \Tablo\Tests\Support\FixtureValue::string(\Tablo\SqlStatement::checked($db->query('SELECT password_hash FROM users'))->fetchColumn());
+        Assert::same(password_get_info($hash)['algoName'], 'argon2id');
+        Assert::true(\Tablo\PasswordService::verify($prefix . 'suffix', $hash));
+        Assert::false(\Tablo\PasswordService::verify($prefix, $hash));
+        Assert::false(\Tablo\PasswordService::verify($prefix . 'suffiy', $hash));
+    }
+
+    #[Test]
+    public function conditionalLoginRefusesZeroRowsAndAReplacedOwnedHashWithAtomicRollback(): void
+    {
+        foreach (["BEFORE UPDATE ON users BEGIN SELECT RAISE(IGNORE); END",
+            "AFTER UPDATE ON users BEGIN UPDATE users SET password_hash=OLD.password_hash WHERE id=1; END"] as $trigger) {
+            $db = Database::connect(':memory:');
+            $legacy = password_hash('migration-fixture', PASSWORD_BCRYPT, ['cost' => 4]);
+            \Tablo\SqlStatement::checked($db->prepare('INSERT INTO users(id,password_hash) VALUES(1,?)'))->execute([$legacy]);
+            $db->exec("INSERT INTO login_limits VALUES('expired-sentinel',3,0)");
+            $db->exec('CREATE TRIGGER login_conflict ' . $trigger);
+            $before = \Tablo\Tests\Support\ReadApiAssertions::snapshot($db);
+            $conflict = false;
+            try { (new Auth($db))->loginSession('migration-fixture', 'conflict'); }
+            catch (PasswordConflict $error) { $conflict = $error->getMessage() === 'Credential write conflicted.'; }
+            Assert::true($conflict, 'successful verification reached the conditional write conflict');
+            Assert::same(\Tablo\Tests\Support\ReadApiAssertions::snapshot($db), $before);
+            $db->exec('DROP TRIGGER login_conflict');
+            Assert::true((new Auth($db))->login('migration-fixture', 'after-rollback'));
+        }
+    }
+
+    #[Test]
     public function changesOnlyHashAndPreservesLimitsWithSnapshotCompatibility(): void
     {
         $db = Database::connect(':memory:');

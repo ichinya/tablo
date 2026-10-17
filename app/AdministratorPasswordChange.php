@@ -18,7 +18,7 @@ final class AdministratorPasswordChange
             if (!hash_equals(AdministratorFingerprint::fingerprint($current), $expectedFingerprint)) {
                 throw new PasswordConflict('Credential changed. Select the installation again.');
             }
-            if (password_verify($password, $current)) {
+            if (PasswordService::verify($password, $current)) {
                 throw ValidationException::field(field: 'password', message: 'Новый пароль должен отличаться от текущего.');
             }
             $changed = (new AdministratorCredentialWrite($this->db))->executeCredential('UPDATE users SET password_hash = ? WHERE id = 1 AND password_hash = ?', [$replacement, $current]);
