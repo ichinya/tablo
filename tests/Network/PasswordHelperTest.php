@@ -64,9 +64,10 @@ final class PasswordHelperTest
             $db = new PDO('sqlite:' . $path);
             $hash = \Tablo\Tests\Support\FixtureValue::string(\Tablo\SqlStatement::checked($db->query('SELECT password_hash FROM users'))->fetchColumn());
             if ($exit === 0) {
-                $password = match ($scenario) { 'min' => str_repeat('x', times: 12), 'max' => str_repeat('x', times: 72),
+                $password = match ($scenario) { 'min' => str_repeat('x', times: 12), 'max' => str_repeat('x', times: 1024),
                     default => "  \u{0436}\u{4e2d}\u{1f642}-unicode-  " };
                 Assert::true(password_verify($password, \Tablo\Tests\Support\FixtureValue::string($hash)), 'exact UTF-8 and retained spaces');
+                Assert::false(password_verify(substr($password, offset: 0, length: -1) . 'y', $hash), 'full credential suffix participates');
                 Assert::true(!password_verify(\Tablo\Tests\Support\FixtureCredentials::value(label: 'fixture-password'), \Tablo\Tests\Support\FixtureValue::string($hash)));
                 Assert::true(!str_contains($result['stdout'] . $result['stderr'], $password));
                 $evidence = new PasswordHelperEvidence($directory, PasswordHelperCase::helper($shell, $encoding, $scenario, 'repeat'));

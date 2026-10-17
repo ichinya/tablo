@@ -8,7 +8,7 @@
                 "Composer verify",
                 "Reviewed dependency capture"
             ],
-            "fingerprint": "sha256:b8fe014e0a5ed025d013c254a09d62c73c6432ee7277c0a11f723b727bab7878"
+            "fingerprint": "sha256:4528a596c071e6c34beed337b667d29c64d80d7ff512f0cf74483570690a8d5d"
         },
         {
             "path": "tools/reviewed-dependencies.php",
@@ -43,7 +43,7 @@
             "consumers": [
                 "Hosted pinned contract and native PHP gates"
             ],
-            "fingerprint": "sha256:c7b2bf08096b58f6e200bc38cefebf82965fe69e348b68a184b645f1e923fa2c"
+            "fingerprint": "sha256:be21419558e08f630dcdf31de641b617187edfcb22c24d2eab887c49c65063b1"
         },
         {
             "path": "app/AddressRange.php",
@@ -83,7 +83,7 @@
                 "Composer verify",
                 "Composer analyze"
             ],
-            "fingerprint": "sha256:1bd35c02380db4c80a5e248fa397ee246da6067d1efe7b3c7a9a7ec7360da789"
+            "fingerprint": "sha256:f4ab95223622d1ca611b342b3bbd8107c0bfac369d4036fec710cc02e4cb2544"
         },
         {
             "path": "app/AdminPasswordCommand.php",
@@ -104,7 +104,7 @@
                 "Composer verify",
                 "Composer analyze"
             ],
-            "fingerprint": "sha256:781d5bf1e584b2795da7ed182ce52f6d0db356ebd4e68a59d21cb61ffefd599b"
+            "fingerprint": "sha256:b48b5573c62e2dbcbd405255079b6c09a9ceb5ec53fd0a364cc46083356d00a3"
         },
         {
             "path": "app/authentication-pages.php",
@@ -114,7 +114,7 @@
                 "Composer verify",
                 "Composer analyze"
             ],
-            "fingerprint": "sha256:d83c581676430cebaa0fda378d32c8e8ef31f59f2aeb7fb5e976da9230a7b361"
+            "fingerprint": "sha256:29589d4f8ac2427dfb2757a74a7bccb224ddc8481623b8ec3a6e805e9b1a4de6"
         },
         {
             "path": "app/base-schema.php",
@@ -619,7 +619,7 @@
                 "Composer verify",
                 "Composer analyze"
             ],
-            "fingerprint": "sha256:9920da13ca5b55323cd18f49e3ea75b18345acf5b9a0c115b5a8062b8c772b59"
+            "fingerprint": "sha256:df5ec8d9a224c5bebc308c9d4c1ab81b30d869ac27a4da64be5655f3a4bac65b"
         },
         {
             "path": "app/ExistingDatabaseUri.php",
@@ -2105,7 +2105,7 @@
                 "Composer verify",
                 "Composer analyze"
             ],
-            "fingerprint": "sha256:fc4a10524907f1d508ab571c614c4d6de17e0d8028255c021516a7ce005afa3b"
+            "fingerprint": "sha256:d671db127bba5894797f2df7525da61f195f3e820f87f1c048b17791481fedc2"
         },
         {
             "path": "app/periodic-worker.php",
@@ -2146,7 +2146,7 @@
                 "Composer verify",
                 "Composer analyze"
             ],
-            "fingerprint": "sha256:06520bc1e4b48de36dd80cc2d4cf2762c9dbebc55883cb88213cc1e92581c277"
+            "fingerprint": "sha256:1f792a7a06f11df4190cfeffc5c0374ce226ed6b5c6eab5a1db2670471a193fd"
         },
         {
             "path": "app/ProxyConfiguration.php",
@@ -2582,7 +2582,7 @@
                 "Composer verify",
                 "Composer analyze"
             ],
-            "fingerprint": "sha256:edbea14c2e269c84c22e0be0ffed6cb164da20e1d8782e88f868b6f504409662"
+            "fingerprint": "sha256:da287c0d3c79de8861d0db3f76b047bca8552edc8a557392cebe0a6c92d50025"
         },
         {
             "path": "app/site-checker.php",
@@ -3887,7 +3887,7 @@
                 "Composer verify",
                 "Composer analyze"
             ],
-            "fingerprint": "sha256:2d47ae770a0eec82122354dc94c80edf5fe225935cf33c2ed038b6b018394b47"
+            "fingerprint": "sha256:3fbf1e08f495d1fa0301b39a40822b8e103176fbee6a3276967dd06ea9d861b0"
         },
         {
             "path": "bin/check.php",
@@ -4043,9 +4043,11 @@
             "owner": "Administrator session and CLI documentation",
             "consumers": [
                 "tablo/check/v1 local consumers",
-                "Administrator idle timeout policy"
+                "Administrator idle timeout policy",
+                "Administrator Argon2id runtime and byte policy",
+                "Administrator local password reset and API bearer revocation"
             ],
-            "fingerprint": "sha256:2c4f03ce8fb0cc08d3dbe04e0f985d23cbcfc832dde1b708899237d821818dee"
+            "fingerprint": "sha256:f056dd1a9ff64b903b654c1b8b29d1e51fe17443eb1dc78f5cf6202d1bd19e52"
         },
         {
             "path": "tests/browser-fixture.php",
@@ -4435,7 +4437,7 @@
                 "Composer verify",
                 "Composer analyze"
             ],
-            "fingerprint": "sha256:a118ccf4f61811a02ebed50b41fd3d1d685c3606ee8d0469b7e5dc8c7238c71c"
+            "fingerprint": "sha256:d73c44aba0278b2c48121ab76860a984a38e96acbaf2379e9386f1c8bab3a1db"
         },
         {
             "path": "tests/fixtures/password-login.php",
@@ -4692,7 +4694,7 @@
                 "Composer verify",
                 "Composer analyze"
             ],
-            "fingerprint": "sha256:ec0e4f19dde01187b8b52fe2cb14e1c7d4200436fd0ce9ee6b8aaee52276f6d5"
+            "fingerprint": "sha256:af15dbbea81bc3e6595e01a32355d7350323d499ca1067bad2fa7474ad2e5265"
         },
         {
             "path": "tests/Http/AuthenticationSetupTest.php",
@@ -4702,7 +4704,7 @@
                 "Composer verify",
                 "Composer analyze"
             ],
-            "fingerprint": "sha256:c212f025b9b3f9977f03b2dd428775e77f4c18795b5755284ac0ac2e69d5f984"
+            "fingerprint": "sha256:5896a05607d095d143c13e080fe17c04c4085106a3d9aaa54ec9285ea53efa32"
         },
         {
             "path": "tests/Http/CheckObservation.php",
@@ -5092,7 +5094,7 @@
                 "Composer verify",
                 "Composer analyze"
             ],
-            "fingerprint": "sha256:f69108e2cf3bd79ac17d2856e847ed43389b1a832ab54ed14cf3fb377c57326d"
+            "fingerprint": "sha256:9d7ddb9e0eb8984cdd80751449236cd0d0286f252843acb5dcc64ef0f8ecf74b"
         },
         {
             "path": "tests/Http/PasswordLoginRaceTest.php",
@@ -5102,7 +5104,7 @@
                 "Composer verify",
                 "Composer analyze"
             ],
-            "fingerprint": "sha256:9da92c6001410876b030603e71836a77f362fbf59532bf42d2ce25667a149081"
+            "fingerprint": "sha256:1a7620c487a8d100a8bda06e93c5e11aeeef74512a92f24f4aeac27d81b6e634"
         },
         {
             "path": "tests/Http/PasswordSessionAdmissionTest.php",
@@ -5324,7 +5326,7 @@
                 "Composer verify",
                 "Composer analyze"
             ],
-            "fingerprint": "sha256:e3b3c324d2347124eab195f56b38ff65334b5f134a21f09df49f850bae572497"
+            "fingerprint": "sha256:a2f654bb82bad8cc0f2694353d94d50de30463015eb1ace55e3b4e49c324e32d"
         },
         {
             "path": "tests/Network/AdminPasswordFixtureCase.php",
@@ -5334,7 +5336,7 @@
                 "Composer verify",
                 "Composer analyze"
             ],
-            "fingerprint": "sha256:7cfe51548be8f86ab9c555c12a871e94dc6082035f988a48d5a70f4caa5217a4"
+            "fingerprint": "sha256:fdec7629c65af00a09c9aa2523423e719f735102d239b6b671f4ad791c098b70"
         },
         {
             "path": "tests/Network/AdminPasswordSelectionTest.php",
@@ -5354,7 +5356,7 @@
                 "Composer verify",
                 "Composer analyze"
             ],
-            "fingerprint": "sha256:3cb54fb5bfdca169c4dcb2c1afc2321e5fab87033c4923696555413e0568bad9"
+            "fingerprint": "sha256:f42e1f2220cbf2c42fb27a123cffedf005cbe1316c2c44551575c1e43f4ddef5"
         },
         {
             "path": "tests/Network/AdminPasswordTest.php",
@@ -5364,7 +5366,7 @@
                 "Composer verify",
                 "Composer analyze"
             ],
-            "fingerprint": "sha256:60a54cbc9a539ff93820a2361e8416ede5de6548ea024b9024a38ef8251f93cb"
+            "fingerprint": "sha256:cd1f764e3db99608d2204c08bba5bfaee564885dc4778914ff7d4ccfeeb71136"
         },
         {
             "path": "tests/Network/CheckCommandAbortTest.php",
@@ -6078,7 +6080,7 @@
                 "Composer verify",
                 "Composer analyze"
             ],
-            "fingerprint": "sha256:b7a4fcdefa66c6d4d3b6e9a87b78414d971f46dd59f14122cc7ddbb6ca2cec6a"
+            "fingerprint": "sha256:a4fac623a1846c3117af3356a087470517a04bbd377e1f6d3f1352527b8c4788"
         },
         {
             "path": "tests/Network/PeriodicWorkerTest.php",
@@ -6466,7 +6468,7 @@
                 "Composer verify",
                 "Composer analyze"
             ],
-            "fingerprint": "sha256:e4964993257bcd59e8fb36fa32e4d0820d7f41f50750c177f434f6eb69cf731c"
+            "fingerprint": "sha256:5064eaf4f25f2d914c049fc3f008caa0edbc595742de704db064c710fa7237e5"
         },
         {
             "path": "tests/Support/BarrierSignal.php",
@@ -7491,7 +7493,7 @@
                 "Composer verify",
                 "Composer analyze"
             ],
-            "fingerprint": "sha256:8a76583befd7f6737af902481aa74149536165b02e4021b486fbdb50473266bf"
+            "fingerprint": "sha256:0e1148b932bab1d33f9738d905f02d9236e2dbdcce3a256819042ae6534d0bd2"
         },
         {
             "path": "tests/Unit/AssertionResourceCustodyTest.php",
@@ -7511,7 +7513,7 @@
                 "Composer verify",
                 "Composer analyze"
             ],
-            "fingerprint": "sha256:deba3414ff93e517ae57cffec4a2b65ccb95200f1ecffe743a248a68e544fd7e"
+            "fingerprint": "sha256:a1d55801f4b6fd0ac888a4557404689ab77628fc170e9b6eb5489a9afe127f80"
         },
         {
             "path": "tests/Unit/CallerTransactionFixture.php",
@@ -8419,7 +8421,7 @@
                 "Composer verify",
                 "Composer analyze"
             ],
-            "fingerprint": "sha256:219ca2694c5b1ea454afebd1c7958fc00df8f02ea7be2bf05e8776d867309bee"
+            "fingerprint": "sha256:63da6f7a842a3637162a9098963ed4893f90038246c15fc6ada52bb854357dcd"
         },
         {
             "path": "tests/Unit/PasswordServiceTest.php",
@@ -8429,7 +8431,7 @@
                 "Composer verify",
                 "Composer analyze"
             ],
-            "fingerprint": "sha256:acfa3eaa8a7aa061335f6fd32439d292be76f4b33e76467550b2ffc9c0c1492e"
+            "fingerprint": "sha256:145c82873162348f84302f67152c285a2a51e76ca2beae803aa7e3deefedd9a4"
         },
         {
             "path": "tests/Unit/PeriodicWorkerTest.php",
@@ -8459,7 +8461,7 @@
                 "Composer verify",
                 "Composer analyze"
             ],
-            "fingerprint": "sha256:657e8ce06c6071fafde74c03a3e92feedced987f56ff55f14e9a3b71b2da1de4"
+            "fingerprint": "sha256:2403709bbb2a2c606ec8b41fa317c2984afc479883741105c8f3ac24e54881bc"
         },
         {
             "path": "tests/Unit/RuntimeIniTest.php",
@@ -9063,7 +9065,7 @@
                 "Composer verify",
                 "Composer analyze"
             ],
-            "fingerprint": "sha256:86a24414f3d59ecec827996abf5eca24f7ddc45b6489063f82482bc7d2c20810"
+            "fingerprint": "sha256:5ed6459ea4d267bb5b447829f4b36349bbbb4c2e0d316ed18f2c0f609c2f3100"
         },
         {
             "path": "views/incidents.volt",
@@ -9145,7 +9147,7 @@
                 "tests/Network/PasswordHelperRetentionTest.php",
                 "Native dashboard.setup/login/change_admin_password attachment"
             ],
-            "fingerprint": "sha256:2971f15474d65568d804bf9735329990bcf59edf056e8e660a9b0c44878c8f32"
+            "fingerprint": "sha256:2c3db03a26beb6b7acc0c3743301c1ee8a8131983a80bbda465c3703db1d38f8"
         },
         {
             "path": "tests/Support/PasswordHelperEvidence.php",
@@ -9229,7 +9231,7 @@
                 "tests/Network/PasswordHelperRetentionTest.php",
                 "Native dashboard.setup/login/change_admin_password attachment"
             ],
-            "fingerprint": "sha256:364900353e21acc3969eb6d441f762a17b383b4205f6d2ca6c6d201b64ab62ef"
+            "fingerprint": "sha256:8bf7485d1371936222873c6357589feea519defec2a8dc41efa68c5032631e01"
         },
         {
             "path": "tests/Support/PasswordHelperDatabaseFixture.php",
@@ -9512,7 +9514,7 @@
                 "Composer verify",
                 "Native read API tests"
             ],
-            "fingerprint": "sha256:aa9eb79d25127bd74713ec426b1dbe6316d64c08864a70dac1bf6b7ea07ca609"
+            "fingerprint": "sha256:723e24338b2fa6e6f4e117d5989510071116260e14207315de5d6c8ca1e33af0"
         },
         {
             "path": "tests/Http/ReadApiTokenManagementTest.php",
@@ -9523,7 +9525,7 @@
                 "Composer verify",
                 "Native read API tests"
             ],
-            "fingerprint": "sha256:e8333b2f94d1776cdfe0ca9a1a8e8292895632464f93d4faf69c91280819cd0f"
+            "fingerprint": "sha256:d67dcb1b983b3c0397a8fea16f464c8d30e2924e7747c94b57b1aa5c1a0eb937"
         },
         {
             "path": "tests/Network/ReadApiBoundaryTest.php",
@@ -9622,7 +9624,7 @@
                 "Composer verify",
                 "Native read API tests"
             ],
-            "fingerprint": "sha256:34be8ade7e21611957980f21b95f53e18ec667f2fe2c3af5081cd49835260651"
+            "fingerprint": "sha256:8a97e32a634dd2cb786328c802d7ca62c99e3f90be029c57ace919263cee9c9e"
         },
         {
             "path": "views/read-api-token-issued.volt",
@@ -9631,6 +9633,95 @@
                 "Read API documentation and privacy review"
             ],
             "fingerprint": "sha256:70d6cfbf260d23ab89c637e7b30c7a22360a03cc266c1a52edc3463aa649ceba"
+        },
+        {
+            "path": "README.en.md",
+            "owner": "Administrator password and session documentation in English",
+            "consumers": [
+                "Administrator Argon2id runtime and byte policy",
+                "Administrator local password reset and API bearer revocation",
+                "Administrator idle timeout policy"
+            ],
+            "fingerprint": "sha256:252b63a06df2de064cef5d53e67c2edeb04439386e26b6a1310ff568228d0564"
+        },
+        {
+            "path": "app/PasswordHashPolicy.php",
+            "owner": "Tablo\\PasswordHashPolicy",
+            "consumers": [
+                "Tablo\\PasswordService stored algorithm and non-downgrading upgrade policy",
+                "Composer lint",
+                "Composer analyze",
+                "Composer verify"
+            ],
+            "fingerprint": "sha256:193cb3bd5f217bea1835c0d41688c2fcff9c64703102431e811e3b572e81a381"
+        },
+        {
+            "path": "app/PasswordHashRuntime.php",
+            "owner": "Tablo\\PasswordHashRuntime",
+            "consumers": [
+                "Composer lint",
+                "Composer analyze",
+                "Composer verify",
+                "PasswordService native result validation"
+            ],
+            "fingerprint": "sha256:e76bc01f6e680adb76daa9c1509132f63d0b7e3a921cf570447b4ea83d4ee01d"
+        },
+        {
+            "path": "app/PasswordRuntimeFailure.php",
+            "owner": "Tablo\\PasswordRuntimeFailure",
+            "consumers": [
+                "Password runtime error sanitization for authentication and local reset",
+                "Composer lint",
+                "Composer analyze",
+                "Composer verify"
+            ],
+            "fingerprint": "sha256:9f579133007d009616be1b65de8c932d9fd392f9f19caa795dd59ca95aab3c13"
+        },
+        {
+            "path": "tests/Network/PasswordProviderTest.php",
+            "owner": "Tablo\\Tests\\Network\\PasswordProviderTest",
+            "consumers": [
+                "Explicit provider simulations and native authentication attachments",
+                "Composer lint",
+                "Composer analyze",
+                "Composer verify"
+            ],
+            "fingerprint": "sha256:94382391ae1b53107b2bfa14d0a95c11f35dbbacb501f81c043919e6a8047255"
+        },
+        {
+            "path": "tests/Unit/PasswordHashPolicyTest.php",
+            "owner": "Tablo\\Tests\\Unit\\PasswordHashPolicyTest",
+            "consumers": [
+                "Native authentication policy and upgrade attachments",
+                "Composer lint",
+                "Composer analyze",
+                "Composer verify"
+            ],
+            "fingerprint": "sha256:ec183f1f14f530ccb734d166a7ed74578019f4e8bfb017286c966ef0fc076c8b"
+        },
+        {
+            "path": "tests/fixtures/argon2id-capability.php",
+            "owner": "php-script:tests/fixtures/argon2id-capability.php",
+            "consumers": [
+                "Actual global-native runtime qualification outside requests",
+                "Hosted six-cell Argon2id preflight",
+                "Composer lint",
+                "Composer analyze",
+                "Composer verify"
+            ],
+            "fingerprint": "sha256:2dda4ab59d91c22ed0e65e04b0cde480c37acbc49aa0573035503a810ace1bc6"
+        },
+        {
+            "path": "tests/fixtures/password-provider-failure.php",
+            "owner": "php-script:tests/fixtures/password-provider-failure.php",
+            "consumers": [
+                "PasswordProviderTest explicit simulations only",
+                "PasswordPrivacyTest actual-options hostile shim",
+                "Composer lint",
+                "Composer analyze",
+                "Composer verify"
+            ],
+            "fingerprint": "sha256:b1de68516c5cba64217b2f56f3ef573c774bbc3658c9e90b01b32c297061e04c"
         }
     ]
 }

@@ -27,6 +27,10 @@ final class SingletonAdministrator
         if (count($users) !== 1) { throw new InstallationException('Administrator unavailable.'); }
         $user = $users[0];
         $hash = $user['password_hash'];
+        $algorithm = PasswordHashPolicy::storedAlgorithm($hash);
+        if (in_array($algorithm, ['argon2id', 'argon2i'], strict: true) && !PasswordService::supportsStoredHash($hash)) {
+            throw new PasswordRuntimeFailure();
+        }
         // PHP 8 uses a string algorithm identifier, or NULL for an unrecognized hash.
         /** @var array{algo: ?string, ...} $information */
         $information = password_get_info($hash);

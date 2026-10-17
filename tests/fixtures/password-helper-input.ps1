@@ -25,7 +25,7 @@ function Read-Host {
     $fixtureState.prompts++
     if ($Scenario -eq 'cancel' -and $fixtureState.prompts -eq 2) { throw 'Synthetic prompt cancellation.' }
     $fixtureSecret = New-Object System.Security.SecureString
-    $fixtureLength = switch ($Scenario) { 'min' { 12 } 'max' { 72 } 'short' { 11 } 'long' { 73 } default { 0 } }
+    $fixtureLength = switch ($Scenario) { 'min' { 12 } 'max' { 1024 } 'short' { 11 } 'long' { 1025 } default { 0 } }
     if ($fixtureLength -gt 0) {
         for ($fixtureIndex = 0; $fixtureIndex -lt $fixtureLength; $fixtureIndex++) { $fixtureSecret.AppendChar([char]120) }
     } elseif ($Scenario -eq 'encodingFailure') {

@@ -14,6 +14,21 @@ final class AdminPasswordTest extends AdminPasswordFixtureCase
 {
 
 
+    private static function assertFramingRefusals(TemporaryDirectory $directory, string $path, \PDO $db, array $old): void
+    {
+        foreach (['', "fixture-password\n", "fixture-password\nfixture-password", "fixture-password\nfixture-password\nextra\n",
+            "\xEF\xBB\xBFfixture-password\nfixture-password\n", "fixture\0password\nfixture\0password\n", "fixture-password\rfixture-password\r",
+            "fixture-password\nother-new-password\n", str_repeat('x', times: 11) . "\n" . str_repeat('x', times: 11) . "\n",
+            str_repeat('x', times: 1025) . "\n" . str_repeat('x', times: 1025) . "\n", str_repeat('ж', times: 513) . "\n" . str_repeat('ж', times: 513) . "\n",
+            str_repeat('x', times: 1025) . "\nvalid-password\n", 'valid-password' . "\n" . str_repeat('x', times: 1025) . "\n",
+            "invalid-utf8-\xFF\ninvalid-utf8-\xFF\n", str_repeat('x', times: 2053)] as $input) {
+            $result = self::command($directory, $path, ['--password-stdin'], $input);
+            Assert::same($result['exit_code'], 2, \Tablo\Tests\Support\FixtureValue::string($result['stderr']));
+            Assert::true(!str_contains($result['stdout'] . $result['stderr'], \Tablo\Tests\Support\FixtureCredentials::value(label: 'fixture-password')));
+            Assert::same(\Tablo\SqlRows::all(\Tablo\SqlStatement::checked($db->query('SELECT * FROM users'))->fetchAll(), \Tablo\SqlUsersCreatedAtIdPasswordHashRow::checked(...)), $old);
+        }
+    }
+
     #[Test]
     public function rejectsHostileInvocationAndFramingWithoutWritesOrEcho(): void
     {
@@ -30,17 +45,8 @@ final class AdminPasswordTest extends AdminPasswordFixtureCase
                 Assert::same($result['exit_code'], 2);
                 Assert::true(!str_contains($result['stdout'] . $result['stderr'], 'synthetic-private-argv'));
             }
-            foreach (['', "fixture-password\n", "fixture-password\nfixture-password", "fixture-password\nfixture-password\nextra\n",
-                "\xEF\xBB\xBFfixture-password\nfixture-password\n", "fixture\0password\nfixture\0password\n", "fixture-password\rfixture-password\r",
-                "fixture-password\nother-new-password\n", str_repeat('x', times: 11) . "\n" . str_repeat('x', times: 11) . "\n",
-                str_repeat('x', times: 73) . "\n" . str_repeat('x', times: 73) . "\n", str_repeat('ж', times: 37) . "\n" . str_repeat('ж', times: 37) . "\n",
-                "invalid-utf8-\xFF\ninvalid-utf8-\xFF\n", str_repeat('oversize', times: 64)] as $input) {
-                $result = self::command($directory, $path, ['--password-stdin'], $input);
-                Assert::same($result['exit_code'], 2, \Tablo\Tests\Support\FixtureValue::string($result['stderr']));
-                Assert::true(!str_contains($result['stdout'] . $result['stderr'], \Tablo\Tests\Support\FixtureCredentials::value(label: 'fixture-password')));
-                Assert::same(\Tablo\SqlRows::all(\Tablo\SqlStatement::checked($db->query('SELECT * FROM users'))->fetchAll(), \Tablo\SqlUsersCreatedAtIdPasswordHashRow::checked(...)), $old);
-            }
-            foreach ([str_repeat('x', times: 12), str_repeat('ж', times: 36), '  retained spaces  '] as $password) {
+            self::assertFramingRefusals($directory, $path, $db, $old);
+            foreach ([str_repeat('x', times: 12), str_repeat('ж', times: 36), str_repeat('x', times: 73), str_repeat('x', times: 1023), str_repeat('ж', times: 512), str_repeat('x', times: 1024), '  retained spaces  '] as $password) {
                 $result = self::command($directory, $path, ['--password-stdin'], $password . "\r\n" . $password . "\r\n");
                 Assert::same($result['exit_code'], 0, \Tablo\Tests\Support\FixtureValue::string($result['stderr']));
                 Assert::true(password_verify($password, \Tablo\Tests\Support\FixtureValue::string(\Tablo\SqlStatement::checked($db->query('SELECT password_hash FROM users'))->fetchColumn())));
@@ -48,6 +54,11 @@ final class AdminPasswordTest extends AdminPasswordFixtureCase
                 Assert::same(\Tablo\Tests\Support\FixtureValue::at(self::command($directory, $path, ['--password-stdin'], $password . "\n" . $password . "\n"), 'exit_code'), 2);
                 Assert::same(\Tablo\SqlStatement::checked($db->query('SELECT password_hash FROM users'))->fetchColumn(), $hash);
             }
+            $lfMaximum = str_repeat('y', times: 1024);
+            Assert::same(self::command($directory, $path, ['--password-stdin'], $lfMaximum . "\n" . $lfMaximum . "\n")['exit_code'], 0, '2050-byte LF payload succeeds');
+            $lfHash = \Tablo\Tests\Support\FixtureValue::string(\Tablo\SqlStatement::checked($db->query('SELECT password_hash FROM users'))->fetchColumn());
+            Assert::true(password_verify($lfMaximum, $lfHash));
+            Assert::false(password_verify(str_repeat('y', times: 1023) . 'x', $lfHash));
             Assert::same(\Tablo\Tests\Support\FixtureValue::at(self::command($directory, '/missing-installation', ['--help']), 'exit_code'), 0);
         } catch (\Throwable $error) { $directory->retainFailure($error); throw $error; }
         finally { $db = null; $directory->close(); }

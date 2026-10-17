@@ -12,6 +12,24 @@ use Testo\Test;
 
 final class AdminPasswordConflictTest extends AdminPasswordFixtureCase
 {
+    #[Test]
+    public function selectedLegacyCommandCannotOverwriteAnActualLoginUpgrade(): void
+    {
+        $directory = new TemporaryDirectory('tablo-password-upgrade-conflict-'); $db = null; $process = null;
+        try {
+            $path = $directory->path . '/fixture.sqlite'; $db = Database::connect($path);
+            $legacy = password_hash(\Tablo\Tests\Support\FixtureCredentials::value(label: 'fixture-password'), PASSWORD_BCRYPT, ['cost' => 4]);
+            \Tablo\SqlStatement::checked($db->prepare('INSERT INTO users(id,password_hash) VALUES(1,?)'))->execute([$legacy]);
+            $process = new PasswordProcess($directory, $path);
+            Assert::true((new Auth($db))->login(\Tablo\Tests\Support\FixtureCredentials::value(label: 'fixture-password'), 'actual-upgrade'));
+            $current = \Tablo\Tests\Support\FixtureValue::string(\Tablo\SqlStatement::checked($db->query('SELECT password_hash FROM users'))->fetchColumn());
+            Assert::same(password_get_info($current)['algoName'], 'argon2id');
+            $process->send(\Tablo\Tests\Support\FixtureCredentials::confirmationInput(label: 'replacement-secret'));
+            Assert::same($process->finish()['exit_code'], 4);
+            Assert::same(\Tablo\SqlStatement::checked($db->query('SELECT password_hash FROM users'))->fetchColumn(), $current);
+        } catch (\Throwable $error) { $directory->retainFailure($error); throw $error; }
+        finally { $process?->close(); $db = null; $directory->close(); }
+    }
 
 
     #[Test]
