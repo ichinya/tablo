@@ -16,10 +16,16 @@ final class PasswordHashPolicyTest
     public function successfulLegacyUpgradeKeepsShortEmptyAndRawCredentialsVerifiable(): void
     {
         foreach (['', 'short', "\xFFraw\nbytes", str_repeat('x', times: 72)] as $password) {
+          foreach (['2y', '2a', '2b'] as $prefix) {
             $db = Database::connect(':memory:');
-            $legacy = password_hash($password, PASSWORD_BCRYPT, ['cost' => 4]);
+            $legacy = '$' . $prefix . '$' . substr(password_hash($password, PASSWORD_BCRYPT, ['cost' => 4]), offset: 4);
+            Assert::true(password_verify($password, $legacy), 'native stored-byte control');
+            Assert::same(PasswordHashPolicy::storedAlgorithm($legacy), '2y');
             \Tablo\SqlStatement::checked($db->prepare('INSERT INTO users(id,password_hash) VALUES(1,?)'))->execute([$legacy]);
             $auth = new Auth($db); $old = $auth->credentialFingerprint();
+            Assert::same($old, \Tablo\AdministratorFingerprint::fingerprint($legacy), 'fingerprint uses original prefix');
+            Assert::false($auth->login('incorrect-password', 'wrong'));
+            Assert::same(\Tablo\SqlStatement::checked($db->query('SELECT password_hash FROM users'))->fetchColumn(), $legacy);
             Assert::notNull($auth->loginSession($password, 'legacy'));
             $current = \Tablo\Tests\Support\FixtureValue::string(\Tablo\SqlStatement::checked($db->query('SELECT password_hash FROM users'))->fetchColumn());
             Assert::same(password_get_info($current)['algoName'], 'argon2id');
@@ -27,6 +33,7 @@ final class PasswordHashPolicyTest
             Assert::true($auth->credentialFingerprint() !== $old);
             Assert::same($auth->loginSession($password, 'unchanged'), $auth->credentialFingerprint());
             Assert::same(\Tablo\SqlStatement::checked($db->query('SELECT password_hash FROM users'))->fetchColumn(), $current);
+          }
         }
     }
 
@@ -58,7 +65,8 @@ final class PasswordHashPolicyTest
     #[Test]
     public function malformedIndependentEncodingsCannotAuthorizeVerificationOrReplacement(): void
     {
-        foreach (['', '$2y$00$' . str_repeat('a', times: 53), '$argon2id$v=16$m=65536,t=3,p=1$salt$digest',
+        foreach (['', '$2x$04$' . str_repeat('a', times: 53), '$2a$00$' . str_repeat('a', times: 53),
+            '$2b$04$' . str_repeat('a', times: 52), '$2y$00$' . str_repeat('a', times: 53), '$argon2id$v=16$m=65536,t=3,p=1$salt$digest',
             '$argon2id$v=19$m=0,t=3,p=1$salt$digest', '$argon2id$v=19$m=999999999999999999999,t=3,p=1$salt$digest',
             '$argon2id$v=19$m=65536,t=3,p=1$!$!', str_repeat('x', times: 513)] as $hash) {
             Assert::same(PasswordHashPolicy::storedAlgorithm($hash), null);

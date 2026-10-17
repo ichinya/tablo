@@ -33,13 +33,18 @@ final class PasswordServiceTest
     public function preservesRawLegacyBytesAndRefusesBcryptPrefixAliasesBeforeVerification(): void
     {
         foreach (['', 'short', "\xFFraw\nbytes", str_repeat('x', times: 72), str_repeat('x', times: 71) . "\xD0"] as $password) {
-            $hash = password_hash($password, PASSWORD_BCRYPT, ['cost' => 4]);
+          foreach (['2y', '2a', '2b'] as $prefix) {
+            $hash = '$' . $prefix . '$' . substr(password_hash($password, PASSWORD_BCRYPT, ['cost' => 4]), offset: 4);
+            Assert::true(password_verify($password, $hash), 'independent native ' . $prefix . ' control');
             Assert::true(PasswordService::verify($password, $hash));
+            Assert::false(password_verify('incorrect-password', $hash));
+            Assert::false(PasswordService::verify('incorrect-password', $hash));
             Assert::false(PasswordService::verify($password . "\0", $hash));
             if (strlen($password) === 72) {
                 Assert::true(password_verify($password . 'suffix', $hash), 'independent native truncation control');
                 Assert::false(PasswordService::verify($password . 'suffix', $hash));
             }
+          }
         }
         $crossing = str_repeat('x', times: 71) . 'ж';
         $hash = password_hash(substr($crossing, offset: 0, length: 72), PASSWORD_BCRYPT, ['cost' => 4]);

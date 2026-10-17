@@ -42,14 +42,18 @@ final class PasswordProviderTest
         $directory = new TemporaryDirectory('tablo-password-provider-');
         try {
             foreach (['no-constant', 'unregistered', 'hash-throw', 'wrong-algorithm', 'wrong-options', 'result-false', 'verify-false', 'verify-throw'] as $mode) {
+              foreach (['2y', '2a', '2b'] as $prefix) {
                 $result = Subprocess::run(command: [PHP_BINARY, '-d', 'zend.exception_ignore_args=0', dirname(__DIR__) . '/fixtures/password-provider-failure.php'],
-                    directory: $directory, environment: ['TABLO_TEST_PROVIDER_CASE' => $mode, 'TABLO_DB' => $directory->path . '/fixture.sqlite']);
+                    directory: $directory, environment: ['TABLO_TEST_PROVIDER_CASE' => $mode, 'TABLO_TEST_BCRYPT_VARIANT' => $prefix, 'TABLO_DB' => $directory->path . '/fixture.sqlite']);
                 Assert::same($result['exit_code'], 0, $mode . ': ' . $result['stderr']);
                 $record = \Tablo\JsonRecord::checked(json_decode($result['stdout'], associative: true, flags: JSON_THROW_ON_ERROR));
                 Assert::same($record['classification'] ?? null, 'simulation only');
                 Assert::same($record['case'] ?? null, $mode);
                 Assert::same($record['credentialUnchanged'] ?? null, true);
+                Assert::same($record['bcryptVariant'] ?? null, $prefix);
+                Assert::same($record['over72VerifyHits'] ?? null, 0);
                 Assert::same($result['stderr'], '');
+              }
             }
         } catch (\Throwable $error) { $directory->retainFailure($error); throw $error; }
         finally { $directory->close(); }

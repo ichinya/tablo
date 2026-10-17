@@ -8431,7 +8431,7 @@
                 "Composer verify",
                 "Composer analyze"
             ],
-            "fingerprint": "sha256:145c82873162348f84302f67152c285a2a51e76ca2beae803aa7e3deefedd9a4"
+            "fingerprint": "sha256:8a06e8f9efe6456dd8ce58d9863107a7ef97281c13ef99e665d8f58ffd9a27ca"
         },
         {
             "path": "tests/Unit/PeriodicWorkerTest.php",
@@ -9525,7 +9525,7 @@
                 "Composer verify",
                 "Native read API tests"
             ],
-            "fingerprint": "sha256:d67dcb1b983b3c0397a8fea16f464c8d30e2924e7747c94b57b1aa5c1a0eb937"
+            "fingerprint": "sha256:70edb4d342b1821a8ce1d339f2a859f50a336c2ff961db15e5034993799c62c1"
         },
         {
             "path": "tests/Network/ReadApiBoundaryTest.php",
@@ -9653,7 +9653,7 @@
                 "Composer analyze",
                 "Composer verify"
             ],
-            "fingerprint": "sha256:193cb3bd5f217bea1835c0d41688c2fcff9c64703102431e811e3b572e81a381"
+            "fingerprint": "sha256:6f41ba91aec1cb67411c267fc5d3575c5e9ec2a4967a01eb1cc74a92909b9ca1"
         },
         {
             "path": "app/PasswordHashRuntime.php",
@@ -9686,7 +9686,7 @@
                 "Composer analyze",
                 "Composer verify"
             ],
-            "fingerprint": "sha256:94382391ae1b53107b2bfa14d0a95c11f35dbbacb501f81c043919e6a8047255"
+            "fingerprint": "sha256:83110a221ca9828c3901904bd11cbf4dc76e4ee1d35704f0dabfa42b05c2b45c"
         },
         {
             "path": "tests/Unit/PasswordHashPolicyTest.php",
@@ -9697,7 +9697,7 @@
                 "Composer analyze",
                 "Composer verify"
             ],
-            "fingerprint": "sha256:ec183f1f14f530ccb734d166a7ed74578019f4e8bfb017286c966ef0fc076c8b"
+            "fingerprint": "sha256:d12b28ba77df15e1f866a2a945367e3261ed92fe1a57ad754b4db1adf7e0b887"
         },
         {
             "path": "tests/fixtures/argon2id-capability.php",
@@ -9721,7 +9721,7 @@
                 "Composer analyze",
                 "Composer verify"
             ],
-            "fingerprint": "sha256:b1de68516c5cba64217b2f56f3ef573c774bbc3658c9e90b01b32c297061e04c"
+            "fingerprint": "sha256:db0c3f8467344ccf3284ad3dbbbfc8fae925eeb06920680c1ebeda1e73f7bb34"
         }
     ]
 }

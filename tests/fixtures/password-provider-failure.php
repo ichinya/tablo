@@ -3,6 +3,12 @@ declare(strict_types=1);
 
 namespace Tablo {
     // Explicit namespace simulations. No result from this fixture proves provider absence.
+    function provider_legacy_hash(?string $selected = null): string
+    {
+        static $hash = '';
+        if ($selected !== null) { $hash = $selected; }
+        return $hash;
+    }
     function provider_hits(string $operation, int $increment = 0): int
     {
         /** @var array<string, int> $hits */
@@ -39,6 +45,7 @@ namespace Tablo {
     function password_verify(#[\SensitiveParameter] string $input, #[\SensitiveParameter] string $hash): bool
     {
         provider_hits('verify', increment: 1);
+        if (provider_hits('verify') === 1 && provider_legacy_hash() !== '' && $hash !== provider_legacy_hash()) { exit(33); }
         if (getenv('TABLO_TEST_PROVIDER_CASE') === 'verify-throw') { throw new \ValueError('provider-private-marker ' . $input . $hash); }
         if (getenv('TABLO_TEST_PROVIDER_CASE') === 'verify-false') { return false; }
         if (getenv('TABLO_TEST_PROVIDER_CASE') === 'result-false' && str_starts_with($hash, '$argon2id$')) { return false; }
@@ -57,8 +64,19 @@ namespace {
     \Tablo\RuntimeIni::set('zend.exception_ignore_args', value: '0');
     $mode = getenv('TABLO_TEST_PROVIDER_CASE');
     $db = \Tablo\Database::connect(':memory:');
-    $input = bin2hex(random_bytes(16));
-    $old = \password_hash($input, PASSWORD_BCRYPT, ['cost' => 4]);
+    $input = str_repeat('x', times: 72);
+    $variant = getenv('TABLO_TEST_BCRYPT_VARIANT');
+    $prefix = $variant === false ? '2y' : $variant;
+    if (!in_array($prefix, ['2y', '2a', '2b'], strict: true)) { exit(34); }
+    $old = '$' . $prefix . '$' . substr(\password_hash($input, PASSWORD_BCRYPT, ['cost' => 4]), offset: 4);
+    \Tablo\provider_legacy_hash($old);
+    if (!\password_verify($input, $old) || !\password_verify($input . 'suffix', $old)) { exit(35); }
+    foreach ([$input . 'suffix', $input . "\0", str_repeat('x', times: 1025)] as $refused) {
+        if (!\Tablo\PasswordService::verify($refused, $old)) { continue; }
+        exit(36);
+    }
+    $over72VerifyHits = \Tablo\provider_hits('verify');
+    if ($over72VerifyHits !== 0) { exit(37); }
     \Tablo\SqlStatement::checked($db->prepare('INSERT INTO users(id,password_hash) VALUES(1,?)'))->execute([$old]);
     $db->exec("INSERT INTO login_limits VALUES('expired-sentinel',3,0)");
     $before = \Tablo\Tests\Support\ReadApiAssertions::snapshot($db);
@@ -92,6 +110,7 @@ namespace {
     if ($failed !== $expectedFailure) { exit(30); }
     if (in_array($mode, ['hash-throw', 'wrong-algorithm', 'wrong-options', 'result-false'], strict: true) && \Tablo\provider_hits('hash') !== 1) { exit(31); }
     echo json_encode(['classification' => 'simulation only', 'case' => $mode, 'hashHits' => \Tablo\provider_hits('hash'),
+        'bcryptVariant' => $prefix, 'over72VerifyHits' => $over72VerifyHits,
         'verifyHits' => \Tablo\provider_hits('verify'), 'registrationHits' => \Tablo\provider_hits('registration'), 'safeFailure' => $failed,
         'credentialUnchanged' => true, 'rollbackSnapshotMatched' => $failed ? true : null], JSON_THROW_ON_ERROR) . "\n";
 }

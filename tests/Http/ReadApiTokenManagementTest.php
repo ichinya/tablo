@@ -11,6 +11,45 @@ use Testo\Test;
 final class ReadApiTokenManagementTest
 {
     #[Test]
+    public function nativeBcryptVariantsUpgradeTheirExactStoredBytesWithoutChangingTheBearerRow(): void
+    {
+        foreach (['2y', '2a', '2b'] as $prefix) {
+            $fixture = new ReadApiFixture(); $web = $fixture->web; $db = null;
+            try {
+                $csrf = $web->authenticate(); $secret = $fixture->rotate($csrf); $db = $web->database();
+                Assert::same($fixture->api(secret: $secret)['status'], 200);
+                Assert::same($web->request('/logout', ['_csrf' => $csrf])['status'], 303);
+                $password = str_repeat('x', times: 72);
+                $legacy = '$' . $prefix . '$' . substr(password_hash($password, PASSWORD_BCRYPT, ['cost' => 4]), offset: 4);
+                Assert::true(password_verify($password, $legacy));
+                Assert::true(password_verify($password . 'suffix', $legacy), 'native truncation control');
+                \Tablo\SqlStatement::checked($db->prepare('UPDATE users SET password_hash=? WHERE id=1'))->execute([$legacy]);
+                $fingerprint = \Tablo\AdministratorFingerprint::fingerprint($legacy);
+                Assert::same((new \Tablo\Auth($db))->credentialFingerprint(), $fingerprint);
+                \Tablo\SqlStatement::checked($db->prepare('UPDATE read_api_token SET administrator_fingerprint=?'))->execute([$fingerprint]);
+                $row = A::rows($db, 'SELECT * FROM read_api_token');
+                // Existing API ingress requires native metadata recognition; foreign variants remain refused there.
+                Assert::same($fixture->api(secret: $secret)['status'], $prefix === '2y' ? 200 : 401);
+                $loginCsrf = \Tablo\Tests\Support\WebFixture::csrf($web->request('/login'));
+                foreach (['incorrect-password', $password . 'suffix'] as $refused) {
+                    Assert::same($web->request('/login', ['_csrf' => $loginCsrf, 'password' => $refused])['status'], 422);
+                    Assert::same(\Tablo\SqlStatement::checked($db->query('SELECT password_hash FROM users'))->fetchColumn(), $legacy);
+                    Assert::same(A::rows($db, 'SELECT * FROM read_api_token'), $row);
+                }
+                Assert::same($web->request('/login', ['_csrf' => $loginCsrf, 'password' => $password])['status'], 303);
+                $current = \Tablo\Tests\Support\FixtureValue::string(\Tablo\SqlStatement::checked($db->query('SELECT password_hash FROM users'))->fetchColumn());
+                Assert::same(password_get_info($current)['algoName'], 'argon2id');
+                Assert::true(password_verify($password, $current));
+                Assert::same((new \Tablo\Auth($db))->credentialFingerprint(), \Tablo\AdministratorFingerprint::fingerprint($current));
+                Assert::same($web->request('/settings')['status'], 200);
+                Assert::same(A::rows($db, 'SELECT * FROM read_api_token'), $row);
+                ReadApiFixture::error($fixture->api(secret: $secret), 401, 'unauthorized');
+            } catch (\Throwable $error) { $web->directory->retainFailure($error); throw $error; }
+            finally { $db = null; $fixture->close(); }
+        }
+    }
+
+    #[Test]
     public function realBcryptLoginUpgradeAndCliResetRevokeOldBearerWhileItsStoredRowStaysIdentical(): void
     {
         $fixture = new ReadApiFixture(); $web = $fixture->web; $db = null;

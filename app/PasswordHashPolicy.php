@@ -12,12 +12,14 @@ final class PasswordHashPolicy
     }
 
     // A lexical Argon result permits unsupported-runtime diagnosis only.
-    // Verification and replacement additionally require native recognition.
+    // Verification still requires the native verifier to accept the original bytes.
     public static function storedAlgorithm(#[\SensitiveParameter] string $hash): ?string
     {
         if (strlen($hash) > 512) { return null; }
         if (preg_match('/^\$2[aby]\$(?:0[4-9]|[12][0-9]|3[01])\$[.\/A-Za-z0-9]{53}$/D', $hash) === 1) {
-            return password_get_info($hash)['algo'] === '2y' ? '2y' : null;
+            // PHP metadata recognizes only 2y; its native verifier also accepts 2a/2b.
+            // Classify those as bcrypt without rewriting the stored encoding. 2x is refused.
+            return '2y';
         }
         if (self::encodedOptions($hash) === null) { return null; }
         return str_starts_with($hash, '$argon2id$') ? 'argon2id' : 'argon2i';
