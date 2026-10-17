@@ -42,6 +42,7 @@ final class AdminPasswordTest
     #[Test]
     public function resetCanReplaceABcryptPrefixWithADistinctLongCredential(): void
     {
+        self::assertOriginalBcryptRecovery();
         $db = Database::connect(':memory:');
         $prefix = str_repeat('x', times: 72);
         $legacy = password_hash($prefix, PASSWORD_BCRYPT, ['cost' => 4]);
@@ -54,6 +55,48 @@ final class AdminPasswordTest
         Assert::true(\Tablo\PasswordService::verify($prefix . 'suffix', $hash));
         Assert::false(\Tablo\PasswordService::verify($prefix, $hash));
         Assert::false(\Tablo\PasswordService::verify($prefix . 'suffiy', $hash));
+    }
+
+    private static function assertOriginalBcryptRecovery(): void
+    {
+        foreach (['2y', '2a', '2b'] as $variant) {
+            $db = new MigrationPdo(':memory:'); Database::migrate($db);
+            $unknown = bin2hex(random_bytes(24));
+            $legacy = '$' . $variant . '$' . substr(password_hash($unknown, PASSWORD_BCRYPT, ['cost' => 4]), offset: 4);
+            Assert::true(password_verify($unknown, $legacy)); unset($unknown);
+            \Tablo\SqlStatement::checked($db->prepare('INSERT INTO users(id,password_hash) VALUES(1,?)'))->execute([$legacy]);
+            $auth = new Auth($db); $selected = \Tablo\AdministratorFingerprint::fingerprint($legacy);
+            Assert::same($auth->credentialFingerprint(), $selected);
+            Assert::same(\Tablo\InstalledAdministrator::existingAdminHash($db), $legacy, 'selection retains original bytes');
+            $secret = \Tablo\ReadApiToken::generate();
+            \Tablo\SqlStatement::checked($db->prepare('INSERT INTO read_api_token VALUES(1,?,?,?)'))->execute([
+                \Tablo\ReadApiToken::digest($secret), $selected, '2026-10-14T10:00:00Z',
+            ]);
+            Assert::same((new \Tablo\ReadApiTokenRepository($db))->authenticate($secret), $variant === '2y', 'API admission stays unchanged');
+            $before = \Tablo\Tests\Support\ReadApiAssertions::snapshot($db); $db->statements = [];
+            $identity = \Tablo\Tests\Support\ReadApiAssertions::rows($db, 'SELECT id,created_at FROM users');
+            $auth->changePassword('replacement-reset-secret', 'replacement-reset-secret', $selected);
+            $current = \Tablo\InstalledAdministrator::existingAdminHash($db);
+            Assert::same(password_get_info($current)['options'], ['memory_cost' => 65_536, 'time_cost' => 3, 'threads' => 1]);
+            Assert::true(password_verify('replacement-reset-secret', $current));
+            Assert::false(hash_equals($selected, \Tablo\Tests\Support\FixtureValue::string($auth->credentialFingerprint())));
+            Assert::same(count(array_filter($db->statements, static fn (string $sql): bool => $sql === 'COMMIT')), 1);
+            Assert::false((new \Tablo\ReadApiTokenRepository($db))->authenticate($secret));
+            $after = \Tablo\Tests\Support\ReadApiAssertions::snapshot($db);
+            Assert::same(\Tablo\Tests\Support\ReadApiAssertions::rows($db, 'SELECT id,created_at FROM users'), $identity);
+            unset($before['users'], $after['users']);
+            Assert::same($after, $before, 'only password hash changes; complete token row retained');
+        }
+        $seed = password_hash('malformed-control', PASSWORD_BCRYPT, ['cost' => 4]);
+        foreach (['$2x$' . substr($seed, offset: 4), substr($seed, offset: 0, length: -1), $seed . "\n",
+            '$2a$03$' . substr($seed, offset: 7), '$2b$32$' . substr($seed, offset: 7), 'not-a-password-hash'] as $malformed) {
+            $db = new MigrationPdo(':memory:'); Database::migrate($db);
+            \Tablo\SqlStatement::checked($db->prepare('INSERT INTO users(id,password_hash) VALUES(1,?)'))->execute([$malformed]);
+            $before = \Tablo\Tests\Support\ReadApiAssertions::snapshot($db); $db->statements = [];
+            \Tablo\Tests\Support\ReadApiAssertions::reject(static fn () => (new Auth($db))->changePassword('replacement-reset-secret', 'replacement-reset-secret', \Tablo\AdministratorFingerprint::fingerprint($malformed)));
+            Assert::false(in_array('COMMIT', $db->statements, strict: true));
+            Assert::same(\Tablo\Tests\Support\ReadApiAssertions::snapshot($db), $before);
+        }
     }
 
     #[Test]

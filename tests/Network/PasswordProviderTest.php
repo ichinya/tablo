@@ -15,13 +15,14 @@ final class PasswordProviderTest
     {
         $directory = new TemporaryDirectory('tablo-password-provider-cli-'); $db = null;
         try {
-            $path = $directory->path . '/fixture.sqlite'; $db = \Tablo\Database::connect($path);
+          foreach (['2y', '2a', '2b'] as $variant) {
+            $path = $directory->path . '/' . $variant . '.sqlite'; $db = \Tablo\Database::connect($path);
             \Tablo\SqlStatement::checked($db->prepare('INSERT INTO users(id,password_hash) VALUES(1,?)'))->execute([
-                password_hash(\Tablo\Tests\Support\FixtureCredentials::value(label: 'fixture-password'), PASSWORD_BCRYPT, ['cost' => 4]),
+                '$' . $variant . '$' . substr(password_hash(\Tablo\Tests\Support\FixtureCredentials::value(label: 'fixture-password'), PASSWORD_BCRYPT, ['cost' => 4]), offset: 4),
             ]);
             $before = \Tablo\Tests\Support\ReadApiAssertions::snapshot($db);
             foreach (['hash-throw', 'unregistered'] as $mode) {
-                $hits = $directory->path . '/' . $mode . '.json';
+                $hits = $directory->path . '/' . $variant . '-' . $mode . '.json';
                 $result = Subprocess::run(command: [PHP_BINARY, dirname(__DIR__) . '/fixtures/password-provider-failure.php', '--password-stdin'],
                     directory: $directory, environment: ['TABLO_DB' => $path, 'TABLO_TEST_PROVIDER_CASE' => 'cli-' . $mode, 'TABLO_TEST_PROVIDER_HITS' => $hits],
                     options: new \Tablo\Tests\Support\CommandOptions(input: \Tablo\Tests\Support\FixtureCredentials::confirmationInput(label: 'replacement-secret')));
@@ -32,6 +33,7 @@ final class PasswordProviderTest
                 $record = \Tablo\JsonRecord::checked(json_decode(\Tablo\RequiredFile::bytes(file_get_contents($hits)), associative: true, flags: JSON_THROW_ON_ERROR));
                 Assert::same($record['hash'] ?? 0, $mode === 'hash-throw' ? 1 : 0, 'actual expected native-hash branch');
             }
+          }
         } catch (\Throwable $error) { $directory->retainFailure($error); throw $error; }
         finally { $db = null; $directory->close(); }
     }

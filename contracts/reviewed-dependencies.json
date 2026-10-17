@@ -2582,7 +2582,7 @@
                 "Composer verify",
                 "Composer analyze"
             ],
-            "fingerprint": "sha256:da287c0d3c79de8861d0db3f76b047bca8552edc8a557392cebe0a6c92d50025"
+            "fingerprint": "sha256:4822b6cec29e0434a5def2921e379648c8dcb3e687c95e11ebe7a6dd3f68edbf"
         },
         {
             "path": "app/site-checker.php",
@@ -5366,7 +5366,7 @@
                 "Composer verify",
                 "Composer analyze"
             ],
-            "fingerprint": "sha256:cd1f764e3db99608d2204c08bba5bfaee564885dc4778914ff7d4ccfeeb71136"
+            "fingerprint": "sha256:930ba807245fc13a3d516ce03a66de28efbb20149200c94684eaefa0cb1b7185"
         },
         {
             "path": "tests/Network/CheckCommandAbortTest.php",
@@ -7493,7 +7493,7 @@
                 "Composer verify",
                 "Composer analyze"
             ],
-            "fingerprint": "sha256:0e1148b932bab1d33f9738d905f02d9236e2dbdcce3a256819042ae6534d0bd2"
+            "fingerprint": "sha256:7dbf29c25ddd0b58360fc4013284035fe2c0f99eec2bddb09a3824e7507b1fc4"
         },
         {
             "path": "tests/Unit/AssertionResourceCustodyTest.php",
@@ -9686,7 +9686,7 @@
                 "Composer analyze",
                 "Composer verify"
             ],
-            "fingerprint": "sha256:83110a221ca9828c3901904bd11cbf4dc76e4ee1d35704f0dabfa42b05c2b45c"
+            "fingerprint": "sha256:2892defd15fa2dd67f6d9251e00e01528dcd88dbbd6486c84ca1da800234515b"
         },
         {
             "path": "tests/Unit/PasswordHashPolicyTest.php",
