@@ -23,6 +23,9 @@ try {
 } catch (\Tablo\ValidationException) {
     fwrite(STDERR, data: "Invalid password or protected input. No change committed.\n");
     exit(2);
+} catch (\Tablo\PasswordRuntimeFailure) {
+    fwrite(STDERR, data: "Password runtime unavailable. No change committed.\n");
+    exit(1);
 } catch (\Tablo\InstallationException $error) {
     fwrite(STDERR, data: "Existing installation unavailable or incompatible. No change committed.\n");
     if ($error->getCode() === \Tablo\InstallationException::UNSUPPORTED_CURL) {

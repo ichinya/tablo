@@ -27,11 +27,16 @@ final class SingletonAdministrator
         if (count($users) !== 1) { throw new InstallationException('Administrator unavailable.'); }
         $user = $users[0];
         $hash = $user['password_hash'];
-        // PHP 8 uses a string algorithm identifier, or NULL for an unrecognized hash.
+        $algorithm = PasswordHashPolicy::storedAlgorithm($hash);
+        if (in_array($algorithm, ['argon2id', 'argon2i'], strict: true) && !PasswordService::supportsStoredHash($hash)) {
+            throw new PasswordRuntimeFailure();
+        }
+        // Only bounded policy-recognized bcrypt may lack native metadata (2a/2b).
+        // Keep the original bytes for credential fingerprints and conditional writes.
         /** @var array{algo: ?string, ...} $information */
         $information = password_get_info($hash);
-        if ($user['id'] !== 1 || $information['algo'] === null
-            || (str_starts_with($hash, '$2') && preg_match('/^\$2[aby]\$(?:0[4-9]|[12][0-9]|3[01])\$[.\/A-Za-z0-9]{53}$/D', $hash) !== 1)) {
+        if ($user['id'] !== 1 || $algorithm === null
+            || ($algorithm !== '2y' && $information['algo'] === null)) {
             throw new InstallationException('Administrator unavailable.');
         }
         return $hash;

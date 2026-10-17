@@ -15,6 +15,112 @@ use Testo\Test;
 final class AdminPasswordTest
 {
     #[Test]
+    public function loginBeginAndCommitFailuresPreserveTheOriginalCredentialAndLimiterSnapshot(): void
+    {
+        foreach ([['BEGIN IMMEDIATE', false], ['COMMIT', false], ['COMMIT', true]] as [$failure, $rollback]) {
+            $db = new MigrationPdo(':memory:');
+            Database::migrate($db);
+            $legacy = password_hash('legacy-login-fixture', PASSWORD_BCRYPT, ['cost' => 4]);
+            \Tablo\SqlStatement::checked($db->prepare('INSERT INTO users(id,password_hash) VALUES(1,?)'))->execute([$legacy]);
+            $db->exec("INSERT INTO login_limits VALUES('expired-sentinel',3,0)");
+            $before = \Tablo\Tests\Support\ReadApiAssertions::snapshot($db);
+            $db->statements = []; $db->failBefore = $failure; $db->failRollback = $rollback;
+            $failed = false;
+            try { (new Auth($db))->loginSession('legacy-login-fixture', 'client'); }
+            catch (\PDOException $error) { $failed = str_contains($error->getMessage(), 'injected_migration_failure'); }
+            Assert::true($failed, 'actual selected transaction boundary failed');
+            Assert::same($db->statements[0] ?? null, 'BEGIN IMMEDIATE');
+            Assert::same(in_array('ROLLBACK', $db->statements, strict: true), $failure !== 'BEGIN IMMEDIATE');
+            Assert::same(count(array_filter($db->statements, static fn (string $sql): bool => $sql === 'SELECT password_hash FROM users WHERE id = 1')),
+                $failure === 'BEGIN IMMEDIATE' ? 0 : 2, 'no credential read before BEGIN; COMMIT control reached owned replacement reread');
+            $db->failBefore = null; $db->failRollback = false;
+            if ($rollback) { $db->exec('ROLLBACK'); }
+            Assert::same(\Tablo\Tests\Support\ReadApiAssertions::snapshot($db), $before);
+        }
+    }
+
+    #[Test]
+    public function resetCanReplaceABcryptPrefixWithADistinctLongCredential(): void
+    {
+        self::assertOriginalBcryptRecovery();
+        $db = Database::connect(':memory:');
+        $prefix = str_repeat('x', times: 72);
+        $legacy = password_hash($prefix, PASSWORD_BCRYPT, ['cost' => 4]);
+        \Tablo\SqlStatement::checked($db->prepare('INSERT INTO users(id,password_hash) VALUES(1,?)'))->execute([$legacy]);
+        $auth = new Auth($db); $selected = \Tablo\Tests\Support\FixtureValue::string($auth->credentialFingerprint());
+        Assert::true(password_verify($prefix . 'suffix', $legacy), 'native bcrypt alias control');
+        $auth->changePassword($prefix . 'suffix', $prefix . 'suffix', $selected);
+        $hash = \Tablo\Tests\Support\FixtureValue::string(\Tablo\SqlStatement::checked($db->query('SELECT password_hash FROM users'))->fetchColumn());
+        Assert::same(password_get_info($hash)['algoName'], 'argon2id');
+        Assert::true(\Tablo\PasswordService::verify($prefix . 'suffix', $hash));
+        Assert::false(\Tablo\PasswordService::verify($prefix, $hash));
+        Assert::false(\Tablo\PasswordService::verify($prefix . 'suffiy', $hash));
+    }
+
+    private static function assertOriginalBcryptRecovery(): void
+    {
+        foreach (['2y', '2a', '2b'] as $variant) {
+            $db = new MigrationPdo(':memory:'); Database::migrate($db);
+            $unknown = bin2hex(random_bytes(24));
+            $legacy = '$' . $variant . '$' . substr(password_hash($unknown, PASSWORD_BCRYPT, ['cost' => 4]), offset: 4);
+            Assert::true(password_verify($unknown, $legacy)); unset($unknown);
+            \Tablo\SqlStatement::checked($db->prepare('INSERT INTO users(id,password_hash) VALUES(1,?)'))->execute([$legacy]);
+            $auth = new Auth($db); $selected = \Tablo\AdministratorFingerprint::fingerprint($legacy);
+            Assert::same($auth->credentialFingerprint(), $selected);
+            Assert::same(\Tablo\InstalledAdministrator::existingAdminHash($db), $legacy, 'selection retains original bytes');
+            $secret = \Tablo\ReadApiToken::generate();
+            \Tablo\SqlStatement::checked($db->prepare('INSERT INTO read_api_token VALUES(1,?,?,?)'))->execute([
+                \Tablo\ReadApiToken::digest($secret), $selected, '2026-10-14T10:00:00Z',
+            ]);
+            Assert::same((new \Tablo\ReadApiTokenRepository($db))->authenticate($secret), $variant === '2y', 'API admission stays unchanged');
+            $before = \Tablo\Tests\Support\ReadApiAssertions::snapshot($db); $db->statements = [];
+            $identity = \Tablo\Tests\Support\ReadApiAssertions::rows($db, 'SELECT id,created_at FROM users');
+            $auth->changePassword('replacement-reset-secret', 'replacement-reset-secret', $selected);
+            $current = \Tablo\InstalledAdministrator::existingAdminHash($db);
+            Assert::same(password_get_info($current)['options'], ['memory_cost' => 65_536, 'time_cost' => 3, 'threads' => 1]);
+            Assert::true(password_verify('replacement-reset-secret', $current));
+            Assert::false(hash_equals($selected, \Tablo\Tests\Support\FixtureValue::string($auth->credentialFingerprint())));
+            Assert::same(count(array_filter($db->statements, static fn (string $sql): bool => $sql === 'COMMIT')), 1);
+            Assert::false((new \Tablo\ReadApiTokenRepository($db))->authenticate($secret));
+            $after = \Tablo\Tests\Support\ReadApiAssertions::snapshot($db);
+            Assert::same(\Tablo\Tests\Support\ReadApiAssertions::rows($db, 'SELECT id,created_at FROM users'), $identity);
+            unset($before['users'], $after['users']);
+            Assert::same($after, $before, 'only password hash changes; complete token row retained');
+        }
+        $seed = password_hash('malformed-control', PASSWORD_BCRYPT, ['cost' => 4]);
+        foreach (['$2x$' . substr($seed, offset: 4), substr($seed, offset: 0, length: -1), $seed . "\n",
+            '$2a$03$' . substr($seed, offset: 7), '$2b$32$' . substr($seed, offset: 7), 'not-a-password-hash'] as $malformed) {
+            $db = new MigrationPdo(':memory:'); Database::migrate($db);
+            \Tablo\SqlStatement::checked($db->prepare('INSERT INTO users(id,password_hash) VALUES(1,?)'))->execute([$malformed]);
+            $before = \Tablo\Tests\Support\ReadApiAssertions::snapshot($db); $db->statements = [];
+            \Tablo\Tests\Support\ReadApiAssertions::reject(static fn () => (new Auth($db))->changePassword('replacement-reset-secret', 'replacement-reset-secret', \Tablo\AdministratorFingerprint::fingerprint($malformed)));
+            Assert::false(in_array('COMMIT', $db->statements, strict: true));
+            Assert::same(\Tablo\Tests\Support\ReadApiAssertions::snapshot($db), $before);
+        }
+    }
+
+    #[Test]
+    public function conditionalLoginRefusesZeroRowsAndAReplacedOwnedHashWithAtomicRollback(): void
+    {
+        foreach (["BEFORE UPDATE ON users BEGIN SELECT RAISE(IGNORE); END",
+            "AFTER UPDATE ON users BEGIN UPDATE users SET password_hash=OLD.password_hash WHERE id=1; END"] as $trigger) {
+            $db = Database::connect(':memory:');
+            $legacy = password_hash('migration-fixture', PASSWORD_BCRYPT, ['cost' => 4]);
+            \Tablo\SqlStatement::checked($db->prepare('INSERT INTO users(id,password_hash) VALUES(1,?)'))->execute([$legacy]);
+            $db->exec("INSERT INTO login_limits VALUES('expired-sentinel',3,0)");
+            $db->exec('CREATE TRIGGER login_conflict ' . $trigger);
+            $before = \Tablo\Tests\Support\ReadApiAssertions::snapshot($db);
+            $conflict = false;
+            try { (new Auth($db))->loginSession('migration-fixture', 'conflict'); }
+            catch (PasswordConflict $error) { $conflict = $error->getMessage() === 'Credential write conflicted.'; }
+            Assert::true($conflict, 'successful verification reached the conditional write conflict');
+            Assert::same(\Tablo\Tests\Support\ReadApiAssertions::snapshot($db), $before);
+            $db->exec('DROP TRIGGER login_conflict');
+            Assert::true((new Auth($db))->login('migration-fixture', 'after-rollback'));
+        }
+    }
+
+    #[Test]
     public function changesOnlyHashAndPreservesLimitsWithSnapshotCompatibility(): void
     {
         $db = Database::connect(':memory:');

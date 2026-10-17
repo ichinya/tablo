@@ -8,6 +8,26 @@ use Testo\Test;
 
 final class AuthenticationSetupTest extends DashboardFixtureCase
 {
+    #[Test]
+    public function setupCountsUtf8BytesAndBoundsBothFieldsBeforeCreatingTheAdministrator(): void
+    {
+        $web = \Tablo\Tests\Support\FixtureValue::object($this->web);
+        $setup = $web->request('/setup');
+        Assert::false(str_contains($setup['body'], 'minlength='));
+        Assert::true(str_contains($setup['body'], '1024 байт'));
+        $csrf = \Tablo\Tests\Support\WebFixture::csrf($setup);
+        foreach ([[str_repeat('x', times: 11), str_repeat('x', times: 11)], [str_repeat('x', times: 1025), 'valid-password'],
+            ['valid-password', str_repeat('x', times: 1025)], ["valid\0password", "valid\0password"]] as [$password, $confirmation]) {
+            Assert::same($web->request('/setup', ['_csrf' => $csrf, 'password' => $password, 'confirmation' => $confirmation])['status'], 422);
+            Assert::same((int) \Tablo\SqlStatement::checked($web->database()->query('SELECT COUNT(*) FROM users'))->fetchColumn(), 0);
+        }
+        $password = str_repeat('ж', times: 6);
+        Assert::same($web->request('/setup', ['_csrf' => $csrf, 'password' => $password, 'confirmation' => $password])['status'], 303);
+        $hash = \Tablo\Tests\Support\FixtureValue::string(\Tablo\SqlStatement::checked($web->database()->query('SELECT password_hash FROM users'))->fetchColumn());
+        Assert::same(password_get_info($hash)['algoName'], 'argon2id');
+        Assert::true(password_verify($password, $hash));
+    }
+
 
 
 

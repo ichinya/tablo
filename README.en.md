@@ -62,11 +62,33 @@ composer serve
 ```
 
 Open <http://127.0.0.1:8087>. If the database is missing or has no administrator,
-the application redirects to `/setup` to create a password (12–72 **bytes**).
+the application redirects to `/setup` to create a password (12–1024 **bytes**).
 After setup, GET and POST `/setup` return 404, including unauthenticated requests.
 There is no default password, public registration, or preinstalled site. Sign in
 at `/login`; use [the local password reset](#local-administrator-password-reset)
 if access is lost.
+
+New passwords and local resets use Argon2id with 64 MiB of memory
+(`memory_cost=65536` KiB), three passes (`time_cost=3`), one thread
+(`threads=1`), and an automatically generated salt. Run
+`php tests/fixtures/argon2id-capability.php` in the application's actual runtime
+to check effective hashing and verification; an extension name or Composer
+platform setting does not establish support. See the
+[PHP requirements](https://www.php.net/manual/en/password.requirements.php).
+When Argon2id is unavailable, an existing bcrypt credential can be verified
+without rewriting its hash; setup and reset refuse safely. Restore support in
+the same runtime before retrying. A failed password verification alone does
+not establish provider absence.
+
+A successful login upgrades legacy bcrypt or deficient Argon parameters to
+Argon2id while retaining stronger memory/pass components. Same-policy or
+stronger Argon2id hashes remain byte-identical; a thread-count difference alone
+does not trigger rewriting. Legacy verification preserves exact raw bytes,
+including short or empty credentials, but refuses bcrypt candidates over
+72 bytes before native verification to prevent truncated-prefix aliases.
+A successful upgrade or local reset invalidates prior browser sessions and
+read API bearers. The complete stored API-token row stays unchanged; issue a
+new token through explicit rotation after a fresh login.
 
 Add a site with its HTTP(S) address, GitHub repository (`owner/repo` or a full
 URL), token, branch, health path, optional version path, and comparison mode.
@@ -831,8 +853,11 @@ public files.
 `--password-stdin` accepts exactly two UTF-8 lines (password and confirmation),
 each terminated by LF or CRLF, followed by EOF. Only line endings are removed;
 spaces remain. TTY, BOM, NUL, extra/unterminated lines, unsupported encoding/framing,
-mismatch, or overflow cause refusal. Shared web/CLI validation requires 12–72
-**bytes**, exact untrimmed confirmation, PASSWORD_DEFAULT, and a random salt.
+mismatch, or overflow cause refusal. Shared web/CLI validation requires 12–1024
+**bytes**, exact confirmation without trimming or normalization, Argon2id with
+64 MiB/three passes/one thread, and a random salt. Both fields are bounded before
+comparison. The stdin payload limit is 2052 bytes with CRLF or 2050 with LF;
+a 1025-byte line or overflow is refused. Six Cyrillic letters can supply 12 bytes.
 Newlines allowed by general web validation cannot be represented by this separate
 stdin protocol. The command cannot establish a third-party producer's security.
 
@@ -865,7 +890,9 @@ the password. `-T` disables the default TTY for stdin. See
 [Compose exec](https://docs.docker.com/reference/cli/docker/compose/exec/) and
 [Compose run](https://docs.docker.com/reference/cli/docker/compose/run/).
 
-The chosen hash snapshot is fixed **before** reading stdin. Two processes sharing
+The CLI fixes its chosen hash snapshot **before** reading stdin. The helper's
+two protected prompts precede CLI startup, so selection does not precede those
+prompts. Two processes sharing
 one old snapshot cannot overwrite each other: one succeeds and the other reports
 conflict/busy. A deliberate later change with a new snapshot is allowed. The same
 current password and a repeated completed change are refused without rehashing.

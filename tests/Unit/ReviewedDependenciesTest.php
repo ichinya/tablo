@@ -52,11 +52,11 @@ final class ReviewedDependenciesTest
             self::fixture($directory);
             self::refusal($directory->path, 'Missing project-local');
             $command = [PHP_BINARY, $directory->path . '/tools/capture-reviewed-dependencies.php'];
-            Assert::same(Subprocess::run($command, $directory, [])['exit_code'], 0);
+            Assert::same(Subprocess::run($command, $directory, [], options: new \Tablo\Tests\Support\CommandOptions(timeout: 20))['exit_code'], 0);
             $path = $directory->path . '/contracts/reviewed-dependencies.json';
             $captured = file_get_contents($path);
             \check_reviewed_dependencies($directory->path);
-            Assert::same(Subprocess::run($command, $directory, [])['exit_code'], 0);
+            Assert::same(Subprocess::run($command, $directory, [], options: new \Tablo\Tests\Support\CommandOptions(timeout: 20))['exit_code'], 0);
             Assert::same(file_get_contents($path), $captured);
             foreach (array_keys(\required_reviewed_dependencies()) as $dependency) {
                 $source = $directory->path . '/' . $dependency;
@@ -76,7 +76,7 @@ final class ReviewedDependenciesTest
         $directory = new TemporaryDirectory('tablo-reviewed-manifest-');
         try {
             self::fixture($directory);
-            Assert::same(Subprocess::run([PHP_BINARY, $directory->path . '/tools/capture-reviewed-dependencies.php'], $directory, [])['exit_code'], 0);
+            Assert::same(Subprocess::run([PHP_BINARY, $directory->path . '/tools/capture-reviewed-dependencies.php'], $directory, [], options: new \Tablo\Tests\Support\CommandOptions(timeout: 20))['exit_code'], 0);
             $path = $directory->path . '/contracts/reviewed-dependencies.json';
             $original = \Tablo\RequiredFile::bytes(file_get_contents($path));
             $manifest = \Tablo\JsonRecord::checked(json_decode($original, associative: true, depth: 64, flags: JSON_THROW_ON_ERROR));

@@ -19,8 +19,8 @@ final class PasswordHelperCase
     public static function helper(string $host, string $encoding, string $scenario, string $phase): self
     {
         $password = match ($scenario) {
-            'min' => str_repeat('x', times: 12), 'max' => str_repeat('x', times: 72),
-            'short' => str_repeat('x', times: 11), 'long' => str_repeat('x', times: 73),
+            'min' => str_repeat('x', times: 12), 'max' => str_repeat('x', times: 1024),
+            'short' => str_repeat('x', times: 11), 'long' => str_repeat('x', times: 1025),
             'encodingFailure' => null, default => "  \u{0436}\u{4e2d}\u{1f642}-unicode-  ",
         };
         $input = ['classification' => 'expected recipe, not observed PHP stdin', 'lineEnding' => 'LF',
