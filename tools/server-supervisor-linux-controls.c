@@ -4,6 +4,7 @@
 #define _GNU_SOURCE
 #include <errno.h>
 #include <fcntl.h>
+#include <linux/io_uring.h>
 #include <pthread.h>
 #include <poll.h>
 #include <sched.h>
@@ -293,10 +294,67 @@ static int death_witness(const char *native, const char *control, const char *de
     printf("WITNESS_CLOSED %u %u SIGKILL ECHILD\n", births_seen, terminals);
     return 0;
 }
+// These calls run only inside the owned helper's traced scope. An outer host
+// EPERM is insufficient: the qualifier independently checks native counters.
+static void uring_call(unsigned entries, void *parameters) {
+    errno = 0; long result = syscall(SYS_io_uring_setup, entries, parameters); int error = errno;
+    if (result >= 0) { close((int)result); _exit(99); } // Never submit ring operations.
+    require(result == -1 && error == EPERM);
+}
+static void uring_one(void) {
+    struct io_uring_params parameters = {0}, before = parameters;
+    uring_call(1, &parameters); require(!memcmp(&parameters, &before, sizeof(parameters)));
+}
+static void *uring_thread(void *argument) { (void)argument; uring_one(); return NULL; }
+static void uring_security(void) {
+    long result; errno = 0; result = syscall(SYS_ptrace, 0, 0, NULL, NULL); require(result == -1 && errno == EPERM);
+    errno = 0; result = syscall(SYS_seccomp, 0, 0, NULL); require(result == -1 && errno == EPERM);
+    errno = 0; result = prctl(PR_SET_SECCOMP, 2, NULL); require(result == -1 && errno == EPERM);
+    errno = 0; result = prctl(PR_SET_PTRACER, 0, 0, 0, 0); require(result == -1 && errno == EPERM);
+    errno = 0; result = prctl(PR_SET_DUMPABLE, 0, 0, 0, 0); require(result == -1 && errno == EPERM);
+    errno = 0; result = unshare(CLONE_NEWUSER); require(result == -1 && errno == EPERM);
+    errno = 0; result = syscall(SYS_setns, -1, CLONE_NEWUSER); require(result == -1 && errno == EPERM);
+    errno = 0; result = syscall(SYS_clone, CLONE_UNTRACED | SIGCHLD, NULL, NULL, NULL, 0);
+    if (!result) { say("FORBIDDEN_URING_UNTRACED_CHILD\n"); _exit(97); }
+    require(result == -1 && errno == EPERM);
+}
+static int uring_control(const char *mode) {
+    if (!strcmp(mode, "uring-child")) { uring_one(); return 0; }
+    if (!strcmp(mode, "uring-arguments")) {
+        struct io_uring_params parameters = {0}, before = parameters;
+        uring_call(0, NULL); uring_call(1, (void *)(uintptr_t)1);
+        uring_call(UINT32_MAX, &parameters); require(!memcmp(&parameters, &before, sizeof(parameters)));
+        parameters.flags = IORING_SETUP_SQPOLL; before = parameters;
+        uring_call(1, &parameters); require(!memcmp(&parameters, &before, sizeof(parameters)));
+    } else if (!strcmp(mode, "uring-threads")) {
+        pthread_t threads[4];
+        for (unsigned i = 0; i < 4; i++) require(!pthread_create(&threads[i], NULL, uring_thread, NULL));
+        for (unsigned i = 0; i < 4; i++) require(!pthread_join(threads[i], NULL));
+    } else if (!strcmp(mode, "uring-forkexec")) {
+        pid_t child = fork(); require(child >= 0);
+        if (!child) { char *const args[] = { (char *)self, "uring-child", NULL }; execv(self, args); _exit(99); }
+        int status; require(waitpid(child, &status, 0) == child && WIFEXITED(status) && WEXITSTATUS(status) == 0);
+    } else {
+        unsigned calls = !strcmp(mode, "uring-repeat") ? 4 : 1;
+        for (unsigned i = 0; i < calls; i++) uring_one();
+        if (!strcmp(mode, "uring-mixed-security")) uring_security();
+        if (!strcmp(mode, "uring-mixed-quota")) {
+            init(); for (unsigned i = 1; i < 8; i++) add();
+            errno = 0; pid_t child = fork();
+            if (!child) { say("FORBIDDEN_URING_OVERFLOW_CHILD\n"); _exit(97); }
+            require(child == -1 && errno == EAGAIN); release();
+        }
+    }
+    printf("IO_URING_EPERM %s\n", mode);
+    return !strcmp(mode, "uring-unhandled") ? 23 : 0;
+}
 int main(int argc, char **argv) {
     if (argc == 5 && !strcmp(argv[1], "witness")) return death_witness(argv[2], argv[3], argv[4]);
     require(argc == 2); self = argv[0]; setvbuf(stdout, NULL, _IONBF, 0);
     const char *m = argv[1];
+    if (!strcmp(m, "uring-handled") || !strcmp(m, "uring-repeat") || !strcmp(m, "uring-arguments")
+        || !strcmp(m, "uring-threads") || !strcmp(m, "uring-forkexec") || !strcmp(m, "uring-mixed-security")
+        || !strcmp(m, "uring-mixed-quota") || !strcmp(m, "uring-unhandled") || !strcmp(m, "uring-child")) return uring_control(m);
     if (!strcmp(m, "limit8")) return quota(8, 0);
     if (!strcmp(m, "limit9")) return quota(9, 0);
     if (!strcmp(m, "overflow8")) return quota(8, 1);

@@ -3,11 +3,11 @@
 const test = require('node:test'), assert = require('node:assert/strict');
 const { LinuxRecords, DENIAL_FIELDS } = require('./server-supervisor.cjs');
 const { projectFailure } = require('./server-qualification-diagnostic.cjs');
-const ready = 'READY 7 tgid-seccomp-ptrace-x64-v1 123\nSTARTED 8\n';
+const ready = 'READY 7 tgid-seccomp-ptrace-x64-v2 123\nSTARTED 8\n';
 const input = 'INPUT 0 0 0 1\n', exited = 'EXITED 8 0 0 0\n';
 const before = ready + input + exited;
 const record = values => 'DENIALS ' + values.join(' ') + '\n';
-const closed = (denied, failed = denied > 0 ? 1 : 0) => `CLOSED 0 0 2 2 1 0 ${denied} 1 7 9 0 1 ${failed}\n`;
+const closed = (denied, failed = denied > 0 ? 1 : 0) => `CLOSED 0 0 2 2 1 0 ${denied} 1 7 9 0 1 ${failed} 0 0\n`;
 function parse(bytes, fragmented = false) {
   const parser = new LinuxRecords(), seen = [];
   if (fragmented) for (const byte of Buffer.from(bytes)) parser.push(Buffer.from([byte]), (kind, values) => seen.push({ kind, values }));

@@ -120,7 +120,214 @@ jobs:
           archive: true
           retention-days: 7
 
+  linux-fallback-unit:
+    name: Linux native transition faults / isolated stubs
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    defaults:
+      run:
+        shell: pwsh
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - name: Compile and run one isolated native fault shim
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $unitRoot = Join-Path $env:RUNNER_TEMP 'tablo-linux-fallback-unit'
+          $private = Join-Path $unitRoot 'private'
+          $source = Join-Path $unitRoot 'source'
+          $output = Join-Path $unitRoot 'out'
+          New-Item -ItemType Directory -Path $private,$output,(Join-Path $source 'tools') -ErrorAction Stop | Out-Null
+          function Invoke-UnitTool([string]$label,[string]$executable,[string[]]$arguments,[int]$seconds) {
+            $start = [Diagnostics.ProcessStartInfo]::new($executable)
+            $start.UseShellExecute = $false
+            $start.WorkingDirectory = $private
+            $start.RedirectStandardInput = $true
+            $start.RedirectStandardOutput = $true
+            $start.RedirectStandardError = $true
+            $start.Environment.Clear()
+            foreach ($entry in @{ PATH='/usr/local/bin:/usr/bin:/bin'; HOME=$private; DOCKER_CONFIG=$private; LANG='C' }.GetEnumerator()) { $start.Environment[$entry.Key] = $entry.Value }
+            foreach ($argument in $arguments) { $start.ArgumentList.Add($argument) }
+            $child = [Diagnostics.Process]::new(); $child.StartInfo = $start
+            $watch = [Diagnostics.Stopwatch]::StartNew(); $budget = [int64]$seconds * 1000
+            $stdout = [IO.MemoryStream]::new(); $stderr = [IO.MemoryStream]::new()
+            $outBuffer = [byte[]]::new(4096); $errBuffer = [byte[]]::new(4096)
+            $started = $false; $closed = $false; $streams = $false; $expired = $false; $overflow = $false; $killAttempted = $false
+            $outDone = $false; $errDone = $false; $outRead = $null; $errRead = $null; $nativeExit = $null; $childId = $null
+            $firstFailure = $null; $streamFailure = $null; $killFailure = $null; $disposeFailure = $null; $retentionFailure = $null
+            try {
+              if (!$child.Start()) { throw 'Unit tool did not start' }
+              $started = $true; $childId = $child.Id; $child.StandardInput.Close()
+              $outRead = $child.StandardOutput.BaseStream.ReadAsync($outBuffer,0,$outBuffer.Length)
+              $errRead = $child.StandardError.BaseStream.ReadAsync($errBuffer,0,$errBuffer.Length)
+              while ($watch.ElapsedMilliseconds -lt $budget + 1000) {
+                try {
+                  if ($outRead -and $outRead.IsCompleted) {
+                    $count = $outRead.GetAwaiter().GetResult()
+                    if ($count -eq 0) { $outDone=$true; $outRead=$null }
+                    else {
+                      $remaining = 65536 - $stdout.Length - $stderr.Length
+                      if ($count -gt $remaining) { $overflow=$true }
+                      $stdout.Write($outBuffer,0,[Math]::Max(0,[Math]::Min($count,$remaining)))
+                      $outRead = $child.StandardOutput.BaseStream.ReadAsync($outBuffer,0,$outBuffer.Length)
+                    }
+                  }
+                  if ($errRead -and $errRead.IsCompleted) {
+                    $count = $errRead.GetAwaiter().GetResult()
+                    if ($count -eq 0) { $errDone=$true; $errRead=$null }
+                    else {
+                      $remaining = 65536 - $stdout.Length - $stderr.Length
+                      if ($count -gt $remaining) { $overflow=$true }
+                      $stderr.Write($errBuffer,0,[Math]::Max(0,[Math]::Min($count,$remaining)))
+                      $errRead = $child.StandardError.BaseStream.ReadAsync($errBuffer,0,$errBuffer.Length)
+                    }
+                  }
+                } catch { $streamFailure=$_; if ($null -eq $firstFailure) { $firstFailure=$_ }; break }
+                $closed = $child.HasExited
+                if ($overflow -or $watch.ElapsedMilliseconds -ge $budget) {
+                  $expired = $watch.ElapsedMilliseconds -ge $budget
+                  if ($null -eq $firstFailure) { $firstFailure = [InvalidOperationException]::new('Unit tool overflow or deadline') }
+                  if (!$closed -and !$killAttempted) {
+                    $killAttempted=$true
+                    try { $child.Kill($true) } catch { $killFailure=$_ }
+                  }
+                }
+                if ($closed -and $outDone -and $errDone) { $streams=$true; break }
+                Start-Sleep -Milliseconds 10
+              }
+            } catch { if ($null -eq $firstFailure) { $firstFailure=$_ } }
+            finally {
+              if ($started) {
+                try {
+                  $closed=$child.HasExited
+                  if (!$closed) {
+                    if (!$killAttempted) { $killAttempted=$true; try { $child.Kill($true) } catch { $killFailure=$_ } }
+                    $remainingWait=[int][Math]::Max(0,[Math]::Min(1000,$budget+1000-$watch.ElapsedMilliseconds))
+                    $closed=$child.WaitForExit($remainingWait)
+                  }
+                  if ($closed) { $nativeExit=$child.ExitCode }
+                } catch { if ($null -eq $firstFailure) { $firstFailure=$_ } }
+              }
+              try { $child.Dispose() } catch { $disposeFailure=$_; if ($null -eq $firstFailure) { $firstFailure=$_ } }
+            }
+            if (!$closed -or !$streams -or $expired -or $overflow -or $nativeExit -ne 0) {
+              if ($null -eq $firstFailure) { $firstFailure=[InvalidOperationException]::new('Unit tool failed or closure unknown') }
+            }
+            $result = $null
+            try {
+              [IO.File]::WriteAllBytes((Join-Path $private "$label.stdout"),$stdout.ToArray())
+              [IO.File]::WriteAllBytes((Join-Path $private "$label.stderr"),$stderr.ToArray())
+              $result = [Text.UTF8Encoding]::new($false,$true).GetString($stdout.ToArray())
+            } catch { $retentionFailure=$_; if ($null -eq $firstFailure) { $firstFailure=$_ } }
+            $stdoutBytes=$stdout.Length; $stderrBytes=$stderr.Length
+            try { $stdout.Dispose() } catch { if ($null -eq $disposeFailure) { $disposeFailure=$_ }; if ($null -eq $firstFailure) { $firstFailure=$_ } }
+            try { $stderr.Dispose() } catch { if ($null -eq $disposeFailure) { $disposeFailure=$_ }; if ($null -eq $firstFailure) { $firstFailure=$_ } }
+            $receipt = @{ label=$label; pid=$childId; nativeExit=$nativeExit; processClosed=$closed; streamsClosed=$streams; expired=$expired; outputOverflow=$overflow; maximumCapturedBytes=65536; stdoutBytes=$stdoutBytes; stderrBytes=$stderrBytes; firstFailure=($null -ne $firstFailure); streamFailure=($null -ne $streamFailure); killAttempted=$killAttempted; killFailure=($null -ne $killFailure); disposeFailure=($null -ne $disposeFailure); retentionFailure=($null -ne $retentionFailure) }
+            try { [IO.File]::WriteAllText((Join-Path $private "$label.json"),($receipt | ConvertTo-Json),[Text.UTF8Encoding]::new($false)) }
+            catch { if ($null -eq $firstFailure) { $firstFailure=$_ } }
+            if ($null -ne $firstFailure) { throw $firstFailure }
+            return $result
+          }
+          $null = Invoke-UnitTool 'unit-modes' '/usr/bin/chmod' @('700','--',$private,$output,$source,(Join-Path $source 'tools')) 8
+          $uid = (Invoke-UnitTool 'unit-uid' '/usr/bin/id' @('-u') 8).Trim()
+          $gid = (Invoke-UnitTool 'unit-gid' '/usr/bin/id' @('-g') 8).Trim()
+          if ($uid -cnotmatch '^[1-9][0-9]*$' -or $gid -cnotmatch '^[1-9][0-9]*$') { throw 'Unit requires explicit unprivileged identity' }
+          $selected = @{}
+          foreach ($toolName in @('docker','git')) {
+            $discovered = (Get-Command $toolName -CommandType Application -ErrorAction Stop | Select-Object -First 1).Source
+            if ($discovered -isnot [string] -or !$discovered.StartsWith('/') -or $discovered -cmatch '[\x00-\x1f\x7f]') { throw 'Unit tool discovery refused' }
+            $canonical = (Invoke-UnitTool "unit-resolve-$toolName" '/usr/bin/readlink' @('-f','--',$discovered) 8).Trim()
+            $metadata = Get-Item -LiteralPath $canonical -ErrorAction Stop
+            if (!$canonical.StartsWith('/') -or $canonical -cmatch '[\x00-\x1f\x7f]' -or $metadata -isnot [IO.FileInfo] -or $metadata.PSIsContainer -or $metadata.LinkType -or ($metadata.Attributes -band [IO.FileAttributes]::ReparsePoint) -ne 0 -or $metadata.FullName -cne $canonical) { throw 'Canonical unit tool refused' }
+            $selected[$toolName] = $canonical
+          }
+          $head = (Invoke-UnitTool 'unit-head' $selected.git @('-C',"$PWD",'rev-parse','HEAD') 8).Trim()
+          $tree = (Invoke-UnitTool 'unit-tree' $selected.git @('-C',"$PWD",'rev-parse','HEAD^{tree}') 8).Trim()
+          if ($head -cnotmatch '^[0-9a-f]{40}$' -or $tree -cnotmatch '^[0-9a-f]{40}$') { throw 'Unit checkout identity unknown' }
+          $sourcePins = @{}
+          $toolsDirectory = Get-Item -LiteralPath (Join-Path $PWD 'tools') -ErrorAction Stop
+          if ($toolsDirectory.LinkType -or ($toolsDirectory.Attributes -band [IO.FileAttributes]::ReparsePoint) -ne 0) { throw 'Linked unit source parent' }
+          foreach ($file in @('server-supervisor-linux.c','server-supervisor-linux-fallback-unit.c')) {
+            $input = Join-Path $PWD "tools/$file"; $copy = Join-Path $source "tools/$file"
+            $metadata = Get-Item -LiteralPath $input -ErrorAction Stop
+            if ($metadata -isnot [IO.FileInfo] -or $metadata.LinkType -or ($metadata.Attributes -band [IO.FileAttributes]::ReparsePoint) -ne 0 -or $metadata.Length -gt 131072) { throw 'Unit requires bounded regular public source' }
+            $sourcePins[$file] = (Get-FileHash -LiteralPath $input -Algorithm SHA256).Hash.ToLowerInvariant()
+            Copy-Item -LiteralPath $input -Destination $copy -ErrorAction Stop
+            if ((Get-FileHash -LiteralPath $copy -Algorithm SHA256).Hash.ToLowerInvariant() -cne $sourcePins[$file]) { throw 'Unit source copy differs' }
+          }
+          $imageName = 'docker.io/library/php@sha256:6114a2bd4956c50e4db20f08b9377e4fc7e08417b2aa34a44ec7ff52a07996b5'
+          # Explicit finite acquisition in this job; no assumption of a warm daemon.
+          $null = Invoke-UnitTool 'unit-image-pull' $selected.docker @('pull','--platform=linux/amd64',$imageName) 300
+          $image = @(Invoke-UnitTool 'unit-image' $selected.docker @('image','inspect',$imageName) 8 | ConvertFrom-Json)
+          $digests = @($image[0].RepoDigests | Where-Object { $_ -cmatch '^(?:docker\.io/)?(?:library/)?php@sha256:6114a2bd4956c50e4db20f08b9377e4fc7e08417b2aa34a44ec7ff52a07996b5$' })
+          if ($image.Count -ne 1 -or $digests.Count -lt 1 -or $image[0].Id -cnotmatch '^sha256:[0-9a-f]{64}$' -or $image[0].Os -cne 'linux' -or $image[0].Architecture -cne 'amd64' -or ($null -ne $image[0].Config.Volumes -and @($image[0].Config.Volumes.PSObject.Properties).Count -ne 0)) { throw 'Unit image identity or implicit volume differs' }
+          $nonce = [Guid]::NewGuid().ToString('N'); $name = 'tablo-i39-fallback-unit-' + $nonce
+          $cidFile = Join-Path $private 'unit.cid'
+          $script = @'
+          set -eu
+          umask 077
+          test ! -e /out/unit
+          test ! -e /out/unit.stdout
+          test ! -e /out/unit.stderr
+          cc=$(command -v gcc)
+          ld=$(gcc -print-prog-name=ld)
+          case "$ld" in /*) ;; *) ld=$(command -v "$ld") ;; esac
+          libc=$(gcc -print-file-name=libc.a)
+          test -f "$cc"
+          test -f "$ld"
+          test -f "$libc"
+          test "$libc" != libc.a
+          sha256sum tools/server-supervisor-linux.c tools/server-supervisor-linux-fallback-unit.c "$cc" "$ld" "$libc" > /out/input-SHA256SUMS
+          gcc -std=c11 -O2 -Wall -Wextra -Werror -fno-strict-aliasing -fstack-protector-strong -D_FORTIFY_SOURCE=2 -static -Wl,-z,noexecstack -Wl,--build-id=none -o /out/unit tools/server-supervisor-linux-fallback-unit.c
+          /out/unit > /out/unit.stdout 2> /out/unit.stderr
+          test "$(cat /out/unit.stdout)" = 'IO_URING_FALLBACK_UNIT_OK 35'
+          test ! -s /out/unit.stderr
+          sha256sum /out/unit > /out/unit-SHA256SUMS
+          '@
+          $create = @('create','--platform=linux/amd64','--pull=never','--name',$name,'--cidfile',$cidFile,'--label',"tablo.issue39.unit.nonce=$nonce",'--network=none','--read-only','--cap-drop=ALL','--security-opt=no-new-privileges','--pids-limit=8','--memory=512m','--cpus=2','--no-healthcheck','--user',"${uid}:${gid}",'--mount',"type=bind,source=$source,target=/src,readonly",'--mount',"type=bind,source=$output,target=/out",'--tmpfs','/tmp:rw,noexec,nosuid,size=64m','--workdir','/src','--entrypoint','/bin/sh',$imageName,'-c',$script)
+          $primary = $null; $cleanupFailure = $null; $passed = $false; $cleanupClosed = $false; $provenance = 'UNKNOWN'
+          try {
+            $id = (Invoke-UnitTool 'unit-create' $selected.docker $create 30).Trim()
+            if ($id -cnotmatch '^[0-9a-f]{64}$' -or (Get-Content -LiteralPath $cidFile -Raw).Trim() -cne $id) { throw 'Unit resource ID unknown' }
+            $owned = @(Invoke-UnitTool 'unit-before-start' $selected.docker @('container','inspect',$id) 8 | ConvertFrom-Json)
+            if ($owned.Count -ne 1 -or $owned[0].Id -cne $id -or $owned[0].Name -cne "/$name" -or $owned[0].Config.Labels.'tablo.issue39.unit.nonce' -cne $nonce -or $owned[0].Image -cne $image[0].Id -or $owned[0].State.Status -cne 'created' -or $owned[0].State.Running -or $owned[0].State.Pid -ne 0 -or $owned[0].State.Error -cne '') { throw 'Unit positive ownership differs' }
+            $null = Invoke-UnitTool 'unit-start' $selected.docker @('start','--attach',$id) 180
+            $closed = @(Invoke-UnitTool 'unit-exit' $selected.docker @('container','inspect',$id) 8 | ConvertFrom-Json)
+            if ($closed.Count -ne 1 -or $closed[0].Id -cne $id -or $closed[0].Name -cne "/$name" -or $closed[0].Config.Labels.'tablo.issue39.unit.nonce' -cne $nonce -or $closed[0].Image -cne $image[0].Id -or $closed[0].State.Running -or $closed[0].State.Pid -ne 0 -or $closed[0].State.Error -cne '' -or $closed[0].State.OOMKilled -or $closed[0].State.Dead -or $closed[0].State.Status -cne 'exited' -or $closed[0].State.ExitCode -ne 0) { throw 'Unit native exit or daemon closure failed' }
+            if ((Get-Content -LiteralPath (Join-Path $output 'unit.stdout') -Raw) -cne "IO_URING_FALLBACK_UNIT_OK 35`n" -or (Get-Item -LiteralPath (Join-Path $output 'unit.stderr')).Length -ne 0) { throw 'Unit success marker differs' }
+            $hashes = @(Get-Content -LiteralPath (Join-Path $output 'input-SHA256SUMS'))
+            $binaryHash = (Get-Content -LiteralPath (Join-Path $output 'unit-SHA256SUMS') -Raw).Trim()
+            if ($hashes.Count -ne 5 -or @($hashes | Where-Object { $_ -cnotmatch '^[0-9a-f]{64}  [^\r\n]+$' }).Count -ne 0 -or $binaryHash -cnotmatch '^[0-9a-f]{64}  /out/unit$' -or $hashes[0].Substring(0,64) -cne $sourcePins['server-supervisor-linux.c'] -or $hashes[1].Substring(0,64) -cne $sourcePins['server-supervisor-linux-fallback-unit.c']) { throw 'Unit provenance hashes differ' }
+            $provenance = @{ binarySha256=$binaryHash.Substring(0,64); compilerSha256=$hashes[2].Substring(0,64); linkerSha256=$hashes[3].Substring(0,64); libcArchiveSha256=$hashes[4].Substring(0,64); stdoutSha256=(Get-FileHash -LiteralPath (Join-Path $output 'unit.stdout') -Algorithm SHA256).Hash.ToLowerInvariant() }
+            $passed = $true
+          } catch { $primary = $_ }
+          finally {
+            try {
+              if (!(Test-Path -LiteralPath $cidFile)) { throw 'Unit custody unknown: no saved ID' }
+              $cleanupId = (Get-Content -LiteralPath $cidFile -Raw).Trim()
+              if ($cleanupId -cnotmatch '^[0-9a-f]{64}$') { throw 'Unit cleanup identity unknown' }
+              $owned = @(Invoke-UnitTool 'unit-cleanup-owner' $selected.docker @('container','inspect',$cleanupId) 8 | ConvertFrom-Json)
+              if ($owned.Count -ne 1 -or $owned[0].Id -cne $cleanupId -or $owned[0].Name -cne "/$name" -or $owned[0].Config.Labels.'tablo.issue39.unit.nonce' -cne $nonce -or $owned[0].Image -cne $image[0].Id) { throw 'Unit cleanup ownership refused' }
+              if ($owned[0].State.Running) { $null = Invoke-UnitTool 'unit-kill' $selected.docker @('container','kill',$cleanupId) 8 }
+              $closed = @(Invoke-UnitTool 'unit-cleanup-closed' $selected.docker @('container','inspect',$cleanupId) 8 | ConvertFrom-Json)
+              if ($closed.Count -ne 1 -or $closed[0].Id -cne $cleanupId -or $closed[0].Name -cne "/$name" -or $closed[0].Config.Labels.'tablo.issue39.unit.nonce' -cne $nonce -or $closed[0].Image -cne $image[0].Id -or $closed[0].State.Running -or $closed[0].State.Pid -ne 0 -or $closed[0].State.Error -cne '' -or $closed[0].State.Status -cnotin @('created','exited')) { throw 'Unit daemon closure unknown' }
+              $null = Invoke-UnitTool 'unit-remove' $selected.docker @('container','rm',$cleanupId) 8
+              $cleanupClosed = $true
+            } catch { $cleanupFailure = $_ }
+            $passedCases = if ($passed) { 35 } else { 'UNKNOWN' }
+            [IO.File]::WriteAllText((Join-Path $unitRoot 'safe-fallback-unit.json'), (@{ schema='tablo/linux-io-uring-fallback-unit/v1'; head=$head; tree=$tree; passed=$passed; ownedCleanupClosed=$cleanupClosed; requiredCases=35; passedCases=$passedCases; sourceSha256=$sourcePins['server-supervisor-linux.c']; harnessSha256=$sourcePins['server-supervisor-linux-fallback-unit.c']; compilerImageDigest='sha256:6114a2bd4956c50e4db20f08b9377e4fc7e08417b2aa34a44ec7ff52a07996b5'; provenance=$provenance; issueAccepted=$false } | ConvertTo-Json -Depth 5), [Text.UTF8Encoding]::new($false))
+          }
+          if ($null -ne $primary -or $null -ne $cleanupFailure -or !$passed -or !$cleanupClosed) { throw 'Unit failed or custody unknown; dependent native/product work remains NOTRUN' }
+      - name: Retain safe isolated unit outcome
+        if: always()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2, Node24
+        with:
+          name: linux-fallback-unit-${{ github.run_id }}-${{ github.run_attempt }}
+          path: ${{ runner.temp }}/tablo-linux-fallback-unit/safe-fallback-unit.json
+          if-no-files-found: warn
+          retention-days: 7
+
   server:
+    needs: [linux-fallback-unit]
     name: Ubuntu / ${{ matrix.engine }} / PHP ${{ matrix.php }}${{ matrix.declarationOnly && ' / declaration-only' || '' }}
     runs-on: ubuntu-latest
     timeout-minutes: 45
@@ -344,6 +551,10 @@ jobs:
           & $env:TABLO_TEST_NODE_BIN tools/server-qualification-diagnostic.cjs --self-test
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
           & $env:TABLO_TEST_NODE_BIN --test tools/server-native-denial.test.cjs
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          & $env:TABLO_TEST_NODE_BIN --test tools/server-io-uring-fallback.test.cjs
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          & $env:TABLO_SERVER_PREPARED_PHP -n tools/server-io-uring-php-grammar.test.php
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
           $preparationArguments = @("--cell=$cellDirectory", "--source=$PWD")
           if ($diagnosticOnly) { $preparationArguments += '--declaration-only' }

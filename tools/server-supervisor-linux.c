@@ -31,11 +31,11 @@
 #error Only the reviewed native Linux x86-64 ABI is supported
 #endif
 
-#define POLICY "tgid-seccomp-ptrace-x64-v1"
+#define POLICY "tgid-seccomp-ptrace-x64-v2"
 #define TASKS 512
 #define GROUPS 9
 #define NS UINT64_C(1000000000)
-enum { NONE, PROCESS, THREAD, REJECT, CLONE3 };
+enum { NONE, PROCESS, THREAD, REJECT, CLONE3, URING_EPERM };
 struct task { pid_t tid, tgid; int pending, born, reject_errno, newborn; };
 struct group { pid_t tgid; int fd; };
 static struct task tasks[TASKS];
@@ -43,6 +43,7 @@ static struct group groups[GROUPS];
 static pid_t early_stops[TASKS];
 static unsigned live, pending, peak, births, reservations, failed_creations;
 static unsigned denied, clone3_fallbacks, waits, exec_retired, thread_births;
+static unsigned io_uring_setup_attempts, io_uring_setup_eperm_writes;
 // Diagnostic only: positional DENIALS fields never participate in policy.
 enum { D_PTRACE, D_SECCOMP, D_PRCTL_SECCOMP, D_PRCTL_PTRACER, D_PRCTL_DUMPABLE,
     D_UNSHARE, D_SETNS, D_IO_URING, D_CLONE_FLAGS, D_CLONE_LIMIT, D_FORK_LIMIT,
@@ -70,6 +71,14 @@ static unsigned denied_operation(uint64_t nr, uint64_t option) {
     if (nr == SYS_setns) return D_SETNS;
     if (nr == SYS_io_uring_setup) return D_IO_URING;
     return D_UNKNOWN;
+}
+static int admission_increment(unsigned *counter) {
+    if (*counter >= INT32_MAX) { failed = 1; return -1; }
+    (*counter)++; return 0;
+}
+static void fallback_closure(void) {
+    if (io_uring_setup_attempts != io_uring_setup_eperm_writes
+        || io_uring_setup_attempts > denied) failed = 1;
 }
 
 static uint64_t now(void) {
@@ -179,25 +188,35 @@ static int gate(struct task *t) {
         return resume(t, 0);
     }
     if (!launched) return -1;
+    if (nr == SYS_io_uring_setup) {
+        // Refusal is always before kernel entry, independent of caller/arguments.
+        if (denied >= INT32_MAX || io_uring_setup_attempts >= INT32_MAX) { failed = 1; return -1; }
+        denied++; io_uring_setup_attempts++;
+        diagnostic_increment(&denial_buckets[D_IO_URING]);
+        return suppress(t, &regs, EPERM, URING_EPERM);
+    }
     if (nr == SYS_clone3) { clone3_fallbacks++; return suppress(t, &regs, ENOSYS, CLONE3); }
     if (nr == SYS_prctl && flags != PR_SET_SECCOMP && flags != PR_SET_PTRACER
         && flags != PR_SET_DUMPABLE) return resume(t, 0);
     if (nr != SYS_clone && nr != SYS_fork && nr != SYS_vfork) {
         diagnostic_increment(&denial_buckets[denied_operation(nr, flags)]);
-        denied++; failed = 1; return suppress(t, &regs, EPERM, REJECT);
+        failed = 1; if (admission_increment(&denied)) return -1;
+        return suppress(t, &regs, EPERM, REJECT);
     }
     const uint64_t allowed = CSIGNAL | CLONE_VM | CLONE_FS | CLONE_FILES | CLONE_SIGHAND
         | CLONE_THREAD | CLONE_SYSVSEM | CLONE_SETTLS | CLONE_PARENT_SETTID
         | CLONE_CHILD_CLEARTID | CLONE_CHILD_SETTID | CLONE_VFORK | CLONE_DETACHED | CLONE_PIDFD;
     if (nr == SYS_clone && ((flags & ~allowed) || (flags & CSIGNAL) > 64)) {
         diagnostic_increment(&denial_buckets[D_CLONE_FLAGS]);
-        denied++; failed = 1; return suppress(t, &regs, EPERM, REJECT);
+        failed = 1; if (admission_increment(&denied)) return -1;
+        return suppress(t, &regs, EPERM, REJECT);
     }
     int thread = nr == SYS_clone && (flags & CLONE_THREAD);
     if (!thread) {
         if (live + pending >= (unsigned)limit) {
             diagnostic_increment(&denial_buckets[nr == SYS_clone ? D_CLONE_LIMIT : nr == SYS_fork ? D_FORK_LIMIT : D_VFORK_LIMIT]);
-            denied++; failed = 1; return suppress(t, &regs, EAGAIN, REJECT);
+            failed = 1; if (admission_increment(&denied)) return -1;
+            return suppress(t, &regs, EAGAIN, REJECT);
         }
         pending++; reservations++; if (live + pending > peak) peak = live + pending;
     }
@@ -210,12 +229,18 @@ static int syscall_exit(struct task *t) {
     long size = ptrace(PTRACE_GET_SYSCALL_INFO, t->tid, sizeof(info), &info);
     if (!t->pending || size < (long)(offsetof(struct ptrace_syscall_info, exit.is_error) + sizeof(info.exit.is_error))
         || info.op != PTRACE_SYSCALL_INFO_EXIT || info.arch != AUDIT_ARCH_X86_64) return -1;
-    if (t->pending == REJECT || t->pending == CLONE3) {
+    if (t->pending == REJECT || t->pending == CLONE3 || t->pending == URING_EPERM) {
+        if (t->pending == URING_EPERM && (t->reject_errno != EPERM
+            || io_uring_setup_eperm_writes >= io_uring_setup_attempts
+            || io_uring_setup_attempts > denied || denied > INT32_MAX
+            || io_uring_setup_eperm_writes >= INT32_MAX)) { failed = 1; return -1; }
         if (ptrace(PTRACE_GETREGS, t->tid, NULL, &regs)) return -1;
+        if (t->pending == URING_EPERM && regs.orig_rax != (unsigned long long)-1) return -1;
         regs.rax = (unsigned long long)-(long long)t->reject_errno;
         if (ptrace(PTRACE_SETREGS, t->tid, NULL, &regs)) return -1;
         // A completed register write is not proof of a program-observed return.
-        if (t->pending == REJECT && t->reject_errno == EPERM) diagnostic_increment(&eperm_register_writes);
+        if (t->pending == URING_EPERM) io_uring_setup_eperm_writes++;
+        if ((t->pending == REJECT || t->pending == URING_EPERM) && t->reject_errno == EPERM) diagnostic_increment(&eperm_register_writes);
         if (t->pending == REJECT && t->reject_errno == EAGAIN) diagnostic_increment(&eagain_register_writes);
     } else if (info.exit.is_error) {
         if (t->born) return -1;
@@ -255,6 +280,7 @@ static int exec_event(pid_t tid) {
     // and pidfd; never decrement the process count for this identity exchange.
     struct task *leader = task(tid);
     if (leader && leader != t) {
+        if (leader->pending == URING_EPERM) return -1;
         if (leader->pending == PROCESS && !leader->born) {
             if (!pending) return -1;
             pending--; failed_creations++;
@@ -270,6 +296,7 @@ static int exec_event(pid_t tid) {
     return resume(t, 0);
 }
 static int terminal(struct task *t, int status) {
+    if (t->pending == URING_EPERM) failed = 1;
     if (t->pending == PROCESS && !t->born) { if (!pending) return -1; pending--; failed_creations++; }
     pid_t tid = t->tid, tgid = t->tgid;
     if (WIFSIGNALED(status) && WTERMSIG(status) == SIGSYS) failed = 1;
@@ -448,6 +475,7 @@ int main(int argc, char **argv) {
         input();
         if (closure_echild && !emitted) {
             emitted = 1;
+            fallback_closure();
             if (!root_terminal || !started || !input_settled || pending || fsync(3) || fsync(4)) failed = 1;
             close(3); close(4);
             char line[512];
@@ -460,9 +488,10 @@ int main(int argc, char **argv) {
                     denial_buckets[D_UNKNOWN], eperm_register_writes, eagain_register_writes);
                 event(line);
             }
-            snprintf(line, sizeof(line), "CLOSED %u %u %u %u %u %u %u %u %u %u %u %d %d\n",
+            snprintf(line, sizeof(line), "CLOSED %u %u %u %u %u %u %u %u %u %u %u %d %d %u %u\n",
                 live, pending, peak, births, reservations, failed_creations, denied, clone3_fallbacks,
-                thread_births, waits, exec_retired, closure_echild, failed || cancelled);
+                thread_births, waits, exec_retired, closure_echild, failed || cancelled,
+                io_uring_setup_attempts, io_uring_setup_eperm_writes);
             event(line);
         }
         if (emitted && (shutting_down || owner_eof)) return failed || cancelled || !root_terminal ? 125 : 0;

@@ -1,16 +1,17 @@
 'use strict';
 
 // Public failure projection only. Never serialize the input object or exception.
-const STAGES = ['SETUP', 'NAMESPACE_PROBE', 'NEUTRAL_CONTROL', 'INPUT_BOUNDARY', 'TRACER_WITNESS', 'CLIENT_RUNTIME', 'PUBLICATION'];
+const STAGES = ['SETUP', 'NAMESPACE_PROBE', 'NEUTRAL_CONTROL', 'INPUT_BOUNDARY', 'FALLBACK_CONTROL', 'TRACER_WITNESS', 'CLIENT_RUNTIME', 'PUBLICATION'];
 const SUBJECTS = ['namespace', 'limit8', 'limit9', 'overflow8', 'overflow9', 'threads', 'threadfork', 'threadexec',
   'concurrent', 'vfork', 'spawn', 'short', 'failedfork', 'clone3', 'untraced', 'filter', 'ptrace', 'x32', 'i386',
   'stdin0', 'stdin65536', 'exit23', 'signal', 'rootfirst', 'owner-eof', 'deadline', 'partial-input',
-  'unresponsive-input', 'invalid-capture', 'witness', 'node', 'php', 'composer', 'shell', 'docker'];
+  'unresponsive-input', 'invalid-capture', 'witness', 'node', 'php', 'composer', 'shell', 'docker',
+  'uring-handled', 'uring-repeat', 'uring-arguments', 'uring-threads', 'uring-forkexec', 'uring-mixed-security', 'uring-mixed-quota', 'uring-unhandled'];
 const SIGNALS = ['SIGABRT', 'SIGALRM', 'SIGBUS', 'SIGCHLD', 'SIGCONT', 'SIGFPE', 'SIGHUP', 'SIGILL', 'SIGINT',
   'SIGKILL', 'SIGPIPE', 'SIGQUIT', 'SIGSEGV', 'SIGSTOP', 'SIGSYS', 'SIGTERM', 'SIGTRAP', 'SIGTSTP', 'SIGTTIN',
   'SIGTTOU', 'SIGURG', 'SIGUSR1', 'SIGUSR2', 'SIGXCPU', 'SIGXFSZ'];
 const UNKNOWN = 'UNKNOWN';
-const CHECK_IDS = Object.freeze(Array.from({ length: 113 }, (_, index) => 'Q' + String(index + 1).padStart(3, '0')));
+const CHECK_IDS = Object.freeze(Array.from({ length: 149 }, (_, index) => 'Q' + String(index + 1).padStart(3, '0')));
 const enumeration = (value, values) => values.includes(value) ? value : UNKNOWN;
 const number = (value, min = 0, max = 2147483647) => Number.isSafeInteger(value) && value >= min && value <= max ? value : UNKNOWN;
 const boolean = value => typeof value === 'boolean' ? value : UNKNOWN;
@@ -30,9 +31,9 @@ function projectFailure(input) {
   const close = owner?.adapterClose ?? (input?.stage === 'INPUT_BOUNDARY' ? invocation : undefined);
   const root = events?.exited, closed = events?.closed, admission = closed?.admission;
   return {
-    schema: 'tablo/linux-safe-qualification-failure/v1', status: 'failed', qualified: false, rootCause: UNKNOWN,
+    schema: 'tablo/linux-safe-qualification-failure/v2', status: 'failed', qualified: false, rootCause: UNKNOWN,
     stage: enumeration(input?.stage, STAGES), subject: enumeration(input?.subject, SUBJECTS),
-    index: number(input?.index, 0, 31), checkId: enumeration(input?.check, CHECK_IDS), completed: number(input?.completed, 0, 30),
+    index: number(input?.index, 0, 31), checkId: enumeration(input?.check, CHECK_IDS), completed: number(input?.completed, 0, 38),
     adapter: { exitCode: nullable(close?.code, value => number(value, -1, 255)),
       signal: nullable(close?.signal, value => enumeration(value, SIGNALS)), closeObserved: boolean(close?.closeObserved),
       spawnError: boolean(close?.spawnError), protocolFailed: boolean(close?.protocolFailed),
@@ -52,7 +53,8 @@ function projectFailure(input) {
     admission: Object.fromEntries(['configuredLimit', 'liveTgids', 'pendingReservations', 'peakCommitted', 'processBirths',
       'processReservations', 'failedCreations', 'deniedAdmissions', 'clone3Fallbacks', 'threadBirths', 'terminalWaits',
       'execRetiredIdentities'].map(key => [key, number(admission?.[key])]).concat([
-      ['waitEchild', boolean(admission?.waitEchild)], ['failed', boolean(admission?.failed)] ]))
+      ['waitEchild', boolean(admission?.waitEchild)], ['failed', boolean(admission?.failed)],
+      ['ioUringSetupAttempts', number(admission?.ioUringSetupAttempts)], ['ioUringSetupEpermWrites', number(admission?.ioUringSetupEpermWrites)] ]))
   };
 }
 

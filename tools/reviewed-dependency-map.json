@@ -10,7 +10,10 @@
       "tools/server-supervisor-linux-qualify.cjs",
       "tools/server-linux-prepare.cjs",
       "tools/server-qualification-diagnostic.cjs",
-      "tools/server-native-denial.test.cjs"
+      "tools/server-native-denial.test.cjs",
+      "tools/server-io-uring-fallback.test.cjs",
+      "tools/server-io-uring-php-grammar.test.php",
+      "tools/server-supervisor-linux-fallback-unit.c"
     ]
   },
   "app/AddressRange.php": {
@@ -1658,7 +1661,8 @@
       "Composer verify",
       "tests/Server/EngineObserverAuditTest.php",
       "tests/Server/EngineMetadataAdmissionTest.php",
-      "tools/ServerFixturePlan.php"
+      "tools/ServerFixturePlan.php",
+      "tools/server-io-uring-php-grammar.test.php"
     ]
   },
   "app/JsonScalarText.php": {
@@ -2319,7 +2323,8 @@
       "Composer verify",
       "tests/Server/EngineObserverAuditTest.php",
       "tests/Server/EngineMetadataAdmissionTest.php",
-      "tools/ServerFixturePlan.php"
+      "tools/ServerFixturePlan.php",
+      "tools/server-io-uring-php-grammar.test.php"
     ]
   },
   "app/ResourceStreams.php": {
@@ -3259,7 +3264,8 @@
       "Composer verify",
       "app/ServerMetadataIdentity.php",
       "app/ServerMetadataInventory.php",
-      "tools/ServerFixturePlan.php"
+      "tools/ServerFixturePlan.php",
+      "tools/server-io-uring-php-grammar.test.php"
     ]
   },
   "app/SqlDefinitionConstraints.php": {
@@ -9023,7 +9029,8 @@
       "tools/server-supervisor-linux-controls.c",
       "tools/server-supervisor-linux-build.sh",
       "tools/server-supervisor-linux-qualify.cjs",
-      "tools/server-linux-prepare.cjs"
+      "tools/server-linux-prepare.cjs",
+      "tools/server-io-uring-php-grammar.test.php"
     ]
   },
   "tools/ServerFixtureCatalog.php": {
@@ -9085,7 +9092,8 @@
       "tools/server-supervisor-linux-qualify.cjs",
       "tools/server-linux-prepare.cjs",
       "tools/server-qualification-diagnostic.cjs",
-      "tools/server-native-denial.test.cjs"
+      "tools/server-native-denial.test.cjs",
+      "tools/server-io-uring-fallback.test.cjs"
     ]
   },
   "tools/server-supervisor-windows.ps1": {
@@ -9210,7 +9218,9 @@
       "Explicit Linux compiler/native qualification checkpoint",
       "docs/database-engines.md",
       "tools/server-supervisor-linux-qualify.cjs",
-      "tools/server-linux-prepare.cjs"
+      "tools/server-linux-prepare.cjs",
+      "tools/server-io-uring-fallback.test.cjs",
+      "tools/server-supervisor-linux-fallback-unit.c"
     ]
   },
   "tools/server-supervisor-linux-controls.c": {
@@ -9219,7 +9229,8 @@
       "tools/server-supervisor-linux-build.sh",
       "Explicit Linux native control qualification checkpoint",
       "tools/server-supervisor-linux-qualify.cjs",
-      "tools/server-linux-prepare.cjs"
+      "tools/server-linux-prepare.cjs",
+      "tools/server-io-uring-fallback.test.cjs"
     ]
   },
   "tools/server-supervisor-linux-build.sh": {
@@ -9232,7 +9243,8 @@
       "Explicit reviewed compiler checkpoint",
       "docs/database-engines.md",
       "tools/server-supervisor-linux-qualify.cjs",
-      "tools/server-linux-prepare.cjs"
+      "tools/server-linux-prepare.cjs",
+      "tools/server-io-uring-fallback.test.cjs"
     ]
   },
   "tools/server-supervisor-linux-qualify.cjs": {
@@ -9243,7 +9255,8 @@
       "tools/server-linux-prepare.cjs",
       ".github/workflows/verify.yml",
       "tools/server-native-tests.json",
-      "docs/database-engines.md"
+      "docs/database-engines.md",
+      "tools/server-io-uring-fallback.test.cjs"
     ]
   },
   "tools/server-linux-prepare.cjs": {
@@ -9272,7 +9285,8 @@
       ".github/workflows/verify.yml",
       "tools/server-native-tests.json",
       "node tools/server-qualification-diagnostic.cjs --self-test",
-      "tools/server-native-denial.test.cjs"
+      "tools/server-native-denial.test.cjs",
+      "tools/server-io-uring-fallback.test.cjs"
     ]
   },
   "tools/server-native-denial.test.cjs": {
@@ -9281,6 +9295,31 @@
       ".github/workflows/verify.yml",
       "tools/server-native-tests.json",
       "node --test tools/server-native-denial.test.cjs"
+    ]
+  },
+  "tools/server-io-uring-fallback.test.cjs": {
+    "owner": "Pure actual Linux fallback parser, qualifier and pinned owner admission tests with in-memory effect tripwires",
+    "consumers": [
+      ".github/workflows/verify.yml",
+      "tools/server-native-tests.json",
+      "node --test tools/server-io-uring-fallback.test.cjs"
+    ]
+  },
+  "tools/server-io-uring-php-grammar.test.php": {
+    "owner": "Isolated no-autoload actual PHP Linux receipt grammar tests with in-memory effect tripwires",
+    "consumers": [
+      ".github/workflows/verify.yml",
+      "tools/server-native-tests.json",
+      "php -n tools/server-io-uring-php-grammar.test.php"
+    ]
+  },
+  "tools/server-supervisor-linux-fallback-unit.c": {
+    "owner": "Actual Linux native transition fault shim with all reachable kernel and process effects stubbed; separate isolated CI resource",
+    "consumers": [
+      ".github/workflows/verify.yml",
+      "tools/server-native-tests.json",
+      "docs/database-engines.md",
+      "Separate one-resource-per-workflow native stub checkpoint"
     ]
   }
 }

@@ -430,16 +430,17 @@ function engine_verification_runtime_pin_components(array $pin): void
 function engine_verification_reference_components(array $pin): void
 {
     $root = '/synthetic/unopened/tablo-linux-' . str_repeat('a', times: 32); $references = [];
-    foreach (['runtimeControls', 'platformReceipt', 'neutralControls'] as $name) {
-        $references[$name] = array_replace($pin, ['path' => $root . '/' . $name . '.json']);
+    foreach (['runtimeControls' => 'runtime-controls.json', 'platformReceipt' => 'platform.json',
+        'neutralControls' => 'neutral-controls.json', 'fallbackControls' => 'fallback-controls.json'] as $name => $file) {
+        $references[$name] = array_replace($pin, ['path' => $root . '/' . $file]);
         if ($name !== 'neutralControls') { $references[$name . 'Sha256'] = $pin['sha256']; }
     }
     \Tablo\Tools\server_fixture_plan_linux_references($references, $root);
-    foreach (['runtimeControls', 'platformReceipt', 'neutralControls'] as $name) {
+    foreach (['runtimeControls', 'platformReceipt', 'neutralControls', 'fallbackControls'] as $name) {
         $foreign = $references; $foreign[$name] = array_replace($pin, ['path' => $root . '-foreign/' . $name . '.json']);
         Assert::true(engine_verification_native_refuses(static function () use ($foreign, $root): void { \Tablo\Tools\server_fixture_plan_linux_references($foreign, $root); }));
     }
-    foreach (['runtimeControls', 'platformReceipt'] as $name) {
+    foreach (['runtimeControls', 'platformReceipt', 'fallbackControls'] as $name) {
         $changed = $references; $changed[$name . 'Sha256'] = str_repeat('b', times: 64);
         Assert::true(engine_verification_native_refuses(static function () use ($changed, $root): void { \Tablo\Tools\server_fixture_plan_linux_references($changed, $root); }));
     }

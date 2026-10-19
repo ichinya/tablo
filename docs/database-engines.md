@@ -435,7 +435,7 @@ Connections and active leases remain limited to eight. Every prior controller,
 adapter and scope must positively close before the next phase starts; phases
 share the original parent end. Windows creates its private kill-on-close Job before work and
 assigns a suspended controller atomically at creation, with no breakaway. Linux
-x86_64 uses the separately pinned native `tgid-seccomp-ptrace-x64-v1` adapter.
+x86_64 uses the separately pinned native `tgid-seccomp-ptrace-x64-v2` adapter.
 It admits process/TGID units before execution, including descendants that change
 process groups, and binds its monotonic READY event to the owner interval.
 Owner loss cancels only the adapter-created scope. Missing native closure or
@@ -445,6 +445,38 @@ selected host before an engine run is admitted. No global process scan or adopti
 by a supplied PID is used. The private raw32-byte protocol keys are
 distinct from installation keys and never appear in command arguments or reports.
 The default SQLite lanes and production PHP/Docker image do not use this observer.
+
+The Linux adapter always suppresses `io_uring_setup` before kernel entry and writes
+EPERM at the suppressed syscall exit. Its total `deniedAdmissions` includes these
+refusals. Native `ioUringSetupAttempts` and `ioUringSetupEpermWrites` distinguish
+attempts from successful exit-register writes; a register write alone does not
+prove that application code observed the return. Ordinary success requires
+`failed=false` and all three counts equal, together with every existing root,
+adapter, input, stream, identity, terminal-wait and empty-scope condition. Other
+security/quota denials and infrastructure failures remain fatal and latched.
+Overflow and incomplete writes cannot qualify. The optional `DENIALS` diagnostic
+never supplies acceptance authority. This policy prevents new setup calls in the
+owned traced tree; it is not a whole-host inherited-capability isolation claim.
+
+Fresh qualification uses `tablo/linux-adapter-qualification/v3` and the v2 private
+pipe protocol. The original30 controls remain mandatory in their original order;
+eight additional owned scopes cover handled/repeated/argument/thread/fork-exec
+refusals, mixed security/quota failures and a deliberately nonzero root. Their
+separate nonce-owned `fallback-controls.json` binds exact source, build, controls,
+owner, qualifier, platform and selected runtime pins. Successful EPERM markers and
+nonzero authoritative native counts are both required, including for the exact
+pinned Node client. Host EPERM alone is insufficient. The unchanged tracer-death
+witness and all five clients must also pass. Old policy, qv2, binaries or relabelled
+receipts cannot establish the new contract.
+
+CI first requires one separate isolated C fault-shim resource per workflow
+invocation, including distinct push and PR merge-tree invocations. It includes the
+actual native functions with every reachable process/kernel boundary stubbed,
+uses only the two copied public C sources and the existing immutable compiler
+image, and must exit successfully with positive owned cleanup before dependent
+server qualification. The production compiler recipe/resources and runtime
+limits are unchanged. Authoring this source does not establish compilation,
+native/client qualification, engine acceptance or permission for local execution.
 
 The runner creates a private PHP configuration, checks its actual extensions,
 generates synthetic credentials and TLS certificates, and verifies the immutable

@@ -7306,7 +7306,8 @@
     "Logical9 data is now self-contained literal DDL in existing EngineMigrationPreviousTest.php, with per-statement hashes and frozen synthetic checksums; no extra fixture owner. These three tests still have NOTRUN and the denied-DDL actor is not part of revision9 development grant request.",
     "Source43 appended six AUTHORED_NOTRUN main cases: migration phase and publication lost acknowledgement, pre-COMMIT constraint refusal, metadata native failures, primary-preserving read rollback and standalone rollback refusal. Current declaration totals636 distinct identities:436 baseline,194 main and6 cross. This catalog records declarations, not server execution or qualification.",
     "Source44 shares owned regular INI preparation with declaration-only mode and adds only a bounded failed-qualification projection. Pure selftests: node tools/server-qualification-diagnostic.cjs --self-test. Neither those projection checks nor INI preparation executes or qualifies server cases.",
-    "Source45 preserves one shared canonical PHP/Composer/Docker selection and adds fixed aggregate DENIALS diagnostics outside admission and qualification schemas. The13 syscall/decision buckets plus EPERM/EAGAIN register-write counts are diagnostic observations, never proof of program-observed errno returns or qualification. Pure production-parser/projector tests: node --test tools/server-native-denial.test.cjs. All636 product identities and original30 controls/113 assertions remain unchanged; source-only synthetic checks do not run or qualify product/native cases, and the historical Node denied operation remains UNKNOWN."
+    "Source45 preserves one shared canonical PHP/Composer/Docker selection and adds fixed aggregate DENIALS diagnostics outside admission and qualification schemas. The13 syscall/decision buckets plus EPERM/EAGAIN register-write counts are diagnostic observations, never proof of program-observed errno returns or qualification. Pure production-parser/projector tests: node --test tools/server-native-denial.test.cjs. All636 product identities and original30 controls/113 assertions remain unchanged; source-only synthetic checks do not run or qualify product/native cases, and the historical Node denied operation remains UNKNOWN.",
+    "Source46 authors policyv2/private-pipesv2/qv3: every io_uring_setup is suppressed before kernel entry, retained in total deniedAdmissions and counted by native attempts/successful EPERM register writes. Success requires failedfalse and total=attempts=writes plus all prior custody gates. Exactly Q108 changes to zero fatal difference;112 other original calls and all30 controls remain, with Q114-Q149 and8 separate fallback controls added. Fresh pinned Node positive native coverage, all38 controls, unchanged witness and5 clients are required. One isolated stub-only C unit resource per workflow invocation must positively pass and close before dependent server qualification. Pure Node/PHP tests are synthetic source checks; C compilation/native/client/product/runtime and current policy qualification remain NOTRUN until separately observed. All636 identity objects and53 binding bytes are preserved; no engine acceptance is claimed."
   ],
   "requiredFixtureSources": [
     "tests/Server/EngineMigrationPreviousTest.php",
@@ -8082,7 +8083,7 @@
         "msg_8e09acf529f3",
         "msg_e7ecdeccd08d"
       ],
-      "policy": "tgid-seccomp-ptrace-x64-v1",
+      "policy": "tgid-seccomp-ptrace-x64-v2",
       "unit": "process/TGID",
       "source": "tools/server-supervisor-linux.c",
       "controls": "tools/server-supervisor-linux-controls.c",
@@ -8109,12 +8110,12 @@
         "connections": 8
       },
       "buildProvenance": "tablo/linux-adapter-build/v1",
-      "qualificationReceipt": "tablo/linux-adapter-qualification/v2",
+      "qualificationReceipt": "tablo/linux-adapter-qualification/v3",
       "compilation": "NOTRUN",
       "neutralControls": "NOTRUN",
       "actualClientControls": "NOTRUN",
       "engineRuntime": "NOTRUN",
-      "note": "Root-reviewed R4 source integration. This candidate host/client runtime, full engine/cross/crash and hosted gates remain UNQUALIFIED until actually observed; separate native diagnostic noncoverage cannot emit qv2.",
+      "note": "Root-reviewed Source46 always-suppressed, fully counted EPERM fallback source contract. Fresh policyv2/CLOSED15/private-pipesv2/qv3 and30+8 controls, unchanged witness and5 clients are required; host-only EPERM, old/relabelled receipts and diagnostic noncoverage cannot qualify. Current native/client/engine/cross/crash/hosted gates remain UNQUALIFIED until actually observed.",
       "nonce": "Required explicit fresh TABLO_SERVER_CELL_NONCE for qualified mode, fixed before qualifier; diagnostic-only rejects override and uses fresh internal nonce.",
       "declarationProof": "Structural and actual current source/runtime pin binding only; native owner must open all actual proof references and compare current platform/namespace before any product resources.",
       "bootstrap": {

@@ -14,7 +14,12 @@ const SECOND = 1_000_000_000n;
 const RESERVE = SECOND;
 const HEX = /^[0-9a-f]{64}$/;
 const NONCE = /^[0-9a-f]{32}$/;
-const LINUX_POLICY = 'tgid-seccomp-ptrace-x64-v1';
+const LINUX_POLICY = 'tgid-seccomp-ptrace-x64-v2';
+const QUALIFICATION_KEYS = Object.freeze(['schema', 'policy', 'status', 'binarySha256', 'sourceSha256', 'recipeSha256', 'buildSha256',
+  'controlsSourceSha256', 'controlsBinarySha256', 'runtimeControlsSha256', 'platformReceiptSha256', 'nonce', 'runtimes',
+  'runtimeControls', 'platformReceipt', 'neutralControls', 'fallbackControlsSha256', 'fallbackControls']);
+const FALLBACK_NAMES = Object.freeze(['uring-handled', 'uring-repeat', 'uring-arguments', 'uring-threads', 'uring-forkexec',
+  'uring-mixed-security', 'uring-mixed-quota', 'uring-unhandled']);
 const utf8 = new TextDecoder('utf-8', { fatal: true });
 const normalize = value => value.replaceAll('\\', '/');
 const sha = bytes => createHash('sha256').update(bytes).digest('hex');
@@ -365,11 +370,13 @@ async function linuxContext() {
 }
 function qualificationSelection(q, selected, file) {
   if (!selected || !NONCE.test(selected.nonce) || q.nonce !== selected.nonce
-      || !exactKeys(q.runtimes, ['node', 'php', 'composer', 'shell', 'docker'])) fail('LINUX_FOREIGN_QUALIFICATION');
+      || !exactKeys(q.runtimes, ['node', 'php', 'composer', 'shell', 'docker'])
+      || Object.keys(q.runtimes).join(',') !== 'node,php,composer,shell,docker') fail('LINUX_FOREIGN_QUALIFICATION');
   const qroot = path.dirname(file), parent = path.dirname(qroot);
   if (path.basename(qroot) !== 'tablo-linux-' + selected.nonce || path.basename(file) !== 'qualification.json'
       || q.runtimeControls?.path !== qroot + '/runtime-controls.json' || q.platformReceipt?.path !== qroot + '/platform.json'
-      || q.neutralControls?.path !== qroot + '/neutral-controls.json') fail('LINUX_EVIDENCE_SCOPE');
+      || q.neutralControls?.path !== qroot + '/neutral-controls.json'
+      || q.fallbackControls?.path !== qroot + '/fallback-controls.json') fail('LINUX_EVIDENCE_SCOPE');
   for (const name of Object.keys(q.runtimes)) {
     const tool = selected.runtimes[name];
     if (!exactKeys(q.runtimes[name], ['path', 'sha256']) || !tool || q.runtimes[name].path !== tool.path
@@ -391,24 +398,29 @@ async function linuxPins(observer, control = false, selected = null) {
     const pin = observer.linuxAdapterQualification;
     await pinned(pin);
     const q = await readPlan(pin.path, pin.sha256, 16384);
-    if (!exactKeys(q, ['schema', 'policy', 'status', 'nonce', 'binarySha256', 'sourceSha256', 'recipeSha256', 'buildSha256',
-      'controlsSourceSha256', 'controlsBinarySha256', 'runtimeControlsSha256', 'platformReceiptSha256', 'runtimeControls', 'platformReceipt', 'neutralControls', 'runtimes'])
-        || q.schema !== 'tablo/linux-adapter-qualification/v2' || q.policy !== LINUX_POLICY || q.status !== 'qualified'
+    if (!object(q) || Object.keys(q).join(',') !== QUALIFICATION_KEYS.join(',')
+        || q.schema !== 'tablo/linux-adapter-qualification/v3' || q.policy !== LINUX_POLICY || q.status !== 'qualified'
         || q.binarySha256 !== observer.linuxAdapter.sha256 || q.sourceSha256 !== observer.linuxAdapterSource.sha256
         || q.recipeSha256 !== observer.linuxAdapterRecipe.sha256 || q.buildSha256 !== observer.linuxAdapterBuild.sha256
-        || ![q.controlsSourceSha256, q.controlsBinarySha256, q.runtimeControlsSha256, q.platformReceiptSha256].every(value => HEX.test(value))) fail('LINUX_RUNTIME_UNQUALIFIED');
+        || ![q.controlsSourceSha256, q.controlsBinarySha256, q.runtimeControlsSha256, q.platformReceiptSha256, q.fallbackControlsSha256].every(value => HEX.test(value))) fail('LINUX_RUNTIME_UNQUALIFIED');
     const { qroot, parent } = qualificationSelection(q, selected, pin.path);
     for (const name of Object.keys(q.runtimes)) {
       const tool = selected.runtimes[name];
       await regular(tool.path); await pinned(tool);
     }
-    for (const evidence of [q.runtimeControls, q.platformReceipt, q.neutralControls]) { await regular(evidence.path); await pinned(evidence); }
-    if (q.runtimeControls.sha256 !== q.runtimeControlsSha256 || q.platformReceipt.sha256 !== q.platformReceiptSha256) fail('LINUX_EVIDENCE_CHANGED');
+    for (const evidence of [q.runtimeControls, q.platformReceipt, q.neutralControls, q.fallbackControls]) {
+      if (!exactKeys(evidence, ['path', 'sha256']) || Object.keys(evidence).join(',') !== 'path,sha256') fail('LINUX_EVIDENCE_PIN');
+      await regular(evidence.path); await pinned(evidence);
+    }
+    if (q.runtimeControls.sha256 !== q.runtimeControlsSha256 || q.platformReceipt.sha256 !== q.platformReceiptSha256
+        || q.fallbackControls.sha256 !== q.fallbackControlsSha256) fail('LINUX_EVIDENCE_CHANGED');
     const runtime = await readPlan(q.runtimeControls.path, q.runtimeControls.sha256);
     const platform = await readPlan(q.platformReceipt.path, q.platformReceipt.sha256);
     const neutral = await readPlan(q.neutralControls.path, q.neutralControls.sha256);
+    const fallback = await readPlan(q.fallbackControls.path, q.fallbackControls.sha256);
     const sourceDirectory = path.dirname(observer.linuxAdapterSource.path);
     if (q.controlsSourceSha256 !== await digest(path.join(sourceDirectory, 'server-supervisor-linux-controls.c'))
+        || q.controlsBinarySha256 !== await digest(path.join(path.dirname(observer.linuxAdapter.path), 'server-supervisor-linux-controls'))
         || runtime.owner?.sha256 !== await digest(__filename)
         || runtime.qualifier?.sha256 !== await digest(path.join(sourceDirectory, 'server-supervisor-linux-qualify.cjs'))) fail('LINUX_FOREIGN_CONTROL_SOURCE');
     if (platform.schema !== 'tablo/linux-qualified-platform/v1' || platform.nonce !== selected.nonce
@@ -435,17 +447,156 @@ async function linuxPins(observer, control = false, selected = null) {
         || !['host', 'container'].includes(admission.kind) || admission.kind === 'container'
           && (!/^[0-9a-f]{64}$/.test(admission.containerId) || admission.containerName !== prepared.containerName
             || admission.ownedConfigValidated !== true)) fail('LINUX_PLATFORM_UNQUALIFIED');
+    await linuxControlEvidence(neutral, fallback, q, qroot, platform, runtime, selected,
+      path.join(path.dirname(observer.linuxAdapter.path), 'server-supervisor-linux-controls'));
     for (const row of runtime.clients) {
       if (row.receipt.path !== qroot + '/client-' + row.label + '/result.json') fail('LINUX_CLIENT_SCOPE');
       await regular(row.receipt.path); await pinned(row.receipt);
       const result = await readPlan(row.receipt.path, row.receipt.sha256);
       const events = result.events, close = result.adapterClose;
+      const executable = q.runtimes[row.label === 'composer' ? 'php' : row.label];
       if (result.label !== row.label || close?.code !== 0 || close.signal !== null || close.closeObserved !== true
+          || JSON.stringify(row.executable) !== JSON.stringify(executable)
+          || !linuxReceiptIdentity(events, q, 8, q.nonce + '/client/' + row.label, executable)
           || close.stderrBytes !== 0 || events?.ready?.helperSha256 !== q.binarySha256 || events.ready.sourceSha256 !== q.sourceSha256
           || events.exited?.exitCode !== 0 || events.exited.posixSignal !== null || events.input?.sourceEofObserved !== true
-          || events.closed?.admission?.waitEchild !== true || events.closed.admission.failed !== false
-          || events.closed.admission.deniedAdmissions !== 0) fail('LINUX_CLIENT_UNQUALIFIED');
+          || !linuxAdmission(events.closed?.admission, 8) || events.closed.admission.failed !== false
+          || events.closed.admission.deniedAdmissions !== events.closed.admission.ioUringSetupAttempts
+          || events.closed.admission.ioUringSetupAttempts !== events.closed.admission.ioUringSetupEpermWrites
+          || row.label === 'node' && events.closed.admission.ioUringSetupAttempts === 0
+          || !linuxClosedEvents(events, close)) fail('LINUX_CLIENT_UNQUALIFIED');
     }
+  }
+}
+
+// These validators stay in the pinned owner that admits actual product work.
+function linuxAdmission(a, configuredLimit) {
+  return exactKeys(a, ['configuredLimit', 'liveTgids', 'pendingReservations', 'peakCommitted', 'processBirths', 'processReservations',
+    'failedCreations', 'deniedAdmissions', 'clone3Fallbacks', 'threadBirths', 'terminalWaits', 'execRetiredIdentities', 'waitEchild', 'failed',
+    'ioUringSetupAttempts', 'ioUringSetupEpermWrites'])
+    && a.configuredLimit === configuredLimit && a.liveTgids === 0 && a.pendingReservations === 0
+    && integer(a.peakCommitted, 1, a.configuredLimit) && integer(a.processBirths, 1, 0xffffffff)
+    && integer(a.processReservations, a.processBirths - 1, 0xffffffff) && integer(a.failedCreations, 0, 0xffffffff)
+    && integer(a.deniedAdmissions, 0, 2147483647) && integer(a.ioUringSetupAttempts, 0, a.deniedAdmissions)
+    && integer(a.ioUringSetupEpermWrites, 0, a.ioUringSetupAttempts)
+    && a.peakCommitted <= a.processBirths + a.failedCreations
+    && a.processReservations <= a.processBirths - 1 + a.failedCreations
+    && integer(a.clone3Fallbacks, 0, 0xffffffff) && integer(a.threadBirths, 0, 0xffffffff)
+    && integer(a.execRetiredIdentities, 0, a.threadBirths) && integer(a.terminalWaits, 1, 0xffffffff)
+    && a.terminalWaits + a.execRetiredIdentities === a.processBirths + a.threadBirths
+    && a.waitEchild === true && typeof a.failed === 'boolean';
+}
+function linuxClosedEvents(events, close) {
+  const input = events?.input, closed = events?.closed;
+  return close?.closeObserved === true && close.signal === null && close.spawnError === false
+    && close.protocolFailed === false && close.stdoutTrailingBytes === 0 && close.stderrBytes === 0
+    && close.nativeProtocol === 'private-inherited-pipes/v2'
+    && events?.ready?.policy === LINUX_POLICY && events.started && events.exited?.rootExitObserved === true
+    && events.exited.terminationRequested === false && input?.settled === true && input.stdinClosed === true
+    && input.errorCode === null && input.sourceEofObserved === true
+    && integer(input.declaredBytes, 0, 1048576) && input.writtenBytes === input.declaredBytes
+    && closed?.scopeObservedEmpty === true && closed.rootExitObserved === true && closed.inputSettled === true
+    && closed.stdinClosed === true && closed.custodySettled === true
+    && closed.descendantStatuses === 'TERMINAL_WAIT_REGISTRY'
+    && closed.stdout?.closed === true && closed.stderr?.closed === true;
+}
+function linuxReceiptIdentity(events, q, limit, planId, executable) {
+  const ready = events?.ready, started = events?.started;
+  return events?.planId === planId && ['ready','started','input','exited','closed'].every(kind => events[kind]?.planId === planId)
+    && ready.policy === LINUX_POLICY && ready.helperSha256 === q.binarySha256 && ready.sourceSha256 === q.sourceSha256
+    && ready.recipeSha256 === q.recipeSha256 && ready.buildSha256 === q.buildSha256
+    && ready.configuredLimit === limit && ready.limitUnit === 'process/TGID'
+    && started.actualImagePath === executable.path && started.actualImageSha256 === executable.sha256;
+}
+async function linuxControlEvidence(neutral, fallback, q, qroot, platform, runtime, selected, controlsPath) {
+  const original = [
+    ['limit8',8,8,'ok'], ['limit9',9,8,'ok'], ['overflow8',8,8,'denied'], ['overflow9',9,8,'denied'],
+    ['threads',8,8,'ok'], ['threadfork',8,8,'ok'], ['threadexec',8,8,'exit23'], ['concurrent',8,8,'denied'],
+    ['vfork',8,8,'ok'], ['spawn',8,8,'ok'], ['short',8,8,'ok'], ['failedfork',8,8,'ok'], ['clone3',8,8,'ok'],
+    ['untraced',8,8,'denied'], ['filter',8,8,'denied'], ['namespace',8,8,'denied'], ['ptrace',8,8,'denied'],
+    ['x32',8,8,'sigsys'], ['i386',8,8,'sigsys'], ['stdin0',8,8,'ok'], ['stdin65536',8,8,'ok'],
+    ['exit23',8,8,'exit23'], ['signal',8,8,'signal'], ['rootfirst',8,8,'cancelled'],
+    ['owner-eof',8,8,'cancelled'], ['deadline',8,8,'cancelled'], ['deadline',8,20,'cancelled']
+  ];
+  if (!Array.isArray(neutral.outcomes) || neutral.outcomes.length !== 30 || neutral.externalNamespaceDenial !== false
+      || neutral.nativeNamespaceLatchCoverage !== true) fail('LINUX_NEUTRAL_COVERAGE');
+  for (const [index, [mode, limit, seconds, expectation]] of original.entries()) {
+    const row = neutral.outcomes[index], a = row?.events?.closed?.admission;
+    if (row?.mode !== mode || row.limit !== limit || row.seconds !== seconds || row.expectation !== expectation
+        || row.status !== 'passed' || !linuxAdmission(a, limit)
+        || !linuxReceiptIdentity(row.events, q, limit, q.nonce + '/linux-controller/' + index, { path: controlsPath, sha256: q.controlsBinarySha256 })
+        || row.adapterClose?.closeObserved !== true
+        || row.adapterClose.nativeProtocol !== 'private-inherited-pipes/v2' || row.adapterClose.protocolFailed !== false
+        || row.adapterClose.signal !== null || row.adapterClose.stderrBytes !== 0
+        || row.events.closed.scopeObservedEmpty !== true || row.events.closed.custodySettled !== true
+        || (mode.startsWith('limit') || mode.startsWith('overflow')) && a.peakCommitted !== limit
+        || mode === 'threads' && a.threadBirths < 4 || mode === 'failedfork' && a.failedCreations < 1) fail('LINUX_NEUTRAL_COVERAGE');
+    if (['ok','exit23','signal'].includes(expectation)) {
+      if (row.adapterClose.code !== 0 || a.failed !== false || a.deniedAdmissions !== 0
+          || row.events.exited?.exitCode !== (expectation === 'ok' ? 0 : expectation === 'exit23' ? 23 : null)
+          || row.events.exited.posixSignal !== (expectation === 'signal' ? 10 : null)) fail('LINUX_NEUTRAL_COVERAGE');
+    } else if (row.adapterClose.code !== 125 || a.failed !== true
+        || expectation === 'denied' && (a.deniedAdmissions === 0 || row.events.exited?.exitCode !== 0)
+        || expectation === 'sigsys' && row.events.exited?.posixSignal !== 31) fail('LINUX_NEUTRAL_COVERAGE');
+  }
+  for (const [index, kind] of ['partial-input','unresponsive-input','invalid-capture'].entries()) {
+    const row = neutral.outcomes[index + 27];
+    if (row?.kind !== kind || row.status !== 'passed' || row.expectedFailure !== true
+        || row.nativeStatus?.code !== 125 || row.nativeStatus.signal !== null || !Array.isArray(row.seen)) fail('LINUX_NEUTRAL_BOUNDARY');
+    if (kind === 'invalid-capture') { if (row.seen.length !== 0) fail('LINUX_NEUTRAL_BOUNDARY'); }
+    else {
+      const input = row.seen.find(item => item.event === 'INPUT'), closed = row.seen.find(item => item.event === 'CLOSED');
+      if (JSON.stringify(input?.values) !== JSON.stringify([65536,kind === 'partial-input' ? 1 : 0,1,0])
+          || closed?.values?.length !== 15 || closed.values[0] !== 0 || closed.values[1] !== 0
+          || closed.values[11] !== 1 || closed.values[12] !== 1) fail('LINUX_NEUTRAL_BOUNDARY');
+    }
+  }
+  const keys = ['schema','policy','status','nonce','sourceSha256','recipeSha256','binarySha256','buildSha256',
+    'controlsSourceSha256','controlsBinarySha256','owner','qualifier','platformReceipt','runtimes','count','outcomes'];
+  if (!object(fallback) || Object.keys(fallback).join(',') !== keys.join(',')
+      || fallback.schema !== 'tablo/linux-io-uring-fallback-controls/v1' || fallback.policy !== LINUX_POLICY
+      || fallback.status !== 'passed' || fallback.nonce !== selected.nonce || fallback.count !== 8
+      || !Array.isArray(fallback.outcomes) || fallback.outcomes.length !== 8
+      || JSON.stringify(fallback.runtimes) !== JSON.stringify(q.runtimes)
+      || JSON.stringify(fallback.owner) !== JSON.stringify(runtime.owner)
+      || JSON.stringify(fallback.qualifier) !== JSON.stringify(runtime.qualifier)
+      || JSON.stringify(fallback.platformReceipt) !== JSON.stringify(platform.preparedReceipt)) fail('LINUX_FALLBACK_BINDING');
+  for (const pin of [fallback.owner, fallback.qualifier, fallback.platformReceipt]) {
+    if (!exactKeys(pin, ['path','sha256']) || Object.keys(pin).join(',') !== 'path,sha256') fail('LINUX_FALLBACK_BINDING');
+  }
+  for (const key of ['sourceSha256','recipeSha256','binarySha256','buildSha256','controlsSourceSha256','controlsBinarySha256']) {
+    if (fallback[key] !== q[key]) fail('LINUX_FALLBACK_BINDING');
+  }
+  const sourceDirectory = path.dirname(runtime.owner.path);
+  if (runtime.owner.path !== __filename || runtime.qualifier.path !== path.join(sourceDirectory, 'server-supervisor-linux-qualify.cjs')) fail('LINUX_FALLBACK_OWNER');
+  await regular(runtime.owner.path); await pinned(runtime.owner); await regular(runtime.qualifier.path); await pinned(runtime.qualifier);
+  await regular(sourceDirectory + '/server-supervisor-linux-controls.c');
+  for (const [index, name] of FALLBACK_NAMES.entries()) {
+    const item = fallback.outcomes[index];
+    if (!exactKeys(item, ['name','receipt']) || Object.keys(item).join(',') !== 'name,receipt' || item.name !== name
+        || !exactKeys(item.receipt, ['path','sha256']) || Object.keys(item.receipt).join(',') !== 'path,sha256'
+        || item.receipt.path !== qroot + '/fallback-' + index + '/result.json') fail('LINUX_FALLBACK_SCOPE');
+    await regular(item.receipt.path); await pinned(item.receipt);
+    const row = await readPlan(item.receipt.path, item.receipt.sha256), a = row.events?.closed?.admission;
+    const count = ['uring-repeat','uring-arguments','uring-threads'].includes(name) ? 4 : 1;
+    const mixed = name === 'uring-mixed-security' || name === 'uring-mixed-quota';
+    if (row.name !== name || row.status !== 'passed' || !linuxAdmission(a, 8) || !linuxClosedEvents(row.events, row.adapterClose)
+        || !linuxReceiptIdentity(row.events, q, 8, q.nonce + '/fallback/' + index, { path: controlsPath, sha256: q.controlsBinarySha256 })
+        || a.ioUringSetupAttempts !== count || a.ioUringSetupEpermWrites !== count
+        || row.adapterClose.code !== (mixed ? 125 : 0) || a.failed !== mixed
+        || a.deniedAdmissions !== count + (name === 'uring-mixed-security' ? 8 : name === 'uring-mixed-quota' ? 1 : 0)
+        || row.events.exited.exitCode !== (name === 'uring-unhandled' ? 23 : 0) || row.events.exited.posixSignal !== null
+        || name === 'uring-mixed-quota' && (a.peakCommitted !== 8 || a.processBirths !== 8)
+        || name === 'uring-threads' && (a.threadBirths < 4 || a.processBirths !== 1 || a.processReservations !== 0)
+        || name === 'uring-forkexec' && (a.processBirths !== 2 || a.processReservations !== 1)
+        || ['uring-handled','uring-repeat','uring-arguments','uring-unhandled'].includes(name)
+          && (a.processBirths !== 1 || a.processReservations !== 0)) fail('LINUX_FALLBACK_COVERAGE');
+    const capture = row.events.closed.stdout;
+    if (capture.path !== qroot + '/fallback-' + index + '/evidence/controller.stdout'
+        || !integer(capture.bytes, 1, 65536)) fail('LINUX_FALLBACK_CAPTURE');
+    await regular(capture.path); await pinned(capture);
+    if ((await fs.stat(capture.path)).size !== capture.bytes
+        || (await fs.readFile(capture.path, 'utf8')) !== 'IO_URING_EPERM ' + name + '\n') fail('LINUX_FALLBACK_CAPTURE');
   }
 }
 
@@ -485,7 +636,7 @@ class LinuxRecords {
       if (++this.count > 8 || line.length > 512 || !/^[A-Z0-9a-z -]+$/.test(line.toString('ascii'))
           || [...line].some(value => value > 127)) fail('LINUX_RECORD_ENCODING');
       const [kind, ...values] = line.toString('ascii').split(' ');
-      const lengths = { READY: 3, STARTED: 1, INPUT: 4, EXITED: 4, DENIALS: 15, CLOSED: 13 };
+      const lengths = { READY: 3, STARTED: 1, INPUT: 4, EXITED: 4, DENIALS: 15, CLOSED: 15 };
       if (values.length !== lengths[kind]) fail('LINUX_RECORD_FIELDS');
       if (this.denials && this.closed) fail('LINUX_DENIAL_ORDER');
       if (this.denials && !this.closed && kind !== 'CLOSED') fail('LINUX_DENIAL_ORDER');
@@ -502,6 +653,9 @@ class LinuxRecords {
           const sum = numbers.slice(0, 13).reduce((total, value) => total + value, 0);
           linuxDenialDiagnostic(numbers, sum); this.denials = numbers;
         } else if (kind === 'CLOSED') {
+          if (this.closed || !['READY','STARTED','INPUT','EXITED'].every(event => this.seen.has(event))) fail('LINUX_CLOSE_ORDER');
+          if (!integer(numbers[6], 0, 2147483647) || !integer(numbers[13], 0, numbers[6])
+              || !integer(numbers[14], 0, numbers[13])) fail('LINUX_CLOSE_AUTHORITY');
           if (this.denials) this.denialDiagnostic = linuxDenialDiagnostic(this.denials, numbers[6]);
           this.closed = true;
         }
@@ -576,7 +730,8 @@ async function runLinuxAdapter(owner, plan) {
             || n[11] !== 1 || ![0, 1].includes(n[12])) fail('LINUX_CLOSE_RECORD');
         closedRecord = { configuredLimit: plan.job.activeProcessLimit, liveTgids: n[0], pendingReservations: n[1], peakCommitted: n[2],
           processBirths: n[3], processReservations: n[4], failedCreations: n[5], deniedAdmissions: n[6], clone3Fallbacks: n[7],
-          threadBirths: n[8], terminalWaits: n[9], execRetiredIdentities: n[10], waitEchild: true, failed: n[12] === 1 };
+          threadBirths: n[8], terminalWaits: n[9], execRetiredIdentities: n[10], waitEchild: true, failed: n[12] === 1,
+          ioUringSetupAttempts: n[13], ioUringSetupEpermWrites: n[14] };
         send('shutdown');
       }
     };
@@ -615,7 +770,7 @@ async function runLinuxAdapter(owner, plan) {
     }
     owner.adapterClose = { pid: child.pid ?? null, ...close, spawnError, stdoutTrailingBytes: records.pending.length,
       stdoutBytes: stdout.length, stdoutSha256: sha(stdout), stderrBytes: stderr.length, stderrSha256: sha(stderr), stderrTruncated,
-      nativeProtocol: 'private-inherited-pipes/v1', protocolFailed };
+      nativeProtocol: 'private-inherited-pipes/v2', protocolFailed };
     await fs.writeFile(owner.phase.root + '/evidence/adapter.stdout', stdout, { flag: 'wx', mode: 0o600 });
     await fs.writeFile(owner.phase.root + '/evidence/adapter.stderr', stderr, { flag: 'wx', mode: 0o600 });
     await fs.writeFile(owner.phase.root + '/evidence/adapter-authenticated.ndjson', authenticated, { flag: 'wx', mode: 0o600 });
@@ -658,18 +813,7 @@ function acceptEvent(state, kind, payload, plan, child, expectedPlanHash) {
         || payload.errorCode === null && (payload.writtenBytes !== payload.declaredBytes || payload.sourceEofObserved !== true))) fail('ADAPTER_INPUT');
     if (kind === 'closed') {
       const a = payload.admission;
-      if (!state.input || !exactKeys(a, ['configuredLimit', 'liveTgids', 'pendingReservations', 'peakCommitted', 'processBirths', 'processReservations',
-        'failedCreations', 'deniedAdmissions', 'clone3Fallbacks', 'threadBirths', 'terminalWaits', 'execRetiredIdentities', 'waitEchild', 'failed'])
-          || a.configuredLimit !== plan.job.activeProcessLimit || a.liveTgids !== 0 || a.pendingReservations !== 0
-          || !integer(a.peakCommitted, 1, a.configuredLimit) || !integer(a.processBirths, 1, 0xffffffff)
-          || !integer(a.processReservations, a.processBirths - 1, 0xffffffff)
-          || !integer(a.failedCreations, 0, 0xffffffff) || !integer(a.deniedAdmissions, 0, 0xffffffff)
-          || a.peakCommitted > a.processBirths + a.failedCreations
-          || a.processReservations > a.processBirths - 1 + a.failedCreations
-          || !integer(a.clone3Fallbacks, 0, 0xffffffff) || !integer(a.threadBirths, 0, 0xffffffff)
-          || !integer(a.execRetiredIdentities, 0, a.threadBirths) || !integer(a.terminalWaits, 1, 0xffffffff)
-          || a.terminalWaits + a.execRetiredIdentities !== a.processBirths + a.threadBirths
-          || a.waitEchild !== true || typeof a.failed !== 'boolean'
+      if (!state.input || !linuxAdmission(a, plan.job.activeProcessLimit)
           || payload.scopeObservedEmpty !== true || payload.descendantStatuses !== 'TERMINAL_WAIT_REGISTRY') fail('ADAPTER_LINUX_ACCOUNTING');
     }
   } else if (windows) {
@@ -781,8 +925,11 @@ async function verifyCustody(owner, state) {
   if (windows ? state.exited.windowsExitUnsigned !== 0 || state.closed.jobActiveProcesses !== 0
       || state.closed.nativeProcessHandleClosed !== true || state.closed.nativeThreadHandleClosed !== true || state.closed.jobHandleClosed !== true
     : state.exited.exitCode !== 0 || state.exited.posixSignal !== null || state.closed.scopeObservedEmpty !== true
-      || state.closed.admission?.deniedAdmissions !== 0 || state.closed.admission.failed !== false
-      || state.closed.admission.waitEchild !== true) fail('CONTROLLER_NATIVE_FAILURE');
+      || !linuxAdmission(state.closed.admission, owner.plan.job?.activeProcessLimit ?? phaseProcessLimit(owner.control, owner.phase.kind))
+      || state.closed.admission.failed !== false
+      || state.closed.admission.deniedAdmissions !== state.closed.admission.ioUringSetupAttempts
+      || state.closed.admission.ioUringSetupAttempts !== state.closed.admission.ioUringSetupEpermWrites
+      || !linuxClosedEvents(state, owner.adapterClose)) fail('CONTROLLER_NATIVE_FAILURE');
   for (const name of ['stdout', 'stderr']) {
     const item = state.closed[name]; const expected = owner.phase.root + '/evidence/controller.' + name;
     if (!object(item) || typeof item.path !== 'string' || normalize(item.path) !== expected || item.closed !== true || !integer(item.bytes, 0, Number.MAX_SAFE_INTEGER)
@@ -890,7 +1037,8 @@ function registerTests() {
     const nonce = 'a'.repeat(32), hash = 'b'.repeat(64), root = '/scope/tablo-linux-' + nonce;
     const runtimes = Object.fromEntries(['node','php','composer','shell','docker'].map(name => [name, { path: '/tools/' + name, sha256: hash }]));
     const selected = { nonce, runtimes }, q = { nonce, runtimes, runtimeControls: { path: root + '/runtime-controls.json' },
-      platformReceipt: { path: root + '/platform.json' }, neutralControls: { path: root + '/neutral-controls.json' } };
+      platformReceipt: { path: root + '/platform.json' }, neutralControls: { path: root + '/neutral-controls.json' },
+      fallbackControls: { path: root + '/fallback-controls.json' } };
     assert.doesNotThrow(() => qualificationSelection(q, selected, root + '/qualification.json'));
     assert.throws(() => qualificationSelection({ ...q, nonce: 'c'.repeat(32) }, selected, root + '/qualification.json'), /FOREIGN/);
     assert.throws(() => qualificationSelection({ ...q, runtimeControls: { path: '/scope/other/runtime-controls.json' } }, selected, root + '/qualification.json'), /SCOPE/);
@@ -936,7 +1084,7 @@ function registerTests() {
       terminationRequested: false }, plan, {}, hash);
     const admission = { configuredLimit: 8, liveTgids: 0, pendingReservations: 0, peakCommitted: 8, processBirths: 8,
       processReservations: 8, failedCreations: 1, deniedAdmissions: 0, clone3Fallbacks: 4, threadBirths: 4,
-      terminalWaits: 11, execRetiredIdentities: 1, waitEchild: true, failed: false };
+      terminalWaits: 11, execRetiredIdentities: 1, waitEchild: true, failed: false, ioUringSetupAttempts: 0, ioUringSetupEpermWrites: 0 };
     const closed = { planId, controllerPid: 5, rootExitObserved: true, scopeObservedEmpty: true, inputSettled: true,
       stdinClosed: true, stdout: {}, stderr: {}, custodySettled: true, descendantStatuses: 'TERMINAL_WAIT_REGISTRY', admission };
     for (const change of [{ pendingReservations: 1 }, { peakCommitted: 9 }, { terminalWaits: 12 }, { waitEchild: false },
@@ -1035,5 +1183,5 @@ async function main(arguments_) {
   else fail('EXACT_MODE');
 }
 
-module.exports = { Frames, Leases, LinuxRecords, DENIAL_FIELDS, linuxDenialDiagnostic, declaration, environment, acceptEvent, runLinuxAdapter, linuxPins, linuxContext, readPlan, regular, pinned, retain };
+module.exports = { Frames, Leases, LinuxRecords, DENIAL_FIELDS, linuxDenialDiagnostic, declaration, environment, acceptEvent, runLinuxAdapter, linuxPins, linuxContext, readPlan, regular, pinned, retain, verifyCustody };
 if (require.main === module) main(process.argv.slice(2)).catch(() => { process.stderr.write('SERVER_OBSERVER_FAILED\n'); process.exitCode = 1; });

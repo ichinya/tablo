@@ -281,7 +281,7 @@ function server_fixture_plan_linux_provenance(array $inputs, string $nonce, stri
     $binary = $inputs['linuxAdapter']; $source = $inputs['linuxAdapterSource']; $recipe = $inputs['linuxAdapterRecipe'];
     $build = $inputs['linuxAdapterBuild']; $qualification = $inputs['linuxAdapterQualification'];
     $b = server_fixture_plan_linux_receipt($build, schema: 'tablo/linux-adapter-build/v1', keys: ['schema', 'policy', 'target', 'sourceSha256', 'recipeSha256', 'binarySha256', 'compilerImageDigest', 'compilerSha256', 'linkerSha256', 'libcArchiveSha256']);
-    $q = server_fixture_plan_linux_receipt($qualification, schema: 'tablo/linux-adapter-qualification/v2', keys: ['schema', 'policy', 'status', 'binarySha256', 'sourceSha256', 'recipeSha256', 'buildSha256', 'controlsSourceSha256', 'controlsBinarySha256', 'runtimeControlsSha256', 'platformReceiptSha256', 'nonce', 'runtimes', 'runtimeControls', 'platformReceipt', 'neutralControls']);
+    $q = server_fixture_plan_linux_receipt($qualification, schema: 'tablo/linux-adapter-qualification/v3', keys: ['schema', 'policy', 'status', 'binarySha256', 'sourceSha256', 'recipeSha256', 'buildSha256', 'controlsSourceSha256', 'controlsBinarySha256', 'runtimeControlsSha256', 'platformReceiptSha256', 'nonce', 'runtimes', 'runtimeControls', 'platformReceipt', 'neutralControls', 'fallbackControlsSha256', 'fallbackControls']);
     if ([$b['target'] ?? null, $q['status'] ?? null, $q['nonce'] ?? null, $q['controlsSourceSha256'] ?? null] !== ['linux-x86_64', 'qualified', $nonce, $controlsSourceSha256]
         || [$b['sourceSha256'] ?? null, $b['recipeSha256'] ?? null, $b['binarySha256'] ?? null] !== [$source['sha256'], $recipe['sha256'], $binary['sha256']]
         || [$q['sourceSha256'] ?? null, $q['recipeSha256'] ?? null, $q['binarySha256'] ?? null, $q['buildSha256'] ?? null] !== [$source['sha256'], $recipe['sha256'], $binary['sha256'], $build['sha256']]
@@ -305,9 +305,11 @@ function server_fixture_plan_linux_runtime_binding(array $qualification, array $
 /** No path mentioned by a qualification reference is opened by declaration. */
 function server_fixture_plan_linux_references(array $qualification, string $root): void
 {
-    foreach (['runtimeControls', 'platformReceipt', 'neutralControls'] as $name) {
+    server_fixture_plan_linux_path($root);
+    foreach (['runtimeControls' => 'runtime-controls.json', 'platformReceipt' => 'platform.json',
+        'neutralControls' => 'neutral-controls.json', 'fallbackControls' => 'fallback-controls.json'] as $name => $file) {
         $reference = server_fixture_plan_linux_reference($qualification[$name] ?? null);
-        if (!str_starts_with($reference['path'], $root . '/')
+        if ($reference['path'] !== $root . '/' . $file
             || ($name !== 'neutralControls' && $reference['sha256'] !== ($qualification[$name . 'Sha256'] ?? null))) {
             throw new RuntimeException('Nonce-owned qualification reference required.');
         }
@@ -342,7 +344,7 @@ function server_fixture_plan_linux_receipt(array $file, string $schema, array $k
     $bytes = \Tablo\RequiredFile::bytes(file_get_contents($file['path'], length: 16_385));
     if (strlen($bytes) > 16_384) { throw new RuntimeException('Linux adapter receipt envelope exceeded.'); }
     $record = JsonRecord::decode($bytes);
-    if (array_keys($record) !== $keys || [$record['schema'] ?? null, $record['policy'] ?? null] !== [$schema, 'tgid-seccomp-ptrace-x64-v1']) { throw new RuntimeException('Linux adapter receipt shape refused.'); }
+    if (array_keys($record) !== $keys || [$record['schema'] ?? null, $record['policy'] ?? null] !== [$schema, 'tgid-seccomp-ptrace-x64-v2']) { throw new RuntimeException('Linux adapter receipt shape refused.'); }
     foreach ($keys as $key) {
         if (!str_ends_with($key, 'Sha256')) { continue; }
         if (preg_match('/\A[0-9a-f]{64}\z/D', SqlColumn::string($record, $key)) !== 1) { throw new RuntimeException('Linux adapter receipt hash refused.'); }

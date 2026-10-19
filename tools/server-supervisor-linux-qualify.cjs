@@ -193,7 +193,7 @@ async function main() {
       const owner = { phase: { root, adapterAuthority: randomBytes(32) }, cancelReason: null };
       owner.cancel = reason => { if (!owner.cancelReason) { owner.cancelReason = reason; owner.send?.('cancel', { reason }); } };
       const plan = { schema: 'tablo/server-observer-linux-plan/v1', nonce, planId: nonce + '/linux-controller/' + index, root,
-        adapter: observer.linuxAdapter, linux: { policy: 'tgid-seccomp-ptrace-x64-v1', unit: 'process/TGID',
+        adapter: observer.linuxAdapter, linux: { policy: 'tgid-seccomp-ptrace-x64-v2', unit: 'process/TGID',
           source: observer.linuxAdapterSource, recipe: observer.linuxAdapterRecipe, build: observer.linuxAdapterBuild,
           ownerMonotonicNanoseconds: issued.toString(), deadlineNanoseconds: end.toString() }, job: { activeProcessLimit: limit },
         launch: { executable: controls, argv: [mode], cwd: root + '/cwd', environment: { PATH: '/usr/local/bin:/usr/bin:/bin' },
@@ -258,14 +258,84 @@ async function main() {
     await api.retain(base + '/neutral-controls.json', { status: diagnostic ? 'diagnostic-passed' : 'passed', nonce: spec.nonce, count: outcomes.length,
       externalNamespaceDenial, nativeNamespaceLatchCoverage: !externalNamespaceDenial, namespaceProbe,
       controlsSourceSha256: spec.controlsSource.sha256, controlsBinarySha256: controls.sha256, outcomes });
+    await qualifyFallback(spec, base, observer, controls, parentEnd);
     await qualifyRemaining(spec, base, observer, controls, outcomes, parentEnd);
     await api.retain(base + '/neutral-result.json', { status: diagnostic ? 'diagnostic-passed' : 'passed', outcomes,
       qualification: diagnostic ? 'UNQUALIFIED_DIAGNOSTIC_ONLY' : spec.mode === 'qualify' ? 'QUALIFIED_BY_REQUIRED_CONTROLS' : 'NEUTRAL_ONLY_CLIENT_RUNTIME_NOTRUN' });
   } catch (error) {
     firstFailure ??= projectFailure(progress);
-    await fs.writeFile(base + '/failed.json', JSON.stringify({ status: 'failed', completed: outcomes.length, error: String(error),
+    await fs.writeFile(base + '/failed.json', JSON.stringify({ status: 'failed', completed: progress.completed, error: String(error),
       qualification: 'UNQUALIFIED_NO_RETRY' }, null, 2) + '\n', { flag: 'wx' }); throw error;
   } finally { await stopSentinel(); }
+}
+async function qualifyFallback(spec, base, observer, controls, parentEnd) {
+  const names = ['uring-handled','uring-repeat','uring-arguments','uring-threads','uring-forkexec',
+    'uring-mixed-security','uring-mixed-quota','uring-unhandled'], outcomes = [];
+  for (const [index, name] of names.entries()) {
+    attempt('FALLBACK_CONTROL', name, index);
+    const root = base + '/fallback-' + index; await fs.mkdir(root, { mode: 0o700 });
+    for (const directory of ['private','evidence','cwd']) await fs.mkdir(root + '/' + directory, { mode: 0o700 });
+    const issued = process.hrtime.bigint(), deadline = issued + 8_000_000_000n;
+    check('Q116', assert, deadline < parentEnd);
+    const owner = { phase: { root, adapterAuthority: randomBytes(32) }, cancelReason: null };
+    owner.cancel = reason => { if (!owner.cancelReason) { owner.cancelReason = reason; owner.send?.('cancel', { reason }); } };
+    const plan = { schema: 'tablo/server-observer-linux-plan/v1', nonce: spec.nonce, planId: spec.nonce + '/fallback/' + index,
+      adapter: observer.linuxAdapter, linux: { policy: 'tgid-seccomp-ptrace-x64-v2', unit: 'process/TGID',
+        source: observer.linuxAdapterSource, recipe: observer.linuxAdapterRecipe, build: observer.linuxAdapterBuild,
+        deadlineNanoseconds: deadline.toString(), ownerMonotonicNanoseconds: issued.toString() }, job: { activeProcessLimit: 8 },
+      launch: { executable: controls, argv: [name], cwd: root + '/cwd', environment: { PATH: '/usr/local/bin:/usr/bin:/bin' },
+        stdout: root + '/evidence/controller.stdout', stderr: root + '/evidence/controller.stderr',
+        input: { mode: 'none', path: null, bytes: 0, sha256: null } } };
+    const timer = setInterval(() => { if (process.hrtime.bigint() >= deadline - 1_000_000_000n) owner.cancel('deadline');
+      if (process.hrtime.bigint() >= deadline) owner.expire?.(); }, 10);
+    let events; progress.owner = owner;
+    try { events = await api.runLinuxAdapter(owner, plan); } finally { clearInterval(timer); }
+    const output = await fs.readFile(plan.launch.stdout, 'utf8');
+    const a = events.closed?.admission, close = owner.adapterClose;
+    const count = ['uring-repeat','uring-arguments','uring-threads'].includes(name) ? 4 : 1;
+    const mixed = name === 'uring-mixed-security' || name === 'uring-mixed-quota';
+    check('Q117', assert.equal, owner.cancelReason, null);
+    check('Q118', assert, events.ready && events.started && events.input && events.exited && events.closed);
+    check('Q119', assert.equal, close.closeObserved, true); check('Q120', assert.equal, close.signal, null);
+    check('Q121', assert.equal, close.stderrBytes, 0); check('Q122', assert.equal, close.protocolFailed, false);
+    check('Q123', assert.equal, close.nativeProtocol, 'private-inherited-pipes/v2');
+    check('Q124', assert.equal, events.closed.scopeObservedEmpty, true); check('Q125', assert.equal, events.closed.custodySettled, true);
+    check('Q126', assert, events.input.sourceEofObserved === true && events.input.settled === true && events.input.stdinClosed === true
+      && events.input.errorCode === null && events.input.declaredBytes === 0 && events.input.writtenBytes === 0);
+    check('Q127', assert, events.closed.stdout.closed === true && events.closed.stderr.closed === true);
+    check('Q128', assert.equal, a.liveTgids, 0); check('Q129', assert.equal, a.pendingReservations, 0);
+    check('Q130', assert.equal, a.waitEchild, true); check('Q131', assert, a.peakCommitted <= 8);
+    check('Q132', assert, !output.includes('FORBIDDEN_')); check('Q133', assert.equal, output, 'IO_URING_EPERM ' + name + '\n');
+    check('Q134', assert.equal, a.ioUringSetupAttempts, count); check('Q135', assert.equal, a.ioUringSetupEpermWrites, a.ioUringSetupAttempts);
+    if (!mixed) {
+      check('Q136', assert.equal, close.code, 0); check('Q137', assert.equal, a.failed, false);
+      check('Q138', assert.equal, a.deniedAdmissions, a.ioUringSetupAttempts);
+    }
+    check('Q139', assert.equal, events.exited.exitCode, name === 'uring-unhandled' ? 23 : 0);
+    check('Q140', assert.equal, events.exited.posixSignal, null);
+    if (mixed) {
+      check('Q141', assert.equal, close.code, 125); check('Q142', assert.equal, a.failed, true);
+      check('Q143', assert, a.deniedAdmissions > a.ioUringSetupAttempts);
+      if (name === 'uring-mixed-security') check('Q144', assert.equal, a.deniedAdmissions, a.ioUringSetupAttempts + 8);
+    }
+    if (name === 'uring-mixed-quota') {
+      check('Q145', assert.equal, a.peakCommitted, 8); check('Q146', assert.equal, a.processBirths, 8);
+    }
+    if (['uring-handled','uring-repeat','uring-arguments','uring-unhandled'].includes(name)) {
+      check('Q147', assert, a.processBirths === 1 && a.processReservations === 0);
+    }
+    if (name === 'uring-threads') check('Q148', assert, a.threadBirths >= 4 && a.processBirths === 1 && a.processReservations === 0);
+    if (name === 'uring-forkexec') check('Q149', assert, a.processBirths === 2 && a.processReservations === 1
+      && a.terminalWaits + a.execRetiredIdentities === a.processBirths + a.threadBirths);
+    const file = root + '/result.json';
+    await api.retain(file, { name, status: 'passed', adapterClose: close, events });
+    outcomes.push({ name, receipt: await pin(file) }); progress.completed = 30 + outcomes.length;
+  }
+  const b = await api.readPlan(observer.linuxAdapterBuild.path, observer.linuxAdapterBuild.sha256);
+  await api.retain(base + '/fallback-controls.json', { schema: 'tablo/linux-io-uring-fallback-controls/v1', policy: 'tgid-seccomp-ptrace-x64-v2',
+    status: 'passed', nonce: spec.nonce, sourceSha256: b.sourceSha256, recipeSha256: b.recipeSha256, binarySha256: b.binarySha256,
+    buildSha256: observer.linuxAdapterBuild.sha256, controlsSourceSha256: spec.controlsSource.sha256, controlsBinarySha256: controls.sha256,
+    owner: spec.owner, qualifier: spec.qualifier, platformReceipt: spec.platformReceipt, runtimes: spec.runtimes ?? null, count: outcomes.length, outcomes });
 }
 async function qualifyRemaining(spec, base, observer, controls, outcomes, parentEnd) {
   attempt('TRACER_WITNESS', 'witness', 0);
@@ -319,7 +389,7 @@ async function qualifyRemaining(spec, base, observer, controls, outcomes, parent
     const owner = { phase: { root: phaseRoot, adapterAuthority: randomBytes(32) }, cancelReason: null };
     owner.cancel = reason => { if (!owner.cancelReason) { owner.cancelReason = reason; owner.send?.('cancel', { reason }); } };
     const plan = { schema: 'tablo/server-observer-linux-plan/v1', nonce: spec.nonce, planId: spec.nonce + '/client/' + label,
-      adapter: observer.linuxAdapter, linux: { policy: 'tgid-seccomp-ptrace-x64-v1', unit: 'process/TGID',
+      adapter: observer.linuxAdapter, linux: { policy: 'tgid-seccomp-ptrace-x64-v2', unit: 'process/TGID',
         source: observer.linuxAdapterSource, recipe: observer.linuxAdapterRecipe, build: observer.linuxAdapterBuild,
         deadlineNanoseconds: deadline.toString(), ownerMonotonicNanoseconds: issued.toString() }, job: { activeProcessLimit: 8 },
       launch: { executable, argv, cwd: phaseRoot + '/cwd', environment: { PATH: '/usr/local/bin:/usr/bin:/bin',
@@ -333,7 +403,9 @@ async function qualifyRemaining(spec, base, observer, controls, outcomes, parent
     check('Q100', assert.equal, owner.cancelReason, null); check('Q101', assert.equal, owner.adapterClose.code, 0); check('Q102', assert.equal, owner.adapterClose.signal, null);
     check('Q103', assert.equal, owner.adapterClose.stderrBytes, 0); check('Q104', assert, events.closed && events.input && events.exited);
     check('Q105', assert.equal, events.exited.exitCode, 0); check('Q106', assert.equal, events.exited.posixSignal, null);
-    check('Q107', assert.equal, events.closed.admission.failed, false); check('Q108', assert.equal, events.closed.admission.deniedAdmissions, 0);
+    check('Q107', assert.equal, events.closed.admission.failed, false); check('Q108', assert.equal, events.closed.admission.deniedAdmissions - events.closed.admission.ioUringSetupAttempts, 0);
+    check('Q114', assert.equal, events.closed.admission.ioUringSetupAttempts, events.closed.admission.ioUringSetupEpermWrites);
+    if (label === 'node') check('Q115', assert, events.closed.admission.ioUringSetupAttempts > 0 && events.closed.admission.ioUringSetupEpermWrites > 0);
     check('Q109', assert.equal, events.closed.admission.waitEchild, true); check('Q110', assert.equal, events.input.sourceEofObserved, true);
     const output = await fs.readFile(plan.launch.stdout, 'utf8'); check('Q111', assert.match, output, expected);
     let version = null;
@@ -346,15 +418,16 @@ async function qualifyRemaining(spec, base, observer, controls, outcomes, parent
     context: await api.linuxContext(), runtimes: spec.runtimes, phpBootstrap: spec.phpBootstrap,
     preparedReceipt: spec.platformReceipt, admission: spec.admission });
   const b = await api.readPlan(observer.linuxAdapterBuild.path, observer.linuxAdapterBuild.sha256);
-  await api.retain(spec.outputQualification, { schema: 'tablo/linux-adapter-qualification/v2', policy: 'tgid-seccomp-ptrace-x64-v1', status: 'qualified',
+  await api.retain(spec.outputQualification, { schema: 'tablo/linux-adapter-qualification/v3', policy: 'tgid-seccomp-ptrace-x64-v2', status: 'qualified',
     binarySha256: b.binarySha256, sourceSha256: b.sourceSha256, recipeSha256: b.recipeSha256, buildSha256: observer.linuxAdapterBuild.sha256,
     controlsSourceSha256: spec.controlsSource.sha256, controlsBinarySha256: controls.sha256,
     runtimeControlsSha256: (await pin(base + '/runtime-controls.json')).sha256, platformReceiptSha256: (await pin(base + '/platform.json')).sha256,
     nonce: spec.nonce, runtimes: spec.runtimes, runtimeControls: await pin(base + '/runtime-controls.json'), platformReceipt: await pin(base + '/platform.json'),
-    neutralControls: await pin(base + '/neutral-controls.json') });
+    neutralControls: await pin(base + '/neutral-controls.json'),
+    fallbackControlsSha256: (await pin(base + '/fallback-controls.json')).sha256, fallbackControls: await pin(base + '/fallback-controls.json') });
 }
 
-module.exports = { checked }; // Pure assertion instrumentation; importing never runs qualification.
+module.exports = { checked, qualifyFallback, qualifyRemaining }; // Guarded imports never run qualification.
 if (require.main === module) main().catch(async () => {
   process.exitCode = 1;
   if (safeFailurePath) {
