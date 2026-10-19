@@ -39,6 +39,32 @@ final class EngineBoundaryAdmissionTest
     public function emptyAndFlagReceiptValuesRefuseBeforeConfigurationKeyOrBootstrap(): void
     { engine_maintenance_receipt_values(); }
 
+    #[Test]
+    public function metadataNativeFailuresKeepSanitizedCodesAndStructuralRefusalsStaySchema(): void
+    { engine_metadata_native_failures(); }
+
+    #[Test]
+    public function readSnapshotRollbackFailurePreservesEachPrimaryExceptionAndClosesTheOwnedTransaction(): void
+    { engine_read_snapshot_primary(); }
+
+    #[Test]
+    public function standaloneReadSnapshotRollbackFailureRefusesTheResponseWithSanitizedNativeCodes(): void
+    { engine_read_snapshot_standalone(); }
+
+}
+
+function engine_boundary_probe(string $mode, string $case): array
+{
+    $fixture = new EngineFixture($case); $directory = new \Tablo\Tests\Support\TemporaryDirectory('tablo-boundary-probe-');
+    try {
+        $result = \Tablo\Tests\Support\Subprocess::run([PHP_BINARY, dirname(__DIR__) . '/Support/EngineBoundaryProbe.php', $mode, $case], $directory,
+            $fixture->environment(), new \Tablo\Tests\Support\CommandOptions(timeout: 3, cwd: $directory->path));
+        Assert::same($result['exit_code'], 0); Assert::same($result['stderr'], '');
+        $receipt = \Tablo\Tests\Support\SubprocessReceipt::read($result['files']['receipt']);
+        Assert::same([$receipt['exit_code'], $receipt['closed'], $receipt['root_exit_observed']], [0, true, true]);
+        return \Tablo\JsonRecord::decode($result['stdout']);
+    } catch (\Throwable $error) { $directory->retainFailure($error); throw $error; }
+    finally { $directory->close(); $fixture->close(); }
 }
 
 function engine_maintenance_receipt_values(): void
@@ -58,4 +84,37 @@ function engine_maintenance_receipt_values(): void
         }
     } catch (\Throwable $error) { $directory->retainFailure($error); throw $error; }
     finally { $directory->close(); }
+}
+
+function engine_metadata_native_failures(): void
+{
+    $rows = engine_boundary_probe('metadata', case: 'metadata-native-failures');
+    foreach (['busy' => ['busy', 'Database busy.', '40001', 1213], 'unavailable' => ['unavailable', 'Database unavailable.', 'HY000', 2013],
+        'structural' => ['schema', 'Database schema incompatible or in progress.', null, null]] as $name => $expected) {
+        $row = \Tablo\JsonRecord::checked($rows[$name] ?? null);
+        Assert::same([$row['category'] ?? null, $row['message'] ?? null, $row['sqlState'] ?? null, $row['nativeCode'] ?? null], $expected);
+        Assert::same($row['previousAbsent'] ?? null, true); Assert::same($row['nativeReason'] ?? null, 'unknown');
+    }
+}
+
+function engine_read_snapshot_primary(): void
+{
+    $rows = engine_boundary_probe('primary', case: 'api-rollback-primary'); Assert::same(count($rows), 3);
+    foreach (array_keys($rows) as $index) {
+        $row = \Tablo\JsonRecord::checked($rows[$index] ?? null);
+        Assert::same($row['returned'] ?? null, false); Assert::same($row['primaryPreserved'] ?? null, true);
+        Assert::same($row['rollbackAttempts'] ?? null, 1); Assert::same($row['transactionBeforeCleanup'] ?? null, true);
+        Assert::same($row['transactionClosed'] ?? null, true);
+    }
+}
+
+function engine_read_snapshot_standalone(): void
+{
+    $rows = engine_boundary_probe('standalone', case: 'api-rollback-standalone'); Assert::same(count($rows), 1);
+    $row = \Tablo\JsonRecord::checked($rows[0] ?? null); $failure = \Tablo\JsonRecord::checked($row['failure'] ?? null);
+    Assert::same($row['returned'] ?? null, false); Assert::same($row['rollbackAttempts'] ?? null, 1);
+    Assert::same($row['transactionBeforeCleanup'] ?? null, true); Assert::same($row['transactionClosed'] ?? null, true);
+    Assert::same([$failure['category'] ?? null, $failure['message'] ?? null, $failure['sqlState'] ?? null, $failure['nativeCode'] ?? null],
+        ['unavailable', 'Database unavailable.', 'HY000', 2013]);
+    Assert::same($failure['previousAbsent'] ?? null, true); Assert::same($failure['nativeReason'] ?? null, 'unknown');
 }

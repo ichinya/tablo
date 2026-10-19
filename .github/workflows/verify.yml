@@ -219,7 +219,7 @@ jobs:
       - name: Select the canonical Linux command shell before qualification
         if: ${{ !matrix.declarationOnly }}
         run: |
-          $shellCommand = (Get-Command sh -CommandType Application -ErrorAction Stop).Source
+          $shellCommand = (Get-Command sh -CommandType Application -ErrorAction Stop | Select-Object -First 1).Source
           $selectedShell = readlink -f -- $shellCommand
           if ($LASTEXITCODE -ne 0 -or $selectedShell -isnot [string] -or !$selectedShell.StartsWith('/')) { throw 'Canonical command shell unavailable' }
           $shellFile = Get-Item -LiteralPath $selectedShell -ErrorAction Stop
@@ -274,7 +274,7 @@ jobs:
               return $stdoutTask.Result
             } finally { $child.Dispose() }
           }
-          $dockerCommand = (Get-Command docker -CommandType Application -ErrorAction Stop).Source
+          $dockerCommand = (Get-Command docker -CommandType Application -ErrorAction Stop | Select-Object -First 1).Source
           $docker = (readlink -f -- $dockerCommand)
           if ($LASTEXITCODE -ne 0 -or $docker -isnot [string] -or !$docker.StartsWith('/')) { throw 'Canonical Docker CLI unavailable' }
           $identity = Invoke-FiniteTool 'host-identity' $env:TABLO_TEST_NODE_BIN @('--eval','process.stdout.write(JSON.stringify({uid:process.getuid(),gid:process.getgid()}))') 8 | ConvertFrom-Json
@@ -324,7 +324,7 @@ jobs:
         run: |
           $cellDirectory = Join-Path $env:RUNNER_TEMP 'tablo-server-cell'
           foreach ($selection in @{ TABLO_SERVER_PREPARED_PHP='php'; TABLO_TEST_COMPOSER_PHAR='composer' }.GetEnumerator()) {
-            $command = (Get-Command $selection.Value -CommandType Application -ErrorAction Stop).Source
+            $command = (Get-Command $selection.Value -CommandType Application -ErrorAction Stop | Select-Object -First 1).Source
             $canonical = readlink -f -- $command
             if ($LASTEXITCODE -ne 0 -or $canonical -isnot [string] -or !$canonical.StartsWith('/')) { throw 'Canonical prepared tool unavailable' }
             [Environment]::SetEnvironmentVariable($selection.Key, $canonical)
@@ -348,7 +348,7 @@ jobs:
           $safeDeclaration = Join-Path $cellDirectory 'safe-declaration.json'
           $declaration = Get-Content -LiteralPath $safeDeclaration -Raw | ConvertFrom-Json
           $diagnosticOnly = [bool]::Parse($env:CELL_DECLARATION_ONLY)
-          $declarationPhp = if ($diagnosticOnly) { (Get-Command php -CommandType Application -ErrorAction Stop).Source } else { $env:TABLO_SERVER_PREPARED_PHP }
+          $declarationPhp = if ($diagnosticOnly) { (Get-Command php -CommandType Application -ErrorAction Stop | Select-Object -First 1).Source } else { $env:TABLO_SERVER_PREPARED_PHP }
           $bootstrapArguments = if ($diagnosticOnly) { @() } else { @('-c',$env:TABLO_SERVER_PREPARED_PHP_INI) }
           $declaration.stage = 'WORKFLOW_SOURCE_INVENTORY'
           [IO.File]::WriteAllText($safeDeclaration, ($declaration | ConvertTo-Json -Depth 5), [Text.UTF8Encoding]::new($false))
@@ -366,9 +366,9 @@ jobs:
           $env:TABLO_TEST_SOURCE_MANIFEST_SHA256 = (Get-FileHash -LiteralPath $sourceManifest -Algorithm SHA256).Hash.ToLowerInvariant()
           $declaration.stage = 'WORKFLOW_TOOL_SELECTION'
           [IO.File]::WriteAllText($safeDeclaration, ($declaration | ConvertTo-Json -Depth 5), [Text.UTF8Encoding]::new($false))
-          if ($diagnosticOnly) { $env:TABLO_TEST_DOCKER_BIN = (Get-Command docker -CommandType Application -ErrorAction Stop).Source }
+          if ($diagnosticOnly) { $env:TABLO_TEST_DOCKER_BIN = (Get-Command docker -CommandType Application -ErrorAction Stop | Select-Object -First 1).Source }
           $env:TABLO_TEST_OBSERVER_PORT = '46399'
-          if ($diagnosticOnly) { $env:TABLO_TEST_COMPOSER_PHAR = (Get-Command composer -CommandType Application -ErrorAction Stop).Source }
+          if ($diagnosticOnly) { $env:TABLO_TEST_COMPOSER_PHAR = (Get-Command composer -CommandType Application -ErrorAction Stop | Select-Object -First 1).Source }
           $env:LEKALO_BIN = Join-Path $PWD '.ci/lekalo-bin/lekalo'
           $version = & $env:LEKALO_BIN --version
           if ($LASTEXITCODE -ne 0 -or $version.Trim() -ne 'lekalo 0.6.3') { throw 'Unexpected Lekalo CLI version' }

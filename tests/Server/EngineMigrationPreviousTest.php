@@ -93,8 +93,20 @@ final class EngineMigrationPreviousTest
         Assert::same(self::snapshot($db, $tables), $before); $fixture->close();
     }
 
+    #[Test]
+    public function committedPhaseWithLostAcknowledgementStaysUncertainDespiteRollbackFailureAndResumes(): void
+    { engine_migration_uncertain_phase(); }
+
+    #[Test]
+    public function committedPublicationWithLostAcknowledgementStaysUncertainAndFreshMigrationDoesNotReplay(): void
+    { engine_migration_uncertain_publication(); }
+
+    #[Test]
+    public function nativePhaseConstraintBeforeCommitRollsBackAndKeepsItsSanitizedCategory(): void
+    { engine_migration_phase_constraint(); }
+
     /** @return list<array> */
-    private static function materialize(EngineFixture $fixture, PDO $db): array
+    public static function materialize(EngineFixture $fixture, PDO $db): array
     {
         Assert::same(ServerSchema::objects($db), []);
         $engine = \Tablo\Tests\Support\FixtureValue::string(getenv('TABLO_TEST_DB_DRIVER'));
@@ -146,7 +158,7 @@ final class EngineMigrationPreviousTest
     }
 
     /** @param list<array> $tables */
-    private static function snapshot(PDO $db, array $tables): array
+    public static function snapshot(PDO $db, array $tables): array
     {
         $snapshot = [];
         // The frozen declaration has exactly three metadata objects followed by fourteen domain objects.
@@ -157,6 +169,78 @@ final class EngineMigrationPreviousTest
         }
         Assert::same(count($snapshot), 14); return $snapshot;
     }
+}
+
+function engine_migration_uncertain_phase(): void
+{
+    $fixture = new EngineFixture('migration-phase-uncertain');
+    try {
+        $db = $fixture->maintenance(); $tables = EngineMigrationPreviousTest::materialize($fixture, $db); $before = EngineMigrationPreviousTest::snapshot($db, $tables);
+        $journal = ServerSchema::rows($db, 'SELECT * FROM tablo_migration_journal');
+        $fault = new EngineReadApiCommitPdo($fixture, 'migrator'); $fault->loseAcknowledgement = true; $fault->failRollback = true;
+        $caught = null;
+        try { (new ServerMigration($fault, $fixture->vault))->migrate(); } catch (\Tablo\DatabaseFailure $error) { $caught = $error; }
+        Assert::same($caught?->category, 'uncertain'); Assert::same($caught?->getMessage(), 'Storage outcome uncertain.');
+        Assert::same($caught?->getPrevious(), null); Assert::same($caught->sqlState, null); Assert::same($caught->nativeCode, null);
+        Assert::true($fault->committedWithoutAcknowledgement); Assert::same($fault->rollbackAttempts, 1);
+        Assert::false($fault->inTransaction()); Assert::false(\Tablo\WriteTransaction::owns($fault));
+        Assert::same((new ServerMigration($db, $fixture->vault))->status(), ['format' => 1, 'logical_version' => 9, 'phase' => 'migrating']);
+        Assert::same(count(ServerSchema::objects($db)), 17); Assert::same(ServerSchema::rows($db, 'SELECT * FROM tablo_migration_journal'), $journal);
+        Assert::same(EngineMigrationPreviousTest::snapshot($db, $tables), $before);
+        $resumed = new ServerMigration($fixture->maintenance(), $fixture->vault); $resumed->migrate();
+        Assert::same($resumed->status(), ['format' => 1, 'logical_version' => 10, 'phase' => 'ready']);
+        Assert::same(ServerSchema::rows($db, 'SELECT predecessor,target,phase FROM tablo_migration_journal'), [['predecessor' => 9, 'target' => 10, 'phase' => 'done']]);
+        Assert::same(EngineMigrationPreviousTest::snapshot($db, $tables), $before);
+    } finally { $fixture->close(); }
+}
+
+function engine_migration_uncertain_publication(): void
+{
+    $fixture = new EngineFixture('migration-publish-uncertain');
+    try {
+        $db = $fixture->maintenance(); $tables = EngineMigrationPreviousTest::materialize($fixture, $db); $before = EngineMigrationPreviousTest::snapshot($db, $tables);
+        $fault = new EngineReadApiCommitPdo($fixture, 'migrator'); $points = [];
+        $migration = new ServerMigration($fault, $fixture->vault, static function (string $phase, int $step) use ($fault, &$points): void {
+            $points[] = [$phase, $step];
+            if ($phase === 'before-publication') { $fault->loseAcknowledgement = true; $fault->failRollback = true; }
+        });
+        $caught = null;
+        try { $migration->migrate(); } catch (\Tablo\DatabaseFailure $error) { $caught = $error; }
+        Assert::same($caught?->category, 'uncertain'); Assert::same($caught?->getMessage(), 'Storage outcome uncertain.');
+        Assert::same($caught?->getPrevious(), null); Assert::same($caught->sqlState, null); Assert::same($caught->nativeCode, null);
+        Assert::true($fault->committedWithoutAcknowledgement); Assert::same($fault->rollbackAttempts, 1);
+        Assert::false($fault->inTransaction()); Assert::false(\Tablo\WriteTransaction::owns($fault));
+        Assert::same(array_pop($points), ['before-publication', 10]);
+        $state = ServerSchema::rows($db, 'SELECT * FROM tablo_database_state'); $journal = ServerSchema::rows($db, 'SELECT * FROM tablo_migration_journal');
+        Assert::same($migration->status(), ['format' => 1, 'logical_version' => 10, 'phase' => 'ready']);
+        Assert::same(count(ServerSchema::objects($db)), 18);
+        Assert::same(ServerSchema::rows($db, 'SELECT predecessor,target,phase FROM tablo_migration_journal'), [['predecessor' => 9, 'target' => 10, 'phase' => 'done']]);
+        (new ServerMigration($fixture->maintenance(), $fixture->vault))->migrate();
+        Assert::same(ServerSchema::rows($db, 'SELECT * FROM tablo_database_state'), $state);
+        Assert::same(ServerSchema::rows($db, 'SELECT * FROM tablo_migration_journal'), $journal);
+        Assert::same(EngineMigrationPreviousTest::snapshot($db, $tables), $before);
+    } finally { $fixture->close(); }
+}
+
+function engine_migration_phase_constraint(): void
+{
+    $fixture = new EngineFixture('migration-phase-constraint');
+    try {
+        $db = $fixture->maintenance(); $tables = EngineMigrationPreviousTest::materialize($fixture, $db); $before = EngineMigrationPreviousTest::snapshot($db, $tables);
+        $state = ServerSchema::rows($db, 'SELECT * FROM tablo_database_state');
+        $fault = new EngineReadApiCommitPdo($fixture, 'migrator'); $fault->loseAcknowledgement = true; $caught = null;
+        try {
+            \Tablo\ServerMigrationLock::run($fault, $fixture->vault, static function (\Tablo\ServerLock $lock) use ($fault): void {
+                unset($lock); (new \Tablo\ServerMigrationState($fault))->phase('outside-schema');
+            });
+        } catch (\Tablo\DatabaseFailure $error) { $caught = $error; }
+        Assert::same($caught?->category, 'constraint'); Assert::same($caught?->getPrevious(), null);
+        Assert::same($caught?->getMessage(), 'Database constraint refused.'); Assert::true(in_array($caught->nativeCode, [3819, 4025], strict: true));
+        Assert::false($fault->committedWithoutAcknowledgement); Assert::same($fault->rollbackAttempts, 1);
+        Assert::false($fault->inTransaction()); Assert::false(\Tablo\WriteTransaction::owns($fault));
+        Assert::same(ServerSchema::rows($db, 'SELECT * FROM tablo_database_state'), $state);
+        Assert::same(EngineMigrationPreviousTest::snapshot($db, $tables), $before);
+    } finally { $fixture->close(); }
 }
 
 /** Literal independent predecessor shape for these tests; SQL bytes are never inferred from current bootstrap. */

@@ -2619,6 +2619,90 @@
             "initial": "metadata-role"
           }
         ]
+      },
+      {
+        "identity": "Tablo\\Tests\\Server\\EngineMigrationPreviousTest::committedPhaseWithLostAcknowledgementStaysUncertainDespiteRollbackFailureAndResumes",
+        "path": "tests/Server/EngineMigrationPreviousTest.php",
+        "dataRows": [],
+        "minimumAssertions": 16,
+        "deadlineSeconds": 8,
+        "fixtures": [
+          {
+            "alias": "migration-phase-uncertain",
+            "engine": "selected",
+            "initial": "empty"
+          }
+        ]
+      },
+      {
+        "identity": "Tablo\\Tests\\Server\\EngineMigrationPreviousTest::committedPublicationWithLostAcknowledgementStaysUncertainAndFreshMigrationDoesNotReplay",
+        "path": "tests/Server/EngineMigrationPreviousTest.php",
+        "dataRows": [],
+        "minimumAssertions": 16,
+        "deadlineSeconds": 8,
+        "fixtures": [
+          {
+            "alias": "migration-publish-uncertain",
+            "engine": "selected",
+            "initial": "empty"
+          }
+        ]
+      },
+      {
+        "identity": "Tablo\\Tests\\Server\\EngineMigrationPreviousTest::nativePhaseConstraintBeforeCommitRollsBackAndKeepsItsSanitizedCategory",
+        "path": "tests/Server/EngineMigrationPreviousTest.php",
+        "dataRows": [],
+        "minimumAssertions": 10,
+        "deadlineSeconds": 8,
+        "fixtures": [
+          {
+            "alias": "migration-phase-constraint",
+            "engine": "selected",
+            "initial": "empty"
+          }
+        ]
+      },
+      {
+        "identity": "Tablo\\Tests\\Server\\EngineBoundaryAdmissionTest::metadataNativeFailuresKeepSanitizedCodesAndStructuralRefusalsStaySchema",
+        "path": "tests/Server/EngineBoundaryAdmissionTest.php",
+        "dataRows": [],
+        "minimumAssertions": 12,
+        "deadlineSeconds": 8,
+        "fixtures": [
+          {
+            "alias": "metadata-native-failures",
+            "engine": "selected",
+            "initial": "ready"
+          }
+        ]
+      },
+      {
+        "identity": "Tablo\\Tests\\Server\\EngineBoundaryAdmissionTest::readSnapshotRollbackFailurePreservesEachPrimaryExceptionAndClosesTheOwnedTransaction",
+        "path": "tests/Server/EngineBoundaryAdmissionTest.php",
+        "dataRows": [],
+        "minimumAssertions": 19,
+        "deadlineSeconds": 8,
+        "fixtures": [
+          {
+            "alias": "api-rollback-primary",
+            "engine": "selected",
+            "initial": "ready"
+          }
+        ]
+      },
+      {
+        "identity": "Tablo\\Tests\\Server\\EngineBoundaryAdmissionTest::standaloneReadSnapshotRollbackFailureRefusesTheResponseWithSanitizedNativeCodes",
+        "path": "tests/Server/EngineBoundaryAdmissionTest.php",
+        "dataRows": [],
+        "minimumAssertions": 11,
+        "deadlineSeconds": 8,
+        "fixtures": [
+          {
+            "alias": "api-rollback-standalone",
+            "engine": "selected",
+            "initial": "ready"
+          }
+        ]
       }
     ],
     "cross": [
@@ -3911,7 +3995,8 @@
         "tests/Server/EngineMigrationRaceTest.php",
         "tests/Server/EngineReadApiTest.php",
         "tests/Server/EngineCheckAdmissionTest.php",
-        "tests/Server/EngineMetadataAdmissionTest.php"
+        "tests/Server/EngineMetadataAdmissionTest.php",
+        "tests/Server/EngineBoundaryAdmissionTest.php"
       ],
       "cross": [],
       "requiredFamilies": [
@@ -3940,7 +4025,8 @@
         "tests/Server/EngineMigrationRaceTest.php",
         "tests/Server/EngineReadApiTest.php",
         "tests/Server/EngineCheckAdmissionTest.php",
-        "tests/Server/EngineMetadataAdmissionTest.php"
+        "tests/Server/EngineMetadataAdmissionTest.php",
+        "tests/Server/EngineBoundaryAdmissionTest.php"
       ],
       "cross": [],
       "requiredFamilies": [
@@ -3969,7 +4055,8 @@
         "tests/Server/EngineMigrationRaceTest.php",
         "tests/Server/EngineReadApiTest.php",
         "tests/Server/EngineCheckAdmissionTest.php",
-        "tests/Server/EngineMetadataAdmissionTest.php"
+        "tests/Server/EngineMetadataAdmissionTest.php",
+        "tests/Server/EngineBoundaryAdmissionTest.php"
       ],
       "cross": [],
       "requiredFamilies": [
@@ -7219,7 +7306,8 @@
     "Logical9 data is now self-contained literal DDL in existing EngineMigrationPreviousTest.php, with per-statement hashes and frozen synthetic checksums; no extra fixture owner. These three tests still have NOTRUN and the denied-DDL actor is not part of revision9 development grant request."
   ],
   "requiredFixtureSources": [
-    "tests/Server/EngineMigrationPreviousTest.php"
+    "tests/Server/EngineMigrationPreviousTest.php",
+    "tests/Support/EngineBoundaryProbe.php"
   ],
   "requiredFixtureRoles": {
     "migration-previous-denied-ddl": "Dedicated nonce-owned deniedDdl principal has SELECT/INSERT/UPDATE on only owned catalogs, including journal/phase DML, and no CREATE/ALTER/INDEX/REFERENCES/DROP; ordinary writer grants stay unchanged. Exact native1142 and intended before-ddl barrier/journal/resume are mandatory; runtime NOTRUN.",

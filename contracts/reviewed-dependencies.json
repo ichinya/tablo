@@ -8,7 +8,7 @@
                 "Composer verify",
                 "Reviewed dependency capture"
             ],
-            "fingerprint": "sha256:ffb71f3709c06b6a02f875796b622037e8d765ee0cecd478984c74217788ab0a"
+            "fingerprint": "sha256:2a8f5267a0b69b20a568fb8c4013a719c83081d6238569fcecbba01fc2d95b4e"
         },
         {
             "path": "tools/reviewed-dependencies.php",
@@ -49,7 +49,7 @@
                 "tools/server-supervisor-linux-qualify.cjs",
                 "tools/server-linux-prepare.cjs"
             ],
-            "fingerprint": "sha256:ceffb92c6ba268a1e7621a28183d2f9df5cba90032bb797396262af0e9d1f8bf"
+            "fingerprint": "sha256:691967e35cdecf6ae9ad1de88bd50cce77442c70c5f49b98c27f387c69ebc920"
         },
         {
             "path": "app/AddressRange.php",
@@ -501,7 +501,8 @@
                 "app/ServerMetadataAdmission.php",
                 "app/ServerMetadataIdentity.php",
                 "app/ServerMetadataPrivileges.php",
-                "tests/Server/EngineMetadataAdmissionTest.php"
+                "tests/Server/EngineMetadataAdmissionTest.php",
+                "tests/Support/EngineBoundaryProbe.php"
             ],
             "fingerprint": "sha256:2e449415a8bb8c3de5cd5c14a8cba6751884cf754e695119b4fdfa97756163b2"
         },
@@ -621,7 +622,8 @@
                 "app/ServerMetadataIdentity.php",
                 "app/ServerMetadataPrivileges.php",
                 "app/ServerMetadataInventory.php",
-                "app/ServerMetadataAdmission.php"
+                "app/ServerMetadataAdmission.php",
+                "tests/Support/EngineBoundaryProbe.php"
             ],
             "fingerprint": "sha256:14c3383ab7e8e677f1ff715622fd4683a675a09398cf0b9d445b4b0897213ae3"
         },
@@ -2642,9 +2644,10 @@
                 "Composer lint",
                 "Composer analyze",
                 "Composer verify",
-                "Native read API tests"
+                "Native read API tests",
+                "tests/Support/EngineBoundaryProbe.php"
             ],
-            "fingerprint": "sha256:408cb994b6903f7f8de510c5bbe5276aafa999bb58a020311e564a847e07bae6"
+            "fingerprint": "sha256:6b7bbca972bae76a38c98f8890a21a821138cc27d3b008ab4bd58638248f60b4"
         },
         {
             "path": "app/read-api-token-repository.php",
@@ -2742,7 +2745,8 @@
                 "Composer lint",
                 "Composer analyze",
                 "Composer verify",
-                "Native read API tests"
+                "Native read API tests",
+                "tests/Support/EngineBoundaryProbe.php"
             ],
             "fingerprint": "sha256:fdef1c945eb409740e24fef4b803da942348026d5f38a391e9b7b32791b350ae"
         },
@@ -3287,7 +3291,7 @@
                 "app/ServerMigrationStep.php",
                 "tests/Server/EngineTransactionFailureTest.php"
             ],
-            "fingerprint": "sha256:24d04119e7fde188fc7b9c1e4351f9f26592f2587798b2a1c221d769b04ca6b8"
+            "fingerprint": "sha256:c59220b4046fe109fb04b3994fd687ebd06b3fc7490a5c3dd4fee3761a1ff81d"
         },
         {
             "path": "app/ServerMigrationStep.php",
@@ -5224,7 +5228,7 @@
                 "tools/server-supervisor-linux-qualify.cjs",
                 "tools/server-linux-prepare.cjs"
             ],
-            "fingerprint": "sha256:654b95efb1a870c90a535070647fc1abc54eade22a253ea06ecd8a2de497e012"
+            "fingerprint": "sha256:09f800b934d3c2c027ba9b04b9995de1c56e4fde4c38753acbd340c6b54bf668"
         },
         {
             "path": "docs/read-api.md",
@@ -7989,7 +7993,7 @@
                 "Composer verify:server",
                 "Standalone frozen logical9 fixture materialization (source grant pending)"
             ],
-            "fingerprint": "sha256:86a570cd9439b924789a797b3470366f44593814244a4fc04ef9caa1258df9ce"
+            "fingerprint": "sha256:5c85a79e7eb6721eb170eb1da92be50ee4820c42e83ebd4140506fe4517f9d3b"
         },
         {
             "path": "tests/Server/EngineMigrationProcessTest.php",
@@ -8310,7 +8314,8 @@
                 "tests/Server/EngineReadApiTest.php",
                 "tests/Server/EngineReadApiCommitPdo.php",
                 "tests/Server/EngineTransferEnvelopeTest.php",
-                "tests/Server/EngineMetadataAdmissionTest.php"
+                "tests/Server/EngineMetadataAdmissionTest.php",
+                "tests/Support/EngineBoundaryProbe.php"
             ],
             "fingerprint": "sha256:96b37a73314732760226b41866d8b6eec16f31d9bc5a5e5a305684d724e1c064"
         },
@@ -11008,7 +11013,7 @@
                 "tools/server-supervisor-linux-qualify.cjs",
                 "tools/server-linux-prepare.cjs"
             ],
-            "fingerprint": "sha256:71faf76ed8e2f571aadd7ef78ca0a33a47c5c99be08547fc0db36ede7b609c58"
+            "fingerprint": "sha256:395fa2a66516c40d1e3af7ab86f4eabed044ff3bcb19e15bd9f2cc1cc122530b"
         },
         {
             "path": "tools/ServerTestEvidence.php",
@@ -11271,7 +11276,7 @@
                 "Composer verify:server",
                 "MigrationAdmission native binding selectors"
             ],
-            "fingerprint": "sha256:509f29ab001295dad41127b40bdba2f9b69916fa78dc21ec1612fea9d3bd4937"
+            "fingerprint": "sha256:9064f5ffd791b287f1c7e2e62296760b016df13063e196824a1559ae29000bfb"
         },
         {
             "path": "tests/Server/EngineReadApiCommitPdo.php",
@@ -11279,9 +11284,11 @@
             "consumers": [
                 "Composer lint",
                 "Composer analyze",
-                "tests/Server/EngineReadApiTest.php"
+                "tests/Server/EngineReadApiTest.php",
+                "tests/Server/EngineMigrationPreviousTest.php",
+                "tests/Support/EngineBoundaryProbe.php"
             ],
-            "fingerprint": "sha256:f3789fd20dcdcb8f5ad739b39fca31a5d1778d78505e83ee7f1a00d8d3ccf70b"
+            "fingerprint": "sha256:f8007cc96137c9f36038c42c50acde5aaab66ebd31e586a9bcd9ee40dd0e17e1"
         },
         {
             "path": "app/ServerPdoConnection.php",
@@ -11337,9 +11344,10 @@
                 "app/DatabaseSession.php",
                 "app/ServerSchema.php",
                 "app/ServerTableAdmission.php",
-                "tests/Server/EngineMetadataAdmissionTest.php"
+                "tests/Server/EngineMetadataAdmissionTest.php",
+                "tests/Support/EngineBoundaryProbe.php"
             ],
-            "fingerprint": "sha256:ec89b17a82ecd8ae027d36c9f29f78e8f165c29a805210d34422f04b082884a4"
+            "fingerprint": "sha256:31dfc4e020f9ed0ae414cb68c97827b56b3f08e27b0ef0b358bf3a9b9379d763"
         },
         {
             "path": "tests/Server/EngineMetadataAdmissionTest.php",
@@ -11417,6 +11425,17 @@
                 "docs/database-engines.md"
             ],
             "fingerprint": "sha256:622f24395b91e719c360eb5172859b6f7b4cca0d2abedbf8d6f58d6708f1a88e"
+        },
+        {
+            "path": "tests/Support/EngineBoundaryProbe.php",
+            "owner": "Isolated selected-engine child transport substitution exercising actual metadata and read snapshot error boundaries",
+            "consumers": [
+                "Composer lint",
+                "Composer analyze",
+                "tests/Server/EngineBoundaryAdmissionTest.php",
+                "Explicit native fixture source inventory; excluded from test discovery"
+            ],
+            "fingerprint": "sha256:679d3b51ca271fb8dfc0ed5a2b49c5845b261abd178b0c7481733da1b10a4534"
         }
     ]
 }

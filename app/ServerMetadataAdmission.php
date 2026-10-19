@@ -23,7 +23,7 @@ final class ServerMetadataAdmission
             if ($version !== null) { self::expected($db, $names, $version); }
             return ['server' => ServerMetadataIdentity::server($db), 'account' => ServerMetadataIdentity::grantee($db, $metadata), 'objects' => $objects,
                 'installation' => ServerMetadataIdentity::installation($db, $names)];
-        } catch (\PDOException $error) { unset($error); throw new DatabaseFailure('schema'); }
+        } catch (\PDOException $error) { throw DatabaseFailure::fromNative($error); }
         finally { $db = null; }
     }
 

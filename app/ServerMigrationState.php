@@ -28,7 +28,8 @@ final class ServerMigrationState
         $this->db->exec('START TRANSACTION');
         try {
             ServerWriterAdmission::lock($this->db);
-            ServerSchema::rows($this->db, 'UPDATE tablo_database_state SET phase = ? WHERE id = 1', [$phase]); $this->db->exec('COMMIT');
+            ServerSchema::rows($this->db, 'UPDATE tablo_database_state SET phase = ? WHERE id = 1', [$phase]);
+            $this->commit();
         } catch (\Throwable $error) { try { $this->db->exec('ROLLBACK'); } catch (\Throwable $discarded) { unset($discarded); } throw $error; }
     }
 
@@ -40,13 +41,18 @@ final class ServerMigrationState
         try {
             ServerWriterAdmission::lock($this->db);
             ServerSchema::rows($this->db, "UPDATE tablo_database_state SET logical_version = ?, layout_checksum = ?, phase = 'ready' WHERE id = 1 AND logical_version = ?", [$target, ServerSchema::checksum($this->db), $predecessor]);
-            $this->db->exec('COMMIT');
+            $this->commit();
         } catch (\Throwable $error) { try { $this->db->exec('ROLLBACK'); } catch (\Throwable $discarded) { unset($discarded); } throw $error; }
         $this->point('after-publication', $target);
         ServerSchema::admit($this->db);
     }
 
     public function point(string $phase, int $step): void { if ($this->barrier !== null) { ($this->barrier)($phase, $step); } }
+
+    private function commit(): void
+    {
+        try { $this->db->exec('COMMIT'); } catch (\PDOException $error) { unset($error); throw new DatabaseFailure('uncertain'); }
+    }
 
 }
 

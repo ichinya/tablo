@@ -415,6 +415,7 @@ function read_api_response(#[\SensitiveParameter] string $token, #[\SensitivePar
         $db = ReadApiConnection::open();
         $serverEngine = DatabaseSession::server($db);
         $db->exec($serverEngine ? 'START TRANSACTION WITH CONSISTENT SNAPSHOT, READ ONLY' : 'BEGIN');
+        $primary = null;
         try {
             // Pin schema admission to the same snapshot as authentication and site reads.
             if ($serverEngine) { ServerSessionAdmission::pinReader($db); }
@@ -432,7 +433,11 @@ function read_api_response(#[\SensitiveParameter] string $token, #[\SensitivePar
                 return $detail === null ? ReadApiResponse::error('not_found') : ReadApiResponse::success($detail);
             }
             return ReadApiResponse::success(read_api_sites($db, $request->afterId, $request->limit, $now));
-        } finally { $db->exec('ROLLBACK'); }
+        } catch (\Throwable $error) { $primary = $error; throw $error; }
+        finally {
+            try { $db->exec('ROLLBACK'); }
+            catch (\Throwable $rollback) { if ($primary === null) { DatabaseFailure::rethrow($db, $rollback); } }
+        }
     }
 
 /** @return array{api_version: int, generated_at: string, data: list<\Tablo\ApiSiteDto::Dto>, page: array{next_after_id: ?string}} */

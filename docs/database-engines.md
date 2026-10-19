@@ -167,6 +167,9 @@ PDO transaction and rechecks ready/key policy. Network operations run outside th
 transaction. Worker, migration and notification lifetime locks are separate,
 session-affine advisory locks; losing a session loses its authority. An unknown
 COMMIT outcome is reported as uncertain and is never blindly retried.
+This also applies to migration phase and version publication. Restore the
+connection and inspect durable state before starting a fresh recognized migration
+or initialization with its original receipt; a publication may already be ready.
 If read API token rotation reports an uncertain outcome, its generated bearer is
 not returned. After restoring the connection, perform a new authenticated rotation
 and distribute only that successfully returned bearer; the prior bearer may

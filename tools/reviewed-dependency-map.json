@@ -378,7 +378,8 @@
       "app/ServerMetadataAdmission.php",
       "app/ServerMetadataIdentity.php",
       "app/ServerMetadataPrivileges.php",
-      "tests/Server/EngineMetadataAdmissionTest.php"
+      "tests/Server/EngineMetadataAdmissionTest.php",
+      "tests/Support/EngineBoundaryProbe.php"
     ]
   },
   "app/DatabaseConnectionFactory.php": {
@@ -492,7 +493,8 @@
       "app/ServerMetadataIdentity.php",
       "app/ServerMetadataPrivileges.php",
       "app/ServerMetadataInventory.php",
-      "app/ServerMetadataAdmission.php"
+      "app/ServerMetadataAdmission.php",
+      "tests/Support/EngineBoundaryProbe.php"
     ]
   },
   "app/DatabaseInteger.php": {
@@ -2145,7 +2147,8 @@
       "Composer lint",
       "Composer analyze",
       "Composer verify",
-      "Native read API tests"
+      "Native read API tests",
+      "tests/Support/EngineBoundaryProbe.php"
     ]
   },
   "app/read-api-token-repository.php": {
@@ -2227,7 +2230,8 @@
       "Composer lint",
       "Composer analyze",
       "Composer verify",
-      "Native read API tests"
+      "Native read API tests",
+      "tests/Support/EngineBoundaryProbe.php"
     ]
   },
   "app/ReadApiTokenPages.php": {
@@ -6729,7 +6733,8 @@
       "tests/Server/EngineReadApiTest.php",
       "tests/Server/EngineReadApiCommitPdo.php",
       "tests/Server/EngineTransferEnvelopeTest.php",
-      "tests/Server/EngineMetadataAdmissionTest.php"
+      "tests/Server/EngineMetadataAdmissionTest.php",
+      "tests/Support/EngineBoundaryProbe.php"
     ]
   },
   "tests/Support/EngineProcess.php": {
@@ -9128,7 +9133,9 @@
     "consumers": [
       "Composer lint",
       "Composer analyze",
-      "tests/Server/EngineReadApiTest.php"
+      "tests/Server/EngineReadApiTest.php",
+      "tests/Server/EngineMigrationPreviousTest.php",
+      "tests/Support/EngineBoundaryProbe.php"
     ]
   },
   "app/ServerPdoConnection.php": {
@@ -9176,7 +9183,8 @@
       "app/DatabaseSession.php",
       "app/ServerSchema.php",
       "app/ServerTableAdmission.php",
-      "tests/Server/EngineMetadataAdmissionTest.php"
+      "tests/Server/EngineMetadataAdmissionTest.php",
+      "tests/Support/EngineBoundaryProbe.php"
     ]
   },
   "tests/Server/EngineMetadataAdmissionTest.php": {
@@ -9242,6 +9250,15 @@
       "tools/server-supervisor-linux-qualify.cjs",
       "tools/server-native-tests.json",
       "docs/database-engines.md"
+    ]
+  },
+  "tests/Support/EngineBoundaryProbe.php": {
+    "owner": "Isolated selected-engine child transport substitution exercising actual metadata and read snapshot error boundaries",
+    "consumers": [
+      "Composer lint",
+      "Composer analyze",
+      "tests/Server/EngineBoundaryAdmissionTest.php",
+      "Explicit native fixture source inventory; excluded from test discovery"
     ]
   }
 }
