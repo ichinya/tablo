@@ -1,0 +1,40 @@
+<?php
+declare(strict_types=1);
+
+namespace Tablo;
+
+final class ServerExpressionTokens
+{
+    private const IDENTIFIERS = ['plan', 'step', 'checksum', 'predecessor', 'target', 'before_predicate', 'after_predicate', 'phase', 'cursor', 'failure_category', 'id', 'format', 'logical_version', 'layout_checksum', 'installation_id', 'key_verifier', 'committed_history_high_watermark', 'password_hash', 'created_at', 'name', 'provider', 'encrypted_token', 'updated_at', 'name_key', 'url', 'repository', 'github_token', 'git_token_id', 'branch', 'health_path', 'version_path', 'version_json_path', 'health_check_mode', 'health_json_path', 'health_json_operator', 'health_json_expected_value', 'comparison_mode', 'enabled', 'sort_order', 'online', 'deployed_version', 'deployed_commit', 'latest_release', 'latest_commit', 'open_issues', 'open_prs', 'response_time_ms', 'last_error', 'checked_at', 'health_error_code', 'health_http_status', 'config_revision', 'endpoint_token', 'key', 'failures', 'window_start', 'scope', 'resource', 'eligible_at', 'check_interval_minutes', 'session_idle_timeout_minutes', 'run_id', 'stop_requested', 'fairness_turn', 'site_id', 'version_status', 'version_error_code', 'version_http_status', 'release_error_code', 'release_http_status', 'commit_error_code', 'commit_http_status', 'opened_at', 'recovery_history_id', 'recovered_at', 'interruption_history_id', 'end_reason', 'uncertain', 'clock_invalid', 'unresolved_site_id', 'last_history_id', 'watermark', 'revision', 'activation_id', 'blocked', 'endpoint_cipher', 'bearer_cipher', 'unavailable', 'recovery', 'version_lag', 'include_name', 'include_url', 'state', 'event', 'event_id', 'source_id', 'channel_revision', 'payload', 'private_cipher', 'expires_at', 'due_at', 'status', 'attempts', 'claim', 'lease_until', 'last_code', 'http_status', 'acknowledged_at', 'coalesced', 'secret_hash', 'administrator_fingerprint', 'ascii', 'substring', 'cast', 'binary', 'unsigned', 'replace', 'locate', 'octet_length', 'mod', 'case', 'when', 'then', 'else', 'end', 'null', 'not', 'and', 'or', 'is', 'in', 'between'];
+    /** @return list<string> */
+    public static function tokenize(string $sql): array
+    {
+        if (strlen($sql) > 16_384) { self::refuse(); }
+        $tokens = [];
+        $offset = 0;
+        while ($offset < strlen($sql)) {
+            $match = [];
+            if (preg_match('/\G\s+/A', $sql, $match, flags: 0, offset: $offset) === 1) { $offset += strlen(RegexCapture::text($match, 0)); continue; }
+            if (preg_match('/\G(?:`[a-zA-Z0-9_]+`|(?:(?i:_binary)\s*)?\x27(?:\x27\x27|[^\x27])*\x27|(?:(?i:_binary)\s+)?[xX]\x27(?:[0-9a-fA-F]{2})*\x27|(?i:_binary)\s+0x[0-9a-fA-F]+|[a-zA-Z_][a-zA-Z0-9_]*|[0-9]+|<=>|<>|!=|<=|>=|[(),=<>+*\/-])/A', $sql, $match, flags: 0, offset: $offset) !== 1) { self::refuse(); }
+            $tokens[] = RegexCapture::text($match, 0); $offset += strlen(RegexCapture::text($match, 0));
+        }
+        if (count($tokens) > 2048) { self::refuse(); }
+        foreach ($tokens as $lexeme) {
+            if (preg_match('/\A[a-zA-Z_][a-zA-Z0-9_]*\z/D', $lexeme) !== 1) { continue; }
+            if (in_array(strtolower($lexeme), [...self::IDENTIFIERS, 'as'], strict: true)) { continue; }
+            self::refuse();
+        }
+        return $tokens;
+    }
+    /** @param list<string> $tokens */
+    public static function consume(array $tokens, int &$position, string $expected): void
+    {
+        if (strtolower($tokens[$position++] ?? '') !== $expected) { self::refuse(); }
+    }
+    public static function admitCall(string $name): void
+    {
+        if (!in_array($name, ['ascii', 'substring', 'cast', 'replace', 'locate', 'octet_length', 'mod'], strict: true)) { self::refuse(); }
+    }
+    private static function refuse(): never { throw new DatabaseFailure('schema'); }
+
+}

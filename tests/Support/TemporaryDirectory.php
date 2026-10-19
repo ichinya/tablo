@@ -43,9 +43,10 @@ final class TemporaryDirectory
 
     public function releaseProcess(): void { --$this->processes; }
 
-    public function __construct(string $prefix = 'tablo-test-')
+    public function __construct(string $prefix = 'tablo-test-', ?string $parentDirectory = null)
     {
-        $this->path = sys_get_temp_dir() . '/' . $prefix . bin2hex(random_bytes(8));
+        temporary_directory_parent($parentDirectory);
+        $this->path = ($parentDirectory ?? sys_get_temp_dir()) . '/' . $prefix . bin2hex(random_bytes(8));
         if (!mkdir($this->path, permissions: 0o700)) {
             throw new RuntimeException('Cannot create temporary test directory');
         }
@@ -79,4 +80,13 @@ final class TemporaryDirectory
         $this->closed = true;
     }
 
+}
+
+function temporary_directory_parent(?string $directory): void
+{
+    if ($directory === null) { return; }
+    if (!is_dir($directory) || is_link($directory) || basename($directory) !== 'tmp'
+        || preg_match('/\Atablo-server-[0-9a-f]{32}\z/D', basename(dirname($directory))) !== 1) {
+        throw new RuntimeException('Explicit owned server temporary root refused');
+    }
 }

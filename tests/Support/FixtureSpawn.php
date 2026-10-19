@@ -10,7 +10,19 @@ final class FixtureSpawn
     /** @return array<string, string> */
     public static function environment(array $overrides): array
     {
-        $environment = array_map(FixtureValue::string(...), array_replace(\Tablo\JsonRecord::checked(getenv()), $overrides));
+        $inherited = \Tablo\JsonRecord::checked(getenv());
+        foreach (array_keys($inherited) as $name) {
+            if (!is_string($name)) { continue; }
+            if (!str_starts_with(strtoupper($name), 'TABLO_DB') && strtoupper($name) !== 'TABLO_TOKEN_KEY_FILE') { continue; }
+            unset($inherited[$name]);
+        }
+        // Explicit empty defaults also prevent the project .env from supplying private configuration.
+        $defaults = array_fill_keys(['TABLO_DB_NAME', 'TABLO_DB_HOST', 'TABLO_DB_PORT', 'TABLO_DB_SOCKET', 'TABLO_DB_USER', 'TABLO_DB_PASSWORD',
+            'TABLO_DB_READ_USER', 'TABLO_DB_READ_PASSWORD', 'TABLO_DB_MIGRATE_USER', 'TABLO_DB_MIGRATE_PASSWORD', 'TABLO_DB_TLS',
+            'TABLO_DB_TLS_CA', 'TABLO_DB_TLS_CERT', 'TABLO_DB_TLS_KEY', 'TABLO_TOKEN_KEY_FILE'], value: '');
+        $defaults['TABLO_DB_DRIVER'] = 'sqlite';
+        $defaults['TABLO_DB'] = ':memory:';
+        $environment = array_map(FixtureValue::string(...), array_replace($inherited, $defaults, $overrides));
         $checked = [];
         foreach ($environment as $key => $value) {
             if (!is_string($key)) { throw new RuntimeException('Invalid fixture environment key'); }

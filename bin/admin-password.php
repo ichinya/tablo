@@ -32,6 +32,13 @@ try {
 } catch (\Tablo\PasswordConflict) {
     fwrite(STDERR, data: "Credential changed. Select the installation again; no automatic retry.\n");
     exit(4);
+} catch (\Tablo\DatabaseFailure $error) {
+    if ($error->category === 'busy') {
+        fwrite(STDERR, data: "Installation busy. No automatic retry.\n");
+        exit(4);
+    }
+    fwrite(STDERR, data: "Storage failure. Verify access before another attempt; outcome may be uncertain.\n");
+    exit(1);
 } catch (PDOException $error) {
     // This command uses SQLite; its native driver code is integer or absent/NULL.
     /** @var array{1?: ?int, ...}|null $information */

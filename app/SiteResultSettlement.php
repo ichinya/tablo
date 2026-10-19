@@ -12,10 +12,10 @@ final class SiteResultSettlement
     public function persistCheck(#[\SensitiveParameter] array $site, array $state, SettlementKind $kind): bool
     {
         // A failed BEGIN owns nothing, including a caller's existing transaction.
-        $this->db->exec('BEGIN IMMEDIATE');
+        $transaction = WriteTransaction::begin($this->db);
         try {
             if (!$this->writes->updateCheck($site, $state)) {
-                $this->db->exec('ROLLBACK');
+                $transaction->rollback();
                 return false;
             }
             $row = CheckHistorySnapshot::project($site, $state);
@@ -25,19 +25,23 @@ final class SiteResultSettlement
             try { $statement->execute(array_values($row)); }
             finally { $statement->closeCursor(); }
             // Capture the real AUTOINCREMENT identity before any other INSERT.
-            $historyId = (int) $this->db->lastInsertId();
+            $historyId = DatabaseInteger::positive($this->db->lastInsertId());
             (new IncidentProjector($this->db))->accepted($historyId, $row);
             (new NotificationProjector($this->db, $this->tokens))->accepted($historyId,$row,$site,
                 $this->notificationClock === null ? time() : ($this->notificationClock)());
             if ($kind === SettlementKind::Worker) {
                 (new WorkerServiceCredit($this->writes))->apply($site,$state);
             }
-            $this->db->exec('COMMIT');
+            if (DatabaseSession::server($this->db)) {
+                $statement = SqlStatement::checked($this->db->prepare('UPDATE tablo_database_state SET committed_history_high_watermark = GREATEST(committed_history_high_watermark, ?) WHERE id = 1'));
+                try { $statement->bindValue(1, $historyId, \PDO::PARAM_INT); $statement->execute(); } finally { $statement->closeCursor(); }
+            }
+            $transaction->commit();
             return true;
         } catch (\Throwable $error) {
             // SQL engine ownership, not PHP82's cached inTransaction flag, governs cleanup.
-            try { $this->db->exec('ROLLBACK'); }
-            catch (\Throwable $discardedCleanup) { /* Preserve the first validation/SQL/COMMIT/cleanup error. */  unset($discardedCleanup); }
+            $transaction->rollbackPreserving();
+            if (DatabaseSession::server($this->db) && $error instanceof \PDOException) { throw DatabaseFailure::fromNative($error); }
             throw $error;
         }
     }

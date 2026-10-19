@@ -11,6 +11,11 @@ final class InstalledAdministrator
     /** @return array{'admin': int, 'file': string, 'schema': int} */
     public static function installationIdentity(PDO $db): array
     {
+        $session = DatabaseSession::get($db);
+        if ($session !== null) {
+            ServerSchema::admit($db);
+            return ['file' => $session->configuration->engine . ':' . $session->installationId, 'admin' => 1, 'schema' => Database::CURRENT_SCHEMA_VERSION];
+        }
         $statement = \Tablo\SqlStatement::checked($db->query('PRAGMA database_list'));
         try { $databases = \Tablo\SqlRows::all($statement->fetchAll(), \Tablo\SqlFileNameSeqRow::checked(...)); }
         finally { $statement->closeCursor(); }
@@ -26,6 +31,7 @@ final class InstalledAdministrator
     }
     public static function existingAdminHash(PDO $db): string
     {
+        if (DatabaseSession::server($db)) { ServerSchema::admit($db); return SingletonAdministrator::hash($db); }
         $version = self::validatedVersion($db);
         if ($version !== Database::CURRENT_SCHEMA_VERSION) {
             throw new InstallationException('Installation schema incompatible.');

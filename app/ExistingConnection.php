@@ -16,6 +16,11 @@ final class ExistingConnection
     }
     public static function openExistingConnection(#[\SensitiveParameter] ?string $path): PDO
     {
+        $configuration = DatabaseConfiguration::fromEnvironment();
+        if ($configuration->server()) {
+            if ($path !== null) { throw new DatabaseFailure('configuration'); }
+            return DatabaseConnectionFactory::open($configuration);
+        }
         $path = ExistingConnection::resolvePath($path);
         if ($path === '' || $path === ':memory:' || str_contains($path, "\0")) {
             throw new InstallationException('Installation unavailable.');
@@ -39,6 +44,7 @@ final class ExistingConnection
     }
     public static function refuseExistingFailure(#[\SensitiveParameter] RuntimeException $error, string $message): never
     {
+        if ($error instanceof DatabaseFailure) { throw $error; }
         $code = 0;
         if ($error instanceof \PDOException) {
             // PDO SQLite's native driver code is an integer; absent/null stays the prior zero fallback.

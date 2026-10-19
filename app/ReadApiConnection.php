@@ -7,6 +7,13 @@ final class ReadApiConnection
 {
     public static function open(#[\SensitiveParameter] ?string $path = null): \PDO
     {
+        $configuration = DatabaseConfiguration::fromEnvironment('reader');
+        if ($configuration->server()) {
+            if ($path !== null) { throw new DatabaseFailure('configuration'); }
+            $connection = DatabaseConnectionFactory::open($configuration);
+            $connection->exec('SET SESSION TRANSACTION READ ONLY');
+            return $connection;
+        }
         $db = ExistingConnection::openExistingConnection($path);
         $db->exec('PRAGMA query_only = ON');
         $statement = SqlStatement::checked($db->query('PRAGMA query_only'));

@@ -119,3 +119,151 @@ jobs:
           overwrite: false
           archive: true
           retention-days: 7
+
+  server:
+    name: Ubuntu / ${{ matrix.engine }} / PHP ${{ matrix.php }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    strategy:
+      fail-fast: false
+      matrix:
+        engine: [mysql, mariadb]
+        php: ['8.2', '8.5']
+    defaults:
+      run:
+        shell: pwsh
+    env:
+      LEKALO_REF: 9510dd0767a56c0ab34b8d3c8ceb2a14db8de825
+      COMPOSER_PROCESS_TIMEOUT: '1800'
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - uses: shivammathur/setup-php@b604ade2a87db23f8871b7182e69ec5e75effb45 # v2
+        with:
+          php-version: ${{ matrix.php }}
+          extensions: ctype, curl, fileinfo, iconv, mbstring, openssl, pdo_mysql, pdo_sqlite, tokenizer, xml, xmlwriter
+          coverage: none
+          tools: composer:v2
+      - name: Install PHP dependencies
+        run: |
+          composer validate --strict
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          composer install --no-interaction --prefer-dist
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          composer check-platform-reqs
+          exit $LASTEXITCODE
+      - name: Cache pinned Lekalo CLI
+        id: server-lekalo-cache
+        uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
+        with:
+          path: .ci/lekalo-bin
+          key: lekalo-${{ runner.os }}-${{ runner.arch }}-${{ env.LEKALO_REF }}
+      - name: Cache pinned Mago release
+        uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
+        with:
+          path: .ci/mago
+          key: mago-1.54.0-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('tools/mago-pin.json') }}
+      - name: Install and verify pinned Mago
+        run: |
+          php tools/install-mago.php
+          exit $LASTEXITCODE
+      - name: Build Lekalo v0.6.4 (CLI 0.6.3)
+        if: steps.server-lekalo-cache.outputs.cache-hit != 'true'
+        run: |
+          git clone --no-checkout https://github.com/ichinya/lekalo.git .ci/lekalo-source
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          git -C .ci/lekalo-source checkout --detach $env:LEKALO_REF
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          cargo build --release --locked -p lekalo-cli --manifest-path .ci/lekalo-source/Cargo.toml
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          New-Item -ItemType Directory -Force .ci/lekalo-bin | Out-Null
+          Copy-Item -LiteralPath .ci/lekalo-source/target/release/lekalo -Destination .ci/lekalo-bin/lekalo
+      - name: Prepare exact Node24.13.0 for the opt-in server observer
+        run: |
+          if ($env:RUNNER_OS -ne 'Linux' -or $env:RUNNER_ARCH -ne 'X64') { throw 'Unqualified server observer platform' }
+          $nodeDirectory = Join-Path $env:RUNNER_TEMP 'tablo-server-node-v24.13.0'
+          New-Item -ItemType Directory -Path $nodeDirectory -ErrorAction Stop | Out-Null
+          $nodeArchive = Join-Path $nodeDirectory 'node-v24.13.0-linux-x64.tar.xz'
+          Invoke-WebRequest -Uri 'https://nodejs.org/download/release/v24.13.0/node-v24.13.0-linux-x64.tar.xz' -OutFile $nodeArchive -TimeoutSec 300
+          if ((Get-FileHash -LiteralPath $nodeArchive -Algorithm SHA256).Hash.ToLowerInvariant() -ne 'e798599612f4bb71333a3397ab0d095fd62214e115aea45aa858a145fc72d67e') { throw 'Pinned Node archive differs' }
+          $nodeMember = 'node-v24.13.0-linux-x64/bin/node'
+          $nodeListing = @(tar -tvf $nodeArchive $nodeMember)
+          if ($LASTEXITCODE -ne 0 -or $nodeListing.Count -ne 1 -or $nodeListing[0] -notmatch '^-.*\snode-v24\.13\.0-linux-x64/bin/node$') { throw 'Pinned Node member is not one regular file' }
+          tar --extract --file $nodeArchive --directory $nodeDirectory --no-same-owner --no-same-permissions $nodeMember
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          $selectedNode = Join-Path $nodeDirectory 'node-v24.13.0-linux-x64/bin/node'
+          $nodeFile = Get-Item -LiteralPath $selectedNode -ErrorAction Stop
+          if ($nodeFile.PSIsContainer -or $nodeFile.LinkType -or ($nodeFile.Attributes -band [IO.FileAttributes]::ReparsePoint)) { throw 'Extracted Node is not regular' }
+          $nodeVersion = & $selectedNode --version
+          if ($LASTEXITCODE -ne 0 -or $nodeVersion.Trim() -cne 'v24.13.0') { throw 'Pinned Node version differs' }
+          [IO.File]::AppendAllText($env:GITHUB_ENV, "TABLO_TEST_NODE_BIN=$selectedNode`n", [Text.UTF8Encoding]::new($false))
+      - name: Declare and execute the finite isolated real-server cell
+        env:
+          CELL_ENGINE: ${{ matrix.engine }}
+          CELL_PHP: ${{ matrix.php }}
+        run: |
+          $cellDirectory = Join-Path $env:RUNNER_TEMP 'tablo-server-cell'
+          New-Item -ItemType Directory -Path $cellDirectory -ErrorAction Stop | Out-Null
+          $files = @(git ls-files)
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          $inventory = @($files | ForEach-Object { @{ path = $_; sha256 = (Get-FileHash -LiteralPath $_ -Algorithm SHA256).Hash.ToLowerInvariant() } })
+          $sourceManifest = Join-Path $cellDirectory 'source.json'
+          [IO.File]::WriteAllText($sourceManifest, (@{ files = $inventory } | ConvertTo-Json -Depth 5), [Text.UTF8Encoding]::new($false))
+          $env:TABLO_TEST_SOURCE_MANIFEST = $sourceManifest
+          $env:TABLO_TEST_SOURCE_MANIFEST_SHA256 = (Get-FileHash -LiteralPath $sourceManifest -Algorithm SHA256).Hash.ToLowerInvariant()
+          $env:TABLO_TEST_DOCKER_BIN = (Get-Command docker -CommandType Application -ErrorAction Stop).Source
+          $env:TABLO_TEST_OBSERVER_PORT = '46399'
+          $env:TABLO_TEST_COMPOSER_PHAR = (Get-Command composer -CommandType Application -ErrorAction Stop).Source
+          $env:LEKALO_BIN = Join-Path $PWD '.ci/lekalo-bin/lekalo'
+          $version = & $env:LEKALO_BIN --version
+          if ($LASTEXITCODE -ne 0 -or $version.Trim() -ne 'lekalo 0.6.3') { throw 'Unexpected Lekalo CLI version' }
+          $plan = Join-Path $cellDirectory 'cell.json'
+          $arguments = @('tools/server-cell.php', "--plan=$plan", "--engine=$env:CELL_ENGINE", '--pull')
+          if ($env:CELL_ENGINE -eq 'mysql' -and $env:CELL_PHP -eq '8.5') { $arguments += '--cross' }
+          php @arguments
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          $planDigest = (Get-FileHash -LiteralPath $plan -Algorithm SHA256).Hash.ToLowerInvariant()
+          & $env:TABLO_TEST_NODE_BIN tools/server-supervisor.cjs "--execute=$plan" "--sha256=$planDigest"
+          $observerExit = $LASTEXITCODE
+          [IO.File]::WriteAllText((Join-Path $cellDirectory 'observer-exit.json'), (@{ exit = $observerExit; planSha256 = $planDigest } | ConvertTo-Json), [Text.UTF8Encoding]::new($false))
+          exit $observerExit
+      - name: Retain safe cell status without private credentials or raw captures
+        if: always()
+        run: |
+          $cellDirectory = Join-Path $env:RUNNER_TEMP 'tablo-server-cell'
+          if (!(Test-Path -LiteralPath $cellDirectory)) { New-Item -ItemType Directory -Path $cellDirectory -ErrorAction Stop | Out-Null }
+          $status = @{ schema = 'tablo/server-hosted-summary/v1'; status = 'NOTRUN_OR_FAILED'; run = $env:GITHUB_RUN_ID; attempt = $env:GITHUB_RUN_ATTEMPT; head = (git rev-parse HEAD); engine = '${{ matrix.engine }}'; php = '${{ matrix.php }}'; issueAccepted = $false }
+          $planPath = Join-Path $cellDirectory 'cell.json'
+          if (Test-Path -LiteralPath $planPath) {
+            $plan = Get-Content -LiteralPath $planPath -Raw | ConvertFrom-Json
+            $ownerPath = Join-Path $plan.observer.root 'evidence/observer-result.json'
+            $ownerExitPath = Join-Path $cellDirectory 'observer-exit.json'
+            $ownerPassed = $false
+            if ((Test-Path -LiteralPath $ownerPath) -and (Test-Path -LiteralPath $ownerExitPath)) {
+              $owner = Get-Content -LiteralPath $ownerPath -Raw | ConvertFrom-Json
+              $ownerExit = Get-Content -LiteralPath $ownerExitPath -Raw | ConvertFrom-Json
+              $ownerPassed = $owner.status -eq 'passed' -and $owner.nonce -eq $plan.nonce -and $ownerExit.exit -eq 0 -and $ownerExit.planSha256 -eq (Get-FileHash -LiteralPath $planPath -Algorithm SHA256).Hash.ToLowerInvariant()
+              $status.observer = @{ status = $owner.status; exit = $ownerExit.exit; sha256 = (Get-FileHash -LiteralPath $ownerPath -Algorithm SHA256).Hash.ToLowerInvariant() }
+            }
+            $resultPath = Join-Path $plan.runtime 'evidence/cell-result.json'
+            $status.nonce = $plan.nonce
+            if (Test-Path -LiteralPath $resultPath) {
+              $result = Get-Content -LiteralPath $resultPath -Raw | ConvertFrom-Json
+              if ($ownerPassed -and $result.status -eq 'passed' -and $result.ownedServicesClosed -eq $true -and $result.nonce -eq $plan.nonce) { $status.status = 'passed' }
+              $status.resultSha256 = (Get-FileHash -LiteralPath $resultPath -Algorithm SHA256).Hash.ToLowerInvariant()
+              [IO.File]::WriteAllText((Join-Path $cellDirectory 'safe-native.json'), ($result.safeNative | ConvertTo-Json -Depth 40), [Text.UTF8Encoding]::new($false))
+            }
+            $progress = @(Get-ChildItem -LiteralPath (Join-Path $plan.runtime 'evidence') -Filter 'native-*.json' -File -ErrorAction SilentlyContinue | Sort-Object Name | ForEach-Object { Get-Content -LiteralPath $_.FullName -Raw | ConvertFrom-Json })
+            $status.nativeProgress = $progress
+          }
+          [IO.File]::WriteAllText((Join-Path $cellDirectory 'safe-summary.json'), ($status | ConvertTo-Json -Depth 30), [Text.UTF8Encoding]::new($false))
+      - name: Upload safe server-cell summary
+        if: always()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2, Node24
+        with:
+          name: server-cell-${{ github.run_id }}-${{ github.run_attempt }}-${{ matrix.engine }}-php-${{ matrix.php }}
+          path: ${{ runner.temp }}/tablo-server-cell/safe-*.json
+          if-no-files-found: error
+          include-hidden-files: false
+          overwrite: false
+          archive: true
+          retention-days: 7

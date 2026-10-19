@@ -1,0 +1,54 @@
+# Fresh isolated service example. Apply private catalog/migrator provisioning first;
+# initialize with the maintenance profile, then apply exact writer/reader grants.
+# Start the application using compose.server-existing.yaml after these steps pass.
+services:
+  database:
+    image: container-registry.oracle.com/mysql/community-server@sha256:7dcc4add9183664de3a214daf85a50c3ba6cccfd7534f700b6561bf5b41885be
+    platform: linux/amd64
+    environment:
+      # The attested Oracle entrypoint accepts the PASSWORD value as a file path.
+      MYSQL_ROOT_PASSWORD: /run/secrets/database-root
+    command: ["mysqld", "--ssl-ca=/run/secrets/database-ca", "--ssl-cert=/run/secrets/database-cert", "--ssl-key=/run/secrets/database-key", "--require-secure-transport=ON"]
+    volumes:
+      - mysql-data:/var/lib/mysql
+      - "${TABLO_SERVER_INIT_SQL:?provide private administrative provisioning SQL}:/docker-entrypoint-initdb.d/10-tablo.sql:ro"
+    secrets: [database-root, database-ca, database-cert, database-key, database-readiness]
+    healthcheck:
+      test: ["CMD", "mysql", "--defaults-extra-file=/run/secrets/database-readiness", "--batch", "--skip-column-names", "--execute=SELECT 1"]
+      interval: 5s
+      timeout: 5s
+      start_period: 30s
+      retries: 30
+  migrate:
+    profiles: [maintenance]
+    build: .
+    image: tablo-server-local
+    user: www-data
+    command: ["php", "bin/database.php", "--init", "--receipt", "/var/www/tablo/storage/server-init.json"]
+    depends_on:
+      database: {condition: service_healthy}
+    healthcheck: {disable: true}
+    restart: "no"
+    environment:
+      TABLO_DB_DRIVER: mysql
+      TABLO_DB: ""
+      TABLO_DB_NAME: "${TABLO_DB_NAME:?provide catalog}"
+      TABLO_DB_HOST: database
+      TABLO_DB_PORT: "3306"
+      TABLO_DB_MIGRATE_USER: "${TABLO_DB_MIGRATE_USER:?provide migrator account}"
+      TABLO_DB_MIGRATE_PASSWORD: "${TABLO_DB_MIGRATE_PASSWORD:?provide private migrator password}"
+      TABLO_DB_TLS: verify
+      TABLO_DB_TLS_CA: /run/secrets/database-ca
+      TABLO_TOKEN_KEY_FILE: /run/secrets/tablo-key
+    secrets: [database-ca, tablo-key]
+    volumes: ["maintenance-receipts:/var/www/tablo/storage"]
+secrets:
+  database-root: {file: "${TABLO_SERVER_ROOT_PASSWORD_FILE:?provide private root password file}"}
+  database-ca: {file: "${TABLO_SERVER_CA_FILE:?provide issuing CA}"}
+  database-cert: {file: "${TABLO_SERVER_CERT_FILE:?certificate SAN must include database}"}
+  database-key: {file: "${TABLO_SERVER_CERT_KEY_FILE:?provide server TLS key}"}
+  database-readiness: {file: "${TABLO_SERVER_READINESS_FILE:?provide private authenticated client options}"}
+  tablo-key: {file: "${TABLO_SERVER_KEY_FILE:?provide existing raw32-byte installation key}"}
+volumes:
+  mysql-data:
+  maintenance-receipts:

@@ -12,8 +12,9 @@ final class Subprocess
     /** @param list<string> $command */
     public function __construct(array $command, TemporaryDirectory $directory, array $environment = [], #[\SensitiveParameter] ?CommandOptions $options = null)
     {
-        $this->state = new SubprocessState($directory, ($options ?? new CommandOptions())->stderr);
-        SubprocessLaunch::launch($this->state, $command, $environment, $options?->cwd);
+        $options ??= new CommandOptions();
+        $this->state = new SubprocessState($directory, $options->stderr);
+        SubprocessLaunch::launch($this->state, $command, $environment, $options->cwd, $options->replacementEnvironment);
     }
     /** @param list<string> $command
      * @return Result */
@@ -32,6 +33,9 @@ final class Subprocess
     }
     public function send(#[\SensitiveParameter] string $input): void
     { SubprocessInput::input($this->state, $input); }
+    /** Flush one barrier message while retaining this exact owned stdin pipe. */
+    public function sendBarrier(#[\SensitiveParameter] string $input): void
+    { SubprocessInput::barrier($this->state, $input); }
     public function awaitOutput(string $marker, float $timeout = 5): void
     { SubprocessSelection::waitForOutput($this->state, $marker, $timeout); }
     /** @return Result */

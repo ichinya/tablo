@@ -19,7 +19,9 @@ final class IncidentTransition
             return;
         }
         if ($openId === false) { return; }
-        $sql = 'UPDATE incidents SET uncertain = MAX(uncertain, ?), clock_invalid = MAX(clock_invalid, ?) WHERE id = ?';
+        $sql = ServerDialect::choose($this->db,
+            'UPDATE incidents SET uncertain = MAX(uncertain, ?), clock_invalid = MAX(clock_invalid, ?) WHERE id = ?',
+            'UPDATE incidents SET uncertain = GREATEST(uncertain, ?), clock_invalid = GREATEST(clock_invalid, ?) WHERE id = ?');
         $values = [(int) ($row['online'] === null || $older), (int) $older, $openId];
         if ($row['online'] === 1 && !$older) {
             $sql = "UPDATE incidents SET end_reason = 'recovered', recovery_history_id = ?, recovered_at = ? WHERE id = ?";

@@ -16,7 +16,9 @@ final class SubprocessReceipt
 
     public static function write(SubprocessState $state): void
     {
-        $receipt = ['pid' => $state->pid, 'exit_code' => $state->exitCode, 'root_exit_observed' => $state->pid !== null && !$state->running,
+        $stopped = SubprocessObservation::stopped($state);
+        $receipt = ['pid' => $state->pid, 'exit_code' => $state->exitCode, 'root_exit_observed' => $state->pid !== null && $stopped['observed'],
+            'platform' => PHP_OS_FAMILY, 'signaled' => $stopped['signaled'], 'term_signal' => $stopped['term_signal'], 'proc_close' => $stopped['proc_close'],
             'closed' => $state->closed, 'ownership' => 'direct-child-only', 'stream_eof' => 'not used; file backed',
             'events' => $state->events, 'streams' => []];
         if ($state->evidence !== null) {
@@ -38,5 +40,6 @@ final class SubprocessReceipt
         finally { fclose($file); }
         chmod($state->files['receipt'], permissions: 0o600);
         $state->evidence?->closed($state);
+        SessionEvidence::subprocessClosed($state);
     }
 }

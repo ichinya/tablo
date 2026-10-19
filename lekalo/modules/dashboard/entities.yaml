@@ -42,7 +42,7 @@
             "id": "dashboard.user",
             "kind": "entity",
             "version": 1,
-            "description": "Exactly one administrator, id=1 enforced by SQLite. No public registration after setup.",
+            "description": "Exactly one administrator, id=1 enforced by the selected SQLite, MySQL8.4 or MariaDB11.4 database. No public registration after setup.",
             "identity": [
                 "id"
             ],

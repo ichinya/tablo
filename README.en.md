@@ -433,6 +433,22 @@ Accepted results already append [history](#check-history); retention pruning is
 explicit. See [Periodic worker](#periodic-worker) for the long-running process and
 [Read API](#read-api) for external reads.
 
+## Database engines
+
+SQLite remains the default, including the existing `TABLO_DB` filename/URI and
+adjacent-key behavior. Explicit MySQL 8.4 and MariaDB 11.4 deployments use
+`pdo_mysql`, a preprovisioned catalog, verified transport, separate writer/API
+reader/migrator credentials and an existing shared raw 32-byte external key.
+Normal requests and workers open a ready installation; initialization and
+migration are explicit maintenance operations.
+
+See [Database engines](docs/database-engines.md) for configuration, least-privilege
+grants, immutable server image examples, DDL journal recovery, private backups and
+the fixed current-layout offline transfer helper. Read its preflight limits and
+rollback-after-new-writes rules before changing a live installation. The default
+test/verification commands remain SQLite-only; server verification selects its
+engine explicitly and requires real engine evidence.
+
 ## SQLite migrations
 
 `PRAGMA user_version` holds the schema version. An empty database or an admitted

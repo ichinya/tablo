@@ -12,7 +12,7 @@ final class AdministratorPasswordChange
         $replacement = PasswordService::hash($password, $confirmation);
         // No transaction is owned if BEGIN fails. PHP 8.2 cannot reliably report
         // raw SQL transactions through PDO::inTransaction().
-        $this->db->exec('BEGIN IMMEDIATE');
+        $transaction = WriteTransaction::begin($this->db);
         try {
             $current = InstalledAdministrator::existingAdminHash($this->db);
             if (!hash_equals(AdministratorFingerprint::fingerprint($current), $expectedFingerprint)) {
@@ -26,9 +26,10 @@ final class AdministratorPasswordChange
             if (!hash_equals($replacement, InstalledAdministrator::existingAdminHash($this->db))) {
                 throw new PasswordConflict('Credential write conflicted.');
             }
-            $this->db->exec('COMMIT');
+            $transaction->commit();
         } catch (\Throwable $error) {
-            try { $this->db->exec('ROLLBACK'); } catch (\Throwable $discardedCleanup) { /* Preserve original failure. */  unset($discardedCleanup); }
+            $transaction->rollbackPreserving();
+            if (DatabaseSession::server($this->db) && $error instanceof \PDOException) { throw DatabaseFailure::fromNative($error); }
             throw $error;
         }
     }

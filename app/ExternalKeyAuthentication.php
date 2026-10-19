@@ -10,10 +10,13 @@ final class ExternalKeyAuthentication
 {
     public static function authenticateExternalKey(PDO $db, #[\SensitiveParameter] TokenVault $vault): void
     {
+        $server = DatabaseSession::server($db);
+        if ($server) { ServerKeyIdentity::authenticate($db, $vault); }
         $present = false;
         $verified = false;
         foreach ([['sites', 'github_token'], ['sites', 'endpoint_token'], ['git_tokens', 'encrypted_token'], ['notification_settings', 'endpoint_cipher'],
             ['notification_settings', 'bearer_cipher'], ['notification_slots', 'private_cipher']] as [$table, $column]) {
+            if (!$server) {
             $statement = \Tablo\SqlStatement::checked($db->prepare("SELECT type FROM main.sqlite_schema WHERE name = ?"));
             try {
                 $statement->execute([$table]);
@@ -23,7 +26,8 @@ final class ExternalKeyAuthentication
             }
             finally { $statement->closeCursor(); }
             if ($type !== 'table' || !in_array($column, array_column(BaseSchema::columns($db, $table), 'name'), strict: true)) { continue; }
-            $statement = \Tablo\SqlStatement::checked($db->query('SELECT ' . $column . ' FROM main.' . $table . ' WHERE ' . $column . " IS NOT NULL AND " . $column . " <> ''"));
+            }
+            $statement = \Tablo\SqlStatement::checked($db->query('SELECT ' . $column . ' FROM ' . ($server ? '' : 'main.') . $table . ' WHERE ' . $column . " IS NOT NULL AND " . $column . " <> ''"));
             try {
                 // These six credential columns have TEXT affinity and the query excludes SQL NULL.
                 /** @var string|false $encrypted */

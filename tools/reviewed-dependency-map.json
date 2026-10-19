@@ -46,6 +46,24 @@
       "Composer analyze"
     ]
   },
+  "app/ApiSiteDto.php": {
+    "owner": "Read API and singleton token implementation",
+    "consumers": [
+      "Composer lint",
+      "Composer analyze",
+      "Composer verify",
+      "Native read API tests"
+    ]
+  },
+  "app/ApiSiteState.php": {
+    "owner": "Read API and singleton token implementation",
+    "consumers": [
+      "Composer lint",
+      "Composer analyze",
+      "Composer verify",
+      "Native read API tests"
+    ]
+  },
   "app/auth.php": {
     "owner": "Tablo\\Auth",
     "consumers": [
@@ -327,6 +345,349 @@
       "Composer lint",
       "Composer verify",
       "Composer analyze"
+    ]
+  },
+  "app/DatabaseConfiguration.php": {
+    "owner": "Tablo\\DatabaseConfiguration",
+    "consumers": [
+      "Composer lint",
+      "Composer analyze",
+      "Composer verify",
+      "app/Database.php",
+      "app/DatabaseConnectionFactory.php",
+      "app/DatabaseMaintenanceCommand.php",
+      "app/DatabaseSession.php",
+      "app/ExistingConnection.php",
+      "app/PdoMysqlOptions.php",
+      "app/ReadApiConnection.php",
+      "app/ServerSessionAdmission.php",
+      "bin/database-transfer.php",
+      "tests/Server/EngineConfigurationTest.php",
+      "tests/Server/EngineKeyTest.php",
+      "tests/Server/EngineMigrationAdmissionTest.php",
+      "tests/Server/EngineWorkerTest.php",
+      "tests/Support/EngineFixture.php"
+    ]
+  },
+  "app/DatabaseConnectionFactory.php": {
+    "owner": "Tablo\\DatabaseConnectionFactory",
+    "consumers": [
+      "Composer lint",
+      "Composer analyze",
+      "Composer verify",
+      "app/Database.php",
+      "app/DatabaseMaintenanceCommand.php",
+      "app/ExistingConnection.php",
+      "app/ReadApiConnection.php",
+      "bin/database-transfer.php",
+      "tests/Server/EngineKeyTest.php",
+      "tests/Server/EngineMigrationAdmissionTest.php",
+      "tests/Server/EngineWorkerTest.php",
+      "tests/Support/EngineFixture.php"
+    ]
+  },
+  "app/DatabaseEnvironment.php": {
+    "owner": "Tablo\\DatabaseEnvironment",
+    "consumers": [
+      "Composer lint",
+      "Composer analyze",
+      "Composer verify",
+      "app/DatabaseConfiguration.php",
+      "app/ServerCredentials.php",
+      "app/ServerTls.php",
+      "app/ServerTransport.php"
+    ]
+  },
+  "app/DatabaseFailure.php": {
+    "owner": "Tablo\\DatabaseFailure",
+    "consumers": [
+      "Composer lint",
+      "Composer analyze",
+      "Composer verify",
+      "app/AdministratorCredentialWrite.php",
+      "app/AdministratorPasswordChange.php",
+      "app/DatabaseConfiguration.php",
+      "app/DatabaseConnectionFactory.php",
+      "app/DatabaseEnvironment.php",
+      "app/DatabaseInteger.php",
+      "app/DatabaseMaintenanceCommand.php",
+      "app/DatabaseSession.php",
+      "app/DatabaseTransfer.php",
+      "app/DatabaseTransferArchive.php",
+      "app/DatabaseTransferImport.php",
+      "app/DatabaseTransferManifest.php",
+      "app/DatabaseTransferPreflight.php",
+      "app/DatabaseTransferRows.php",
+      "app/DatabaseTransferSequence.php",
+      "app/DatabaseTransferTarget.php",
+      "app/DatabaseTransferVerification.php",
+      "app/ExistingConnection.php",
+      "app/PdoMysqlOptions.php",
+      "app/ReadApiConnection.php",
+      "app/SavedGitTokenUpdate.php",
+      "app/ServerBootstrap.php",
+      "app/ServerBootstrapReceipt.php",
+      "app/ServerCheckAdmission.php",
+      "app/ServerColumnAdmission.php",
+      "app/ServerCredentials.php",
+      "app/ServerExpression.php",
+      "app/ServerExpressionAtom.php",
+      "app/ServerExpressionOperator.php",
+      "app/ServerExpressionTokens.php",
+      "app/ServerForeignAdmission.php",
+      "app/ServerIndexAdmission.php",
+      "app/ServerKeyIdentity.php",
+      "app/ServerLock.php",
+      "app/ServerLockOwnership.php",
+      "app/ServerMigration.php",
+      "app/ServerMigrationJournal.php",
+      "app/ServerMigrationLock.php",
+      "app/ServerMigrationState.php",
+      "app/ServerMigrationStep.php",
+      "app/ServerSchema.php",
+      "app/ServerSchemaDescriptor.php",
+      "app/ServerSchemaState.php",
+      "app/ServerSessionAdmission.php",
+      "app/ServerSessionSettings.php",
+      "app/ServerTableAdmission.php",
+      "app/ServerTls.php",
+      "app/ServerTransport.php",
+      "app/ServerWriterAdmission.php",
+      "app/SiteResultSettlement.php",
+      "app/TokenVault.php",
+      "app/VaultLocation.php",
+      "app/WriteTransaction.php",
+      "app/auth.php",
+      "app/read-api-repository.php",
+      "bin/admin-password.php",
+      "bin/database-transfer.php",
+      "bin/database.php",
+      "tests/Server/EngineConfigurationTest.php",
+      "tests/Server/EngineConstraintsTest.php",
+      "tests/Server/EngineKeyTest.php",
+      "tests/Server/EngineMigrationAdmissionTest.php",
+      "tests/Server/EngineMigrationFailureTest.php",
+      "tests/Server/EngineMigrationRaceTest.php",
+      "tests/Server/EngineSettlementFailureTest.php",
+      "tests/Server/EngineTransactionFailureTest.php",
+      "tests/Server/EngineTransferRefusalTest.php",
+      "tests/Server/EngineWorkerTest.php",
+      "tests/server-child.php",
+      "tools/verify-server.php"
+    ]
+  },
+  "app/DatabaseInteger.php": {
+    "owner": "Tablo\\DatabaseInteger",
+    "consumers": [
+      "Composer lint",
+      "Composer analyze",
+      "Composer verify",
+      "app/DatabaseEnvironment.php",
+      "app/DatabaseTransferImport.php",
+      "app/DatabaseTransferRows.php",
+      "app/DatabaseTransferSequence.php",
+      "app/HistoryPruner.php",
+      "app/NotificationSettingsStore.php",
+      "app/ServerIndexAdmission.php",
+      "app/ServerKeyIdentity.php",
+      "app/ServerLock.php",
+      "app/ServerLockOwnership.php",
+      "app/ServerMigrationJournal.php",
+      "app/ServerMigrationState.php",
+      "app/ServerSchemaState.php",
+      "app/ServerSiteSave.php",
+      "app/ServerTableAdmission.php",
+      "app/ServerTokenSave.php",
+      "app/ServerWriterAdmission.php",
+      "app/SiteResultSettlement.php",
+      "tests/Server/EngineAutoIdentityTest.php",
+      "tests/Server/EngineConfigurationTest.php",
+      "tests/Support/EngineFixture.php",
+      "tools/ServerTestEvidence.php",
+      "tools/verify-server.php"
+    ]
+  },
+  "app/DatabaseMaintenanceCommand.php": {
+    "owner": "Tablo\\DatabaseMaintenanceCommand",
+    "consumers": [
+      "Composer lint",
+      "Composer analyze",
+      "Composer verify",
+      "bin/database.php"
+    ]
+  },
+  "app/DatabaseSession.php": {
+    "owner": "Tablo\\DatabaseSession",
+    "consumers": [
+      "Composer lint",
+      "Composer analyze",
+      "Composer verify",
+      "app/AdministratorCredentialWrite.php",
+      "app/AdministratorPasswordChange.php",
+      "app/DatabaseConnectionFactory.php",
+      "app/DatabaseFailure.php",
+      "app/DatabaseTransferManifest.php",
+      "app/DatabaseTransferPreflight.php",
+      "app/DatabaseTransferRows.php",
+      "app/DatabaseTransferSequence.php",
+      "app/DatabaseTransferTarget.php",
+      "app/ExternalKeyAuthentication.php",
+      "app/GitHubCooldownRepository.php",
+      "app/HistoryPruner.php",
+      "app/IdleTimeoutSettings.php",
+      "app/IncidentProjector.php",
+      "app/InstalledAdministrator.php",
+      "app/NotificationAcknowledgement.php",
+      "app/NotificationLock.php",
+      "app/NotificationProjectionStore.php",
+      "app/NotificationSettingsStore.php",
+      "app/ReadApiRepository.php",
+      "app/SavedGitTokenUpdate.php",
+      "app/ServerBootstrapReceipt.php",
+      "app/ServerColumnAdmission.php",
+      "app/ServerDialect.php",
+      "app/ServerKeyIdentity.php",
+      "app/ServerLock.php",
+      "app/ServerMigrationLock.php",
+      "app/ServerSchema.php",
+      "app/ServerSchemaDescriptor.php",
+      "app/ServerSchemaState.php",
+      "app/ServerSessionSettings.php",
+      "app/ServerSiteCheck.php",
+      "app/ServerSiteSave.php",
+      "app/ServerTableAdmission.php",
+      "app/ServerTokenSave.php",
+      "app/ServerWriterAdmission.php",
+      "app/SingletonAdministrator.php",
+      "app/SiteCheckWriter.php",
+      "app/SiteKeyState.php",
+      "app/SiteResultSettlement.php",
+      "app/VaultLocation.php",
+      "app/WorkerLock.php",
+      "app/WriteTransaction.php",
+      "app/auth.php",
+      "app/git-token-repository.php",
+      "app/notification-projector.php",
+      "app/read-api-repository.php",
+      "app/read-api-token-repository.php",
+      "app/settings-repository.php",
+      "app/site-repository.php",
+      "app/worker-state-repository.php",
+      "tests/Server/EngineFlowTest.php",
+      "tests/Server/EngineMigrationFreshTest.php",
+      "tests/Server/EngineWorkerTest.php",
+      "tools/verify-server.php"
+    ]
+  },
+  "app/DatabaseTransfer.php": {
+    "owner": "Tablo\\DatabaseTransfer",
+    "consumers": [
+      "Composer lint",
+      "Composer analyze",
+      "Composer verify",
+      "bin/database-transfer.php",
+      "tests/Server/EngineTransferRefusalTest.php",
+      "tests/Server/EngineTransferTest.php",
+      "tests/ServerCross/EngineCrossTransferTest.php"
+    ]
+  },
+  "app/DatabaseTransferArchive.php": {
+    "owner": "Tablo\\DatabaseTransferArchive",
+    "consumers": [
+      "Composer lint",
+      "Composer analyze",
+      "Composer verify",
+      "app/DatabaseTransfer.php",
+      "app/DatabaseTransferImport.php",
+      "app/DatabaseTransferManifest.php",
+      "app/DatabaseTransferVerification.php"
+    ]
+  },
+  "app/DatabaseTransferImport.php": {
+    "owner": "Tablo\\DatabaseTransferImport",
+    "consumers": [
+      "Composer lint",
+      "Composer analyze",
+      "Composer verify",
+      "app/DatabaseTransfer.php"
+    ]
+  },
+  "app/DatabaseTransferManifest.php": {
+    "owner": "Tablo\\DatabaseTransferManifest",
+    "consumers": [
+      "Composer lint",
+      "Composer analyze",
+      "Composer verify",
+      "app/DatabaseTransfer.php",
+      "app/DatabaseTransferArchive.php",
+      "app/DatabaseTransferImport.php",
+      "app/DatabaseTransferPreflight.php",
+      "app/DatabaseTransferRows.php",
+      "app/DatabaseTransferTarget.php",
+      "app/DatabaseTransferVerification.php",
+      "tests/Server/EngineTransferTest.php",
+      "tests/ServerCross/EngineCrossTransferTest.php"
+    ]
+  },
+  "app/DatabaseTransferPreflight.php": {
+    "owner": "Tablo\\DatabaseTransferPreflight",
+    "consumers": [
+      "Composer lint",
+      "Composer analyze",
+      "Composer verify",
+      "app/DatabaseTransfer.php",
+      "app/DatabaseTransferArchive.php",
+      "app/DatabaseTransferRows.php",
+      "app/DatabaseTransferVerification.php"
+    ]
+  },
+  "app/DatabaseTransferRows.php": {
+    "owner": "Tablo\\DatabaseTransferRows",
+    "consumers": [
+      "Composer lint",
+      "Composer analyze",
+      "Composer verify",
+      "app/DatabaseTransfer.php",
+      "app/DatabaseTransferArchive.php",
+      "app/DatabaseTransferImport.php",
+      "app/DatabaseTransferPreflight.php",
+      "app/DatabaseTransferTarget.php",
+      "app/DatabaseTransferVerification.php"
+    ]
+  },
+  "app/DatabaseTransferSequence.php": {
+    "owner": "Tablo\\DatabaseTransferSequence",
+    "consumers": [
+      "Composer lint",
+      "Composer analyze",
+      "Composer verify",
+      "app/DatabaseTransferImport.php",
+      "app/DatabaseTransferManifest.php",
+      "app/DatabaseTransferTarget.php",
+      "app/DatabaseTransferVerification.php",
+      "tests/Server/EngineTransferRefusalTest.php",
+      "tests/Server/EngineTransferTest.php",
+      "tests/ServerCross/EngineCrossTransferTest.php"
+    ]
+  },
+  "app/DatabaseTransferTarget.php": {
+    "owner": "Tablo\\DatabaseTransferTarget",
+    "consumers": [
+      "Composer lint",
+      "Composer analyze",
+      "Composer verify",
+      "app/DatabaseTransferImport.php",
+      "tests/Server/EngineTransactionFailureTest.php"
+    ]
+  },
+  "app/DatabaseTransferVerification.php": {
+    "owner": "Tablo\\DatabaseTransferVerification",
+    "consumers": [
+      "Composer lint",
+      "Composer analyze",
+      "Composer verify",
+      "app/DatabaseTransfer.php",
+      "app/DatabaseTransferImport.php"
     ]
   },
   "app/DeploymentFields.php": {
@@ -1257,7 +1618,8 @@
     "consumers": [
       "Composer lint",
       "Composer analyze",
-      "Composer verify"
+      "Composer verify",
+      "tests/Server/EngineObserverAuditTest.php"
     ]
   },
   "app/JsonScalarText.php": {
@@ -1665,12 +2027,22 @@
       "Composer analyze"
     ]
   },
+  "app/PdoMysqlOptions.php": {
+    "owner": "Tablo\\PdoMysqlOptions",
+    "consumers": [
+      "Composer lint",
+      "Composer analyze",
+      "Composer verify",
+      "app/DatabaseConnectionFactory.php"
+    ]
+  },
   "app/periodic-worker.php": {
     "owner": "Tablo\\PeriodicWorker",
     "consumers": [
       "Composer lint",
       "Composer verify",
-      "Composer analyze"
+      "Composer analyze",
+      "Composer verify:server"
     ]
   },
   "app/PresentationTime.php": {
@@ -1730,6 +2102,123 @@
       "Composer analyze"
     ]
   },
+  "app/read-api-repository.php": {
+    "owner": "Read API and singleton token implementation",
+    "consumers": [
+      "Composer lint",
+      "Composer analyze",
+      "Composer verify",
+      "Native read API tests"
+    ]
+  },
+  "app/read-api-token-repository.php": {
+    "owner": "Read API and singleton token implementation",
+    "consumers": [
+      "Composer lint",
+      "Composer analyze",
+      "Composer verify",
+      "Native read API tests"
+    ]
+  },
+  "app/read-api-token-schema.php": {
+    "owner": "Read API and singleton token implementation",
+    "consumers": [
+      "Composer lint",
+      "Composer analyze",
+      "Composer verify",
+      "Native read API tests"
+    ]
+  },
+  "app/ReadApi.php": {
+    "owner": "Read API and singleton token implementation",
+    "consumers": [
+      "Composer lint",
+      "Composer analyze",
+      "Composer verify",
+      "Native read API tests"
+    ]
+  },
+  "app/ReadApiConnection.php": {
+    "owner": "Read API and singleton token implementation",
+    "consumers": [
+      "Composer lint",
+      "Composer analyze",
+      "Composer verify",
+      "Native read API tests"
+    ]
+  },
+  "app/ReadApiRepository.php": {
+    "owner": "Read API and singleton token implementation",
+    "consumers": [
+      "Composer lint",
+      "Composer analyze",
+      "Composer verify",
+      "Native read API tests"
+    ]
+  },
+  "app/ReadApiRequest.php": {
+    "owner": "Read API and singleton token implementation",
+    "consumers": [
+      "Composer lint",
+      "Composer analyze",
+      "Composer verify",
+      "Native read API tests"
+    ]
+  },
+  "app/ReadApiResponse.php": {
+    "owner": "Read API and singleton token implementation",
+    "consumers": [
+      "Composer lint",
+      "Composer analyze",
+      "Composer verify",
+      "Native read API tests"
+    ]
+  },
+  "app/ReadApiSchemaAdmission.php": {
+    "owner": "Read API and singleton token implementation",
+    "consumers": [
+      "Composer lint",
+      "Composer analyze",
+      "Composer verify",
+      "Native read API tests"
+    ]
+  },
+  "app/ReadApiToken.php": {
+    "owner": "Read API and singleton token implementation",
+    "consumers": [
+      "Composer lint",
+      "Composer analyze",
+      "Composer verify",
+      "Native read API tests"
+    ]
+  },
+  "app/ReadApiTokenPages.php": {
+    "owner": "Read API and singleton token implementation",
+    "consumers": [
+      "Composer lint",
+      "Composer analyze",
+      "Composer verify",
+      "Native read API tests"
+    ]
+  },
+  "app/ReadApiTokenRepository.php": {
+    "owner": "Read API and singleton token implementation",
+    "consumers": [
+      "Composer lint",
+      "Composer analyze",
+      "Composer verify",
+      "Native read API tests"
+    ]
+  },
+  "app/ReadApiTokenSchema.php": {
+    "owner": "Read API and singleton token implementation",
+    "consumers": [
+      "Composer lint",
+      "Composer analyze",
+      "Composer verify",
+      "Native read API tests"
+    ]
+  },
   "app/RecoveryNotification.php": {
     "owner": "Tablo\\RecoveryNotification",
     "consumers": [
@@ -1783,7 +2272,8 @@
     "consumers": [
       "Composer lint",
       "Composer analyze",
-      "Composer verify"
+      "Composer verify",
+      "tests/Server/EngineObserverAuditTest.php"
     ]
   },
   "app/ResourceStreams.php": {
@@ -1925,6 +2415,402 @@
       "Composer lint",
       "Composer verify",
       "Composer analyze"
+    ]
+  },
+  "app/ServerBootstrap.php": {
+    "owner": "Tablo\\ServerBootstrap",
+    "consumers": [
+      "Composer lint",
+      "Composer analyze",
+      "Composer verify",
+      "app/ServerMigration.php"
+    ]
+  },
+  "app/ServerBootstrapReceipt.php": {
+    "owner": "Tablo\\ServerBootstrapReceipt",
+    "consumers": [
+      "Composer lint",
+      "Composer analyze",
+      "Composer verify",
+      "app/ServerBootstrap.php"
+    ]
+  },
+  "app/ServerCheckAdmission.php": {
+    "owner": "Tablo\\ServerCheckAdmission",
+    "consumers": [
+      "Composer lint",
+      "Composer analyze",
+      "Composer verify",
+      "app/ServerColumnAdmission.php",
+      "app/ServerTableAdmission.php"
+    ]
+  },
+  "app/ServerColumnAdmission.php": {
+    "owner": "Tablo\\ServerColumnAdmission",
+    "consumers": [
+      "Composer lint",
+      "Composer analyze",
+      "Composer verify",
+      "app/ServerTableAdmission.php"
+    ]
+  },
+  "app/ServerCredentials.php": {
+    "owner": "Tablo\\ServerCredentials",
+    "consumers": [
+      "Composer lint",
+      "Composer analyze",
+      "Composer verify",
+      "app/DatabaseConfiguration.php"
+    ]
+  },
+  "app/ServerDialect.php": {
+    "owner": "Tablo\\ServerDialect",
+    "consumers": [
+      "Composer lint",
+      "Composer analyze",
+      "Composer verify",
+      "app/AdministratorCredentialWrite.php",
+      "app/GitHubCooldownRepository.php",
+      "app/IdleTimeoutSettings.php",
+      "app/IncidentProjector.php",
+      "app/IncidentTransition.php",
+      "app/NotificationMaintenance.php",
+      "app/SavedGitTokenUpdate.php",
+      "app/ServerSiteSave.php",
+      "app/ServerTokenSave.php",
+      "app/SiteCheckWriter.php",
+      "app/auth.php",
+      "app/git-token-repository.php",
+      "app/notification-outbox.php",
+      "app/notification-projector.php",
+      "app/read-api-repository.php",
+      "app/read-api-token-repository.php",
+      "app/settings-repository.php"
+    ]
+  },
+  "app/ServerExpression.php": {
+    "owner": "Tablo\\ServerExpression",
+    "consumers": [
+      "Composer lint",
+      "Composer analyze",
+      "Composer verify",
+      "app/ServerCheckAdmission.php",
+      "tests/Server/EngineConstraintsTest.php",
+      "tests/Server/EngineConfigurationTest.php"
+    ]
+  },
+  "app/ServerExpressionAtom.php": {
+    "owner": "Tablo\\ServerExpressionAtom",
+    "consumers": [
+      "Composer lint",
+      "Composer analyze",
+      "Composer verify",
+      "app/ServerExpressionOperator.php"
+    ]
+  },
+  "app/ServerExpressionOperator.php": {
+    "owner": "Tablo\\ServerExpressionOperator",
+    "consumers": [
+      "Composer lint",
+      "Composer analyze",
+      "Composer verify",
+      "app/ServerExpression.php",
+      "app/ServerExpressionAtom.php"
+    ]
+  },
+  "app/ServerExpressionTokens.php": {
+    "owner": "Tablo\\ServerExpressionTokens",
+    "consumers": [
+      "Composer lint",
+      "Composer analyze",
+      "Composer verify",
+      "app/ServerExpression.php",
+      "app/ServerExpressionAtom.php",
+      "app/ServerExpressionOperator.php"
+    ]
+  },
+  "app/ServerForeignAdmission.php": {
+    "owner": "Tablo\\ServerForeignAdmission",
+    "consumers": [
+      "Composer lint",
+      "Composer analyze",
+      "Composer verify",
+      "app/ServerTableAdmission.php"
+    ]
+  },
+  "app/ServerIndexAdmission.php": {
+    "owner": "Tablo\\ServerIndexAdmission",
+    "consumers": [
+      "Composer lint",
+      "Composer analyze",
+      "Composer verify",
+      "app/ServerTableAdmission.php"
+    ]
+  },
+  "app/ServerKeyIdentity.php": {
+    "owner": "Tablo\\ServerKeyIdentity",
+    "consumers": [
+      "Composer lint",
+      "Composer analyze",
+      "Composer verify",
+      "app/DatabaseConnectionFactory.php",
+      "app/DatabaseTransferPreflight.php",
+      "app/DatabaseTransferTarget.php",
+      "app/ExternalKeyAuthentication.php",
+      "app/ServerBootstrap.php",
+      "app/ServerMigration.php",
+      "app/ServerWriterAdmission.php",
+      "app/VaultLocation.php"
+    ]
+  },
+  "app/ServerLock.php": {
+    "owner": "Tablo\\ServerLock",
+    "consumers": [
+      "Composer lint",
+      "Composer analyze",
+      "Composer verify",
+      "app/DatabaseTransferImport.php",
+      "app/NotificationLock.php",
+      "app/ServerBootstrap.php",
+      "app/ServerMigration.php",
+      "app/ServerMigrationLock.php",
+      "app/WorkerLock.php",
+      "tests/Server/EngineMigrationRaceTest.php",
+      "tests/Server/EngineWorkerTest.php"
+    ]
+  },
+  "app/ServerLockOwnership.php": {
+    "owner": "Tablo\\ServerLockOwnership",
+    "consumers": [
+      "Composer lint",
+      "Composer analyze",
+      "Composer verify",
+      "app/ServerLock.php"
+    ]
+  },
+  "app/ServerMigration.php": {
+    "owner": "Tablo\\ServerMigration",
+    "consumers": [
+      "Composer lint",
+      "Composer analyze",
+      "Composer verify",
+      "app/DatabaseMaintenanceCommand.php",
+      "tests/Server/EngineMigrationFailureTest.php",
+      "tests/Server/EngineMigrationFreshTest.php",
+      "tests/Server/EngineMigrationRaceTest.php",
+      "tests/Server/EngineWatermarkTest.php"
+    ]
+  },
+  "app/ServerMigrationJournal.php": {
+    "owner": "Tablo\\ServerMigrationJournal",
+    "consumers": [
+      "Composer lint",
+      "Composer analyze",
+      "Composer verify",
+      "app/DatabaseTransferImport.php",
+      "app/DatabaseTransferTarget.php",
+      "app/ServerBootstrap.php",
+      "app/ServerMigration.php",
+      "app/ServerMigrationStep.php"
+    ]
+  },
+  "app/ServerMigrationLock.php": {
+    "owner": "Tablo\\ServerMigrationLock",
+    "consumers": [
+      "Composer lint",
+      "Composer analyze",
+      "Composer verify",
+      "app/DatabaseTransferImport.php",
+      "app/ServerMigration.php"
+    ]
+  },
+  "app/ServerMigrationState.php": {
+    "owner": "Tablo\\ServerMigrationState",
+    "consumers": [
+      "Composer lint",
+      "Composer analyze",
+      "Composer verify",
+      "app/DatabaseTransferImport.php",
+      "app/ServerBootstrap.php",
+      "app/ServerMigration.php",
+      "app/ServerMigrationStep.php"
+    ]
+  },
+  "app/ServerMigrationStep.php": {
+    "owner": "Tablo\\ServerMigrationStep",
+    "consumers": [
+      "Composer lint",
+      "Composer analyze",
+      "Composer verify",
+      "app/ServerBootstrap.php"
+    ]
+  },
+  "app/ServerSchema.php": {
+    "owner": "Tablo\\ServerSchema",
+    "consumers": [
+      "Composer lint",
+      "Composer analyze",
+      "Composer verify",
+      "app/DatabaseConnectionFactory.php",
+      "app/DatabaseTransferArchive.php",
+      "app/DatabaseTransferImport.php",
+      "app/DatabaseTransferManifest.php",
+      "app/DatabaseTransferPreflight.php",
+      "app/DatabaseTransferRows.php",
+      "app/DatabaseTransferSequence.php",
+      "app/DatabaseTransferTarget.php",
+      "app/DatabaseTransferVerification.php",
+      "app/InstalledAdministrator.php",
+      "app/ServerBootstrap.php",
+      "app/ServerBootstrapReceipt.php",
+      "app/ServerCheckAdmission.php",
+      "app/ServerColumnAdmission.php",
+      "app/ServerForeignAdmission.php",
+      "app/ServerIndexAdmission.php",
+      "app/ServerKeyIdentity.php",
+      "app/ServerMigration.php",
+      "app/ServerMigrationJournal.php",
+      "app/ServerMigrationState.php",
+      "app/ServerMigrationStep.php",
+      "app/ServerSchemaDescriptor.php",
+      "app/ServerSchemaState.php",
+      "app/ServerTableAdmission.php",
+      "app/ServerWriterAdmission.php",
+      "app/SingletonAdministrator.php",
+      "app/read-api-repository.php",
+      "tests/Server/EngineAutoIdentityTest.php",
+      "tests/Server/EngineConstraintsTest.php",
+      "tests/Server/EngineHistoryTest.php",
+      "tests/Server/EngineKeyTest.php",
+      "tests/Server/EngineLoginRaceTest.php",
+      "tests/Server/EngineMigrationAdmissionTest.php",
+      "tests/Server/EngineMigrationFailureTest.php",
+      "tests/Server/EngineMigrationFreshTest.php",
+      "tests/Server/EngineMigrationRaceTest.php",
+      "tests/Server/EngineNotificationRaceTest.php",
+      "tests/Server/EngineReadApiTest.php",
+      "tests/Server/EngineSettlementFailureTest.php",
+      "tests/Server/EngineSettlementRaceTest.php",
+      "tests/Server/EngineTransferRefusalTest.php",
+      "tests/Server/EngineTransferTest.php",
+      "tests/Server/EngineWatermarkTest.php",
+      "tests/Server/EngineWorkerTest.php",
+      "tests/ServerCross/EngineCrossTransferTest.php",
+      "tests/Support/EngineFixture.php",
+      "tools/verify-server.php"
+    ]
+  },
+  "app/ServerSchemaDescriptor.php": {
+    "owner": "Tablo\\ServerSchemaDescriptor",
+    "consumers": [
+      "Composer lint",
+      "Composer analyze",
+      "Composer verify",
+      "app/ServerColumnAdmission.php",
+      "app/ServerSchema.php"
+    ]
+  },
+  "app/ServerSchemaState.php": {
+    "owner": "Tablo\\ServerSchemaState",
+    "consumers": [
+      "Composer lint",
+      "Composer analyze",
+      "Composer verify",
+      "app/ServerSchema.php",
+      "app/ServerSessionAdmission.php",
+      "app/ServerWriterAdmission.php"
+    ]
+  },
+  "app/ServerSessionAdmission.php": {
+    "owner": "Tablo\\ServerSessionAdmission",
+    "consumers": [
+      "Composer lint",
+      "Composer analyze",
+      "Composer verify",
+      "app/DatabaseConnectionFactory.php",
+      "app/read-api-repository.php"
+    ]
+  },
+  "app/ServerSessionSettings.php": {
+    "owner": "Tablo\\ServerSessionSettings",
+    "consumers": [
+      "Composer lint",
+      "Composer analyze",
+      "Composer verify",
+      "app/DatabaseConnectionFactory.php"
+    ]
+  },
+  "app/ServerSiteCheck.php": {
+    "owner": "Tablo\\ServerSiteCheck",
+    "consumers": [
+      "Composer lint",
+      "Composer analyze",
+      "Composer verify",
+      "app/SiteCheckWriter.php"
+    ]
+  },
+  "app/ServerSiteSave.php": {
+    "owner": "Tablo\\ServerSiteSave",
+    "consumers": [
+      "Composer lint",
+      "Composer analyze",
+      "Composer verify",
+      "app/site-repository.php"
+    ]
+  },
+  "app/ServerTableAdmission.php": {
+    "owner": "Tablo\\ServerTableAdmission",
+    "consumers": [
+      "Composer lint",
+      "Composer analyze",
+      "Composer verify",
+      "app/ServerSchema.php"
+    ]
+  },
+  "app/ServerTls.php": {
+    "owner": "Tablo\\ServerTls",
+    "consumers": [
+      "Composer lint",
+      "Composer analyze",
+      "Composer verify",
+      "app/DatabaseConfiguration.php"
+    ]
+  },
+  "app/ServerTokenSave.php": {
+    "owner": "Tablo\\ServerTokenSave",
+    "consumers": [
+      "Composer lint",
+      "Composer analyze",
+      "Composer verify",
+      "app/git-token-repository.php"
+    ]
+  },
+  "app/ServerTransport.php": {
+    "owner": "Tablo\\ServerTransport",
+    "consumers": [
+      "Composer lint",
+      "Composer analyze",
+      "Composer verify",
+      "app/DatabaseConfiguration.php",
+      "app/ServerTls.php"
+    ]
+  },
+  "app/ServerWriterAdmission.php": {
+    "owner": "Tablo\\ServerWriterAdmission",
+    "consumers": [
+      "Composer lint",
+      "Composer analyze",
+      "Composer verify",
+      "app/DatabaseTransferTarget.php",
+      "app/IncidentProjector.php",
+      "app/NotificationProjectionStore.php",
+      "app/ServerMigrationState.php",
+      "app/SiteCheckWriter.php",
+      "app/WriteTransaction.php",
+      "app/git-token-repository.php",
+      "app/notification-delivery.php",
+      "app/notification-projector.php",
+      "app/site-repository.php"
     ]
   },
   "app/SessionActivity.php": {
@@ -2652,7 +3538,8 @@
       "dashboard.run_worker_pass",
       "Composer lint",
       "Composer verify",
-      "Composer analyze"
+      "Composer analyze",
+      "tests/Server/EngineTransferRefusalTest.php"
     ]
   },
   "app/TrustedProxyChain.php": {
@@ -3088,13 +3975,49 @@
       "Composer analyze"
     ]
   },
+  "app/WriteTransaction.php": {
+    "owner": "Tablo\\WriteTransaction",
+    "consumers": [
+      "Composer lint",
+      "Composer analyze",
+      "Composer verify",
+      "app/AdministratorCredentialWrite.php",
+      "app/AdministratorPasswordChange.php",
+      "app/DatabaseTransfer.php",
+      "app/DatabaseTransferPreflight.php",
+      "app/DatabaseTransferTarget.php",
+      "app/GitHubCooldownRepository.php",
+      "app/HistoryPruner.php",
+      "app/IdleTimeoutSettings.php",
+      "app/NotificationAcknowledgement.php",
+      "app/ServerLock.php",
+      "app/ServerTokenSave.php",
+      "app/ServerWriterAdmission.php",
+      "app/SiteResultSettlement.php",
+      "app/auth.php",
+      "app/git-token-repository.php",
+      "app/notification-outbox.php",
+      "app/notification-settings.php",
+      "app/read-api-token-repository.php",
+      "app/settings-repository.php",
+      "app/site-repository.php",
+      "app/worker-state-repository.php",
+      "tests/Server/EngineHistoryTest.php",
+      "tests/Server/EngineKeyTest.php",
+      "tests/Server/EngineSettlementFailureTest.php",
+      "tests/Server/EngineTransactionFailureTest.php",
+      "tests/Server/EngineWatermarkTest.php",
+      "tests/Server/EngineWorkerTest.php"
+    ]
+  },
   "bin/admin-password.php": {
     "owner": "Local CLI bootstrap and safe error boundary",
     "consumers": [
       "Local administrator password CLI",
       "Composer lint",
       "Composer verify",
-      "Composer analyze"
+      "Composer analyze",
+      "Composer verify:server"
     ]
   },
   "bin/check.php": {
@@ -3104,6 +4027,25 @@
       "dashboard.check_site",
       "Composer lint",
       "Composer verify",
+      "Composer analyze",
+      "Composer verify:server"
+    ]
+  },
+  "bin/database-transfer.php": {
+    "owner": "Finite current15-table offline transfer CLI",
+    "consumers": [
+      "Operator offline transfer runbook",
+      "Native transfer/refusal/cross tests",
+      "Composer lint",
+      "Composer analyze"
+    ]
+  },
+  "bin/database.php": {
+    "owner": "Explicit existing server init/migrate/status CLI",
+    "consumers": [
+      "Operator maintenance runbook",
+      "Native migration failure/resume tests",
+      "Composer lint",
       "Composer analyze"
     ]
   },
@@ -3153,10 +4095,31 @@
       "Composer analyze"
     ]
   },
+  "compose.mariadb.yaml": {
+    "owner": "Pinned MariaDB11.4 deployment example",
+    "consumers": [
+      "Existing-server operator runbook",
+      "Immutable MariaDB engine deployment review"
+    ]
+  },
+  "compose.mysql.yaml": {
+    "owner": "Pinned MySQL8.4 deployment example",
+    "consumers": [
+      "Existing-server operator runbook",
+      "Immutable Oracle engine deployment review"
+    ]
+  },
   "compose.secret.yaml": {
     "owner": "compose-secret:tablo_token_key",
     "consumers": [
       "Application and worker external key selection"
+    ]
+  },
+  "compose.server-existing.yaml": {
+    "owner": "Existing-only server application and worker Compose example",
+    "consumers": [
+      "Existing-server operator runbook",
+      "Writer/reader/key isolation deployment review"
     ]
   },
   "compose.yaml": {
@@ -3172,6 +4135,35 @@
       "Native CLI schema validation"
     ]
   },
+  "contracts/read-api-v1.schema.json": {
+    "owner": "Version 1 external read contract",
+    "consumers": [
+      "Read API documentation and privacy review"
+    ]
+  },
+  "database/mariadb114-layout.json": {
+    "owner": "Finite MariaDB11.4 metadata1 logical9/10 descriptor",
+    "consumers": [
+      "Tablo\\ServerSchemaDescriptor",
+      "Selected-engine admission and explicit maintenance",
+      "Native constraints and migration tests"
+    ]
+  },
+  "database/mysql84-layout.json": {
+    "owner": "Finite MySQL8.4 metadata1 logical9/10 descriptor",
+    "consumers": [
+      "Tablo\\ServerSchemaDescriptor",
+      "Selected-engine admission and explicit maintenance",
+      "Native constraints and migration tests"
+    ]
+  },
+  "deploy/database-engines.json": {
+    "owner": "Immutable candidate engine image/config pins",
+    "consumers": [
+      "Compose examples",
+      "Explicit native engine fixture image attestation"
+    ]
+  },
   "deploy/healthcheck.php": {
     "owner": "php-script:deploy/healthcheck.php",
     "consumers": [
@@ -3179,10 +4171,30 @@
       "Composer analyze"
     ]
   },
+  "deploy/server-grants.sql.example": {
+    "owner": "Staged least-privilege writer/reader/migrator grants",
+    "consumers": [
+      "Existing-server operator runbook",
+      "Native selected-engine role probes"
+    ]
+  },
   "Dockerfile": {
     "owner": "docker-image:tablo",
     "consumers": [
       "Application image and serving liveness"
+    ]
+  },
+  "docs/database-engines.md": {
+    "owner": "SQLite/MySQL/MariaDB setup maintenance and finite offline transfer runbook",
+    "consumers": [
+      "Deployment and recovery review",
+      "Operator setup/transfer/rollback constraints"
+    ]
+  },
+  "docs/read-api.md": {
+    "owner": "Version 1 external read contract",
+    "consumers": [
+      "Read API documentation and privacy review"
     ]
   },
   "mago.toml": {
@@ -3223,6 +4235,13 @@
       "Administrator idle timeout policy"
     ]
   },
+  "testo-server.php": {
+    "owner": "Required selected-engine Testo suite configuration",
+    "consumers": [
+      "tools/verify-server.php",
+      "Explicit real-engine Server and ServerCross native execution"
+    ]
+  },
   "tests/browser-fixture.php": {
     "owner": "php-script:tests/browser-fixture.php",
     "consumers": [
@@ -3244,7 +4263,8 @@
     "consumers": [
       "Composer lint",
       "Composer verify",
-      "Composer analyze"
+      "Composer analyze",
+      "Composer verify:server"
     ]
   },
   "tests/FixtureGitHubAudit.php": {
@@ -3269,7 +4289,8 @@
       "Synthetic Git substitution and endpoint isolation audit",
       "Composer lint",
       "Composer verify",
-      "Composer analyze"
+      "Composer analyze",
+      "Composer verify:server"
     ]
   },
   "tests/FixtureGitHubResponse.php": {
@@ -3409,6 +4430,18 @@
       "Composer analyze"
     ]
   },
+  "tests/fixtures/helper-diagnostic.php": {
+    "owner": "php-script:tests/fixtures/helper-diagnostic.php",
+    "consumers": [
+      "Composer lint",
+      "Composer analyze",
+      "Composer verify",
+      "tests/Network/PasswordHelperTest.php",
+      "tests/Network/PasswordHelperDiagnosticsTest.php",
+      "tests/Network/PasswordHelperRetentionTest.php",
+      "Native dashboard.setup/login/change_admin_password attachment"
+    ]
+  },
   "tests/fixtures/historical-schema/common0.sql": {
     "owner": "Frozen historical schema fixture",
     "consumers": [
@@ -3533,6 +4566,18 @@
       "Composer analyze"
     ]
   },
+  "tests/fixtures/password-helper-input.ps1": {
+    "owner": "powershell-script:tests/fixtures/password-helper-input.ps1",
+    "consumers": [
+      "Composer lint",
+      "Composer analyze",
+      "Composer verify",
+      "tests/Network/PasswordHelperTest.php",
+      "tests/Network/PasswordHelperDiagnosticsTest.php",
+      "tests/Network/PasswordHelperRetentionTest.php",
+      "Native dashboard.setup/login/change_admin_password attachment"
+    ]
+  },
   "tests/fixtures/password-login.php": {
     "owner": "php-script:tests/fixtures/password-login.php",
     "consumers": [
@@ -3579,6 +4624,15 @@
       "Composer lint",
       "Composer verify",
       "Composer analyze"
+    ]
+  },
+  "tests/fixtures/read-api-router.php": {
+    "owner": "Read API synthetic acceptance evidence",
+    "consumers": [
+      "Composer lint",
+      "Composer analyze",
+      "Composer verify",
+      "Native read API tests"
     ]
   },
   "tests/fixtures/redirect-server.php": {
@@ -3711,7 +4765,8 @@
     "consumers": [
       "Composer lint",
       "Composer verify",
-      "Composer analyze"
+      "Composer analyze",
+      "Composer verify:server"
     ]
   },
   "tests/fixtures/WorkerReadonlyControl.php": {
@@ -4080,6 +5135,60 @@
       "Composer lint",
       "Composer verify",
       "Composer analyze"
+    ]
+  },
+  "tests/Http/ReadApiAuthenticationTest.php": {
+    "owner": "Read API synthetic acceptance evidence",
+    "consumers": [
+      "Composer lint",
+      "Composer analyze",
+      "Composer verify",
+      "Native read API tests"
+    ]
+  },
+  "tests/Http/ReadApiHttpTest.php": {
+    "owner": "Read API synthetic acceptance evidence",
+    "consumers": [
+      "Composer lint",
+      "Composer analyze",
+      "Composer verify",
+      "Native read API tests"
+    ]
+  },
+  "tests/Http/ReadApiParametersTest.php": {
+    "owner": "Read API synthetic acceptance evidence",
+    "consumers": [
+      "Composer lint",
+      "Composer analyze",
+      "Composer verify",
+      "Native read API tests"
+    ]
+  },
+  "tests/Http/ReadApiPrivacyTest.php": {
+    "owner": "Read API synthetic acceptance evidence",
+    "consumers": [
+      "Composer lint",
+      "Composer analyze",
+      "Composer verify",
+      "Native read API tests"
+    ]
+  },
+  "tests/Http/ReadApiSessionContractTest.php": {
+    "owner": "Read API synthetic acceptance evidence",
+    "consumers": [
+      "Composer lint",
+      "Composer analyze",
+      "Composer verify",
+      "Native read API tests"
+    ]
+  },
+  "tests/Http/ReadApiTokenManagementTest.php": {
+    "owner": "Read API synthetic acceptance evidence",
+    "consumers": [
+      "Composer lint",
+      "Composer analyze",
+      "Composer verify",
+      "Native read API tests"
     ]
   },
   "tests/Http/RefusedCheckAssertions.php": {
@@ -4836,6 +5945,30 @@
       "tests/Network/PasswordHelperRetentionTest.php"
     ]
   },
+  "tests/Network/PasswordHelperDiagnosticsTest.php": {
+    "owner": "Tablo\\Tests\\Network\\PasswordHelperDiagnosticsTest",
+    "consumers": [
+      "Composer lint",
+      "Composer analyze",
+      "Composer verify",
+      "tests/Network/PasswordHelperTest.php",
+      "tests/Network/PasswordHelperDiagnosticsTest.php",
+      "tests/Network/PasswordHelperRetentionTest.php",
+      "Native dashboard.setup/login/change_admin_password attachment"
+    ]
+  },
+  "tests/Network/PasswordHelperRetentionTest.php": {
+    "owner": "Tablo\\Tests\\Network\\PasswordHelperRetentionTest",
+    "consumers": [
+      "Composer lint",
+      "Composer analyze",
+      "Composer verify",
+      "tests/Network/PasswordHelperTest.php",
+      "tests/Network/PasswordHelperDiagnosticsTest.php",
+      "tests/Network/PasswordHelperRetentionTest.php",
+      "Native dashboard.setup/login/change_admin_password attachment"
+    ]
+  },
   "tests/Network/PasswordHelperTest.php": {
     "owner": "Tablo\\Tests\\Network\\PasswordHelperTest",
     "consumers": [
@@ -4858,6 +5991,15 @@
       "Composer lint",
       "Composer verify",
       "Composer analyze"
+    ]
+  },
+  "tests/Network/ReadApiBoundaryTest.php": {
+    "owner": "Read API synthetic acceptance evidence",
+    "consumers": [
+      "Composer lint",
+      "Composer analyze",
+      "Composer verify",
+      "Native read API tests"
     ]
   },
   "tests/Network/RedirectAdmissionTest.php": {
@@ -5154,6 +6296,242 @@
       "Composer analyze"
     ]
   },
+  "tests/server-child.php": {
+    "owner": "Independent selected-engine CLI actor",
+    "consumers": [
+      "Tablo\\Tests\\Support\\EngineProcess",
+      "Native selected-engine login race"
+    ]
+  },
+  "tests/Server/EngineAutoIdentityTest.php": {
+    "owner": "Selected real-engine synthetic native evidence",
+    "consumers": [
+      "Composer lint",
+      "Composer analyze",
+      "Composer verify:server"
+    ]
+  },
+  "tests/Server/EngineConfigurationTest.php": {
+    "owner": "Selected real-engine synthetic native evidence",
+    "consumers": [
+      "Composer lint",
+      "Composer analyze",
+      "Composer verify:server"
+    ]
+  },
+  "tests/Server/EngineConstraintsTest.php": {
+    "owner": "Selected real-engine synthetic native evidence",
+    "consumers": [
+      "Composer lint",
+      "Composer analyze",
+      "Composer verify:server"
+    ]
+  },
+  "tests/Server/EngineFixtureSafetyTest.php": {
+    "owner": "Synthetic engine fixture key-environment boundary evidence",
+    "consumers": [
+      "Composer lint",
+      "Composer analyze",
+      "Composer verify:server",
+      "Tablo\\Tests\\Support\\EngineFixture inherited-key refusal"
+    ]
+  },
+  "tests/Server/EngineFlowTest.php": {
+    "owner": "Selected real-engine synthetic native evidence",
+    "consumers": [
+      "Composer lint",
+      "Composer analyze",
+      "Composer verify:server"
+    ]
+  },
+  "tests/Server/EngineHistoryTest.php": {
+    "owner": "Selected real-engine synthetic native evidence",
+    "consumers": [
+      "Composer lint",
+      "Composer analyze",
+      "Composer verify:server"
+    ]
+  },
+  "tests/Server/EngineKeyTest.php": {
+    "owner": "Selected real-engine synthetic native evidence",
+    "consumers": [
+      "Composer lint",
+      "Composer analyze",
+      "Composer verify:server"
+    ]
+  },
+  "tests/Server/EngineLoginRaceTest.php": {
+    "owner": "Selected real-engine synthetic native evidence",
+    "consumers": [
+      "Composer lint",
+      "Composer analyze",
+      "Composer verify:server"
+    ]
+  },
+  "tests/Server/EngineMigrationAdmissionTest.php": {
+    "owner": "Selected real-engine synthetic native evidence",
+    "consumers": [
+      "Composer lint",
+      "Composer analyze",
+      "Composer verify:server"
+    ]
+  },
+  "tests/Server/EngineMigrationFailureTest.php": {
+    "owner": "Selected real-engine synthetic native evidence",
+    "consumers": [
+      "Composer lint",
+      "Composer analyze",
+      "Composer verify:server"
+    ]
+  },
+  "tests/Server/EngineMigrationFreshTest.php": {
+    "owner": "Selected real-engine synthetic native evidence",
+    "consumers": [
+      "Composer lint",
+      "Composer analyze",
+      "Composer verify:server"
+    ]
+  },
+  "tests/Server/EngineMigrationPreviousTest.php": {
+    "owner": "Selected real-engine synthetic logical9 upgrade evidence",
+    "consumers": [
+      "Composer lint",
+      "Composer analyze",
+      "Composer verify:server",
+      "Standalone frozen logical9 fixture materialization (source grant pending)"
+    ]
+  },
+  "tests/Server/EngineMigrationProcessTest.php": {
+    "owner": "Selected real-engine synthetic native evidence",
+    "consumers": [
+      "Composer lint",
+      "Composer analyze",
+      "Composer verify:server"
+    ]
+  },
+  "tests/Server/EngineMigrationRaceTest.php": {
+    "owner": "Selected real-engine synthetic native evidence",
+    "consumers": [
+      "Composer lint",
+      "Composer analyze",
+      "Composer verify:server"
+    ]
+  },
+  "tests/Server/EngineNativeFailureTest.php": {
+    "owner": "Selected real-engine synthetic native evidence",
+    "consumers": [
+      "Composer lint",
+      "Composer analyze",
+      "Composer verify:server"
+    ]
+  },
+  "tests/Server/EngineNotificationRaceTest.php": {
+    "owner": "Selected real-engine synthetic native evidence",
+    "consumers": [
+      "Composer lint",
+      "Composer analyze",
+      "Composer verify:server"
+    ]
+  },
+  "tests/Server/EngineReadApiTest.php": {
+    "owner": "Selected real-engine synthetic native evidence",
+    "consumers": [
+      "Composer lint",
+      "Composer analyze",
+      "Composer verify:server"
+    ]
+  },
+  "tests/Server/EngineSettlementFailureTest.php": {
+    "owner": "Selected real-engine synthetic native evidence",
+    "consumers": [
+      "Composer lint",
+      "Composer analyze",
+      "Composer verify:server"
+    ]
+  },
+  "tests/Server/EngineSettlementRaceTest.php": {
+    "owner": "Selected real-engine synthetic native evidence",
+    "consumers": [
+      "Composer lint",
+      "Composer analyze",
+      "Composer verify:server"
+    ]
+  },
+  "tests/Server/EngineTransactionFailureTest.php": {
+    "owner": "Selected real-engine synthetic native evidence",
+    "consumers": [
+      "Composer lint",
+      "Composer analyze",
+      "Composer verify:server"
+    ]
+  },
+  "tests/Server/EngineTransferAdmissionTest.php": {
+    "owner": "Explicit readonly source and canonical transfer admission evidence",
+    "consumers": [
+      "Composer lint",
+      "Composer analyze",
+      "Composer verify:server",
+      "Transfer native binding selectors"
+    ]
+  },
+  "tests/Server/EngineTransferEnvelopeTest.php": {
+    "owner": "Bounded manifest/chunk transfer evidence and synthetic archive builder",
+    "consumers": [
+      "Composer lint",
+      "Composer analyze",
+      "Composer verify:server",
+      "tests/Server/EngineTransferAdmissionTest.php",
+      "Transfer native binding selectors"
+    ]
+  },
+  "tests/Server/EngineTransferRefusalTest.php": {
+    "owner": "Selected real-engine synthetic native evidence",
+    "consumers": [
+      "Composer lint",
+      "Composer analyze",
+      "Composer verify:server"
+    ]
+  },
+  "tests/Server/EngineTransferTest.php": {
+    "owner": "Selected real-engine synthetic native evidence",
+    "consumers": [
+      "Composer lint",
+      "Composer analyze",
+      "Composer verify:server"
+    ]
+  },
+  "tests/Server/EngineVerificationTest.php": {
+    "owner": "Selected real-engine synthetic native evidence",
+    "consumers": [
+      "Composer lint",
+      "Composer analyze",
+      "Composer verify:server"
+    ]
+  },
+  "tests/Server/EngineWatermarkTest.php": {
+    "owner": "Selected real-engine synthetic native evidence",
+    "consumers": [
+      "Composer lint",
+      "Composer analyze",
+      "Composer verify:server"
+    ]
+  },
+  "tests/Server/EngineWorkerTest.php": {
+    "owner": "Selected real-engine synthetic native evidence",
+    "consumers": [
+      "Composer lint",
+      "Composer analyze",
+      "Composer verify:server"
+    ]
+  },
+  "tests/ServerCross/EngineCrossTransferTest.php": {
+    "owner": "Selected real-engine synthetic native evidence",
+    "consumers": [
+      "Composer lint",
+      "Composer analyze",
+      "Composer verify:server --cross"
+    ]
+  },
   "tests/Support/BarrierSignal.php": {
     "owner": "Tablo\\Tests\\Support\\BarrierSignal",
     "consumers": [
@@ -5268,6 +6646,30 @@
       "Composer lint",
       "Composer analyze",
       "Composer verify"
+    ]
+  },
+  "tests/Support/EngineFixture.php": {
+    "owner": "Nonce-owned selected real-engine fixture support",
+    "consumers": [
+      "Composer lint",
+      "Composer analyze",
+      "Explicit native Server/ServerCross execution"
+    ]
+  },
+  "tests/Support/EngineProcess.php": {
+    "owner": "Nonce-owned selected real-engine fixture support",
+    "consumers": [
+      "Composer lint",
+      "Composer analyze",
+      "Explicit native Server/ServerCross execution"
+    ]
+  },
+  "tests/Support/EngineSchedule.php": {
+    "owner": "Nonce-owned selected real-engine fixture support",
+    "consumers": [
+      "Composer lint",
+      "Composer analyze",
+      "Explicit native Server/ServerCross execution"
     ]
   },
   "tests/Support/FakeHttp.php": {
@@ -5512,6 +6914,108 @@
       "Composer analyze"
     ]
   },
+  "tests/Support/PasswordHelperCapture.php": {
+    "owner": "Tablo\\Tests\\Support\\PasswordHelperCapture",
+    "consumers": [
+      "Composer lint",
+      "Composer analyze",
+      "Composer verify",
+      "tests/Network/PasswordHelperTest.php",
+      "tests/Network/PasswordHelperDiagnosticsTest.php",
+      "tests/Network/PasswordHelperRetentionTest.php",
+      "Native dashboard.setup/login/change_admin_password attachment"
+    ]
+  },
+  "tests/Support/PasswordHelperCase.php": {
+    "owner": "Tablo\\Tests\\Support\\PasswordHelperCase",
+    "consumers": [
+      "Composer lint",
+      "Composer analyze",
+      "Composer verify",
+      "tests/Network/PasswordHelperTest.php",
+      "tests/Network/PasswordHelperDiagnosticsTest.php",
+      "tests/Network/PasswordHelperRetentionTest.php",
+      "Native dashboard.setup/login/change_admin_password attachment"
+    ]
+  },
+  "tests/Support/PasswordHelperDatabaseExport.php": {
+    "owner": "Tablo\\Tests\\Support\\PasswordHelperDatabaseExport",
+    "consumers": [
+      "Composer lint",
+      "Composer analyze",
+      "Composer verify",
+      "tests/Network/PasswordHelperRetentionTest.php",
+      "Private explicitly seeded synthetic database preservation; excluded from default helper artifact"
+    ]
+  },
+  "tests/Support/PasswordHelperDatabaseFixture.php": {
+    "owner": "Tablo\\Tests\\Support\\PasswordHelperDatabaseFixture",
+    "consumers": [
+      "Composer lint",
+      "Composer analyze",
+      "Composer verify",
+      "tests/Network/PasswordHelperRetentionTest.php",
+      "Private explicitly seeded synthetic database preservation; excluded from default helper artifact"
+    ]
+  },
+  "tests/Support/PasswordHelperDatabaseTarget.php": {
+    "owner": "Tablo\\Tests\\Support\\PasswordHelperDatabaseTarget",
+    "consumers": [
+      "Composer lint",
+      "Composer analyze",
+      "Composer verify",
+      "tests/Network/PasswordHelperRetentionTest.php",
+      "Private explicitly seeded synthetic database preservation; excluded from default helper artifact"
+    ]
+  },
+  "tests/Support/PasswordHelperEvidence.php": {
+    "owner": "Tablo\\Tests\\Support\\PasswordHelperEvidence",
+    "consumers": [
+      "Composer lint",
+      "Composer analyze",
+      "Composer verify",
+      "tests/Network/PasswordHelperTest.php",
+      "tests/Network/PasswordHelperDiagnosticsTest.php",
+      "tests/Network/PasswordHelperRetentionTest.php",
+      "Native dashboard.setup/login/change_admin_password attachment"
+    ]
+  },
+  "tests/Support/PasswordHelperEvidenceFiles.php": {
+    "owner": "Tablo\\Tests\\Support\\PasswordHelperEvidenceFiles",
+    "consumers": [
+      "Composer lint",
+      "Composer analyze",
+      "Composer verify",
+      "tests/Network/PasswordHelperTest.php",
+      "tests/Network/PasswordHelperDiagnosticsTest.php",
+      "tests/Network/PasswordHelperRetentionTest.php",
+      "Native dashboard.setup/login/change_admin_password attachment"
+    ]
+  },
+  "tests/Support/PasswordHelperEvidenceStart.php": {
+    "owner": "Tablo\\Tests\\Support\\PasswordHelperEvidenceStart",
+    "consumers": [
+      "Composer lint",
+      "Composer analyze",
+      "Composer verify",
+      "tests/Network/PasswordHelperTest.php",
+      "tests/Network/PasswordHelperDiagnosticsTest.php",
+      "tests/Network/PasswordHelperRetentionTest.php",
+      "Native dashboard.setup/login/change_admin_password attachment"
+    ]
+  },
+  "tests/Support/PasswordHelperFailureState.php": {
+    "owner": "Tablo\\Tests\\Support\\PasswordHelperFailureState",
+    "consumers": [
+      "Composer lint",
+      "Composer analyze",
+      "Composer verify",
+      "tests/Network/PasswordHelperTest.php",
+      "tests/Network/PasswordHelperDiagnosticsTest.php",
+      "tests/Network/PasswordHelperRetentionTest.php",
+      "Native dashboard.setup/login/change_admin_password attachment"
+    ]
+  },
   "tests/Support/PasswordProcess.php": {
     "owner": "Tablo\\Tests\\Support\\PasswordProcess",
     "consumers": [
@@ -5534,6 +7038,24 @@
       "Composer lint",
       "Composer verify",
       "Composer analyze"
+    ]
+  },
+  "tests/Support/ReadApiAssertions.php": {
+    "owner": "Read API synthetic acceptance evidence",
+    "consumers": [
+      "Composer lint",
+      "Composer analyze",
+      "Composer verify",
+      "Native read API tests"
+    ]
+  },
+  "tests/Support/ReadApiFixture.php": {
+    "owner": "Read API synthetic acceptance evidence",
+    "consumers": [
+      "Composer lint",
+      "Composer analyze",
+      "Composer verify",
+      "Native read API tests"
     ]
   },
   "tests/Support/RedirectAssertions.php": {
@@ -5695,7 +7217,8 @@
       "Native CLI direct-child receipts",
       "Composer lint",
       "Composer verify",
-      "Composer analyze"
+      "Composer analyze",
+      "Composer verify:server"
     ]
   },
   "tests/Support/SubprocessClosure.php": {
@@ -5738,7 +7261,8 @@
     "consumers": [
       "Composer lint",
       "Composer verify",
-      "Composer analyze"
+      "Composer analyze",
+      "Composer verify:server"
     ]
   },
   "tests/Support/SubprocessLaunch.php": {
@@ -5820,7 +7344,11 @@
       "Native CLI fixture custody",
       "Composer lint",
       "Composer verify",
-      "Composer analyze"
+      "Composer analyze",
+      "tools/server-cell.php",
+      "tests/Server/EngineFixtureSafetyTest.php",
+      "tests/Server/EngineObserverAuditTest.php",
+      "tests/Server/EngineTransferRefusalTest.php"
     ]
   },
   "tests/Support/TestServer.php": {
@@ -5942,7 +7470,8 @@
     "consumers": [
       "Composer lint",
       "Composer verify",
-      "Composer analyze"
+      "Composer analyze",
+      "Composer verify:server"
     ]
   },
   "tests/Support/WorkerObservation.php": {
@@ -5975,6 +7504,15 @@
       "Composer lint",
       "Composer verify",
       "Composer analyze"
+    ]
+  },
+  "tests/Unit/ApiSiteDtoTest.php": {
+    "owner": "Read API synthetic acceptance evidence",
+    "consumers": [
+      "Composer lint",
+      "Composer analyze",
+      "Composer verify",
+      "Native read API tests"
     ]
   },
   "tests/Unit/AssertionResourceCustodyTest.php": {
@@ -6745,6 +8283,51 @@
       "Composer analyze"
     ]
   },
+  "tests/Unit/ReadApiRepositoryTest.php": {
+    "owner": "Read API synthetic acceptance evidence",
+    "consumers": [
+      "Composer lint",
+      "Composer analyze",
+      "Composer verify",
+      "Native read API tests"
+    ]
+  },
+  "tests/Unit/ReadApiRequestTest.php": {
+    "owner": "Read API synthetic acceptance evidence",
+    "consumers": [
+      "Composer lint",
+      "Composer analyze",
+      "Composer verify",
+      "Native read API tests"
+    ]
+  },
+  "tests/Unit/ReadApiSchemaTest.php": {
+    "owner": "Read API synthetic acceptance evidence",
+    "consumers": [
+      "Composer lint",
+      "Composer analyze",
+      "Composer verify",
+      "Native read API tests"
+    ]
+  },
+  "tests/Unit/ReadApiTokenMigrationTest.php": {
+    "owner": "Read API synthetic acceptance evidence",
+    "consumers": [
+      "Composer lint",
+      "Composer analyze",
+      "Composer verify",
+      "Native read API tests"
+    ]
+  },
+  "tests/Unit/ReadApiTokenTest.php": {
+    "owner": "Read API synthetic acceptance evidence",
+    "consumers": [
+      "Composer lint",
+      "Composer analyze",
+      "Composer verify",
+      "Native read API tests"
+    ]
+  },
   "tests/Unit/ReviewedDependenciesTest.php": {
     "owner": "Tablo\\Tests\\Unit\\ReviewedDependenciesTest",
     "consumers": [
@@ -7228,6 +8811,34 @@
       "Composer analyze"
     ]
   },
+  "tools/server-native-tests.json": {
+    "owner": "Exact native engine test identities and binding consumers",
+    "consumers": [
+      "tools/verify-server.php",
+      "Strict JUnit status/assertion/source/deadline verification",
+      ".github/workflows/verify.yml",
+      "docs/database-engines.md"
+    ]
+  },
+  "tools/ServerTestEvidence.php": {
+    "owner": "Strict real native JUnit/JSON evidence procedures",
+    "consumers": [
+      "tools/verify-server.php",
+      "tests/Server/EngineVerificationTest.php",
+      "Composer lint",
+      "Composer analyze"
+    ]
+  },
+  "tools/verify-server.php": {
+    "owner": "Required explicit selected-engine native verification runner",
+    "consumers": [
+      "Composer verify:server",
+      "Required Ubuntu engine/PHP matrix and cross sublanes",
+      "Composer lint",
+      "Composer analyze",
+      "tools/server-supervisor.cjs"
+    ]
+  },
   "tools/verify.php": {
     "owner": "php-script:tools/verify.php",
     "consumers": [
@@ -7249,6 +8860,12 @@
       "dashboard.read_incidents"
     ]
   },
+  "views/read-api-token-issued.volt": {
+    "owner": "Version 1 external read contract",
+    "consumers": [
+      "Read API documentation and privacy review"
+    ]
+  },
   "views/settings.volt": {
     "owner": "volt-template:views/settings.volt",
     "consumers": [
@@ -7257,451 +8874,128 @@
       "dashboard.read_notification_status"
     ]
   },
-  "tests/Network/PasswordHelperDiagnosticsTest.php": {
-    "owner": "Tablo\\Tests\\Network\\PasswordHelperDiagnosticsTest",
+  "tests/Server/EngineMigrationCrashTest.php": {
+    "owner": "Selected real-engine synthetic native evidence",
     "consumers": [
       "Composer lint",
       "Composer analyze",
-      "Composer verify",
-      "tests/Network/PasswordHelperTest.php",
-      "tests/Network/PasswordHelperDiagnosticsTest.php",
-      "tests/Network/PasswordHelperRetentionTest.php",
-      "Native dashboard.setup/login/change_admin_password attachment"
+      "Composer verify:server"
     ]
   },
-  "tests/Network/PasswordHelperRetentionTest.php": {
-    "owner": "Tablo\\Tests\\Network\\PasswordHelperRetentionTest",
+  "tests/Server/EngineMigrationDeniedDdlTest.php": {
+    "owner": "Selected real-engine synthetic native evidence",
     "consumers": [
       "Composer lint",
       "Composer analyze",
-      "Composer verify",
-      "tests/Network/PasswordHelperTest.php",
-      "tests/Network/PasswordHelperDiagnosticsTest.php",
-      "tests/Network/PasswordHelperRetentionTest.php",
-      "Native dashboard.setup/login/change_admin_password attachment"
+      "Composer verify:server"
     ]
   },
-  "tests/Support/PasswordHelperCapture.php": {
-    "owner": "Tablo\\Tests\\Support\\PasswordHelperCapture",
+  "tests/Server/EngineMigrationDuplicateDdlTest.php": {
+    "owner": "Selected real-engine synthetic native evidence",
     "consumers": [
       "Composer lint",
       "Composer analyze",
-      "Composer verify",
-      "tests/Network/PasswordHelperTest.php",
-      "tests/Network/PasswordHelperDiagnosticsTest.php",
-      "tests/Network/PasswordHelperRetentionTest.php",
-      "Native dashboard.setup/login/change_admin_password attachment"
+      "Composer verify:server"
     ]
   },
-  "tests/Support/PasswordHelperCase.php": {
-    "owner": "Tablo\\Tests\\Support\\PasswordHelperCase",
+  "tests/Server/EngineMigrationDeniedRemainingDdlTest.php": {
+    "owner": "Selected real-engine synthetic native evidence",
     "consumers": [
       "Composer lint",
       "Composer analyze",
-      "Composer verify",
-      "tests/Network/PasswordHelperTest.php",
-      "tests/Network/PasswordHelperDiagnosticsTest.php",
-      "tests/Network/PasswordHelperRetentionTest.php",
-      "Native dashboard.setup/login/change_admin_password attachment"
+      "Composer verify:server"
     ]
   },
-  "tests/Support/PasswordHelperEvidence.php": {
-    "owner": "Tablo\\Tests\\Support\\PasswordHelperEvidence",
+  "tests/Server/EngineMigrationDuplicateRemainingDdlTest.php": {
+    "owner": "Selected real-engine synthetic native evidence",
     "consumers": [
       "Composer lint",
       "Composer analyze",
-      "Composer verify",
-      "tests/Network/PasswordHelperTest.php",
-      "tests/Network/PasswordHelperDiagnosticsTest.php",
-      "tests/Network/PasswordHelperRetentionTest.php",
-      "Native dashboard.setup/login/change_admin_password attachment"
+      "Composer verify:server"
     ]
   },
-  "tests/Support/PasswordHelperEvidenceFiles.php": {
-    "owner": "Tablo\\Tests\\Support\\PasswordHelperEvidenceFiles",
+  "tools/ServerFixturePlan.php": {
+    "owner": "Finite positive-owned eight-slot selected-engine fixture declaration",
+    "consumers": [
+      "tools/verify-server.php",
+      "tools/server-cell.php",
+      "tests/Server/EngineFixtureSafetyTest.php",
+      "Composer lint",
+      "Composer analyze",
+      ".github/workflows/verify.yml",
+      "docs/database-engines.md",
+      "tools/server-supervisor.cjs"
+    ]
+  },
+  "tools/ServerFixtureCatalog.php": {
+    "owner": "Positive-owned finite fixture grants and refusal to reuse failed or unclosed native slots",
+    "consumers": [
+      "tools/verify-server.php",
+      "tools/server-cell.php",
+      "tests/Server/EngineFixtureSafetyTest.php",
+      "Composer lint",
+      "Composer analyze",
+      ".github/workflows/verify.yml",
+      "docs/database-engines.md",
+      "tests/Server/EngineObserverAuditTest.php"
+    ]
+  },
+  "tools/server-cell.php": {
+    "owner": "Explicit finite native server-cell provisioning and positive-owned crash lifecycle",
+    "consumers": [
+      "tools/verify-server.php",
+      "tools/ServerFixtureCatalog.php",
+      "tests/ServerCross/EngineServerCrashTest.php",
+      "Composer lint",
+      "Composer analyze",
+      ".github/workflows/verify.yml",
+      "docs/database-engines.md",
+      "tools/server-supervisor.cjs",
+      "tests/Server/EngineObserverAuditTest.php"
+    ]
+  },
+  "tests/ServerCross/EngineServerCrashTest.php": {
+    "owner": "Real owned MySQL and MariaDB server crash durability and recognized journal resume",
+    "consumers": [
+      "tools/server-cell.php",
+      "tools/verify-server.php",
+      "tools/server-native-tests.json",
+      "Composer lint",
+      "Composer analyze",
+      "Composer verify:server --cross"
+    ]
+  },
+  "tools/server-supervisor.cjs": {
+    "owner": "Opt-in server monotonic parent and lease owner with authenticated adapter protocol and POSIX EOF guard",
+    "consumers": [
+      "tools/server-cell.php",
+      "tools/verify-server.php",
+      "tools/ServerFixturePlan.php",
+      "tools/server-supervisor-windows.ps1",
+      "Node --check",
+      "Node --self-test explicit neutral control lane",
+      "tests/Server/EngineFixtureSafetyTest.php",
+      ".github/workflows/verify.yml",
+      "docs/database-engines.md"
+    ]
+  },
+  "tools/server-supervisor-windows.ps1": {
+    "owner": "Opt-in Windows atomic suspended Job-assigned controller and exact native handle/status/custody adapter",
+    "consumers": [
+      "tools/server-supervisor.cjs",
+      "tools/ServerFixturePlan.php",
+      "PowerShell Parser.ParseFile static only",
+      "Explicit frozen Windows observer control packet",
+      ".github/workflows/verify.yml",
+      "docs/database-engines.md"
+    ]
+  },
+  "tests/Server/EngineObserverAuditTest.php": {
+    "owner": "Selected real-engine file-only observer evidence validation",
     "consumers": [
       "Composer lint",
       "Composer analyze",
-      "Composer verify",
-      "tests/Network/PasswordHelperTest.php",
-      "tests/Network/PasswordHelperDiagnosticsTest.php",
-      "tests/Network/PasswordHelperRetentionTest.php",
-      "Native dashboard.setup/login/change_admin_password attachment"
-    ]
-  },
-  "tests/Support/PasswordHelperEvidenceStart.php": {
-    "owner": "Tablo\\Tests\\Support\\PasswordHelperEvidenceStart",
-    "consumers": [
-      "Composer lint",
-      "Composer analyze",
-      "Composer verify",
-      "tests/Network/PasswordHelperTest.php",
-      "tests/Network/PasswordHelperDiagnosticsTest.php",
-      "tests/Network/PasswordHelperRetentionTest.php",
-      "Native dashboard.setup/login/change_admin_password attachment"
-    ]
-  },
-  "tests/Support/PasswordHelperFailureState.php": {
-    "owner": "Tablo\\Tests\\Support\\PasswordHelperFailureState",
-    "consumers": [
-      "Composer lint",
-      "Composer analyze",
-      "Composer verify",
-      "tests/Network/PasswordHelperTest.php",
-      "tests/Network/PasswordHelperDiagnosticsTest.php",
-      "tests/Network/PasswordHelperRetentionTest.php",
-      "Native dashboard.setup/login/change_admin_password attachment"
-    ]
-  },
-  "tests/fixtures/helper-diagnostic.php": {
-    "owner": "php-script:tests/fixtures/helper-diagnostic.php",
-    "consumers": [
-      "Composer lint",
-      "Composer analyze",
-      "Composer verify",
-      "tests/Network/PasswordHelperTest.php",
-      "tests/Network/PasswordHelperDiagnosticsTest.php",
-      "tests/Network/PasswordHelperRetentionTest.php",
-      "Native dashboard.setup/login/change_admin_password attachment"
-    ]
-  },
-  "tests/fixtures/password-helper-input.ps1": {
-    "owner": "powershell-script:tests/fixtures/password-helper-input.ps1",
-    "consumers": [
-      "Composer lint",
-      "Composer analyze",
-      "Composer verify",
-      "tests/Network/PasswordHelperTest.php",
-      "tests/Network/PasswordHelperDiagnosticsTest.php",
-      "tests/Network/PasswordHelperRetentionTest.php",
-      "Native dashboard.setup/login/change_admin_password attachment"
-    ]
-  },
-  "tests/Support/PasswordHelperDatabaseFixture.php": {
-    "owner": "Tablo\\Tests\\Support\\PasswordHelperDatabaseFixture",
-    "consumers": [
-      "Composer lint",
-      "Composer analyze",
-      "Composer verify",
-      "tests/Network/PasswordHelperRetentionTest.php",
-      "Private explicitly seeded synthetic database preservation; excluded from default helper artifact"
-    ]
-  },
-  "tests/Support/PasswordHelperDatabaseTarget.php": {
-    "owner": "Tablo\\Tests\\Support\\PasswordHelperDatabaseTarget",
-    "consumers": [
-      "Composer lint",
-      "Composer analyze",
-      "Composer verify",
-      "tests/Network/PasswordHelperRetentionTest.php",
-      "Private explicitly seeded synthetic database preservation; excluded from default helper artifact"
-    ]
-  },
-  "tests/Support/PasswordHelperDatabaseExport.php": {
-    "owner": "Tablo\\Tests\\Support\\PasswordHelperDatabaseExport",
-    "consumers": [
-      "Composer lint",
-      "Composer analyze",
-      "Composer verify",
-      "tests/Network/PasswordHelperRetentionTest.php",
-      "Private explicitly seeded synthetic database preservation; excluded from default helper artifact"
-    ]
-  },
-  "app/ApiSiteDto.php": {
-    "owner": "Read API and singleton token implementation",
-    "consumers": [
-      "Composer lint",
-      "Composer analyze",
-      "Composer verify",
-      "Native read API tests"
-    ]
-  },
-  "app/ApiSiteState.php": {
-    "owner": "Read API and singleton token implementation",
-    "consumers": [
-      "Composer lint",
-      "Composer analyze",
-      "Composer verify",
-      "Native read API tests"
-    ]
-  },
-  "app/read-api-repository.php": {
-    "owner": "Read API and singleton token implementation",
-    "consumers": [
-      "Composer lint",
-      "Composer analyze",
-      "Composer verify",
-      "Native read API tests"
-    ]
-  },
-  "app/read-api-token-repository.php": {
-    "owner": "Read API and singleton token implementation",
-    "consumers": [
-      "Composer lint",
-      "Composer analyze",
-      "Composer verify",
-      "Native read API tests"
-    ]
-  },
-  "app/read-api-token-schema.php": {
-    "owner": "Read API and singleton token implementation",
-    "consumers": [
-      "Composer lint",
-      "Composer analyze",
-      "Composer verify",
-      "Native read API tests"
-    ]
-  },
-  "app/ReadApi.php": {
-    "owner": "Read API and singleton token implementation",
-    "consumers": [
-      "Composer lint",
-      "Composer analyze",
-      "Composer verify",
-      "Native read API tests"
-    ]
-  },
-  "app/ReadApiConnection.php": {
-    "owner": "Read API and singleton token implementation",
-    "consumers": [
-      "Composer lint",
-      "Composer analyze",
-      "Composer verify",
-      "Native read API tests"
-    ]
-  },
-  "app/ReadApiRepository.php": {
-    "owner": "Read API and singleton token implementation",
-    "consumers": [
-      "Composer lint",
-      "Composer analyze",
-      "Composer verify",
-      "Native read API tests"
-    ]
-  },
-  "app/ReadApiRequest.php": {
-    "owner": "Read API and singleton token implementation",
-    "consumers": [
-      "Composer lint",
-      "Composer analyze",
-      "Composer verify",
-      "Native read API tests"
-    ]
-  },
-  "app/ReadApiResponse.php": {
-    "owner": "Read API and singleton token implementation",
-    "consumers": [
-      "Composer lint",
-      "Composer analyze",
-      "Composer verify",
-      "Native read API tests"
-    ]
-  },
-  "app/ReadApiSchemaAdmission.php": {
-    "owner": "Read API and singleton token implementation",
-    "consumers": [
-      "Composer lint",
-      "Composer analyze",
-      "Composer verify",
-      "Native read API tests"
-    ]
-  },
-  "app/ReadApiToken.php": {
-    "owner": "Read API and singleton token implementation",
-    "consumers": [
-      "Composer lint",
-      "Composer analyze",
-      "Composer verify",
-      "Native read API tests"
-    ]
-  },
-  "app/ReadApiTokenPages.php": {
-    "owner": "Read API and singleton token implementation",
-    "consumers": [
-      "Composer lint",
-      "Composer analyze",
-      "Composer verify",
-      "Native read API tests"
-    ]
-  },
-  "app/ReadApiTokenRepository.php": {
-    "owner": "Read API and singleton token implementation",
-    "consumers": [
-      "Composer lint",
-      "Composer analyze",
-      "Composer verify",
-      "Native read API tests"
-    ]
-  },
-  "app/ReadApiTokenSchema.php": {
-    "owner": "Read API and singleton token implementation",
-    "consumers": [
-      "Composer lint",
-      "Composer analyze",
-      "Composer verify",
-      "Native read API tests"
-    ]
-  },
-  "contracts/read-api-v1.schema.json": {
-    "owner": "Version 1 external read contract",
-    "consumers": [
-      "Read API documentation and privacy review"
-    ]
-  },
-  "docs/read-api.md": {
-    "owner": "Version 1 external read contract",
-    "consumers": [
-      "Read API documentation and privacy review"
-    ]
-  },
-  "tests/fixtures/read-api-router.php": {
-    "owner": "Read API synthetic acceptance evidence",
-    "consumers": [
-      "Composer lint",
-      "Composer analyze",
-      "Composer verify",
-      "Native read API tests"
-    ]
-  },
-  "tests/Http/ReadApiAuthenticationTest.php": {
-    "owner": "Read API synthetic acceptance evidence",
-    "consumers": [
-      "Composer lint",
-      "Composer analyze",
-      "Composer verify",
-      "Native read API tests"
-    ]
-  },
-  "tests/Http/ReadApiHttpTest.php": {
-    "owner": "Read API synthetic acceptance evidence",
-    "consumers": [
-      "Composer lint",
-      "Composer analyze",
-      "Composer verify",
-      "Native read API tests"
-    ]
-  },
-  "tests/Http/ReadApiParametersTest.php": {
-    "owner": "Read API synthetic acceptance evidence",
-    "consumers": [
-      "Composer lint",
-      "Composer analyze",
-      "Composer verify",
-      "Native read API tests"
-    ]
-  },
-  "tests/Http/ReadApiPrivacyTest.php": {
-    "owner": "Read API synthetic acceptance evidence",
-    "consumers": [
-      "Composer lint",
-      "Composer analyze",
-      "Composer verify",
-      "Native read API tests"
-    ]
-  },
-  "tests/Http/ReadApiSessionContractTest.php": {
-    "owner": "Read API synthetic acceptance evidence",
-    "consumers": [
-      "Composer lint",
-      "Composer analyze",
-      "Composer verify",
-      "Native read API tests"
-    ]
-  },
-  "tests/Http/ReadApiTokenManagementTest.php": {
-    "owner": "Read API synthetic acceptance evidence",
-    "consumers": [
-      "Composer lint",
-      "Composer analyze",
-      "Composer verify",
-      "Native read API tests"
-    ]
-  },
-  "tests/Network/ReadApiBoundaryTest.php": {
-    "owner": "Read API synthetic acceptance evidence",
-    "consumers": [
-      "Composer lint",
-      "Composer analyze",
-      "Composer verify",
-      "Native read API tests"
-    ]
-  },
-  "tests/Support/ReadApiAssertions.php": {
-    "owner": "Read API synthetic acceptance evidence",
-    "consumers": [
-      "Composer lint",
-      "Composer analyze",
-      "Composer verify",
-      "Native read API tests"
-    ]
-  },
-  "tests/Support/ReadApiFixture.php": {
-    "owner": "Read API synthetic acceptance evidence",
-    "consumers": [
-      "Composer lint",
-      "Composer analyze",
-      "Composer verify",
-      "Native read API tests"
-    ]
-  },
-  "tests/Unit/ApiSiteDtoTest.php": {
-    "owner": "Read API synthetic acceptance evidence",
-    "consumers": [
-      "Composer lint",
-      "Composer analyze",
-      "Composer verify",
-      "Native read API tests"
-    ]
-  },
-  "tests/Unit/ReadApiRepositoryTest.php": {
-    "owner": "Read API synthetic acceptance evidence",
-    "consumers": [
-      "Composer lint",
-      "Composer analyze",
-      "Composer verify",
-      "Native read API tests"
-    ]
-  },
-  "tests/Unit/ReadApiRequestTest.php": {
-    "owner": "Read API synthetic acceptance evidence",
-    "consumers": [
-      "Composer lint",
-      "Composer analyze",
-      "Composer verify",
-      "Native read API tests"
-    ]
-  },
-  "tests/Unit/ReadApiSchemaTest.php": {
-    "owner": "Read API synthetic acceptance evidence",
-    "consumers": [
-      "Composer lint",
-      "Composer analyze",
-      "Composer verify",
-      "Native read API tests"
-    ]
-  },
-  "tests/Unit/ReadApiTokenMigrationTest.php": {
-    "owner": "Read API synthetic acceptance evidence",
-    "consumers": [
-      "Composer lint",
-      "Composer analyze",
-      "Composer verify",
-      "Native read API tests"
-    ]
-  },
-  "tests/Unit/ReadApiTokenTest.php": {
-    "owner": "Read API synthetic acceptance evidence",
-    "consumers": [
-      "Composer lint",
-      "Composer analyze",
-      "Composer verify",
-      "Native read API tests"
-    ]
-  },
-  "views/read-api-token-issued.volt": {
-    "owner": "Version 1 external read contract",
-    "consumers": [
-      "Read API documentation and privacy review"
+      "Composer verify:server"
     ]
   }
 }

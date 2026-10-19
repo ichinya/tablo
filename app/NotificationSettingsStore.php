@@ -18,6 +18,10 @@ final class NotificationSettingsStore
     }
     public function activation(int $activation): int
     {
+                    if (DatabaseSession::server($this->db)) {
+                        $statement = SqlStatement::checked($this->db->query('SELECT committed_history_high_watermark FROM tablo_database_state WHERE id = 1'));
+                        try { return max($activation, DatabaseInteger::checked($statement->fetchColumn())); } finally { $statement->closeCursor(); }
+                    }
                     // Actual v5 history is AUTOINCREMENT. Its committed allocation survives pruning.
                     $statement = \Tablo\SqlStatement::checked($this->db->query("SELECT COALESCE((SELECT seq FROM sqlite_sequence WHERE name='check_history'),0)"));
                     try { return max($activation,(int)$statement->fetchColumn()); } finally { $statement->closeCursor(); }

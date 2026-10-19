@@ -34,14 +34,14 @@ final class NotificationSettings
         if (!$lock->acquire($this->db)) { throw ValidationException::field(field: 'notifications', message: 'Доставка выполняется. Повторите сохранение после её завершения.'); }
         try {
             // BEGIN refusal leaves caller-owned work untouched.
-            $this->db->exec('BEGIN IMMEDIATE');
+            $transaction = WriteTransaction::begin($this->db);
             try {
                 $old = $store->current();
                 if ($old['revision'] !== (int) $revision) { throw ValidationException::field(field: 'notifications', message: 'Настройки изменились. Обновите страницу.'); }
                 $this->vault->assertAvailable(KeyRequirement::forDatabase($this->db));
                 $change = NotificationChange::prepare($old, $form, $this->vault);
                 $reconfigure = $change->reconfigure; $metadata = $change->metadata;
-                if (!$reconfigure && !$metadata) { $this->db->exec('COMMIT'); return; }
+                if (!$reconfigure && !$metadata) { $transaction->commit(); return; }
                 $activation = $old['activation_id'];
                 if ($reconfigure) {
                     $activation = $store->activation($activation);
@@ -51,9 +51,9 @@ final class NotificationSettings
                     $store->cancel();
                 }
                 if (!$reconfigure) { (new NotificationMetadataRefresh($this->db, $this->vault))->refresh($flags,$old['revision']); }
-                $this->db->exec('COMMIT');
+                $transaction->commit();
             } catch (\Throwable $error) {
-                try { $this->db->exec('ROLLBACK'); } catch (\Throwable $discardedCleanup) {  unset($discardedCleanup); }
+                $transaction->rollbackPreserving();
                 throw $error;
             }
         } finally { $lock->close(); }
