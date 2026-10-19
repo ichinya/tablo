@@ -55,6 +55,7 @@ function database_transfer_verification_scratch(PDO $scratch, #[\SensitiveParame
     foreach (DatabaseTransferManifest::tables() as $index => $table) {
         $receipt = $header['tables'][$index] ?? throw new DatabaseFailure('schema');
         foreach (DatabaseTransferArchive::read($directory, $table, $receipt) as $values) { DatabaseTransferPreflight::row($scratch, $table, $values); }
+        DatabaseTransferPreflight::rowEnvelope($scratch, $table);
     }
     DatabaseTransferPreflight::quiescent($scratch);
     if (DatabaseTransferSequence::watermark($scratch) > $header['watermark']) { throw new DatabaseFailure('schema'); }

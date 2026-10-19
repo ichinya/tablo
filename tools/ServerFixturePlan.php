@@ -12,6 +12,7 @@ use Tablo\SqlColumn;
  */
 final class ServerFixturePlan
 {
+    public const INITIAL_STATES = ['empty', 'ready', 'metadata-table', 'metadata-view', 'metadata-trigger', 'metadata-routine', 'metadata-event', 'metadata-limited', 'metadata-role'];
     /** @return list<string> */
     public static function slots(string $nonce, string $engine): array
     { return server_fixture_plan_slots($nonce, $engine); }
@@ -19,6 +20,12 @@ final class ServerFixturePlan
     /** @return array{writer: string, reader: string, migrator: string, deniedDdl: string} */
     public static function accounts(string $nonce, string $engine): array
     { return server_fixture_plan_accounts($nonce, $engine); }
+
+    public static function metadataAccount(string $nonce, string $engine, string $catalog): string
+    {
+        if (!in_array($catalog, self::slots($nonce, $engine), strict: true)) { throw new RuntimeException('Owned metadata catalog refused.'); }
+        return 'tm39_' . substr($catalog, offset: 5);
+    }
 
     /** Every physical slot may occur once in a native case; reuse is a separate closed-case protocol.
      * @return list<Fixture> */
@@ -30,7 +37,7 @@ final class ServerFixturePlan
     { server_fixture_plan_runtime($directory, $nonce); }
 
     /** Pure lifecycle declaration: no daemon, credentials, application bootstrap or database open.
-     * @param array{engine: string, cross: bool, pull: bool, output: string} $options */
+     * @param array{engine: string, cross: bool, pull: bool, output: string, diagnostic: bool} $options */
     public static function cell(string $root, array $options): array
     { return server_fixture_plan_cell($root, $options); }
 
@@ -58,10 +65,11 @@ function server_fixture_plan_source_paths(array $names): array
     return $paths;
 }
 
-/** @param array{engine: string, cross: bool, pull: bool, output: string} $options */
+/** @param array{engine: string, cross: bool, pull: bool, output: string, diagnostic: bool} $options */
 function server_fixture_plan_cell(string $root, array $options): array
 {
-    $nonce = bin2hex(random_bytes(16)); $engine = $options['engine'];
+    $engine = $options['engine']; $executionMode = $options['diagnostic'] ? 'diagnostic-only' : 'qualified';
+    $nonce = server_fixture_plan_nonce($executionMode, getenv('TABLO_SERVER_CELL_NONCE'));
     server_fixture_plan_selection($nonce, $engine);
     if ($options['cross'] && [$engine, PHP_MAJOR_VERSION, PHP_MINOR_VERSION] !== ['mysql', 8, 5]) { throw new RuntimeException('Mandatory cross cell is MySQL/PHP8.5 only.'); }
     $output = $options['output'];
@@ -72,18 +80,31 @@ function server_fixture_plan_cell(string $root, array $options): array
     $pins = JsonRecord::decode(\Tablo\RequiredFile::bytes(file_get_contents($root . '/deploy/database-engines.json')));
     $engines = $options['cross'] ? ['mysql', 'mariadb'] : [$engine]; $services = [];
     foreach ($engines as $name) { $services[$name] = server_fixture_plan_service($nonce, $name, JsonRecord::checked($pins[$name] ?? null), $runtime); }
-    return ['schema' => 'tablo/server-cell-start/v1', 'nonce' => $nonce, 'selectedEngine' => $engine, 'cross' => $options['cross'], 'allowPull' => $options['pull'],
+    return ['schema' => 'tablo/server-cell-start/v1', 'executionMode' => $executionMode, 'nonce' => $nonce, 'selectedEngine' => $engine, 'cross' => $options['cross'], 'allowPull' => $options['pull'],
         'sourceInput' => $root, 'source' => $runtime . '/source', 'runtime' => $runtime, 'ini' => $runtime . '/private/php.ini',
         'key' => $runtime . '/private/installation.bin', 'ca' => $runtime . '/private/tls/ca.pem', 'services' => $services,
         'limits' => ['catalogsPerEngine' => 8, 'originalCatalogCeiling' => 64, 'connections' => 8, 'children' => 11,
             'pullSeconds' => 300, 'serviceSeconds' => 180, 'authenticatedPdoSeconds' => 30, 'fixtureSeconds' => 30,
             'nativeSeconds' => 8, 'httpSeconds' => 20, 'cleanupSeconds' => 30, 'overallSeconds' => 1800],
         'allowServerCrash' => $options['cross'], 'sourceState' => 'DECLARATION_ONLY_NOT_EXECUTED',
-        'observer' => server_fixture_plan_observer($root, $runtime, $nonce)] + server_fixture_plan_docker($runtime) + server_fixture_plan_inputs($root);
+        'observer' => server_fixture_plan_observer($root, $runtime, $nonce, $executionMode)] + server_fixture_plan_docker($runtime) + server_fixture_plan_inputs($root);
+}
+
+/** Qualified cells receive one explicitly prepared nonce before qualification, never one adopted from a receipt. */
+function server_fixture_plan_nonce(string $executionMode, string|false $supplied): string
+{
+    if ($executionMode === 'diagnostic-only') {
+        if ($supplied !== false) { throw new RuntimeException('Diagnostic-only nonce override refused.'); }
+        return bin2hex(random_bytes(16));
+    }
+    if ($executionMode !== 'qualified' || !is_string($supplied) || preg_match('/\A[0-9a-f]{32}\z/D', $supplied) !== 1) {
+        throw new RuntimeException('Explicit fresh qualified cell nonce required.');
+    }
+    return $supplied;
 }
 
 /** The observer is an explicit opt-in tool; production and the SQLite verifier never select it. */
-function server_fixture_plan_observer(string $root, string $runtime, string $nonce): array
+function server_fixture_plan_observer(string $root, string $runtime, string $nonce, string $executionMode): array
 {
     $port = getenv('TABLO_TEST_OBSERVER_PORT');
     if (!is_string($port) || preg_match('/\A[0-9]{4,5}\z/D', $port) !== 1 || (int) $port < 1024 || (int) $port > 65_535 || $port === '8087') {
@@ -102,7 +123,231 @@ function server_fixture_plan_observer(string $root, string $runtime, string $non
         'phases' => server_fixture_plan_observer_phases($base),
         'processGraph' => ['owner' => 1, 'adapter' => 1, 'scope' => 9, 'maximumTotal' => 11,
             'baseline' => ['composer', 'composer-command-shell', 'sqlite-verifier', 'testo', 'endpoint-server', 'web-server', 'independent-web-server', 'session-request', 'password-cli'],
-            'server' => ['cell-with-callable-verifier', 'testo', 'fixture', 'peer-fixture', 'helper', 'reserved']]] + $bootstrap;
+            'server' => ['cell-with-callable-verifier', 'testo', 'fixture', 'peer-fixture', 'helper', 'reserved']]] + $bootstrap
+        + server_fixture_plan_linux_inputs($root, $executionMode, $nonce, $bootstrap['bootstrapIniFiles'] ?? null);
+}
+
+function server_fixture_plan_linux_inputs(string $root, string $executionMode, string $nonce = '', mixed $iniFiles = null): array
+{
+    if (!in_array($executionMode, ['diagnostic-only', 'qualified'], strict: true)) { throw new RuntimeException('Explicit execution mode required.'); }
+    if ($executionMode === 'diagnostic-only' || PHP_OS_FAMILY === 'Windows') { return []; }
+    if (PHP_OS_FAMILY !== 'Linux' || php_uname('m') !== 'x86_64') { throw new RuntimeException('Qualified Linux X64 adapter required.'); }
+    $shell = server_fixture_plan_linux_shell();
+    $binary = server_fixture_plan_linux_file('TABLO_SERVER_LINUX_ADAPTER');
+    $build = server_fixture_plan_linux_file('TABLO_SERVER_LINUX_BUILD');
+    $qualification = server_fixture_plan_linux_qualification($nonce);
+    if (!is_executable($binary['path'])) { throw new RuntimeException('Executable Linux adapter required.'); }
+    $sourcePath = server_fixture_plan_source_path($root, name: 'tools/server-supervisor-linux.c');
+    $recipePath = server_fixture_plan_source_path($root, name: 'tools/server-supervisor-linux-build.sh');
+    $source = ['path' => $sourcePath, 'sha256' => \Tablo\RequiredFile::digest($sourcePath)];
+    $recipe = ['path' => $recipePath, 'sha256' => \Tablo\RequiredFile::digest($recipePath)];
+    $inputs = ['linuxAdapter' => $binary, 'linuxAdapterSource' => $source, 'linuxAdapterRecipe' => $recipe, 'linuxAdapterBuild' => $build, 'linuxAdapterQualification' => $qualification];
+    $controls = server_fixture_plan_source_path($root, name: 'tools/server-supervisor-linux-controls.c');
+    server_fixture_plan_linux_provenance($inputs, $nonce, \Tablo\RequiredFile::digest($controls), server_fixture_plan_linux_runtimes($shell));
+    return ['bootstrapExtensionFiles' => server_fixture_plan_php_modules($iniFiles), 'linuxShell' => $shell] + $inputs;
+}
+
+/** @return array{path: string, sha256: string} */
+function server_fixture_plan_linux_shell(): array
+{
+    $shell = server_fixture_plan_linux_file('TABLO_SERVER_LINUX_SHELL');
+    $canonical = realpath($shell['path']);
+    if ($canonical === false || str_replace('\\', replace: '/', subject: $canonical) !== $shell['path'] || !is_executable($shell['path'])) {
+        throw new RuntimeException('Canonical regular Linux command shell required.');
+    }
+    return $shell;
+}
+
+/** @return array{path: string, sha256: string} */
+function server_fixture_plan_linux_file(string $selector): array
+{
+    $file = server_fixture_plan_tool($selector); $digest = getenv($selector . '_SHA256');
+    if (!is_string($digest) || preg_match('/\A[0-9a-f]{64}\z/D', $digest) !== 1 || !hash_equals($file['sha256'], $digest)) { throw new RuntimeException('Exact Linux adapter input digest required.'); }
+    return $file;
+}
+
+/** The selected qualification may be opened only inside its explicit nonce root.
+ * @return array{path: string, sha256: string} */
+function server_fixture_plan_linux_qualification(string $nonce): array
+{
+    $path = getenv('TABLO_SERVER_LINUX_QUALIFICATION');
+    if (!is_string($path) || preg_match('/\A[0-9a-f]{32}\z/D', $nonce) !== 1
+        || basename(dirname($path)) !== 'tablo-linux-' . $nonce || basename($path) !== 'qualification.json') {
+        throw new RuntimeException('Explicit nonce-owned qualification required.');
+    }
+    server_fixture_plan_linux_regular($path);
+    return server_fixture_plan_linux_file('TABLO_SERVER_LINUX_QUALIFICATION');
+}
+
+/** Only the explicitly selected prepared manifest is read; no configuration discovery or module load.
+ * @return list<array{path: string, sha256: string}> */
+function server_fixture_plan_php_modules(mixed $iniFiles): array
+{
+    $path = getenv('TABLO_SERVER_PHP_BOOTSTRAP_MODULES');
+    if (!is_string($path)) { throw new RuntimeException('Prepared PHP bootstrap module manifest required.'); }
+    server_fixture_plan_linux_regular($path);
+    $selected = server_fixture_plan_linux_file('TABLO_SERVER_PHP_BOOTSTRAP_MODULES');
+    $bytes = \Tablo\RequiredFile::bytes(file_get_contents($selected['path'], length: 131_073));
+    $extensions = server_fixture_plan_php_module_decode($bytes, $iniFiles);
+    foreach ($extensions as $pin) {
+        server_fixture_plan_linux_regular($pin['path']);
+        if (!hash_equals($pin['sha256'], \Tablo\RequiredFile::digest($pin['path']))) { throw new RuntimeException('Prepared PHP extension file changed.'); }
+    }
+    return $extensions;
+}
+
+/** Preserve JSON object/list distinctions, including an empty extension list.
+ * @return list<array{path: string, sha256: string}> */
+function server_fixture_plan_php_module_decode(string $bytes, mixed $iniFiles): array
+{
+    if (strlen($bytes) > 131_072) { throw new RuntimeException('PHP bootstrap module manifest envelope exceeded.'); }
+    try {
+        /** @var mixed $decoded Native JSON values need explicit object/list admission. */
+        $decoded = json_decode($bytes, associative: false, depth: 16, flags: JSON_THROW_ON_ERROR);
+    } catch (\JsonException $discarded) { unset($discarded); throw new RuntimeException('Malformed prepared PHP module JSON.'); }
+    if (!$decoded instanceof \stdClass) { throw new RuntimeException('Prepared PHP module JSON object required.'); }
+    $record = get_object_vars($decoded);
+    foreach (['iniFiles', 'extensionFiles'] as $field) {
+        /** @var mixed $entries The decoded list must not be an empty JSON object. */
+        $entries = $record[$field] ?? null;
+        if (!is_array($entries) || count($entries) > 128) { throw new RuntimeException('Finite prepared PHP module JSON lists required.'); }
+        $pins = [];
+        /** @var mixed $entry Each array item must be a JSON pin object. */
+        foreach ($entries as $entry) {
+            if (!$entry instanceof \stdClass) { throw new RuntimeException('Prepared PHP module JSON pin object required.'); }
+            $pins[] = get_object_vars($entry);
+        }
+        $record[$field] = $pins;
+    }
+    return server_fixture_plan_php_module_record($record, $iniFiles);
+}
+
+/** Prepared module selection is not a PHP or Composer capability proof.
+ * @return list<array{path: string, sha256: string}> */
+function server_fixture_plan_php_module_record(array $record, mixed $iniFiles): array
+{
+    if (array_keys($record) !== ['schema', 'iniFiles', 'extensionFiles'] || ($record['schema'] ?? null) !== 'tablo/php-bootstrap-modules/v1') {
+        throw new RuntimeException('Exact prepared PHP module manifest required.');
+    }
+    $expected = server_fixture_plan_php_module_pins($iniFiles);
+    $actual = server_fixture_plan_php_module_pins($record['iniFiles'] ?? null);
+    if ($expected === [] || \Tablo\JsonEncoding::encode($actual) !== \Tablo\JsonEncoding::encode($expected)) {
+        throw new RuntimeException('Prepared PHP INI pins differ from selected bootstrap.');
+    }
+    return server_fixture_plan_php_module_pins($record['extensionFiles'] ?? null);
+}
+
+/** Pure shape/path checks preserve the explicit load order; no mentioned path is opened here.
+ * @return list<array{path: string, sha256: string}> */
+function server_fixture_plan_php_module_pins(mixed $value): array
+{
+    if (!is_array($value) || !array_is_list($value) || count($value) > 128) { throw new RuntimeException('Finite ordered PHP module pins required.'); }
+    $pins = []; $seen = [];
+    /** @var mixed $entry Each untrusted element needs its complete pin validation. */
+    foreach ($value as $entry) {
+        $pin = server_fixture_plan_linux_reference($entry);
+        if (array_key_exists($pin['path'], $seen) || str_contains($pin['path'], '"')) { throw new RuntimeException('Unique literal PHP bootstrap paths required.'); }
+        $seen[$pin['path']] = true; $pins[] = $pin;
+    }
+    return $pins;
+}
+
+/** Inspect only the positively selected regular input, after lexical path admission. */
+function server_fixture_plan_linux_regular(string $path): void
+{
+    server_fixture_plan_linux_path($path);
+    $cursor = '';
+    foreach (explode('/', ltrim($path, characters: '/')) as $part) {
+        $cursor .= '/' . $part;
+        if (is_link($cursor)) { throw new RuntimeException('Linked qualification input ancestor refused.'); }
+    }
+    if (!is_file($path) || realpath($path) !== $path) { throw new RuntimeException('Canonical regular qualification input required.'); }
+}
+
+/** @param array{path: string, sha256: string} $shell
+ * @return array<string, array{path: string, sha256: string}> */
+function server_fixture_plan_linux_runtimes(array $shell): array
+{
+    return ['node' => server_fixture_plan_tool('TABLO_TEST_NODE_BIN'),
+        'php' => ['path' => str_replace('\\', replace: '/', subject: PHP_BINARY), 'sha256' => \Tablo\RequiredFile::digest(PHP_BINARY)],
+        'composer' => server_fixture_plan_tool('TABLO_TEST_COMPOSER_PHAR'), 'shell' => $shell, 'docker' => server_fixture_plan_tool('TABLO_TEST_DOCKER_BIN')];
+}
+
+/** Structural binding only; actual proof/reference reads belong to the already armed native owner.
+ * @param array{linuxAdapter: array{path: string, sha256: string}, linuxAdapterSource: array{path: string, sha256: string}, linuxAdapterRecipe: array{path: string, sha256: string}, linuxAdapterBuild: array{path: string, sha256: string}, linuxAdapterQualification: array{path: string, sha256: string}} $inputs
+ * @param array<string, array{path: string, sha256: string}> $runtimes */
+function server_fixture_plan_linux_provenance(array $inputs, string $nonce, string $controlsSourceSha256, array $runtimes): void
+{
+    $binary = $inputs['linuxAdapter']; $source = $inputs['linuxAdapterSource']; $recipe = $inputs['linuxAdapterRecipe'];
+    $build = $inputs['linuxAdapterBuild']; $qualification = $inputs['linuxAdapterQualification'];
+    $b = server_fixture_plan_linux_receipt($build, schema: 'tablo/linux-adapter-build/v1', keys: ['schema', 'policy', 'target', 'sourceSha256', 'recipeSha256', 'binarySha256', 'compilerImageDigest', 'compilerSha256', 'linkerSha256', 'libcArchiveSha256']);
+    $q = server_fixture_plan_linux_receipt($qualification, schema: 'tablo/linux-adapter-qualification/v2', keys: ['schema', 'policy', 'status', 'binarySha256', 'sourceSha256', 'recipeSha256', 'buildSha256', 'controlsSourceSha256', 'controlsBinarySha256', 'runtimeControlsSha256', 'platformReceiptSha256', 'nonce', 'runtimes', 'runtimeControls', 'platformReceipt', 'neutralControls']);
+    if ([$b['target'] ?? null, $q['status'] ?? null, $q['nonce'] ?? null, $q['controlsSourceSha256'] ?? null] !== ['linux-x86_64', 'qualified', $nonce, $controlsSourceSha256]
+        || [$b['sourceSha256'] ?? null, $b['recipeSha256'] ?? null, $b['binarySha256'] ?? null] !== [$source['sha256'], $recipe['sha256'], $binary['sha256']]
+        || [$q['sourceSha256'] ?? null, $q['recipeSha256'] ?? null, $q['binarySha256'] ?? null, $q['buildSha256'] ?? null] !== [$source['sha256'], $recipe['sha256'], $binary['sha256'], $build['sha256']]
+        || preg_match('/\Asha256:[0-9a-f]{64}\z/D', SqlColumn::string($b, 'compilerImageDigest')) !== 1) { throw new RuntimeException('Linux adapter build/qualification identity mismatch.'); }
+    server_fixture_plan_linux_runtime_binding($q, $runtimes);
+    server_fixture_plan_linux_references($q, dirname($qualification['path']));
+}
+
+/** @param array<string, array{path: string, sha256: string}> $runtimes */
+function server_fixture_plan_linux_runtime_binding(array $qualification, array $runtimes): void
+{
+    $actual = JsonRecord::checked($qualification['runtimes'] ?? null);
+    if (array_keys($actual) !== ['node', 'php', 'composer', 'shell', 'docker']) { throw new RuntimeException('Exact qualification runtimes required.'); }
+    foreach (array_keys($actual) as $name) {
+        if (server_fixture_plan_linux_reference($actual[$name] ?? null) !== ($runtimes[$name] ?? null)) {
+            throw new RuntimeException('Current selected qualification runtime differs.');
+        }
+    }
+}
+
+/** No path mentioned by a qualification reference is opened by declaration. */
+function server_fixture_plan_linux_references(array $qualification, string $root): void
+{
+    foreach (['runtimeControls', 'platformReceipt', 'neutralControls'] as $name) {
+        $reference = server_fixture_plan_linux_reference($qualification[$name] ?? null);
+        if (!str_starts_with($reference['path'], $root . '/')
+            || ($name !== 'neutralControls' && $reference['sha256'] !== ($qualification[$name . 'Sha256'] ?? null))) {
+            throw new RuntimeException('Nonce-owned qualification reference required.');
+        }
+    }
+}
+
+/** @return array{path: string, sha256: string} */
+function server_fixture_plan_linux_reference(mixed $value): array
+{
+    $pin = JsonRecord::checked($value);
+    if (array_keys($pin) !== ['path', 'sha256']) { throw new RuntimeException('Exact qualification reference required.'); }
+    $path = SqlColumn::string($pin, 'path'); $digest = SqlColumn::string($pin, 'sha256');
+    server_fixture_plan_linux_path($path);
+    if (preg_match('/\A[0-9a-f]{64}\z/D', $digest) !== 1) { throw new RuntimeException('Qualification reference digest refused.'); }
+    return ['path' => $path, 'sha256' => $digest];
+}
+
+/** Lexical validation only: do not stat or open foreign reference values. */
+function server_fixture_plan_linux_path(string $path): void
+{
+    if (strlen($path) > 4096 || !str_starts_with($path, '/') || str_contains($path, '\\')
+        || preg_match('/[\x00-\x1f\x7f]/', $path) === 1) { throw new RuntimeException('Finite canonical qualification path required.'); }
+    foreach (array_slice(explode('/', $path), offset: 1) as $component) {
+        if (in_array($component, ['', '.', '..'], strict: true)) { throw new RuntimeException('Canonical qualification path components required.'); }
+    }
+}
+
+/** @param array{path: string, sha256: string} $file
+ * @param list<string> $keys */
+function server_fixture_plan_linux_receipt(array $file, string $schema, array $keys): array
+{
+    $bytes = \Tablo\RequiredFile::bytes(file_get_contents($file['path'], length: 16_385));
+    if (strlen($bytes) > 16_384) { throw new RuntimeException('Linux adapter receipt envelope exceeded.'); }
+    $record = JsonRecord::decode($bytes);
+    if (array_keys($record) !== $keys || [$record['schema'] ?? null, $record['policy'] ?? null] !== [$schema, 'tgid-seccomp-ptrace-x64-v1']) { throw new RuntimeException('Linux adapter receipt shape refused.'); }
+    foreach ($keys as $key) {
+        if (!str_ends_with($key, 'Sha256')) { continue; }
+        if (preg_match('/\A[0-9a-f]{64}\z/D', SqlColumn::string($record, $key)) !== 1) { throw new RuntimeException('Linux adapter receipt hash refused.'); }
+    }
+    return $record;
 }
 
 /** Each adapter has exactly one controller and its own never-reused protocol authority. */
@@ -215,6 +460,12 @@ function server_fixture_plan_source_manifest(string $root): array
 
 function server_fixture_plan_source_file(string $root, string $name, string $digest): void
 {
+    $path = server_fixture_plan_source_path($root, $name);
+    if (!hash_equals($digest, \Tablo\RequiredFile::digest($path))) { throw new RuntimeException('Frozen physical source changed.'); }
+}
+
+function server_fixture_plan_source_path(string $root, string $name): string
+{
     if ($name === '' || str_contains($name, '..') || str_contains($name, '\\') || str_contains($name, ':') || str_contains($name, "\0") || str_starts_with($name, '/')
         || preg_match('~\A(?:storage|artifacts|vendor|\.git)(?:/|\z)~D', $name) === 1 || preg_match('~(?:\A|/)\.env\z~D', $name) === 1) {
         throw new RuntimeException('Native source inventory contains an installation or unsafe path.');
@@ -226,7 +477,8 @@ function server_fixture_plan_source_file(string $root, string $name, string $dig
         if (is_link($cursor)) { throw new RuntimeException('Linked native source component refused.'); }
     }
     $path = $root . '/' . $name;
-    if (is_link($path) || !hash_equals($digest, \Tablo\RequiredFile::digest($path))) { throw new RuntimeException('Frozen physical source changed.'); }
+    if (!is_file($path)) { throw new RuntimeException('Regular native source file required.'); }
+    return $path;
 }
 
 /** Actual locked installed source references are required; this never installs or accesses a package network. */
@@ -304,7 +556,9 @@ function server_fixture_plan_fixture(array $record, string $selectedEngine, stri
     if ($lane === 'main' && $engine !== 'selected') { throw new RuntimeException('Main lane cannot silently start a peer engine.'); }
     if ($engine === 'selected') { $engine = $selectedEngine; }
     if (!in_array($engine, ['mysql', 'mariadb'], strict: true) || preg_match('/\A[a-z][a-z0-9-]{0,63}\z/D', $alias) !== 1
-        || !in_array($initial, ['empty', 'ready'], strict: true)) { throw new RuntimeException('Native fixture alias, engine or initial state refused.'); }
+        || !in_array($initial, ServerFixturePlan::INITIAL_STATES, strict: true)) {
+        throw new RuntimeException('Native fixture alias, engine or initial state refused.');
+    }
     return ['alias' => $alias, 'engine' => $engine, 'initial' => $initial];
 }
 

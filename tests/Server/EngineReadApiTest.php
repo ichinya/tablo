@@ -112,4 +112,59 @@ final class EngineReadApiTest
             Assert::same(count(ServerSchema::objects($maintenance)), 18);
         } finally { $fixture->close(); $engine->close(); }
     }
+
+    #[Test]
+    public function committedRotationWithLostAcknowledgementReturnsNoBearerAndRequiresFreshRotation(): void
+    { engine_read_api_uncertain_rotation(); }
+
+    #[Test]
+    public function sanitizedDatabaseFailuresSurviveRollbackAndUnrelatedErrorsStayGeneric(): void
+    {
+        $fixture = new EngineFixture('api-token-failures');
+        try {
+            $db = $fixture->database(); $password = FixtureCredentials::syntheticPassword();
+            (new \Tablo\Auth($db))->setup($password, $password);
+            $fingerprint = ReadApiTokenRepository::administrator($db) ?? throw new \RuntimeException('Synthetic administrator absent.');
+            $tokens = new ReadApiTokenRepository($db); $secret = $tokens->rotate($fingerprint, static fn (): bool => true);
+            $before = ServerSchema::rows($db, 'SELECT * FROM read_api_token');
+            $caught = null;
+            try { $tokens->revoke($fingerprint, static fn (): never => throw new \Tablo\DatabaseFailure('busy')); }
+            catch (\Tablo\DatabaseFailure $error) { $caught = $error; }
+            Assert::same($caught?->category, 'busy'); Assert::same($caught?->getPrevious(), null);
+            $failure = null;
+            try { $tokens->rotate($fingerprint, static fn (): never => throw new \RuntimeException('Synthetic private diagnostic.')); }
+            catch (\RuntimeException $error) { $failure = $error; }
+            Assert::same($failure?->getMessage(), 'Cannot update read API token.'); Assert::same($failure?->getPrevious(), null);
+            Assert::false($failure instanceof \Tablo\DatabaseFailure);
+            Assert::same(ServerSchema::rows($db, 'SELECT * FROM read_api_token'), $before);
+            Assert::true($tokens->authenticate($secret));
+            Assert::false($db->inTransaction()); Assert::false(\Tablo\WriteTransaction::owns($db));
+        } finally { $fixture->close(); }
+    }
+}
+
+function engine_read_api_uncertain_rotation(): void
+{
+    $fixture = new EngineFixture('api-token-uncertain');
+    try {
+        $db = $fixture->database(); $password = FixtureCredentials::syntheticPassword();
+        (new \Tablo\Auth($db))->setup($password, $password);
+        $fingerprint = ReadApiTokenRepository::administrator($db) ?? throw new \RuntimeException('Synthetic administrator absent.');
+        $tokens = new ReadApiTokenRepository($db); $old = $tokens->rotate($fingerprint, static fn (): bool => true);
+        $before = ServerSchema::rows($db, 'SELECT secret_hash FROM read_api_token');
+        $fault = new EngineReadApiCommitPdo($fixture); $fault->loseAcknowledgement = true;
+        $returned = null; $caught = null;
+        try { $returned = (new ReadApiTokenRepository($fault))->rotate($fingerprint, static fn (): bool => true); }
+        catch (\Tablo\DatabaseFailure $error) { $caught = $error; }
+        Assert::same($caught?->category, 'uncertain'); Assert::same($caught?->getMessage(), 'Storage outcome uncertain.');
+        Assert::same($caught?->getPrevious(), null); Assert::same($returned, null);
+        Assert::true($fault->committedWithoutAcknowledgement);
+        Assert::false($fault->inTransaction()); Assert::false(\Tablo\WriteTransaction::owns($fault));
+        Assert::false(ServerSchema::rows($db, 'SELECT secret_hash FROM read_api_token') === $before);
+        Assert::false($tokens->authenticate($old));
+        $replacement = $tokens->rotate($fingerprint, static fn (): bool => true);
+        Assert::true($tokens->authenticate($replacement)); Assert::false($tokens->authenticate($old));
+        $tokens->revoke($fingerprint, static fn (): bool => true);
+        Assert::false($tokens->authenticate($replacement));
+    } finally { $fixture->close(); }
 }

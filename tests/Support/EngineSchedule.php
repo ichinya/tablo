@@ -26,6 +26,7 @@ final class EngineSchedule
         }
         $environment['TABLO_DB_DRIVER'] = \Tablo\SqlColumn::string($manifest, 'engine');
         $environment['TABLO_DB_NAME'] = $catalog;
+        $environment['TABLO_DB_METADATA_USER'] = 'tm39_' . substr($catalog, offset: 5);
         $environment['TABLO_DB'] = '';
         $environment['TABLO_TOKEN_KEY_FILE'] = $directory . '/private/installation.bin';
         return $environment;

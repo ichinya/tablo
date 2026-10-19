@@ -41,7 +41,8 @@ final class EngineFixtureSafetyTest
         require_once dirname(__DIR__, levels: 2) . '/tools/ServerFixtureCatalog.php';
         $nonce = 'abcdef0123456789abcdef0123456789'; $attempts = 0; $primary = new \RuntimeException('synthetic administrative outcome unknown');
         $catalogs = new \Tablo\Tools\ServerFixtureCatalog($nonce, 'mysql', static function (#[\SensitiveParameter] string $sql) use (&$attempts, $primary): never { $attempts++; throw $primary; });
-        $passwords = ['writer' => str_repeat('a', times: 64), 'reader' => str_repeat('b', times: 64), 'migrator' => str_repeat('c', times: 64), 'deniedDdl' => str_repeat('d', times: 64)];
+        $passwords = ['writer' => str_repeat('a', times: 64), 'reader' => str_repeat('b', times: 64), 'migrator' => str_repeat('c', times: 64),
+            'deniedDdl' => str_repeat('d', times: 64), 'metadata' => str_repeat('e', times: 64)];
         $caught = null;
         try { $catalogs->bootstrap($passwords); } catch (\RuntimeException $error) { $caught = $error; }
         Assert::same($caught, $primary); Assert::same($attempts, 1);

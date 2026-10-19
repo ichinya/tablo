@@ -5,6 +5,15 @@ CREATE DATABASE tablo CHARACTER SET utf8mb4;
 CREATE USER 'tablo_writer'@'%' IDENTIFIED BY '<private-writer-password>' REQUIRE SSL;
 CREATE USER 'tablo_reader'@'%' IDENTIFIED BY '<private-reader-password>' REQUIRE SSL;
 CREATE USER 'tablo_migrator'@'%' IDENTIFIED BY '<private-migrator-password>' REQUIRE SSL;
+CREATE USER 'tablo_metadata'@'%' IDENTIFIED BY '<private-metadata-password>' REQUIRE SSL;
+
+-- Complete metadata identity: schema-wide SELECT and DDL-capable visibility grants.
+-- This is trusted authority, not a read-only account or a security isolation boundary.
+-- MySQL8.4 (partial_revokes must be OFF; no roles or grant option):
+GRANT SELECT, TRIGGER, EVENT, ALTER ROUTINE ON tablo.* TO 'tablo_metadata'@'%';
+-- MariaDB11.4: use this INSTEAD of the preceding MySQL grant:
+-- GRANT SELECT, TRIGGER, EVENT, SHOW CREATE ROUTINE ON tablo.* TO 'tablo_metadata'@'%';
+-- Escape every underscore as \_ in a catalog grant pattern; wildcards are refused.
 
 -- Migrator: this dedicated catalog only, including tables created during bootstrap.
 -- No global, account, FILE, EXECUTE or database-creation authority is granted.

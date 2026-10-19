@@ -36,6 +36,8 @@ services:
       TABLO_DB_PORT: "3306"
       TABLO_DB_MIGRATE_USER: "${TABLO_DB_MIGRATE_USER:?provide migrator account}"
       TABLO_DB_MIGRATE_PASSWORD: "${TABLO_DB_MIGRATE_PASSWORD:?provide private migrator password}"
+      TABLO_DB_METADATA_USER: "${TABLO_DB_METADATA_USER:?provide metadata account}"
+      TABLO_DB_METADATA_PASSWORD: "${TABLO_DB_METADATA_PASSWORD:?provide private metadata password}"
       TABLO_DB_TLS: verify
       TABLO_DB_TLS_CA: /run/secrets/database-ca
       TABLO_TOKEN_KEY_FILE: /run/secrets/tablo-key

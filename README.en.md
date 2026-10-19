@@ -438,7 +438,10 @@ explicit. See [Periodic worker](#periodic-worker) for the long-running process a
 SQLite remains the default, including the existing `TABLO_DB` filename/URI and
 adjacent-key behavior. Explicit MySQL 8.4 and MariaDB 11.4 deployments use
 `pdo_mysql`, a preprovisioned catalog, verified transport, separate writer/API
-reader/migrator credentials and an existing shared raw 32-byte external key.
+reader/migrator credentials, an explicit metadata account and an existing shared
+raw 32-byte external key. The metadata account has schema-wide read and some DDL
+authority for complete catalog admission; protect it as trusted authority and
+quiesce writers before privileged DDL or restore. It is not read-only isolation.
 Normal requests and workers open a ready installation; initialization and
 migration are explicit maintenance operations.
 

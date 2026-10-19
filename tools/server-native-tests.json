@@ -39,7 +39,8 @@
       "name": "Configuration",
       "lane": "main",
       "paths": [
-        "tests/Server/EngineConfigurationTest.php"
+        "tests/Server/EngineConfigurationTest.php",
+        "tests/Server/EngineMetadataAdmissionTest.php"
       ]
     },
     {
@@ -136,7 +137,9 @@
       "lane": "main",
       "paths": [
         "tests/Server/EngineMigrationAdmissionTest.php",
-        "tests/Server/EngineCheckAdmissionTest.php"
+        "tests/Server/EngineCheckAdmissionTest.php",
+        "tests/Server/EngineBoundaryAdmissionTest.php",
+        "tests/Server/EngineMetadataAdmissionTest.php"
       ]
     },
     {
@@ -2402,6 +2405,220 @@
         "minimumAssertions": 36,
         "deadlineSeconds": 8,
         "fixtures": []
+      },
+      {
+        "identity": "Tablo\\Tests\\Server\\EngineBoundaryAdmissionTest::foreignKeyToAnotherOwnedCatalogRefusesDespiteMatchingTableAndRowIds",
+        "path": "tests/Server/EngineBoundaryAdmissionTest.php",
+        "dataRows": [],
+        "minimumAssertions": 11,
+        "deadlineSeconds": 8,
+        "fixtures": [
+          {
+            "alias": "admission-foreign-catalog",
+            "engine": "selected",
+            "initial": "ready"
+          },
+          {
+            "alias": "admission-foreign-peer",
+            "engine": "selected",
+            "initial": "ready"
+          }
+        ]
+      },
+      {
+        "identity": "Tablo\\Tests\\Server\\EngineBoundaryAdmissionTest::emptyAndFlagReceiptValuesRefuseBeforeConfigurationKeyOrBootstrap",
+        "path": "tests/Server/EngineBoundaryAdmissionTest.php",
+        "dataRows": [],
+        "minimumAssertions": 14,
+        "deadlineSeconds": 8,
+        "fixtures": []
+      },
+      {
+        "identity": "Tablo\\Tests\\Server\\EngineTransferEnvelopeTest::selfConsistentAggregateOversizeRowRefusesBeforeAnyTargetStateChanges",
+        "path": "tests/Server/EngineTransferEnvelopeTest.php",
+        "dataRows": [],
+        "minimumAssertions": 14,
+        "deadlineSeconds": 8,
+        "fixtures": [
+          {
+            "alias": "transfer-import-row-envelope",
+            "engine": "selected",
+            "initial": "ready"
+          }
+        ]
+      },
+      {
+        "identity": "Tablo\\Tests\\Server\\EngineReadApiTest::committedRotationWithLostAcknowledgementReturnsNoBearerAndRequiresFreshRotation",
+        "path": "tests/Server/EngineReadApiTest.php",
+        "dataRows": [],
+        "minimumAssertions": 12,
+        "deadlineSeconds": 8,
+        "fixtures": [
+          {
+            "alias": "api-token-uncertain",
+            "engine": "selected",
+            "initial": "ready"
+          }
+        ]
+      },
+      {
+        "identity": "Tablo\\Tests\\Server\\EngineReadApiTest::sanitizedDatabaseFailuresSurviveRollbackAndUnrelatedErrorsStayGeneric",
+        "path": "tests/Server/EngineReadApiTest.php",
+        "dataRows": [],
+        "minimumAssertions": 9,
+        "deadlineSeconds": 8,
+        "fixtures": [
+          {
+            "alias": "api-token-failures",
+            "engine": "selected",
+            "initial": "ready"
+          }
+        ]
+      },
+      {
+        "identity": "Tablo\\Tests\\Server\\EngineMetadataAdmissionTest::hiddenTableRefusesBeforeTheFixedGrantWriterCanMutate",
+        "path": "tests/Server/EngineMetadataAdmissionTest.php",
+        "dataRows": [],
+        "minimumAssertions": 11,
+        "deadlineSeconds": 8,
+        "fixtures": [
+          {
+            "alias": "metadata-table",
+            "engine": "selected",
+            "initial": "metadata-table"
+          }
+        ]
+      },
+      {
+        "identity": "Tablo\\Tests\\Server\\EngineMetadataAdmissionTest::hiddenViewRefusesBeforeTheFixedGrantWriterCanMutate",
+        "path": "tests/Server/EngineMetadataAdmissionTest.php",
+        "dataRows": [],
+        "minimumAssertions": 11,
+        "deadlineSeconds": 8,
+        "fixtures": [
+          {
+            "alias": "metadata-view",
+            "engine": "selected",
+            "initial": "metadata-view"
+          }
+        ]
+      },
+      {
+        "identity": "Tablo\\Tests\\Server\\EngineMetadataAdmissionTest::triggerRefusesEvenWhenTheMysqlWriterCannotSeeItsRow",
+        "path": "tests/Server/EngineMetadataAdmissionTest.php",
+        "dataRows": [],
+        "minimumAssertions": 11,
+        "deadlineSeconds": 8,
+        "fixtures": [
+          {
+            "alias": "metadata-trigger",
+            "engine": "selected",
+            "initial": "metadata-trigger"
+          }
+        ]
+      },
+      {
+        "identity": "Tablo\\Tests\\Server\\EngineMetadataAdmissionTest::inertRoutineRefusesWithoutReadingOrExecutingItsBody",
+        "path": "tests/Server/EngineMetadataAdmissionTest.php",
+        "dataRows": [],
+        "minimumAssertions": 10,
+        "deadlineSeconds": 8,
+        "fixtures": [
+          {
+            "alias": "metadata-routine",
+            "engine": "selected",
+            "initial": "metadata-routine"
+          }
+        ]
+      },
+      {
+        "identity": "Tablo\\Tests\\Server\\EngineMetadataAdmissionTest::disabledEventRefusesWithoutDependingOnSchedulerState",
+        "path": "tests/Server/EngineMetadataAdmissionTest.php",
+        "dataRows": [],
+        "minimumAssertions": 10,
+        "deadlineSeconds": 8,
+        "fixtures": [
+          {
+            "alias": "metadata-event",
+            "engine": "selected",
+            "initial": "metadata-event"
+          }
+        ]
+      },
+      {
+        "identity": "Tablo\\Tests\\Server\\EngineMetadataAdmissionTest::revokedMetadataVisibilityRefusesRatherThanTreatingFilteredRowsAsAbsent",
+        "path": "tests/Server/EngineMetadataAdmissionTest.php",
+        "dataRows": [],
+        "minimumAssertions": 10,
+        "deadlineSeconds": 8,
+        "fixtures": [
+          {
+            "alias": "metadata-limited",
+            "engine": "selected",
+            "initial": "metadata-limited"
+          }
+        ]
+      },
+      {
+        "identity": "Tablo\\Tests\\Server\\EngineMetadataAdmissionTest::missingMetadataCredentialsNeverFallBackToWriterOrMigrator",
+        "path": "tests/Server/EngineMetadataAdmissionTest.php",
+        "dataRows": [],
+        "minimumAssertions": 5,
+        "deadlineSeconds": 8,
+        "fixtures": [
+          {
+            "alias": "metadata-missing",
+            "engine": "selected",
+            "initial": "ready"
+          }
+        ]
+      },
+      {
+        "identity": "Tablo\\Tests\\Server\\EngineMetadataAdmissionTest::anotherOwnedCatalogMetadataIdentityCannotAttestTheSelectedCatalog",
+        "path": "tests/Server/EngineMetadataAdmissionTest.php",
+        "dataRows": [],
+        "minimumAssertions": 6,
+        "deadlineSeconds": 8,
+        "fixtures": [
+          {
+            "alias": "metadata-cross",
+            "engine": "selected",
+            "initial": "ready"
+          },
+          {
+            "alias": "metadata-cross-peer",
+            "engine": "selected",
+            "initial": "ready"
+          }
+        ]
+      },
+      {
+        "identity": "Tablo\\Tests\\Server\\EngineMetadataAdmissionTest::completeObservationAdmitsTheUnchangedExactWriterGrantPolicy",
+        "path": "tests/Server/EngineMetadataAdmissionTest.php",
+        "dataRows": [],
+        "minimumAssertions": 11,
+        "deadlineSeconds": 8,
+        "fixtures": [
+          {
+            "alias": "metadata-positive",
+            "engine": "selected",
+            "initial": "ready"
+          }
+        ]
+      },
+      {
+        "identity": "Tablo\\Tests\\Server\\EngineMetadataAdmissionTest::evenAnInactiveGrantedRoleRefusesTheDirectMetadataProfile",
+        "path": "tests/Server/EngineMetadataAdmissionTest.php",
+        "dataRows": [],
+        "minimumAssertions": 11,
+        "deadlineSeconds": 8,
+        "fixtures": [
+          {
+            "alias": "metadata-role",
+            "engine": "selected",
+            "initial": "metadata-role"
+          }
+        ]
       }
     ],
     "cross": [
@@ -2525,7 +2742,8 @@
         "tests/Server/EngineKeyTest.php",
         "tests/Server/EngineLoginRaceTest.php",
         "tests/Server/EngineNativeFailureTest.php",
-        "tests/Server/EngineTransactionFailureTest.php"
+        "tests/Server/EngineTransactionFailureTest.php",
+        "tests/Server/EngineMetadataAdmissionTest.php"
       ],
       "cross": [],
       "requiredFamilies": [
@@ -2542,7 +2760,8 @@
         "tests/Server/EngineKeyTest.php",
         "tests/Server/EngineLoginRaceTest.php",
         "tests/Server/EngineNativeFailureTest.php",
-        "tests/Server/EngineTransactionFailureTest.php"
+        "tests/Server/EngineTransactionFailureTest.php",
+        "tests/Server/EngineMetadataAdmissionTest.php"
       ],
       "cross": [],
       "requiredFamilies": [
@@ -2559,7 +2778,8 @@
         "tests/Server/EngineKeyTest.php",
         "tests/Server/EngineLoginRaceTest.php",
         "tests/Server/EngineNativeFailureTest.php",
-        "tests/Server/EngineTransactionFailureTest.php"
+        "tests/Server/EngineTransactionFailureTest.php",
+        "tests/Server/EngineMetadataAdmissionTest.php"
       ],
       "cross": [],
       "requiredFamilies": [
@@ -2576,7 +2796,8 @@
         "tests/Server/EngineKeyTest.php",
         "tests/Server/EngineLoginRaceTest.php",
         "tests/Server/EngineNativeFailureTest.php",
-        "tests/Server/EngineTransactionFailureTest.php"
+        "tests/Server/EngineTransactionFailureTest.php",
+        "tests/Server/EngineMetadataAdmissionTest.php"
       ],
       "cross": [],
       "requiredFamilies": [
@@ -2593,7 +2814,8 @@
         "tests/Server/EngineConstraintsTest.php",
         "tests/Server/EngineFlowTest.php",
         "tests/Server/EngineKeyTest.php",
-        "tests/Server/EngineSettlementRaceTest.php"
+        "tests/Server/EngineSettlementRaceTest.php",
+        "tests/Server/EngineMetadataAdmissionTest.php"
       ],
       "cross": [],
       "requiredFamilies": [
@@ -2610,7 +2832,8 @@
         "tests/Server/EngineConstraintsTest.php",
         "tests/Server/EngineFlowTest.php",
         "tests/Server/EngineKeyTest.php",
-        "tests/Server/EngineSettlementRaceTest.php"
+        "tests/Server/EngineSettlementRaceTest.php",
+        "tests/Server/EngineMetadataAdmissionTest.php"
       ],
       "cross": [],
       "requiredFamilies": [
@@ -2627,7 +2850,8 @@
         "tests/Server/EngineConstraintsTest.php",
         "tests/Server/EngineFlowTest.php",
         "tests/Server/EngineKeyTest.php",
-        "tests/Server/EngineSettlementRaceTest.php"
+        "tests/Server/EngineSettlementRaceTest.php",
+        "tests/Server/EngineMetadataAdmissionTest.php"
       ],
       "cross": [],
       "requiredFamilies": [
@@ -2646,7 +2870,8 @@
         "tests/Server/EngineSettlementFailureTest.php",
         "tests/Server/EngineSettlementRaceTest.php",
         "tests/Server/EngineWatermarkTest.php",
-        "tests/Server/EngineWorkerTest.php"
+        "tests/Server/EngineWorkerTest.php",
+        "tests/Server/EngineMetadataAdmissionTest.php"
       ],
       "cross": [],
       "requiredFamilies": [
@@ -2668,7 +2893,8 @@
         "tests/Server/EngineSettlementFailureTest.php",
         "tests/Server/EngineSettlementRaceTest.php",
         "tests/Server/EngineWatermarkTest.php",
-        "tests/Server/EngineWorkerTest.php"
+        "tests/Server/EngineWorkerTest.php",
+        "tests/Server/EngineMetadataAdmissionTest.php"
       ],
       "cross": [],
       "requiredFamilies": [
@@ -2688,7 +2914,8 @@
         "tests/Server/EngineConstraintsTest.php",
         "tests/Server/EngineFlowTest.php",
         "tests/Server/EngineKeyTest.php",
-        "tests/Server/EngineSettlementRaceTest.php"
+        "tests/Server/EngineSettlementRaceTest.php",
+        "tests/Server/EngineMetadataAdmissionTest.php"
       ],
       "cross": [],
       "requiredFamilies": [
@@ -2705,7 +2932,8 @@
         "tests/Server/EngineConstraintsTest.php",
         "tests/Server/EngineFlowTest.php",
         "tests/Server/EngineKeyTest.php",
-        "tests/Server/EngineSettlementRaceTest.php"
+        "tests/Server/EngineSettlementRaceTest.php",
+        "tests/Server/EngineMetadataAdmissionTest.php"
       ],
       "cross": [],
       "requiredFamilies": [
@@ -2737,7 +2965,8 @@
         "tests/Server/EngineTransferEnvelopeTest.php",
         "tests/Server/EngineTransferRefusalTest.php",
         "tests/Server/EngineTransferTest.php",
-        "tests/Server/EngineCheckAdmissionTest.php"
+        "tests/Server/EngineCheckAdmissionTest.php",
+        "tests/Server/EngineMetadataAdmissionTest.php"
       ],
       "cross": [
         "tests/ServerCross/EngineCrossTransferTest.php",
@@ -2778,7 +3007,9 @@
         "tests/Server/EngineTransferEnvelopeTest.php",
         "tests/Server/EngineTransferRefusalTest.php",
         "tests/Server/EngineTransferTest.php",
-        "tests/Server/EngineCheckAdmissionTest.php"
+        "tests/Server/EngineCheckAdmissionTest.php",
+        "tests/Server/EngineBoundaryAdmissionTest.php",
+        "tests/Server/EngineMetadataAdmissionTest.php"
       ],
       "cross": [
         "tests/ServerCross/EngineCrossTransferTest.php",
@@ -2819,7 +3050,8 @@
         "tests/Server/EngineTransferEnvelopeTest.php",
         "tests/Server/EngineTransferRefusalTest.php",
         "tests/Server/EngineTransferTest.php",
-        "tests/Server/EngineCheckAdmissionTest.php"
+        "tests/Server/EngineCheckAdmissionTest.php",
+        "tests/Server/EngineMetadataAdmissionTest.php"
       ],
       "cross": [
         "tests/ServerCross/EngineCrossTransferTest.php",
@@ -2860,7 +3092,8 @@
         "tests/Server/EngineTransferEnvelopeTest.php",
         "tests/Server/EngineTransferRefusalTest.php",
         "tests/Server/EngineTransferTest.php",
-        "tests/Server/EngineCheckAdmissionTest.php"
+        "tests/Server/EngineCheckAdmissionTest.php",
+        "tests/Server/EngineMetadataAdmissionTest.php"
       ],
       "cross": [
         "tests/ServerCross/EngineCrossTransferTest.php",
@@ -2886,7 +3119,8 @@
         "tests/Server/EngineConstraintsTest.php",
         "tests/Server/EngineFlowTest.php",
         "tests/Server/EngineKeyTest.php",
-        "tests/Server/EngineSettlementRaceTest.php"
+        "tests/Server/EngineSettlementRaceTest.php",
+        "tests/Server/EngineMetadataAdmissionTest.php"
       ],
       "cross": [],
       "requiredFamilies": [
@@ -2903,7 +3137,8 @@
         "tests/Server/EngineConstraintsTest.php",
         "tests/Server/EngineFlowTest.php",
         "tests/Server/EngineKeyTest.php",
-        "tests/Server/EngineSettlementRaceTest.php"
+        "tests/Server/EngineSettlementRaceTest.php",
+        "tests/Server/EngineMetadataAdmissionTest.php"
       ],
       "cross": [],
       "requiredFamilies": [
@@ -2920,7 +3155,8 @@
         "tests/Server/EngineConstraintsTest.php",
         "tests/Server/EngineFlowTest.php",
         "tests/Server/EngineKeyTest.php",
-        "tests/Server/EngineSettlementRaceTest.php"
+        "tests/Server/EngineSettlementRaceTest.php",
+        "tests/Server/EngineMetadataAdmissionTest.php"
       ],
       "cross": [],
       "requiredFamilies": [
@@ -2937,7 +3173,8 @@
         "tests/Server/EngineConstraintsTest.php",
         "tests/Server/EngineFlowTest.php",
         "tests/Server/EngineKeyTest.php",
-        "tests/Server/EngineSettlementRaceTest.php"
+        "tests/Server/EngineSettlementRaceTest.php",
+        "tests/Server/EngineMetadataAdmissionTest.php"
       ],
       "cross": [],
       "requiredFamilies": [
@@ -2954,7 +3191,8 @@
         "tests/Server/EngineConstraintsTest.php",
         "tests/Server/EngineFlowTest.php",
         "tests/Server/EngineNativeFailureTest.php",
-        "tests/Server/EngineTransactionFailureTest.php"
+        "tests/Server/EngineTransactionFailureTest.php",
+        "tests/Server/EngineMetadataAdmissionTest.php"
       ],
       "cross": [],
       "requiredFamilies": [
@@ -2970,7 +3208,8 @@
         "tests/Server/EngineConstraintsTest.php",
         "tests/Server/EngineFlowTest.php",
         "tests/Server/EngineNativeFailureTest.php",
-        "tests/Server/EngineTransactionFailureTest.php"
+        "tests/Server/EngineTransactionFailureTest.php",
+        "tests/Server/EngineMetadataAdmissionTest.php"
       ],
       "cross": [],
       "requiredFamilies": [
@@ -2986,7 +3225,8 @@
         "tests/Server/EngineConstraintsTest.php",
         "tests/Server/EngineFlowTest.php",
         "tests/Server/EngineNativeFailureTest.php",
-        "tests/Server/EngineTransactionFailureTest.php"
+        "tests/Server/EngineTransactionFailureTest.php",
+        "tests/Server/EngineMetadataAdmissionTest.php"
       ],
       "cross": [],
       "requiredFamilies": [
@@ -3002,7 +3242,8 @@
         "tests/Server/EngineConstraintsTest.php",
         "tests/Server/EngineFlowTest.php",
         "tests/Server/EngineNativeFailureTest.php",
-        "tests/Server/EngineTransactionFailureTest.php"
+        "tests/Server/EngineTransactionFailureTest.php",
+        "tests/Server/EngineMetadataAdmissionTest.php"
       ],
       "cross": [],
       "requiredFamilies": [
@@ -3020,7 +3261,8 @@
         "tests/Server/EngineSettlementFailureTest.php",
         "tests/Server/EngineSettlementRaceTest.php",
         "tests/Server/EngineWatermarkTest.php",
-        "tests/Server/EngineWorkerTest.php"
+        "tests/Server/EngineWorkerTest.php",
+        "tests/Server/EngineMetadataAdmissionTest.php"
       ],
       "cross": [],
       "requiredFamilies": [
@@ -3039,7 +3281,8 @@
         "tests/Server/EngineKeyTest.php",
         "tests/Server/EngineNativeFailureTest.php",
         "tests/Server/EngineTransactionFailureTest.php",
-        "tests/Server/EngineWorkerTest.php"
+        "tests/Server/EngineWorkerTest.php",
+        "tests/Server/EngineMetadataAdmissionTest.php"
       ],
       "cross": [],
       "requiredFamilies": [
@@ -3070,7 +3313,8 @@
         "tests/Server/EngineTransferEnvelopeTest.php",
         "tests/Server/EngineTransferRefusalTest.php",
         "tests/Server/EngineTransferTest.php",
-        "tests/Server/EngineCheckAdmissionTest.php"
+        "tests/Server/EngineCheckAdmissionTest.php",
+        "tests/Server/EngineMetadataAdmissionTest.php"
       ],
       "cross": [
         "tests/ServerCross/EngineCrossTransferTest.php",
@@ -3111,7 +3355,8 @@
         "tests/Server/EngineTransferEnvelopeTest.php",
         "tests/Server/EngineTransferRefusalTest.php",
         "tests/Server/EngineTransferTest.php",
-        "tests/Server/EngineCheckAdmissionTest.php"
+        "tests/Server/EngineCheckAdmissionTest.php",
+        "tests/Server/EngineMetadataAdmissionTest.php"
       ],
       "cross": [
         "tests/ServerCross/EngineCrossTransferTest.php",
@@ -3152,7 +3397,8 @@
         "tests/Server/EngineTransferEnvelopeTest.php",
         "tests/Server/EngineTransferRefusalTest.php",
         "tests/Server/EngineTransferTest.php",
-        "tests/Server/EngineCheckAdmissionTest.php"
+        "tests/Server/EngineCheckAdmissionTest.php",
+        "tests/Server/EngineMetadataAdmissionTest.php"
       ],
       "cross": [
         "tests/ServerCross/EngineCrossTransferTest.php",
@@ -3193,7 +3439,9 @@
         "tests/Server/EngineTransferEnvelopeTest.php",
         "tests/Server/EngineTransferRefusalTest.php",
         "tests/Server/EngineTransferTest.php",
-        "tests/Server/EngineCheckAdmissionTest.php"
+        "tests/Server/EngineCheckAdmissionTest.php",
+        "tests/Server/EngineBoundaryAdmissionTest.php",
+        "tests/Server/EngineMetadataAdmissionTest.php"
       ],
       "cross": [
         "tests/ServerCross/EngineCrossTransferTest.php",
@@ -3221,7 +3469,8 @@
         "tests/Server/EngineSettlementFailureTest.php",
         "tests/Server/EngineSettlementRaceTest.php",
         "tests/Server/EngineWatermarkTest.php",
-        "tests/Server/EngineWorkerTest.php"
+        "tests/Server/EngineWorkerTest.php",
+        "tests/Server/EngineMetadataAdmissionTest.php"
       ],
       "cross": [],
       "requiredFamilies": [
@@ -3243,7 +3492,8 @@
         "tests/Server/EngineSettlementFailureTest.php",
         "tests/Server/EngineSettlementRaceTest.php",
         "tests/Server/EngineWatermarkTest.php",
-        "tests/Server/EngineWorkerTest.php"
+        "tests/Server/EngineWorkerTest.php",
+        "tests/Server/EngineMetadataAdmissionTest.php"
       ],
       "cross": [],
       "requiredFamilies": [
@@ -3264,7 +3514,8 @@
         "tests/Server/EngineMigrationFreshTest.php",
         "tests/Server/EngineMigrationPreviousTest.php",
         "tests/Server/EngineWatermarkTest.php",
-        "tests/Server/EngineCheckAdmissionTest.php"
+        "tests/Server/EngineCheckAdmissionTest.php",
+        "tests/Server/EngineMetadataAdmissionTest.php"
       ],
       "cross": [],
       "requiredFamilies": [
@@ -3283,7 +3534,8 @@
         "tests/Server/EngineMigrationFreshTest.php",
         "tests/Server/EngineMigrationPreviousTest.php",
         "tests/Server/EngineWatermarkTest.php",
-        "tests/Server/EngineCheckAdmissionTest.php"
+        "tests/Server/EngineCheckAdmissionTest.php",
+        "tests/Server/EngineMetadataAdmissionTest.php"
       ],
       "cross": [],
       "requiredFamilies": [
@@ -3316,7 +3568,8 @@
         "tests/Server/EngineTransferEnvelopeTest.php",
         "tests/Server/EngineTransferRefusalTest.php",
         "tests/Server/EngineTransferTest.php",
-        "tests/Server/EngineCheckAdmissionTest.php"
+        "tests/Server/EngineCheckAdmissionTest.php",
+        "tests/Server/EngineMetadataAdmissionTest.php"
       ],
       "cross": [
         "tests/ServerCross/EngineCrossTransferTest.php",
@@ -3357,7 +3610,8 @@
         "tests/Server/EngineTransferEnvelopeTest.php",
         "tests/Server/EngineTransferRefusalTest.php",
         "tests/Server/EngineTransferTest.php",
-        "tests/Server/EngineCheckAdmissionTest.php"
+        "tests/Server/EngineCheckAdmissionTest.php",
+        "tests/Server/EngineMetadataAdmissionTest.php"
       ],
       "cross": [
         "tests/ServerCross/EngineCrossTransferTest.php",
@@ -3384,7 +3638,8 @@
         "tests/Server/EngineMigrationFreshTest.php",
         "tests/Server/EngineMigrationPreviousTest.php",
         "tests/Server/EngineWatermarkTest.php",
-        "tests/Server/EngineCheckAdmissionTest.php"
+        "tests/Server/EngineCheckAdmissionTest.php",
+        "tests/Server/EngineMetadataAdmissionTest.php"
       ],
       "cross": [],
       "requiredFamilies": [
@@ -3417,7 +3672,8 @@
         "tests/Server/EngineTransferEnvelopeTest.php",
         "tests/Server/EngineTransferRefusalTest.php",
         "tests/Server/EngineTransferTest.php",
-        "tests/Server/EngineCheckAdmissionTest.php"
+        "tests/Server/EngineCheckAdmissionTest.php",
+        "tests/Server/EngineMetadataAdmissionTest.php"
       ],
       "cross": [
         "tests/ServerCross/EngineCrossTransferTest.php",
@@ -3458,7 +3714,8 @@
         "tests/Server/EngineTransferEnvelopeTest.php",
         "tests/Server/EngineTransferRefusalTest.php",
         "tests/Server/EngineTransferTest.php",
-        "tests/Server/EngineCheckAdmissionTest.php"
+        "tests/Server/EngineCheckAdmissionTest.php",
+        "tests/Server/EngineMetadataAdmissionTest.php"
       ],
       "cross": [
         "tests/ServerCross/EngineCrossTransferTest.php",
@@ -3499,7 +3756,8 @@
         "tests/Server/EngineTransferEnvelopeTest.php",
         "tests/Server/EngineTransferRefusalTest.php",
         "tests/Server/EngineTransferTest.php",
-        "tests/Server/EngineCheckAdmissionTest.php"
+        "tests/Server/EngineCheckAdmissionTest.php",
+        "tests/Server/EngineMetadataAdmissionTest.php"
       ],
       "cross": [
         "tests/ServerCross/EngineCrossTransferTest.php",
@@ -3524,7 +3782,8 @@
         "tests/Server/EngineHistoryTest.php",
         "tests/Server/EngineKeyTest.php",
         "tests/Server/EngineNotificationRaceTest.php",
-        "tests/Server/EngineWatermarkTest.php"
+        "tests/Server/EngineWatermarkTest.php",
+        "tests/Server/EngineMetadataAdmissionTest.php"
       ],
       "cross": [],
       "requiredFamilies": [
@@ -3540,7 +3799,8 @@
         "tests/Server/EngineHistoryTest.php",
         "tests/Server/EngineKeyTest.php",
         "tests/Server/EngineNotificationRaceTest.php",
-        "tests/Server/EngineWatermarkTest.php"
+        "tests/Server/EngineWatermarkTest.php",
+        "tests/Server/EngineMetadataAdmissionTest.php"
       ],
       "cross": [],
       "requiredFamilies": [
@@ -3556,7 +3816,8 @@
         "tests/Server/EngineHistoryTest.php",
         "tests/Server/EngineKeyTest.php",
         "tests/Server/EngineNotificationRaceTest.php",
-        "tests/Server/EngineWatermarkTest.php"
+        "tests/Server/EngineWatermarkTest.php",
+        "tests/Server/EngineMetadataAdmissionTest.php"
       ],
       "cross": [],
       "requiredFamilies": [
@@ -3572,7 +3833,8 @@
         "tests/Server/EngineHistoryTest.php",
         "tests/Server/EngineKeyTest.php",
         "tests/Server/EngineNotificationRaceTest.php",
-        "tests/Server/EngineWatermarkTest.php"
+        "tests/Server/EngineWatermarkTest.php",
+        "tests/Server/EngineMetadataAdmissionTest.php"
       ],
       "cross": [],
       "requiredFamilies": [
@@ -3588,7 +3850,8 @@
         "tests/Server/EngineHistoryTest.php",
         "tests/Server/EngineKeyTest.php",
         "tests/Server/EngineNotificationRaceTest.php",
-        "tests/Server/EngineWatermarkTest.php"
+        "tests/Server/EngineWatermarkTest.php",
+        "tests/Server/EngineMetadataAdmissionTest.php"
       ],
       "cross": [],
       "requiredFamilies": [
@@ -3604,7 +3867,8 @@
         "tests/Server/EngineHistoryTest.php",
         "tests/Server/EngineKeyTest.php",
         "tests/Server/EngineNotificationRaceTest.php",
-        "tests/Server/EngineWatermarkTest.php"
+        "tests/Server/EngineWatermarkTest.php",
+        "tests/Server/EngineMetadataAdmissionTest.php"
       ],
       "cross": [],
       "requiredFamilies": [
@@ -3620,7 +3884,8 @@
         "tests/Server/EngineHistoryTest.php",
         "tests/Server/EngineKeyTest.php",
         "tests/Server/EngineNotificationRaceTest.php",
-        "tests/Server/EngineWatermarkTest.php"
+        "tests/Server/EngineWatermarkTest.php",
+        "tests/Server/EngineMetadataAdmissionTest.php"
       ],
       "cross": [],
       "requiredFamilies": [
@@ -3645,7 +3910,8 @@
         "tests/Server/EngineMigrationProcessTest.php",
         "tests/Server/EngineMigrationRaceTest.php",
         "tests/Server/EngineReadApiTest.php",
-        "tests/Server/EngineCheckAdmissionTest.php"
+        "tests/Server/EngineCheckAdmissionTest.php",
+        "tests/Server/EngineMetadataAdmissionTest.php"
       ],
       "cross": [],
       "requiredFamilies": [
@@ -3673,7 +3939,8 @@
         "tests/Server/EngineMigrationProcessTest.php",
         "tests/Server/EngineMigrationRaceTest.php",
         "tests/Server/EngineReadApiTest.php",
-        "tests/Server/EngineCheckAdmissionTest.php"
+        "tests/Server/EngineCheckAdmissionTest.php",
+        "tests/Server/EngineMetadataAdmissionTest.php"
       ],
       "cross": [],
       "requiredFamilies": [
@@ -3701,7 +3968,8 @@
         "tests/Server/EngineMigrationProcessTest.php",
         "tests/Server/EngineMigrationRaceTest.php",
         "tests/Server/EngineReadApiTest.php",
-        "tests/Server/EngineCheckAdmissionTest.php"
+        "tests/Server/EngineCheckAdmissionTest.php",
+        "tests/Server/EngineMetadataAdmissionTest.php"
       ],
       "cross": [],
       "requiredFamilies": [
@@ -3729,7 +3997,8 @@
         "tests/Server/EngineMigrationProcessTest.php",
         "tests/Server/EngineMigrationRaceTest.php",
         "tests/Server/EngineReadApiTest.php",
-        "tests/Server/EngineCheckAdmissionTest.php"
+        "tests/Server/EngineCheckAdmissionTest.php",
+        "tests/Server/EngineMetadataAdmissionTest.php"
       ],
       "cross": [],
       "requiredFamilies": [
@@ -3757,7 +4026,8 @@
         "tests/Server/EngineMigrationProcessTest.php",
         "tests/Server/EngineMigrationRaceTest.php",
         "tests/Server/EngineReadApiTest.php",
-        "tests/Server/EngineCheckAdmissionTest.php"
+        "tests/Server/EngineCheckAdmissionTest.php",
+        "tests/Server/EngineMetadataAdmissionTest.php"
       ],
       "cross": [],
       "requiredFamilies": [
@@ -3785,7 +4055,8 @@
         "tests/Server/EngineMigrationProcessTest.php",
         "tests/Server/EngineMigrationRaceTest.php",
         "tests/Server/EngineReadApiTest.php",
-        "tests/Server/EngineCheckAdmissionTest.php"
+        "tests/Server/EngineCheckAdmissionTest.php",
+        "tests/Server/EngineMetadataAdmissionTest.php"
       ],
       "cross": [],
       "requiredFamilies": [
@@ -3820,7 +4091,9 @@
         "tests/Server/EngineTransferEnvelopeTest.php",
         "tests/Server/EngineTransferRefusalTest.php",
         "tests/Server/EngineTransferTest.php",
-        "tests/Server/EngineCheckAdmissionTest.php"
+        "tests/Server/EngineCheckAdmissionTest.php",
+        "tests/Server/EngineReadApiTest.php",
+        "tests/Server/EngineMetadataAdmissionTest.php"
       ],
       "cross": [
         "tests/ServerCross/EngineCrossTransferTest.php",
@@ -6936,9 +7209,9 @@
     "missingSublaneIsFailure": true
   },
   "qualification": [
-    "Current source declares173 main and6 cross identities, including actual server crash/restart mechanisms. Engine, cross, crash, memory and hosted qualification remains UNQUALIFIED until observed.",
+    "Current source declares188 main and6 cross identities, including actual server crash/restart mechanisms. Engine, cross, crash, memory and hosted qualification remains UNQUALIFIED until observed.",
     "Every method requires exact real Testo discovery, source path, data-row qualification, passed status, nonzero assertions and its fixed8/20-second deadline.",
-    "Current declaration totals615 distinct identities:436 baseline,173 main and6 cross. The two accepted fixtureless parser cases are bounded prior evidence; the new caller-transaction case and full current engine/cross/crash suites remain NOTRUN. Callback interruption and independent-session locks do not prove an actual server crash or simultaneous migration process.",
+    "Current declaration totals630 distinct identities:436 baseline,188 main and6 cross. The two accepted fixtureless parser cases are bounded prior evidence; the new caller-transaction case and full current engine/cross/crash suites remain NOTRUN. Callback interruption and independent-session locks do not prove an actual server crash or simultaneous migration process.",
     "Verification never generates this declaration or recaptures bindings/dependencies. All six SQLite/four real-engine Ubuntu cells, MySQL85 cross/crash sublanes and Root reviews remain mandatory.",
     "Post-gamma source adds canonical typed-line refusal before target mutation and its real-engine target-state test. Gamma runtime8 retains its separately hashed79-source/26-selected scope and does not test this delta. Transfer metadata accumulation/actual2MiB working-data qualification remains required before acceptance.",
     "Source89 adds one actual two-process migration schedule with native failed GET_LOCK while owner holds across metadata DDL, partial writer/reader refusal, exact shared receipt and final ready journal. It has NOTRUN; callback and source schedules still do not count as actual server crash/restart. Entity/reader MigrationRace consumers concern shared admission and retain their independent functional cases.",
@@ -7648,20 +7921,24 @@
     "processCap": {
       "owner": 1,
       "adapter": 1,
-      "maximumScope": 8,
-      "total": 10,
-      "graphStatus": "ROOT_AMENDED_TOTAL10_JOB8_LITERAL_COMPOSER_ORIGINAL_TESTS_PRESERVED",
-      "authority": "msg_27394f90055d",
-      "source": "E/lp3-process-capacity-r3.json",
+      "maximumScope": 9,
+      "total": 11,
+      "graphStatus": "BASELINE_SCOPE9_OTHER_SCOPE8_OWNER1_ADAPTER1_TOTAL11",
+      "authority": "msg_ad033cc24333 and msg_9ea83fcbf299",
+      "source": "tools/server-supervisor.cjs phaseProcessLimit",
       "connections": 8,
       "activeLeases": 8
     },
     "nodeTests": {
       "command": "node tools/server-supervisor.cjs --self-test",
       "identities": [
+        "server observer: only explicit qualified execution crosses the side-effect boundary",
+        "Linux admission: finite records preserve decimal clocks and reject malformed native input",
+        "Linux admission: exact event fields reconcile process, thread and native terminal identities",
         "server observer: containing leases keep one reserve and reject late closure",
         "server observer: unknown closure cannot release a lease or become exit zero",
         "server observer: authenticated framing refuses replay, direction changes and changed bytes",
+        "server observer: the original Composer baseline admits nine managed actors while other phases stay eight",
         "server observer: inherited installation, Docker and key authority is excluded"
       ],
       "runtime": "NOTRUN"
@@ -7707,6 +7984,146 @@
       "finalAssociatedRequired": 0,
       "maximumAssociatedObserved": "Raw sampled associated objects including rejected objects; NOT a runnable peak/exact maximum",
       "currentProtocolRuntime": "NOTRUN"
+    },
+    "linuxSourceOnly": {
+      "authority": [
+        "msg_b50f9fc1620c",
+        "msg_8e09acf529f3",
+        "msg_e7ecdeccd08d"
+      ],
+      "policy": "tgid-seccomp-ptrace-x64-v1",
+      "unit": "process/TGID",
+      "source": "tools/server-supervisor-linux.c",
+      "controls": "tools/server-supervisor-linux-controls.c",
+      "recipe": "tools/server-supervisor-linux-build.sh",
+      "executionModes": [
+        "diagnostic-only",
+        "qualified"
+      ],
+      "diagnosticExecution": "REFUSED_BEFORE_PRODUCT_RESOURCES",
+      "inputs": [
+        "linuxShell",
+        "linuxAdapter",
+        "linuxAdapterSource",
+        "linuxAdapterRecipe",
+        "linuxAdapterBuild",
+        "linuxAdapterQualification"
+      ],
+      "processLimits": {
+        "baselineScope": 9,
+        "preparationEngineControlScope": 8,
+        "owner": 1,
+        "adapter": 1,
+        "totalMaximum": 11,
+        "connections": 8
+      },
+      "buildProvenance": "tablo/linux-adapter-build/v1",
+      "qualificationReceipt": "tablo/linux-adapter-qualification/v2",
+      "compilation": "NOTRUN",
+      "neutralControls": "NOTRUN",
+      "actualClientControls": "NOTRUN",
+      "engineRuntime": "NOTRUN",
+      "note": "Root-reviewed R4 source integration. This candidate host/client runtime, full engine/cross/crash and hosted gates remain UNQUALIFIED until actually observed; separate native diagnostic noncoverage cannot emit qv2.",
+      "nonce": "Required explicit fresh TABLO_SERVER_CELL_NONCE for qualified mode, fixed before qualifier; diagnostic-only rejects override and uses fresh internal nonce.",
+      "declarationProof": "Structural and actual current source/runtime pin binding only; native owner must open all actual proof references and compare current platform/namespace before any product resources.",
+      "bootstrap": {
+        "moduleManifest": "tablo/php-bootstrap-modules/v1",
+        "selectors": [
+          "TABLO_SERVER_PHP_BOOTSTRAP_MODULES",
+          "TABLO_SERVER_PHP_BOOTSTRAP_MODULES_SHA256"
+        ],
+        "keys": [
+          "schema",
+          "iniFiles",
+          "extensionFiles"
+        ],
+        "pinKeys": [
+          "path",
+          "sha256"
+        ],
+        "maximumPinsPerArray": 128,
+        "maximumManifestBytes": 131072,
+        "observerField": "bootstrapExtensionFiles",
+        "qualifierPlanField": "phpBootstrap",
+        "diagnostic": "DOES_NOT_READ_MODULE_MANIFEST",
+        "declaration": "Explicit ordered source/INI/module pin binding only; no general INI discovery, filename guessing, module execution or capability claim",
+        "runtime": "NOTRUN",
+        "preparation": "Only actual PHP-reported INIs are copied byte-for-byte to fresh regular main/uniquely ordered scan files. The selected PHP must report exactly those copied files before qualification; all normal declaration commands and native phase controllers use them.",
+        "moduleSelection": "Literal extension filenames or full paths only, reported extension_dir for explicit filenames, directive order preserved; bare names/dynamic syntax/duplicate resolved paths fail. Zend directives are ignored for Composer bootstrap. No guessed suffix or capability claim."
+      },
+      "qualifier": "tools/server-supervisor-linux-qualify.cjs",
+      "preparer": "tools/server-linux-prepare.cjs",
+      "qualifierModes": {
+        "qualified": "qualify",
+        "strictNeutral": "neutral-only",
+        "externalNoncoverageDiagnostic": "neutral-diagnostic",
+        "normalHostedMode": "qualify",
+        "diagnosticCanEmitQualification": false
+      },
+      "qualifierCommand": "node tools/server-supervisor-linux-qualify.cjs --plan=ABS --sha256=64LOWERHEX",
+      "qualificationPlan": "tablo/linux-admission-qualification-plan/v1",
+      "compiler": {
+        "image": "docker.io/library/php@sha256:6114a2bd4956c50e4db20f08b9377e4fc7e08417b2aa34a44ec7ff52a07996b5",
+        "identity": "immutable RepoDigest plus linux/amd64; selected inspect identity bound to actual container.Image",
+        "user": "actual host UID:GID, never assumed1000",
+        "sourceMount": "only three reviewed C/control/recipe input files, readonly",
+        "scopeProcesses": 8,
+        "seconds": {
+          "pull": 300,
+          "compile": 180,
+          "nativeControl": 8
+        },
+        "provenanceOnly": true
+      },
+      "neutralIdentities": [
+        "limit8",
+        "limit9",
+        "overflow8",
+        "overflow9",
+        "threads",
+        "threadfork",
+        "threadexec",
+        "concurrent",
+        "vfork",
+        "spawn",
+        "short",
+        "failedfork",
+        "clone3",
+        "untraced",
+        "filter",
+        "namespace",
+        "ptrace",
+        "x32",
+        "i386",
+        "stdin0",
+        "stdin65536",
+        "exit23",
+        "signal",
+        "rootfirst",
+        "owner-eof",
+        "deadline8",
+        "deadline20",
+        "partial-input",
+        "unresponsive-input",
+        "invalid-capture"
+      ],
+      "requiredWitness": "WITNESS_CLOSED 3 3 SIGKILL ECHILD",
+      "actualClientLabels": [
+        "node",
+        "php",
+        "composer",
+        "shell",
+        "docker"
+      ],
+      "preparerTests": {
+        "source": "tools/server-linux-prepare.cjs",
+        "command": "node tools/server-linux-prepare.cjs --self-test",
+        "identities": [
+          "literal extension directives retain their declared order without suffix guessing",
+          "prepared INI selection preserves loaded and scanned order and refuses malformed paths"
+        ],
+        "runtime": "NOTRUN"
+      }
     }
   },
   "source41Fixes": {

@@ -86,6 +86,10 @@ final class EngineTransferEnvelopeTest
         Assert::same($fixture->scalar('SELECT COUNT(*) FROM users', $scratch), 0); $fixture->close();
     }
 
+    #[Test]
+    public function selfConsistentAggregateOversizeRowRefusesBeforeAnyTargetStateChanges(): void
+    { engine_transfer_import_row_envelope(); }
+
     public static function archive(EngineFixture $fixture): string
     {
         $root = EngineSchedule::directory() . '/cases/' . $fixture->case;
@@ -99,4 +103,63 @@ final class EngineTransferEnvelopeTest
         $bytes = JsonEncoding::encode(['payload' => $header, 'sha256' => hash('sha256', JsonEncoding::encode($header))]);
         Assert::same(file_put_contents($directory . '/manifest.json', $bytes), strlen($bytes));
     }
+}
+
+/** Canonical typed cells, valid chunk/table/manifest hashes, individually bounded strings. */
+function engine_transfer_oversize_archive(string $directory): void
+{
+    $envelope = JsonRecord::decode(RequiredFile::bytes(file_get_contents($directory . '/manifest.json')));
+    $header = JsonRecord::checked($envelope['payload'] ?? null);
+    $tables = JsonRecord::checked($header['tables'] ?? null);
+    foreach (DatabaseTransferManifest::tables() as $index => $table) {
+        if ($table['name'] !== 'sites') { continue; }
+        $path = $directory . '/sites.0.jsonl';
+        $row = \Tablo\DatabaseTransferRows::line(rtrim(RequiredFile::bytes(file_get_contents($path)), characters: "\n"), $table);
+        foreach (DatabaseTransferManifest::columns($table) as $columnIndex => $column) {
+            if (!in_array($column['name'], ['last_error', 'latest_release'], strict: true)) { continue; }
+            $row[$columnIndex] = str_repeat('x', times: 50_000);
+        }
+        $bytes = JsonEncoding::encode(\Tablo\DatabaseTransferRows::encode($row)) . "\n";
+        Assert::true(strlen($bytes) < DatabaseTransferManifest::CHUNK_BYTES);
+        Assert::same(\Tablo\DatabaseTransferRows::line(rtrim($bytes, characters: "\n"), $table), $row);
+        $receipt = JsonRecord::checked($tables[$index] ?? null); Assert::same($receipt['rows'] ?? null, 1);
+        $chunks = JsonRecord::checked($receipt['chunks'] ?? null); Assert::same(count($chunks), 1);
+        $chunk = JsonRecord::checked($chunks[0] ?? null); $chunk['bytes'] = strlen($bytes); $chunk['sha256'] = hash('sha256', $bytes);
+        $receipt['sha256'] = hash('sha256', $bytes); $receipt['chunks'] = [$chunk]; $tables[$index] = $receipt; $header['tables'] = $tables;
+        Assert::same(file_put_contents($path, $bytes), strlen($bytes));
+        EngineTransferEnvelopeTest::manifest($directory, $header);
+        return;
+    }
+    throw new \RuntimeException('Fixed sites archive absent.');
+}
+
+/** All fifteen domain tables, three metadata tables and generated columns must remain unchanged. */
+function engine_transfer_target_snapshot(\PDO $db): array
+{
+    $rows = [];
+    foreach (\Tablo\ServerSchema::layout($db)['tables'] as $table) {
+        $order = implode(',', array_map(static fn (string $column): string => '`' . $column . '`', $table['primary']));
+        $rows[$table['name']] = \Tablo\ServerSchema::rows($db, 'SELECT * FROM `' . $table['name'] . '` ORDER BY ' . $order);
+    }
+    return $rows;
+}
+
+function engine_transfer_import_row_envelope(): void
+{
+    $fixture = new EngineFixture('transfer-import-row-envelope');
+    try {
+        $directory = EngineTransferEnvelopeTest::archive($fixture);
+        engine_transfer_oversize_archive($directory);
+        $manifest = DatabaseTransferVerification::manifest($directory, $fixture->vault);
+        Assert::same($manifest['header']['logicalVersion'], 10);
+        $target = $fixture->maintenance(); $before = engine_transfer_target_snapshot($target);
+        $floors = \Tablo\DatabaseTransferSequence::floors($target); $caught = null;
+        try { DatabaseTransfer::importServer($target, $fixture->vault, $directory, dirname($directory) . '/import.sqlite', offline: true); }
+        catch (DatabaseFailure $error) { $caught = $error; }
+        Assert::same($caught?->category, 'schema'); Assert::same($caught?->getPrevious(), null);
+        Assert::same(engine_transfer_target_snapshot($target), $before);
+        Assert::same(\Tablo\DatabaseTransferSequence::floors($target), $floors);
+        Assert::same((new \Tablo\ServerMigration($target, $fixture->vault))->status()['phase'], 'ready');
+        Assert::false($target->inTransaction()); Assert::false(\Tablo\WriteTransaction::owns($target));
+    } finally { $fixture->close(); }
 }

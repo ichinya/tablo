@@ -17,13 +17,13 @@ final class DatabaseConnectionFactory
         if (!$configuration->server() || ($mode === 'maintenance' && $configuration->role !== 'migrator')) { throw new DatabaseFailure('configuration'); }
         if (!in_array($mode, ['existing', 'maintenance', 'transfer-source'], strict: true)) { throw new DatabaseFailure('configuration'); }
         DatabaseTransferPreflight::sourceMode($configuration, $mode);
-        $options = PdoMysqlOptions::forConfiguration($configuration);
+        $observation = ServerMetadataAdmission::observe($configuration, $mode === 'maintenance' ? null : 10);
+        $session = null;
         try {
-            $db = new PDO($configuration->dsn(), $configuration->user, $configuration->password, $options);
-            DatabaseSession::register($db, $configuration);
-            ServerSessionAdmission::attest($db, $configuration);
-            ServerSessionSettings::configure($db);
-            ServerSessionAdmission::tls($db, $configuration);
+            $db = ServerPdoConnection::open($configuration);
+            $session = DatabaseSession::get($db) ?? throw new DatabaseFailure('schema');
+            $session->metadataObservation = $observation;
+            ServerMetadataAdmission::bind($db, $observation);
             if ($mode !== 'maintenance') {
                 ServerSchema::admit($db);
                 if (in_array($configuration->role, ['writer', 'migrator'], strict: true)) {
@@ -36,6 +36,7 @@ final class DatabaseConnectionFactory
             if ($mode === 'transfer-source') { PdoMysqlOptions::stream($db); $db->exec('SET SESSION TRANSACTION READ ONLY'); }
             return $db;
         } catch (\PDOException $error) { throw DatabaseFailure::fromNative($error); }
+        finally { if ($session !== null) { $session->metadataObservation = null; } }
     }
 
 }

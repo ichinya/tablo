@@ -1989,7 +1989,7 @@
                 "path": "app/read-api-token-repository.php",
                 "line": 6
             },
-            "fingerprint": "sha256:db31b1a1b229cca330a1bd9df4d821dada594f3e34f33133e10f79faa3813c66",
+            "fingerprint": "sha256:94fe16fdeae97e0417418c31e045bc06c40fab09a496b8d1791e31973e8b85c4",
             "signature": {
                 "inputs": [],
                 "output": "dashboard.flag",
@@ -2007,7 +2007,7 @@
                 "path": "app/read-api-token-repository.php",
                 "line": 15
             },
-            "fingerprint": "sha256:db31b1a1b229cca330a1bd9df4d821dada594f3e34f33133e10f79faa3813c66",
+            "fingerprint": "sha256:94fe16fdeae97e0417418c31e045bc06c40fab09a496b8d1791e31973e8b85c4",
             "signature": {
                 "inputs": [],
                 "output": "dashboard.read_api_token_status",
@@ -2025,7 +2025,7 @@
                 "path": "app/read-api-token-repository.php",
                 "line": 24
             },
-            "fingerprint": "sha256:db31b1a1b229cca330a1bd9df4d821dada594f3e34f33133e10f79faa3813c66",
+            "fingerprint": "sha256:94fe16fdeae97e0417418c31e045bc06c40fab09a496b8d1791e31973e8b85c4",
             "signature": {
                 "inputs": [],
                 "output": null,
@@ -2049,7 +2049,7 @@
                 "path": "app/read-api-token-repository.php",
                 "line": 39
             },
-            "fingerprint": "sha256:db31b1a1b229cca330a1bd9df4d821dada594f3e34f33133e10f79faa3813c66",
+            "fingerprint": "sha256:94fe16fdeae97e0417418c31e045bc06c40fab09a496b8d1791e31973e8b85c4",
             "signature": {
                 "inputs": [],
                 "output": null,

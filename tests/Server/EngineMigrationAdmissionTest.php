@@ -104,7 +104,7 @@ final class EngineMigrationAdmissionTest
         $fixture->close();
     }
 
-    private static function refuses(EngineFixture $fixture): void
+    public static function refuses(EngineFixture $fixture): void
     {
         $db = $fixture->maintenance();
         $objects = ServerSchema::objects($db); $before = ServerSchema::rows($db, 'SELECT * FROM tablo_database_state');

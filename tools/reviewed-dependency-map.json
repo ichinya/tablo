@@ -2,7 +2,13 @@
   ".github/workflows/verify.yml": {
     "owner": "github-workflow:Verify",
     "consumers": [
-      "Hosted pinned contract and native PHP gates"
+      "Hosted pinned contract and native PHP gates",
+      "Privacy-safe declaration diagnostic and unchanged four required server lanes",
+      "tools/server-supervisor-linux.c",
+      "tools/server-supervisor-linux-controls.c",
+      "tools/server-supervisor-linux-build.sh",
+      "tools/server-supervisor-linux-qualify.cjs",
+      "tools/server-linux-prepare.cjs"
     ]
   },
   "app/AddressRange.php": {
@@ -366,7 +372,13 @@
       "tests/Server/EngineKeyTest.php",
       "tests/Server/EngineMigrationAdmissionTest.php",
       "tests/Server/EngineWorkerTest.php",
-      "tests/Support/EngineFixture.php"
+      "tests/Support/EngineFixture.php",
+      "tests/Server/EngineBoundaryAdmissionTest.php",
+      "tests/Server/EngineReadApiCommitPdo.php",
+      "app/ServerMetadataAdmission.php",
+      "app/ServerMetadataIdentity.php",
+      "app/ServerMetadataPrivileges.php",
+      "tests/Server/EngineMetadataAdmissionTest.php"
     ]
   },
   "app/DatabaseConnectionFactory.php": {
@@ -383,7 +395,8 @@
       "tests/Server/EngineKeyTest.php",
       "tests/Server/EngineMigrationAdmissionTest.php",
       "tests/Server/EngineWorkerTest.php",
-      "tests/Support/EngineFixture.php"
+      "tests/Support/EngineFixture.php",
+      "tests/Server/EngineMetadataAdmissionTest.php"
     ]
   },
   "app/DatabaseEnvironment.php": {
@@ -473,7 +486,13 @@
       "tests/Server/EngineTransferRefusalTest.php",
       "tests/Server/EngineWorkerTest.php",
       "tests/server-child.php",
-      "tools/verify-server.php"
+      "tools/verify-server.php",
+      "tests/Server/EngineReadApiTest.php",
+      "app/ServerPdoConnection.php",
+      "app/ServerMetadataIdentity.php",
+      "app/ServerMetadataPrivileges.php",
+      "app/ServerMetadataInventory.php",
+      "app/ServerMetadataAdmission.php"
     ]
   },
   "app/DatabaseInteger.php": {
@@ -504,7 +523,8 @@
       "tests/Server/EngineConfigurationTest.php",
       "tests/Support/EngineFixture.php",
       "tools/ServerTestEvidence.php",
-      "tools/verify-server.php"
+      "tools/verify-server.php",
+      "app/ServerMetadataPrivileges.php"
     ]
   },
   "app/DatabaseMaintenanceCommand.php": {
@@ -513,7 +533,8 @@
       "Composer lint",
       "Composer analyze",
       "Composer verify",
-      "bin/database.php"
+      "bin/database.php",
+      "tests/Server/EngineBoundaryAdmissionTest.php"
     ]
   },
   "app/DatabaseSession.php": {
@@ -576,7 +597,11 @@
       "tests/Server/EngineFlowTest.php",
       "tests/Server/EngineMigrationFreshTest.php",
       "tests/Server/EngineWorkerTest.php",
-      "tools/verify-server.php"
+      "tools/verify-server.php",
+      "tests/Server/EngineReadApiCommitPdo.php",
+      "app/ServerPdoConnection.php",
+      "app/ServerMetadataAdmission.php",
+      "app/ServerMetadataIdentity.php"
     ]
   },
   "app/DatabaseTransfer.php": {
@@ -626,7 +651,8 @@
       "app/DatabaseTransferTarget.php",
       "app/DatabaseTransferVerification.php",
       "tests/Server/EngineTransferTest.php",
-      "tests/ServerCross/EngineCrossTransferTest.php"
+      "tests/ServerCross/EngineCrossTransferTest.php",
+      "tests/Server/EngineMetadataAdmissionTest.php"
     ]
   },
   "app/DatabaseTransferPreflight.php": {
@@ -653,7 +679,8 @@
       "app/DatabaseTransferPreflight.php",
       "app/DatabaseTransferTarget.php",
       "app/DatabaseTransferVerification.php",
-      "tests/Server/EngineTransferAdmissionTest.php"
+      "tests/Server/EngineTransferAdmissionTest.php",
+      "tests/Server/EngineTransferEnvelopeTest.php"
     ]
   },
   "app/DatabaseTransferSequence.php": {
@@ -668,7 +695,8 @@
       "app/DatabaseTransferVerification.php",
       "tests/Server/EngineTransferRefusalTest.php",
       "tests/Server/EngineTransferTest.php",
-      "tests/ServerCross/EngineCrossTransferTest.php"
+      "tests/ServerCross/EngineCrossTransferTest.php",
+      "tests/Server/EngineTransferEnvelopeTest.php"
     ]
   },
   "app/DatabaseTransferTarget.php": {
@@ -689,7 +717,8 @@
       "Composer verify",
       "app/DatabaseTransfer.php",
       "app/DatabaseTransferImport.php",
-      "tests/Server/EngineTransferTest.php"
+      "tests/Server/EngineTransferTest.php",
+      "tests/Server/EngineTransferEnvelopeTest.php"
     ]
   },
   "app/DeploymentFields.php": {
@@ -845,7 +874,8 @@
     "consumers": [
       "Composer lint",
       "Composer verify",
-      "Composer analyze"
+      "Composer analyze",
+      "tests/Server/EngineReadApiCommitPdo.php"
     ]
   },
   "app/FormCheckbox.php": {
@@ -1561,7 +1591,8 @@
     "consumers": [
       "Composer lint",
       "Composer analyze",
-      "Composer verify"
+      "Composer verify",
+      "app/ServerMetadataAdmission.php"
     ]
   },
   "app/JsonField.php": {
@@ -1621,7 +1652,9 @@
       "Composer lint",
       "Composer analyze",
       "Composer verify",
-      "tests/Server/EngineObserverAuditTest.php"
+      "tests/Server/EngineObserverAuditTest.php",
+      "tests/Server/EngineMetadataAdmissionTest.php",
+      "tools/ServerFixturePlan.php"
     ]
   },
   "app/JsonScalarText.php": {
@@ -2035,7 +2068,9 @@
       "Composer lint",
       "Composer analyze",
       "Composer verify",
-      "app/DatabaseConnectionFactory.php"
+      "app/DatabaseConnectionFactory.php",
+      "tests/Server/EngineReadApiCommitPdo.php",
+      "app/ServerPdoConnection.php"
     ]
   },
   "app/periodic-worker.php": {
@@ -2119,7 +2154,8 @@
       "Composer lint",
       "Composer analyze",
       "Composer verify",
-      "Native read API tests"
+      "Native read API tests",
+      "tests/Server/EngineReadApiTest.php"
     ]
   },
   "app/read-api-token-schema.php": {
@@ -2275,7 +2311,9 @@
       "Composer lint",
       "Composer analyze",
       "Composer verify",
-      "tests/Server/EngineObserverAuditTest.php"
+      "tests/Server/EngineObserverAuditTest.php",
+      "tests/Server/EngineMetadataAdmissionTest.php",
+      "tools/ServerFixturePlan.php"
     ]
   },
   "app/ResourceStreams.php": {
@@ -2539,7 +2577,8 @@
       "Composer lint",
       "Composer analyze",
       "Composer verify",
-      "app/ServerTableAdmission.php"
+      "app/ServerTableAdmission.php",
+      "tests/Server/EngineBoundaryAdmissionTest.php"
     ]
   },
   "app/ServerIndexAdmission.php": {
@@ -2564,7 +2603,8 @@
       "app/ServerBootstrap.php",
       "app/ServerMigration.php",
       "app/ServerWriterAdmission.php",
-      "app/VaultLocation.php"
+      "app/VaultLocation.php",
+      "tests/Server/EngineReadApiCommitPdo.php"
     ]
   },
   "app/ServerLock.php": {
@@ -2702,7 +2742,15 @@
       "tests/Server/EngineWorkerTest.php",
       "tests/ServerCross/EngineCrossTransferTest.php",
       "tests/Support/EngineFixture.php",
-      "tools/verify-server.php"
+      "tools/verify-server.php",
+      "tests/Server/EngineBoundaryAdmissionTest.php",
+      "tests/Server/EngineReadApiCommitPdo.php",
+      "tests/Server/EngineTransferEnvelopeTest.php",
+      "app/ServerMetadataIdentity.php",
+      "app/ServerMetadataPrivileges.php",
+      "app/ServerMetadataInventory.php",
+      "app/ServerMetadataAdmission.php",
+      "tests/Server/EngineMetadataAdmissionTest.php"
     ]
   },
   "app/ServerSchemaDescriptor.php": {
@@ -2733,7 +2781,9 @@
       "Composer analyze",
       "Composer verify",
       "app/DatabaseConnectionFactory.php",
-      "app/read-api-repository.php"
+      "app/read-api-repository.php",
+      "tests/Server/EngineReadApiCommitPdo.php",
+      "app/ServerPdoConnection.php"
     ]
   },
   "app/ServerSessionSettings.php": {
@@ -2742,7 +2792,9 @@
       "Composer lint",
       "Composer analyze",
       "Composer verify",
-      "app/DatabaseConnectionFactory.php"
+      "app/DatabaseConnectionFactory.php",
+      "tests/Server/EngineReadApiCommitPdo.php",
+      "app/ServerPdoConnection.php"
     ]
   },
   "app/ServerSiteCheck.php": {
@@ -3198,7 +3250,10 @@
     "consumers": [
       "Composer lint",
       "Composer analyze",
-      "Composer verify"
+      "Composer verify",
+      "app/ServerMetadataIdentity.php",
+      "app/ServerMetadataInventory.php",
+      "tools/ServerFixturePlan.php"
     ]
   },
   "app/SqlDefinitionConstraints.php": {
@@ -4012,7 +4067,10 @@
       "tests/Server/EngineSettlementFailureTest.php",
       "tests/Server/EngineTransactionFailureTest.php",
       "tests/Server/EngineWatermarkTest.php",
-      "tests/Server/EngineWorkerTest.php"
+      "tests/Server/EngineWorkerTest.php",
+      "tests/Server/EngineReadApiTest.php",
+      "tests/Server/EngineTransferEnvelopeTest.php",
+      "tests/Server/EngineMetadataAdmissionTest.php"
     ]
   },
   "bin/admin-password.php": {
@@ -4194,7 +4252,12 @@
     "owner": "SQLite/MySQL/MariaDB setup maintenance and finite offline transfer runbook",
     "consumers": [
       "Deployment and recovery review",
-      "Operator setup/transfer/rollback constraints"
+      "Operator setup/transfer/rollback constraints",
+      "tools/server-supervisor-linux.c",
+      "tools/server-supervisor-linux-controls.c",
+      "tools/server-supervisor-linux-build.sh",
+      "tools/server-supervisor-linux-qualify.cjs",
+      "tools/server-linux-prepare.cjs"
     ]
   },
   "docs/read-api.md": {
@@ -6379,7 +6442,8 @@
     "consumers": [
       "Composer lint",
       "Composer analyze",
-      "Composer verify:server"
+      "Composer verify:server",
+      "tests/Server/EngineBoundaryAdmissionTest.php"
     ]
   },
   "tests/Server/EngineMigrationFailureTest.php": {
@@ -6560,7 +6624,8 @@
     "consumers": [
       "Composer lint",
       "Composer verify",
-      "Composer analyze"
+      "Composer analyze",
+      "tests/Server/EngineBoundaryAdmissionTest.php"
     ]
   },
   "tests/Support/CompositionMigrationPdo.php": {
@@ -6659,7 +6724,12 @@
     "consumers": [
       "Composer lint",
       "Composer analyze",
-      "Explicit native Server/ServerCross execution"
+      "Explicit native Server/ServerCross execution",
+      "tests/Server/EngineBoundaryAdmissionTest.php",
+      "tests/Server/EngineReadApiTest.php",
+      "tests/Server/EngineReadApiCommitPdo.php",
+      "tests/Server/EngineTransferEnvelopeTest.php",
+      "tests/Server/EngineMetadataAdmissionTest.php"
     ]
   },
   "tests/Support/EngineProcess.php": {
@@ -6837,7 +6907,8 @@
     "consumers": [
       "Composer lint",
       "Composer verify",
-      "Composer analyze"
+      "Composer analyze",
+      "tests/Server/EngineMetadataAdmissionTest.php"
     ]
   },
   "tests/Support/JsonMutation.php": {
@@ -7224,7 +7295,8 @@
       "Composer lint",
       "Composer verify",
       "Composer analyze",
-      "Composer verify:server"
+      "Composer verify:server",
+      "tests/Server/EngineBoundaryAdmissionTest.php"
     ]
   },
   "tests/Support/SubprocessClosure.php": {
@@ -7298,7 +7370,8 @@
       "Composer analyze",
       "tests/Network/PasswordHelperTest.php",
       "tests/Network/PasswordHelperDiagnosticsTest.php",
-      "tests/Network/PasswordHelperRetentionTest.php"
+      "tests/Network/PasswordHelperRetentionTest.php",
+      "tests/Server/EngineBoundaryAdmissionTest.php"
     ]
   },
   "tests/Support/SubprocessReceiptData.php": {
@@ -7354,7 +7427,8 @@
       "tools/server-cell.php",
       "tests/Server/EngineFixtureSafetyTest.php",
       "tests/Server/EngineObserverAuditTest.php",
-      "tests/Server/EngineTransferRefusalTest.php"
+      "tests/Server/EngineTransferRefusalTest.php",
+      "tests/Server/EngineBoundaryAdmissionTest.php"
     ]
   },
   "tests/Support/TestServer.php": {
@@ -7420,7 +7494,9 @@
     "consumers": [
       "Composer lint",
       "Composer verify",
-      "Composer analyze"
+      "Composer analyze",
+      "tests/Server/EngineBoundaryAdmissionTest.php",
+      "tests/Server/EngineMetadataAdmissionTest.php"
     ]
   },
   "tests/Support/WalClock/Clock.php": {
@@ -8823,7 +8899,9 @@
       "tools/verify-server.php",
       "Strict JUnit status/assertion/source/deadline verification",
       ".github/workflows/verify.yml",
-      "docs/database-engines.md"
+      "docs/database-engines.md",
+      "tools/server-supervisor-linux-qualify.cjs",
+      "tools/server-linux-prepare.cjs"
     ]
   },
   "tools/ServerTestEvidence.php": {
@@ -8931,7 +9009,14 @@
       ".github/workflows/verify.yml",
       "docs/database-engines.md",
       "tools/server-supervisor.cjs",
-      "tests/Server/EngineSourceInventoryTest.php"
+      "tests/Server/EngineSourceInventoryTest.php",
+      "tests/Server/EngineMetadataAdmissionTest.php",
+      "tests/Server/EngineVerificationTest.php",
+      "tools/server-supervisor-linux.c",
+      "tools/server-supervisor-linux-controls.c",
+      "tools/server-supervisor-linux-build.sh",
+      "tools/server-supervisor-linux-qualify.cjs",
+      "tools/server-linux-prepare.cjs"
     ]
   },
   "tools/ServerFixtureCatalog.php": {
@@ -8944,7 +9029,8 @@
       "Composer analyze",
       ".github/workflows/verify.yml",
       "docs/database-engines.md",
-      "tests/Server/EngineObserverAuditTest.php"
+      "tests/Server/EngineObserverAuditTest.php",
+      "tests/Server/EngineMetadataAdmissionTest.php"
     ]
   },
   "tools/server-cell.php": {
@@ -8958,7 +9044,9 @@
       ".github/workflows/verify.yml",
       "docs/database-engines.md",
       "tools/server-supervisor.cjs",
-      "tests/Server/EngineObserverAuditTest.php"
+      "tests/Server/EngineObserverAuditTest.php",
+      "Hosted declaration-only mysql82 diagnostic",
+      "tests/Server/EngineMetadataAdmissionTest.php"
     ]
   },
   "tests/ServerCross/EngineServerCrashTest.php": {
@@ -8983,7 +9071,12 @@
       "Node --self-test explicit neutral control lane",
       "tests/Server/EngineFixtureSafetyTest.php",
       ".github/workflows/verify.yml",
-      "docs/database-engines.md"
+      "docs/database-engines.md",
+      "tools/server-supervisor-linux.c",
+      "tools/server-supervisor-linux-controls.c",
+      "tools/server-supervisor-linux-build.sh",
+      "tools/server-supervisor-linux-qualify.cjs",
+      "tools/server-linux-prepare.cjs"
     ]
   },
   "tools/server-supervisor-windows.ps1": {
@@ -9019,6 +9112,136 @@
       "Composer lint",
       "Composer analyze",
       "Composer verify:server"
+    ]
+  },
+  "tests/Server/EngineBoundaryAdmissionTest.php": {
+    "owner": "Selected real-engine catalog identity and early maintenance CLI refusal evidence",
+    "consumers": [
+      "Composer lint",
+      "Composer analyze",
+      "Composer verify:server",
+      "MigrationAdmission native binding selectors"
+    ]
+  },
+  "tests/Server/EngineReadApiCommitPdo.php": {
+    "owner": "Real selected PDO post-COMMIT lost-acknowledgement injection for read API recovery",
+    "consumers": [
+      "Composer lint",
+      "Composer analyze",
+      "tests/Server/EngineReadApiTest.php"
+    ]
+  },
+  "app/ServerPdoConnection.php": {
+    "owner": "Tablo\\ServerPdoConnection",
+    "consumers": [
+      "Composer lint",
+      "Composer analyze",
+      "app/DatabaseConnectionFactory.php",
+      "app/ServerMetadataAdmission.php",
+      "tests/Server/EngineMetadataAdmissionTest.php"
+    ]
+  },
+  "app/ServerMetadataIdentity.php": {
+    "owner": "Tablo\\ServerMetadataIdentity",
+    "consumers": [
+      "Composer lint",
+      "Composer analyze",
+      "app/ServerMetadataAdmission.php",
+      "app/ServerMetadataPrivileges.php",
+      "tests/Server/EngineMetadataAdmissionTest.php"
+    ]
+  },
+  "app/ServerMetadataPrivileges.php": {
+    "owner": "Tablo\\ServerMetadataPrivileges",
+    "consumers": [
+      "Composer lint",
+      "Composer analyze",
+      "app/ServerMetadataAdmission.php"
+    ]
+  },
+  "app/ServerMetadataInventory.php": {
+    "owner": "Tablo\\ServerMetadataInventory",
+    "consumers": [
+      "Composer lint",
+      "Composer analyze",
+      "app/ServerMetadataAdmission.php"
+    ]
+  },
+  "app/ServerMetadataAdmission.php": {
+    "owner": "Tablo\\ServerMetadataAdmission",
+    "consumers": [
+      "Composer lint",
+      "Composer analyze",
+      "app/DatabaseConnectionFactory.php",
+      "app/DatabaseSession.php",
+      "app/ServerSchema.php",
+      "app/ServerTableAdmission.php",
+      "tests/Server/EngineMetadataAdmissionTest.php"
+    ]
+  },
+  "tests/Server/EngineMetadataAdmissionTest.php": {
+    "owner": "Complete privileged metadata admission and unchanged-writer-grants native controls",
+    "consumers": [
+      "Composer lint",
+      "Composer analyze",
+      "Composer verify:server",
+      "All native binding admission prerequisites"
+    ]
+  },
+  "tools/server-supervisor-linux.c": {
+    "owner": "Opt-in Linux x86_64 seccomp/ptrace TGID admission and owned closure native adapter",
+    "consumers": [
+      "tools/server-supervisor.cjs",
+      "tools/ServerFixturePlan.php",
+      "tools/server-supervisor-linux-build.sh",
+      "tools/server-supervisor-linux-controls.c",
+      "Explicit Linux compiler/native qualification checkpoint",
+      "docs/database-engines.md",
+      "tools/server-supervisor-linux-qualify.cjs",
+      "tools/server-linux-prepare.cjs"
+    ]
+  },
+  "tools/server-supervisor-linux-controls.c": {
+    "owner": "Owned Linux native admission and closure control actor source; no product implementation",
+    "consumers": [
+      "tools/server-supervisor-linux-build.sh",
+      "Explicit Linux native control qualification checkpoint",
+      "tools/server-supervisor-linux-qualify.cjs",
+      "tools/server-linux-prepare.cjs"
+    ]
+  },
+  "tools/server-supervisor-linux-build.sh": {
+    "owner": "Offline pinned Linux x86_64 static adapter/control build recipe and provenance only",
+    "consumers": [
+      "tools/server-supervisor-linux.c",
+      "tools/server-supervisor-linux-controls.c",
+      "tools/server-supervisor.cjs",
+      "tools/ServerFixturePlan.php",
+      "Explicit reviewed compiler checkpoint",
+      "docs/database-engines.md",
+      "tools/server-supervisor-linux-qualify.cjs",
+      "tools/server-linux-prepare.cjs"
+    ]
+  },
+  "tools/server-supervisor-linux-qualify.cjs": {
+    "owner": "Pinned Linux neutral, tracer-death and actual-client runtime qualification; diagnostic mode cannot qualify",
+    "consumers": [
+      "tools/server-supervisor.cjs",
+      "tools/ServerFixturePlan.php",
+      "tools/server-linux-prepare.cjs",
+      ".github/workflows/verify.yml",
+      "tools/server-native-tests.json",
+      "docs/database-engines.md"
+    ]
+  },
+  "tools/server-linux-prepare.cjs": {
+    "owner": "Explicit hosted same-cell native/platform/runtime and regular PHP INI/module input preparation",
+    "consumers": [
+      ".github/workflows/verify.yml",
+      "tools/ServerFixturePlan.php",
+      "tools/server-supervisor-linux-qualify.cjs",
+      "tools/server-native-tests.json",
+      "docs/database-engines.md"
     ]
   }
 }

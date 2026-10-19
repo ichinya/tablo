@@ -18,6 +18,8 @@ x-runtime: &runtime
     TABLO_DB_PASSWORD: "${TABLO_DB_PASSWORD:?provide private writer password}"
     TABLO_DB_READ_USER: "${TABLO_DB_READ_USER:?provide reader account}"
     TABLO_DB_READ_PASSWORD: "${TABLO_DB_READ_PASSWORD:?provide private reader password}"
+    TABLO_DB_METADATA_USER: "${TABLO_DB_METADATA_USER:?provide metadata account}"
+    TABLO_DB_METADATA_PASSWORD: "${TABLO_DB_METADATA_PASSWORD:?provide private metadata password}"
     TABLO_DB_TLS: verify
     TABLO_DB_TLS_CA: /run/secrets/database-ca
     TABLO_TOKEN_KEY_FILE: /run/secrets/tablo-key

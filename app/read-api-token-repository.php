@@ -96,8 +96,9 @@ function read_api_token_locked(\PDO $db, #[\SensitiveParameter] string $expected
             }
             $write();
             $transaction->commit();
-        } catch (\Throwable) {
+        } catch (\Throwable $error) {
             $transaction->rollbackPreserving();
+            if ($error instanceof DatabaseFailure) { throw $error; }
             throw new \RuntimeException('Cannot update read API token.');
         }
     }

@@ -7,7 +7,7 @@ An unavailable driver, invalid configuration, unknown engine family, unavailable
 catalog or incompatible schema fails the operation. There is no engine fallback.
 
 The default `compose.yaml` retains the existing SQLite deployment. The server
-examples use separate database, maintenance, writer and reader credentials.
+examples use separate database, maintenance, writer, reader and metadata credentials.
 Neither web requests nor workers run as a database administrator.
 
 For a fresh Compose service, materialize only the catalog/account/migrator section
@@ -42,6 +42,8 @@ TABLO_DB_READ_USER=tablo_reader
 TABLO_DB_READ_PASSWORD=<from-private-runtime-configuration>
 TABLO_DB_MIGRATE_USER=tablo_migrator
 TABLO_DB_MIGRATE_PASSWORD=<from-private-runtime-configuration>
+TABLO_DB_METADATA_USER=tablo_metadata
+TABLO_DB_METADATA_PASSWORD=<from-private-runtime-configuration>
 TABLO_DB_TLS=verify
 TABLO_DB_TLS_CA=/run/secrets/database-ca.pem
 TABLO_TOKEN_KEY_FILE=/run/secrets/tablo-installation.key
@@ -64,6 +66,38 @@ Writer credentials serve web/check/worker operations. Reader credentials serve
 the API snapshot and do not require a writer password or vault key. Maintenance
 uses MIGRATE credentials. A required password must be supplied; an explicitly
 supplied empty password is distinguished from an absent value.
+
+Every server admission also requires explicit METADATA credentials. Their
+connection uses the same resolved engine, endpoint, catalog and TLS policy and
+closes before the normal connection opens. It proves direct schema-wide SELECT,
+TRIGGER, EVENT and routine visibility: ALTER ROUTINE on MySQL or SHOW CREATE
+ROUTINE on MariaDB. Only the exact selected catalog grant pattern is supported;
+escape each underscore as `\_` when provisioning schema grants. Missing or limited
+visibility, additional roles, grant options, global privileges and MySQL
+`partial_revokes=ON` fail closed. The metadata username is 1–32 ASCII letters,
+digits or underscores; passwords retain the explicit-empty distinction.
+
+The metadata account can read all catalog data and has DDL authority through
+TRIGGER/EVENT and, on MySQL, ALTER ROUTINE. It is not a read-only account. Holding
+both credentials in PHP provides operational separation, not security isolation.
+Protect this additional authority and provision it before initialization; ordinary
+writer, reader and migrator grants remain as listed in the deployment template.
+Admission reads names, kinds, privilege rows and public installation metadata,
+never routine/trigger bodies, authentication hashes or credential columns.
+
+The complete observation rejects hidden tables/views/sequences and any trigger,
+routine or event, including disabled events. It binds the authenticated metadata
+account to the exact catalog and matches server identity, version and public
+installation/version/checksum state against the normal session. This is a live
+admission check under a trusted DDL lifecycle, not an atomic catalog snapshot or
+protection against a malicious administrator. Quiesce writers before privileged
+DDL, migration, restore or routing changes and reattest before reopening them.
+The writer guard does not lock out administrator DDL. Use one directly selected
+authoritative server; independently routed replicas and backend multiplexing are
+unsupported. MariaDB admission requires `server_uid` (11.4.3 or later in the
+11.4 series); older servers fail admission. Later layout/bootstrap checks obtain
+fresh transient observations. The committed history watermark can advance during
+ordinary settlement and is excluded from this stable installation binding.
 
 Server connections use native prepared statements, typed fetches, no persistent
 sessions, no multi-statements or local infile, verified UTC/SQL mode/charset and
@@ -133,6 +167,11 @@ PDO transaction and rechecks ready/key policy. Network operations run outside th
 transaction. Worker, migration and notification lifetime locks are separate,
 session-affine advisory locks; losing a session loses its authority. An unknown
 COMMIT outcome is reported as uncertain and is never blindly retried.
+If read API token rotation reports an uncertain outcome, its generated bearer is
+not returned. After restoring the connection, perform a new authenticated rotation
+and distribute only that successfully returned bearer; the prior bearer may
+already have been revoked. An uncertain revocation likewise requires a fresh
+authenticated revocation or rotation before relying on its result.
 
 ## Domain and raw-SQL compatibility
 
@@ -285,12 +324,73 @@ fresh names and freezes explicit source, vendor and tool inputs. Supply
 `TABLO_TEST_DOCKER_BIN`, `TABLO_TEST_COMPOSER_PHAR`, `LEKALO_BIN`,
 `TABLO_TEST_NODE_BIN` (Node24.13.0) and an explicit unused local
 `TABLO_TEST_OBSERVER_PORT`. Windows also requires `TABLO_TEST_POWERSHELL_BIN`
-for the pinned PowerShell7 adapter. The source
-manifest lists regular repository files as `{ "files": [{ "path": "...", "sha256": "..." }] }`.
+for the pinned PowerShell7 adapter. Linux x86_64 additionally requires
+`TABLO_SERVER_LINUX_ADAPTER`, `TABLO_SERVER_LINUX_BUILD` and
+`TABLO_SERVER_LINUX_QUALIFICATION`, each with its explicit `_SHA256` selector.
+Also select the canonical regular command shell through
+`TABLO_SERVER_LINUX_SHELL` and its `_SHA256` selector. Generate one fresh lower-case
+32-hex cell nonce before qualification and explicitly set `TABLO_SERVER_CELL_NONCE`
+to that same value for qualified declaration; it is never adopted from an old
+receipt. Diagnostic-only mode rejects any nonce override and generates its own.
+Qualified Linux declaration also requires `TABLO_SERVER_PHP_BOOTSTRAP_MODULES`
+and its `_SHA256` selector. The newly prepared regular JSON has schema
+`tablo/php-bootstrap-modules/v1` and exact ordered keys `schema`, `iniFiles`,
+`extensionFiles`. Both arrays contain at most128 unique regular canonical
+`{ "path": "...", "sha256": "..." }` pins in their declared load order. INI pins
+must exactly match the existing bootstrap INI inputs. Module files are explicitly
+selected and hashed; no filename, suffix, general INI discovery or capability is
+inferred. An empty module list needs a successful actual Composer qualification
+control with the selected PHP. Diagnostic-only mode never reads this manifest.
+The native qualifier creates its private Composer-only INI with absolute selected
+extensions and no automatic prepend/append/preload; this bootstrap is bound into
+the referenced platform and runtime control evidence.
+These identify the actual executable, compiler provenance and a separately
+reviewed v2 qualification receipt bound to the helper source, build recipe,
+current controls C source, explicit cell nonce and all five selected runtime pins
+(Node, PHP, Composer, shell and Docker). PHP declaration opens only the explicitly
+selected nonce-owned qualification and checks its structure and bindings. It does
+not open paths merely because that receipt names them. Before creating product
+resources, the native owner independently opens and validates every actual control
+receipt and current platform/namespace identity; a PHP declaration is never
+qualification. The build recipe emits provenance only. It cannot qualify
+itself. Missing or mismatched runtime qualification refuses execution.
+The four normal hosted cells compile only the reviewed C/control/recipe inputs
+inside the immutable `docker.io/library/php@sha256:6114a2bd4956c50e4db20f08b9377e4fc7e08417b2aa34a44ec7ff52a07996b5`
+compiler image, as the actual runner UID/GID, with no container network and a
+fresh output directory. Image RepoDigest and platform are checked independently
+from the daemon's inspect identity, which is bound to the created container.
+Finite client exits and exact owned container cleanup are both required.
+
+`tools/server-linux-prepare.cjs --cell=ABS --source=ABS` acquires only the
+actual PHP-reported INIs into fresh regular files, preserving their exact bytes
+and scan order. A second selected-PHP query must report exactly those owned
+files. Normal PHP declaration commands select that main INI and its private
+scan directory; original regular-file guards remain enforced. Literal configured
+extension filenames/full paths become ordered module pins. Bare module names,
+dynamic syntax or duplicate resolved modules refuse preparation; no suffix is
+guessed. This is input acquisition, not a Composer capability test.
+The same-cell plan is then passed to
+`tools/server-supervisor-linux-qualify.cjs --plan=ABS --sha256=HASH`. Its thirty
+strict neutral cases, tracer-death witness and five actual runtime controls must
+all pass before it emits v2 qualification. Its separate `neutral-diagnostic`
+mode cannot emit qualification and is never used by the four normal CI lanes.
+An external-container namespace denial remains diagnostic noncoverage.
+
+The source manifest lists regular repository files as `{ "files": [{ "path": "...", "sha256": "..." }] }`.
 Install the pinned Mago release explicitly before declaring the cell. Execution
 uses `node tools/server-supervisor.cjs --execute=/private/cell.json
 --sha256=<reviewed-plan-sha256>` as a separate operation. Direct unobserved PHP
 execution refuses the cell. It never downloads PHP packages or recaptures fingerprints.
+
+`--declaration-diagnostic` instead emits an explicit `executionMode` of
+`diagnostic-only`, preserving source, tool, vendor, Mago and PHP INI checks while
+omitting Linux runtime qualification inputs. It cannot be combined with `--pull`
+or `--cross`. The Node executor rejects this mode before creating product
+resources. Its one additional MySQL/PHP 8.2 hosted job stops after declaration;
+a successful declaration is not a database or engine test result. Diagnostics
+contain only fixed stage/type values and allowlisted repository-relative source
+locations; private PHP captures are not uploaded. The four required server jobs
+retain `qualified` mode and their full runtime prerequisites.
 
 The observer starts its monotonic parent clock before plan reads and preparation.
 It runs three sequential controller phases, each with a fresh immutable adapter
@@ -332,12 +432,14 @@ Connections and active leases remain limited to eight. Every prior controller,
 adapter and scope must positively close before the next phase starts; phases
 share the original parent end. Windows creates its private kill-on-close Job before work and
 assigns a suspended controller atomically at creation, with no breakaway. Linux
-uses the internal POSIX guard in the same CJS source and a group created by that
-guard. Owner EOF cancels only its registered scope. After the actual root closes,
-the guard allows reaping of its own group until the original inherited deadline;
-unexpected descendants cancel an ordinary run even if later reaped. A later
-custody failure preserves the root exit already observed. No global process scan or
-adoption by a supplied PID is used. The private raw32-byte protocol keys are
+x86_64 uses the separately pinned native `tgid-seccomp-ptrace-x64-v1` adapter.
+It admits process/TGID units before execution, including descendants that change
+process groups, and binds its monotonic READY event to the owner interval.
+Owner loss cancels only the adapter-created scope. Missing native closure or
+qualification rejects ordinary success; an earlier root exit remains a separate
+observed fact. Linux compilation and native/runtime controls must pass on the
+selected host before an engine run is admitted. No global process scan or adoption
+by a supplied PID is used. The private raw32-byte protocol keys are
 distinct from installation keys and never appear in command arguments or reports.
 The default SQLite lanes and production PHP/Docker image do not use this observer.
 

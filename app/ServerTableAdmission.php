@@ -27,14 +27,8 @@ final class ServerTableAdmission
         $layout = ServerSchema::layout($db);
         $tables = array_values(array_filter($layout['tables'], static fn (array $table): bool => $version === 10 || $table['name'] !== 'read_api_token'));
         $expected = array_column($tables, 'name'); sort($expected, SORT_STRING);
-        if (ServerSchema::objects($db) !== $expected) { self::refuse(); }
+        if (ServerMetadataAdmission::objects($db, $version) !== $expected) { self::refuse(); }
         foreach ($tables as $table) { ServerTableAdmission::verify($db, $table); }
-        foreach (['SELECT COUNT(*) AS count FROM information_schema.TRIGGERS WHERE TRIGGER_SCHEMA = DATABASE()',
-            'SELECT COUNT(*) AS count FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = DATABASE()',
-            'SELECT COUNT(*) AS count FROM information_schema.EVENTS WHERE EVENT_SCHEMA = DATABASE()'] as $sql) {
-            $rows = ServerSchema::rows($db, $sql);
-            if (DatabaseInteger::checked($rows[0]['count'] ?? null) !== 0) { self::refuse(); }
-        }
     }
     private static function refuse(): never { throw new DatabaseFailure('schema'); }
 

@@ -32,7 +32,7 @@ final class ServerFixtureCatalog
         $this->context = ['nonce' => $nonce, 'engine' => $engine, 'execute' => $execute, 'deadline' => 0.0];
     }
 
-    /** @param array{writer: string, reader: string, migrator: string, deniedDdl: string} $passwords */
+    /** @param array{writer: string, reader: string, migrator: string, deniedDdl: string, metadata: string} $passwords */
     public function bootstrap(#[\SensitiveParameter] array $passwords): void
     {
         if ($this->bootstrapAttempted) { throw new RuntimeException('Fixture account/catalog bootstrap cannot be replayed.'); }
@@ -69,10 +69,76 @@ final class ServerFixtureCatalog
     /** A durable caller records these safe states before and after every stage; no secrets are exposed.
      * @return Slots */
     public function snapshot(): array { return $this->slots; }
+
+    /** @param list<Fixture> $fixtures
+     * @return array<string, array{kind: string, tables: int, triggers: int, routines: int, events: int}> */
+    public function metadataControls(array $fixtures): array
+    {
+        return server_fixture_catalog_metadata_controls($this->context, $this->slots, $this->active, $fixtures);
+    }
 }
 
 /** @param ServerFixtureCatalog::Context $context
- * @param array{writer: string, reader: string, migrator: string, deniedDdl: string} $passwords
+ * @param ServerFixtureCatalog::Slots $slots
+ * @param list<ServerFixturePlan::Fixture> $fixtures
+ * @return array<string, array{kind: string, tables: int, triggers: int, routines: int, events: int}> */
+function server_fixture_catalog_metadata_controls(array $context, array $slots, ?string $active, array $fixtures): array
+{
+    $records = [];
+    foreach ($fixtures as $fixture) {
+        if ($fixture['engine'] !== $context['engine'] || !str_starts_with($fixture['initial'], 'metadata-')) { continue; }
+        if ($active === null || ($slots[$fixture['catalog']]['identity'] ?? null) !== $active
+            || ($slots[$fixture['catalog']]['phase'] ?? null) !== 'running') { throw new RuntimeException('Owned active metadata control required.'); }
+        $records[$fixture['alias']] = server_fixture_catalog_metadata_control($context, $fixture);
+    }
+    return $records;
+}
+
+/** Administrative setup only, after the ordinary bootstrap child has closed.
+ * @param ServerFixtureCatalog::Context $context
+ * @param ServerFixturePlan::Fixture $fixture
+ * @return array{kind: string, tables: int, triggers: int, routines: int, events: int} */
+function server_fixture_catalog_metadata_control(array $context, array $fixture): array
+{
+    $catalog = $fixture['catalog']; $name = '`' . $catalog . '`.';
+    $account = ServerFixturePlan::metadataAccount($context['nonce'], $context['engine'], $catalog);
+    $sql = match ($fixture['initial']) {
+        'metadata-table' => 'CREATE TABLE ' . $name . 'unexpected_owned_table(id BIGINT PRIMARY KEY) ENGINE=InnoDB;',
+        'metadata-view' => 'CREATE VIEW ' . $name . 'unexpected_owned_view AS SELECT 1 AS id;',
+        'metadata-trigger' => 'CREATE TRIGGER ' . $name . 'unexpected_owned_trigger BEFORE UPDATE ON ' . $name . 'sites FOR EACH ROW SET NEW.online=1;',
+        'metadata-routine' => 'CREATE PROCEDURE ' . $name . 'unexpected_owned_routine() SELECT 1;',
+        'metadata-event' => 'CREATE EVENT ' . $name . 'unexpected_owned_event ON SCHEDULE EVERY 1 DAY DISABLE DO SET @tablo_unused_metadata_event=1;',
+        'metadata-limited' => 'REVOKE EVENT ON `' . str_replace('_', replace: '\\_', subject: $catalog) . "`.* FROM '" . $account . "'@'%';",
+        'metadata-role' => server_fixture_catalog_metadata_role($context, $catalog),
+        default => throw new RuntimeException('Unreviewed metadata control refused.'),
+    };
+    foreach (['TABLES' => 'TABLE_SCHEMA', 'TRIGGERS' => 'TRIGGER_SCHEMA', 'ROUTINES' => 'ROUTINE_SCHEMA', 'EVENTS' => 'EVENT_SCHEMA'] as $table => $column) {
+        $sql .= "\nSELECT COUNT(*) FROM information_schema." . $table . ' WHERE CAST(' . $column . " AS BINARY) = CAST('" . $catalog . "' AS BINARY);";
+    }
+    $counts = ['tables' => in_array($fixture['initial'], ['metadata-table', 'metadata-view'], strict: true) ? 19 : 18,
+        'triggers' => (int) ($fixture['initial'] === 'metadata-trigger'), 'routines' => (int) ($fixture['initial'] === 'metadata-routine'), 'events' => (int) ($fixture['initial'] === 'metadata-event')];
+    if (trim(server_fixture_catalog_execute($context, $sql)) !== implode("\n", array_values($counts))) { throw new RuntimeException('Administrative metadata control counts differ.'); }
+    return ['kind' => $fixture['initial']] + $counts;
+}
+
+/** @param ServerFixtureCatalog::Context $context */
+function server_fixture_catalog_metadata_role(array $context, string $catalog): string
+{
+    $account = ServerFixturePlan::metadataAccount($context['nonce'], $context['engine'], $catalog); $role = 'tr39_' . substr($catalog, offset: 5);
+    return $context['engine'] === 'mysql' ? "CREATE ROLE '" . $role . "'@'%'; GRANT '" . $role . "'@'%' TO '" . $account . "'@'%';"
+        : 'CREATE ROLE `' . $role . "`; GRANT `" . $role . "` TO '" . $account . "'@'%';";
+}
+
+/** @param ServerFixtureCatalog::Context $context */
+function server_fixture_catalog_metadata_restore(array $context, string $catalog): string
+{
+    ServerFixturePlan::metadataAccount($context['nonce'], $context['engine'], $catalog); $role = 'tr39_' . substr($catalog, offset: 5);
+    $drop = $context['engine'] === 'mysql' ? "DROP ROLE IF EXISTS '" . $role . "'@'%';" : 'DROP ROLE IF EXISTS `' . $role . '`;';
+    return $drop . "\n" . server_fixture_catalog_metadata_grant($context, $catalog);
+}
+
+/** @param ServerFixtureCatalog::Context $context
+ * @param array{writer: string, reader: string, migrator: string, deniedDdl: string, metadata: string} $passwords
  * @return ServerFixtureCatalog::Slots */
 function server_fixture_catalog_bootstrap(array $context, #[\SensitiveParameter] array $passwords): array
 {
@@ -88,11 +154,25 @@ function server_fixture_catalog_bootstrap(array $context, #[\SensitiveParameter]
         $sql[] = 'GRANT SELECT,INSERT,UPDATE,DELETE,CREATE,ALTER,INDEX,REFERENCES ON `' . $catalog . "`.* TO '" . $accounts['migrator'] . "'@'%';";
         // Test-only actor can maintain durable intent/phase but cannot execute DDL.
         $sql[] = 'GRANT SELECT,INSERT,UPDATE ON `' . $catalog . "`.* TO '" . $accounts['deniedDdl'] . "'@'%';";
+        $metadata = ServerFixturePlan::metadataAccount($context['nonce'], $context['engine'], $catalog);
+        $password = $passwords['metadata'];
+        if (preg_match('/\A[0-9a-f]{64}\z/D', $password) !== 1) { throw new RuntimeException('Private metadata password format refused.'); }
+        $sql[] = "CREATE USER '" . $metadata . "'@'%' IDENTIFIED BY '" . $password . "' REQUIRE SSL;";
+        $sql[] = server_fixture_catalog_metadata_grant($context, $catalog);
         $slots[$catalog] = ['phase' => 'fresh', 'identity' => null];
     }
     $sql[] = 'SELECT COUNT(*) FROM information_schema.TABLES WHERE TABLE_SCHEMA IN (' . implode(',', array_map(static fn (string $name): string => "'" . $name . "'", array_keys($slots))) . ');';
     if (trim(server_fixture_catalog_execute($context, implode("\n", $sql))) !== '0') { throw new RuntimeException('Fresh catalog bootstrap object union is not empty.'); }
     return $slots;
+}
+
+/** Exact literal catalog pattern, including escaped underscore grant semantics.
+ * @param ServerFixtureCatalog::Context $context */
+function server_fixture_catalog_metadata_grant(array $context, string $catalog): string
+{
+    $user = ServerFixturePlan::metadataAccount($context['nonce'], $context['engine'], $catalog);
+    $routine = $context['engine'] === 'mysql' ? 'ALTER ROUTINE' : 'SHOW CREATE ROUTINE';
+    return 'GRANT SELECT,TRIGGER,EVENT,' . $routine . ' ON `' . str_replace('_', replace: '\\_', subject: $catalog) . "`.* TO '" . $user . "'@'%';";
 }
 
 /** @param ServerFixtureCatalog::Slots $slots
@@ -110,6 +190,7 @@ function server_fixture_catalog_begin(array &$slots, array $context, string $ide
         server_fixture_catalog_unoccupied($context, $catalog);
         if ($state['phase'] === 'passed-closed') { server_fixture_catalog_reset($context, $catalog); }
         server_fixture_catalog_empty($context, $catalog);
+        server_fixture_catalog_execute($context, server_fixture_catalog_metadata_restore($context, $catalog));
         server_fixture_catalog_grant_scaffolds($context, $catalog);
         $slots[$catalog] = ['phase' => 'running', 'identity' => $identity];
     }

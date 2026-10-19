@@ -147,7 +147,7 @@ function server_cell_catalogs(array $context): array
         $service = server_cell_service($context, $engine);
         $private = server_cell_private_input($context['plan'], SqlColumn::string($service, 'passwordFile'));
         $passwords = ['writer' => SqlColumn::string($private, 'writer'), 'reader' => SqlColumn::string($private, 'reader'),
-            'migrator' => SqlColumn::string($private, 'migrator'), 'deniedDdl' => SqlColumn::string($private, 'deniedDdl')];
+            'migrator' => SqlColumn::string($private, 'migrator'), 'deniedDdl' => SqlColumn::string($private, 'deniedDdl'), 'metadata' => SqlColumn::string($private, 'metadata')];
         $catalog->bootstrap($passwords); unset($passwords, $private);
         $catalogs[$engine] = $catalog;
     }
@@ -186,9 +186,23 @@ function server_cell_prepare(array $context, array $catalogs, array $spec, array
     $result = Subprocess::run([PHP_BINARY, server_cell_script($context, relative: 'tools/server-cell.php'), '--initialize=' . $input], $context['directory'], $environment,
         new CommandOptions(timeout: server_cell_remaining($deadline), replacementEnvironment: $environment));
     if ([$result['exit_code'], $result['stderr']] !== [0, '']) { throw new RuntimeException('Native fixture preparation failed or its outcome is unknown.'); }
+    server_cell_metadata_controls($catalogs, $fixtures, $base, $nonce);
     server_cell_observer_finish($preparation, server_cell_observer_closed($result, SubprocessReceipt::read($result['files']['receipt'])));
     if (array_key_exists('crash', $spec)) { server_cell_crash($context, $environment, $spec); }
     return ['environment' => $environment, 'closureDirectory' => $closure, 'fixtures' => $fixtures];
+}
+
+/** @param array<string, ServerFixtureCatalog> $catalogs
+ * @param list<ServerFixturePlan::Fixture> $fixtures */
+function server_cell_metadata_controls(array $catalogs, array $fixtures, string $base, string $nonce): void
+{
+    foreach ($catalogs as $catalog) {
+        foreach ($catalog->metadataControls($fixtures) as $alias => $record) {
+            $fixture = array_values(array_filter($fixtures, static fn (array $fixture): bool => $fixture['alias'] === $alias))[0] ?? throw new RuntimeException('Owned metadata fixture absent.');
+            $path = $base . '/' . $fixture['engine'] . '/tablo-server-' . $nonce . '/private/' . $alias . '.metadata.json';
+            server_cell_private_write($path, \Tablo\JsonEncoding::encode(['schema' => 'tablo/metadata-control/v1', 'nonce' => $nonce, 'engine' => $fixture['engine'], 'catalog' => $fixture['catalog']] + $record));
+        }
+    }
 }
 
 function server_cell_remaining(float $deadline): float
@@ -247,6 +261,7 @@ function server_cell_fixture_environment(array $plan, array $service, string $en
         'TABLO_DB_TLS_CA' => SqlColumn::string($plan, 'ca'), 'TABLO_DB_USER' => $accounts['writer'], 'TABLO_DB_PASSWORD' => SqlColumn::string($passwords, 'writer'),
         'TABLO_DB_READ_USER' => $accounts['reader'], 'TABLO_DB_READ_PASSWORD' => SqlColumn::string($passwords, 'reader'),
         'TABLO_DB_MIGRATE_USER' => $accounts['migrator'], 'TABLO_DB_MIGRATE_PASSWORD' => SqlColumn::string($passwords, 'migrator'),
+        'TABLO_DB_METADATA_PASSWORD' => SqlColumn::string($passwords, 'metadata'),
         'TABLO_TEST_DB_DENIED_DDL_USER' => $accounts['deniedDdl'], 'TABLO_TEST_DB_DENIED_DDL_PASSWORD' => SqlColumn::string($passwords, 'deniedDdl')];
 }
 
@@ -283,7 +298,9 @@ function server_cell_initialize_fixture(array $record, string $selected, array &
         $progress['stage'] = 'connection'; $db = $fixture->maintenance();
         $progress['stage'] = 'objects';
         if (\Tablo\ServerSchema::objects($db) !== []) { throw new RuntimeException('Initial native fixture object union is not empty.'); }
-        if (SqlColumn::string($record, 'initial') === 'ready') {
+        $initial = SqlColumn::string($record, 'initial');
+        if (!in_array($initial, ServerFixturePlan::INITIAL_STATES, strict: true)) { throw new RuntimeException('Reviewed fixture initial state required.'); }
+        if ($initial !== 'empty') {
             $progress['stage'] = 'migration';
             $barrier = static function (string $point, int $step) use (&$progress): void { $progress['point'] = $point; $progress['step'] = $step; };
             (new \Tablo\ServerMigration($db, $fixture->vault, $barrier))->initialize(\Tablo\Tests\Support\EngineSchedule::receipt($fixture->case, $peer));
@@ -517,31 +534,128 @@ function server_cell_entry(array $arguments): int
 function server_cell_plan_entry(array $arguments): void
 {
     $root = str_replace('\\', replace: '/', subject: dirname(__DIR__));
-    require_once $root . '/tools/reviewed-dependencies.php'; verify_worker_dependencies($root);
-    foreach (['JsonRecord', 'JsonEncoding', 'SqlColumn', 'DatabaseInteger', 'DatabaseFailure'] as $name) { require_once $root . '/app/' . $name . '.php'; }
-    require_once __DIR__ . '/ServerFixturePlan.php';
-    $options = server_cell_plan_options($arguments);
-    $plan = ServerFixturePlan::cell($root, $options);
-    server_cell_private_write($options['output'], \Tablo\JsonEncoding::encode($plan, JSON_PRETTY_PRINT));
-    fwrite(STDOUT, json_encode(['status' => 'declared', 'plan' => $options['output'], 'sha256' => RequiredFile::digest($options['output']),
-        'nonce' => $plan['nonce'] ?? null, 'runtime' => $plan['runtime'] ?? null, 'executed' => false], JSON_THROW_ON_ERROR) . "\n");
+    $checkpoint = 'DEPENDENCY_GUARD';
+    try {
+        require_once $root . '/tools/reviewed-dependencies.php'; verify_worker_dependencies($root);
+        $checkpoint = 'LOAD';
+        foreach (['JsonRecord', 'JsonEncoding', 'SqlColumn', 'DatabaseInteger', 'DatabaseFailure'] as $name) { require_once $root . '/app/' . $name . '.php'; }
+        require_once __DIR__ . '/ServerFixturePlan.php';
+        $checkpoint = 'OPTIONS'; $options = server_cell_plan_options($arguments);
+        $checkpoint = 'PINS'; $plan = ServerFixturePlan::cell($root, $options);
+        $checkpoint = 'PLAN_ENCODE'; $bytes = \Tablo\JsonEncoding::encode($plan, JSON_PRETTY_PRINT);
+        $checkpoint = 'PLAN_WRITE'; server_cell_private_write($options['output'], $bytes);
+        $checkpoint = 'PLAN_REPORT';
+        fwrite(STDOUT, json_encode(['status' => 'declared', 'plan' => $options['output'], 'sha256' => RequiredFile::digest($options['output']),
+            'nonce' => $plan['nonce'] ?? null, 'runtime' => $plan['runtime'] ?? null, 'executed' => false], JSON_THROW_ON_ERROR) . "\n");
+    } catch (Throwable $error) {
+        try { fwrite(STDERR, 'TABLO_DECLARATION ' . json_encode(server_cell_declaration_failure($error, $checkpoint), JSON_THROW_ON_ERROR) . "\n"); }
+        catch (Throwable $discarded) { unset($discarded); }
+        throw $error;
+    }
+}
+
+/** Pure emergency projection, independent of the application and dependency autoloaders.
+ * @return array{schema: string, status: string, stage: string, type: string, source: ?string, line: ?int, executed: bool} */
+function server_cell_declaration_failure(#[\SensitiveParameter] Throwable $error, string $checkpoint): array
+{
+    $type = match (true) { $error instanceof JsonException => 'json', $error instanceof RuntimeException => 'runtime', $error instanceof Error => 'error', default => 'other' };
+    return ['schema' => 'tablo/server-declaration-diagnostic/v1', 'status' => 'failed', 'stage' => server_cell_declaration_stage($error->getTrace(), $checkpoint),
+        'type' => $type] + server_cell_declaration_origin($error->getFile(), $error->getLine()) + ['executed' => false];
+}
+
+function server_cell_declaration_stage(#[\SensitiveParameter] array $frames, string $checkpoint): string
+{
+    $stages = ['server_fixture_plan_bootstrap_ini' => 'BOOTSTRAP_INI', 'server_fixture_plan_observer' => 'OBSERVER',
+        'server_fixture_plan_php_modules' => 'BOOTSTRAP_MODULES', 'server_fixture_plan_php_module_decode' => 'BOOTSTRAP_MODULES', 'server_fixture_plan_php_module_record' => 'BOOTSTRAP_MODULES',
+        'server_fixture_plan_php_module_pins' => 'BOOTSTRAP_MODULES',
+        'server_fixture_plan_docker' => 'DOCKER_PROFILE', 'server_fixture_plan_tool' => 'TOOL_INPUT',
+        'server_fixture_plan_linux_inputs' => 'LINUX_QUALIFICATION', 'server_fixture_plan_linux_file' => 'LINUX_QUALIFICATION',
+        'server_fixture_plan_linux_shell' => 'LINUX_QUALIFICATION', 'server_fixture_plan_nonce' => 'OPTIONS',
+        'server_fixture_plan_linux_provenance' => 'LINUX_QUALIFICATION', 'server_fixture_plan_linux_receipt' => 'LINUX_QUALIFICATION',
+        'server_fixture_plan_linux_qualification' => 'LINUX_QUALIFICATION', 'server_fixture_plan_linux_runtimes' => 'LINUX_QUALIFICATION',
+        'server_fixture_plan_linux_runtime_binding' => 'LINUX_QUALIFICATION', 'server_fixture_plan_linux_references' => 'LINUX_QUALIFICATION',
+        'server_fixture_plan_linux_reference' => 'LINUX_QUALIFICATION', 'server_fixture_plan_linux_path' => 'LINUX_QUALIFICATION',
+        'server_fixture_plan_inputs' => 'TOOL_INPUT', 'server_fixture_plan_source_manifest' => 'SOURCE_MANIFEST',
+        'server_fixture_plan_source_file' => 'SOURCE_MANIFEST', 'server_fixture_plan_vendor' => 'VENDOR_REFERENCES',
+        'server_fixture_plan_vendor_files' => 'VENDOR_FILES', 'server_fixture_plan_mago_files' => 'MAGO_FILES',
+        'server_cell_plan_options' => 'OPTIONS', 'server_fixture_plan_service' => 'PINS', 'verify_worker_dependencies' => 'DEPENDENCY_GUARD'];
+    /** @var mixed $frame Native trace records are checked before their function-name projection. */
+    foreach (array_slice($frames, offset: 0, length: 32) as $frame) {
+        if (!is_array($frame)) { continue; }
+        /** @var mixed $function Only a fixed recognized function name can influence a stage. */
+        $function = $frame['function'] ?? null;
+        if (is_string($function) && !array_key_exists('class', $frame) && array_key_exists($function, $stages)) { return $stages[$function]; }
+    }
+    return in_array($checkpoint, ['DEPENDENCY_GUARD', 'LOAD', 'OPTIONS', 'PINS', 'PLAN_ENCODE', 'PLAN_WRITE', 'PLAN_REPORT'], strict: true) ? $checkpoint : 'UNKNOWN';
+}
+
+/** @return array{source: ?string, line: ?int} */
+function server_cell_declaration_origin(#[\SensitiveParameter] string $origin, int $line): array
+{
+    $root = str_replace('\\', replace: '/', subject: dirname(__DIR__)) . '/';
+    $origin = str_replace('\\', replace: '/', subject: $origin);
+    foreach (server_cell_declaration_sources() as $source) {
+        if ($origin === $root . $source) { return ['source' => $source, 'line' => $line > 0 && $line <= 1_000_000 ? $line : null]; }
+    }
+    return ['source' => null, 'line' => null];
+}
+
+/** @return list<string> */
+function server_cell_declaration_sources(): array
+{
+    return ['tools/server-cell.php', 'tools/ServerFixturePlan.php', 'tools/reviewed-dependencies.php',
+        'tools/ReviewedDependencyManifest.php', 'tools/ReviewedDependencyCatalog.php', 'tools/ReviewedDependencyEntry.php',
+        'tools/ReviewedDependencyCoverage.php', 'tools/MagoSource.php', 'tools/MagoPin.php', 'app/RequiredFile.php',
+        'app/JsonRecord.php', 'app/JsonEncoding.php', 'app/SqlColumn.php', 'app/DatabaseInteger.php', 'app/DatabaseFailure.php',
+        'tests/Server/EngineVerificationTest.php'];
+}
+
+/** Only this validated projection may leave the private declaration captures. */
+function server_cell_declaration_record(#[\SensitiveParameter] string $capture): ?array
+{
+    if (strlen($capture) > 4096) { return null; }
+    $records = [];
+    foreach (explode("\n", $capture) as $line) {
+        if (!str_starts_with($line, 'TABLO_DECLARATION ')) { continue; }
+        $records[] = substr(rtrim($line, characters: "\r"), offset: strlen('TABLO_DECLARATION '));
+    }
+    if (count($records) !== 1) { return null; }
+    try {
+        /** @var mixed $record Untrusted capture JSON must pass the exact shape and value checks. */
+        $record = json_decode($records[0], associative: true, depth: 8, flags: JSON_THROW_ON_ERROR);
+    }
+    catch (JsonException $discarded) { unset($discarded); return null; }
+    if (!is_array($record) || json_encode($record, JSON_THROW_ON_ERROR) !== $records[0] || array_keys($record) !== ['schema', 'status', 'stage', 'type', 'source', 'line', 'executed']
+        || [$record['schema'] ?? null, $record['status'] ?? null, $record['executed'] ?? null] !== ['tablo/server-declaration-diagnostic/v1', 'failed', false]) { return null; }
+    return server_cell_declaration_fields($record) ? $record : null;
+}
+
+function server_cell_declaration_fields(array $record): bool
+{
+    $stages = ['DEPENDENCY_GUARD', 'LOAD', 'OPTIONS', 'PINS', 'PLAN_ENCODE', 'PLAN_WRITE', 'PLAN_REPORT', 'BOOTSTRAP_INI', 'OBSERVER',
+        'DOCKER_PROFILE', 'TOOL_INPUT', 'SOURCE_MANIFEST', 'VENDOR_REFERENCES', 'VENDOR_FILES', 'MAGO_FILES', 'LINUX_QUALIFICATION', 'BOOTSTRAP_MODULES', 'UNKNOWN'];
+    if (!in_array($record['stage'] ?? null, $stages, strict: true) || !in_array($record['type'] ?? null, ['json', 'runtime', 'error', 'other'], strict: true)) { return false; }
+    if (($record['source'] ?? null) === null) { return ($record['line'] ?? null) === null; }
+    return in_array($record['source'], server_cell_declaration_sources(), strict: true) && is_int($record['line'] ?? null) && $record['line'] > 0 && $record['line'] <= 1_000_000;
 }
 
 /** @param list<string> $arguments
- * @return array{engine: string, cross: bool, pull: bool, output: string} */
+ * @return array{engine: string, cross: bool, pull: bool, output: string, diagnostic: bool} */
 function server_cell_plan_options(array $arguments): array
 {
-    $values = []; $cross = false; $pull = false;
+    $values = []; $cross = false; $pull = false; $diagnostic = false;
     foreach ($arguments as $argument) {
         if (str_starts_with($argument, '--plan=')) { server_cell_plan_value($values, name: 'output', value: substr($argument, offset: strlen('--plan='))); continue; }
         if (str_starts_with($argument, '--engine=')) { server_cell_plan_value($values, name: 'engine', value: substr($argument, offset: strlen('--engine='))); continue; }
         if ($argument === '--cross' && !$cross) { $cross = true; continue; }
         if ($argument === '--pull' && !$pull) { $pull = true; continue; }
+        if ($argument === '--declaration-diagnostic' && !$diagnostic) { $diagnostic = true; continue; }
         throw new RuntimeException('Unreviewed or repeated cell plan argument.');
     }
     $engine = SqlColumn::string($values, 'engine'); $output = SqlColumn::string($values, 'output');
     if (!in_array($engine, ['mysql', 'mariadb'], strict: true) || $output === '') { throw new RuntimeException('Required explicit engine/output absent.'); }
-    return ['engine' => $engine, 'cross' => $cross, 'pull' => $pull, 'output' => $output];
+    if ($diagnostic && ($cross || $pull)) { throw new RuntimeException('Diagnostic-only declaration cannot request runtime controls.'); }
+    return ['engine' => $engine, 'cross' => $cross, 'pull' => $pull, 'output' => $output, 'diagnostic' => $diagnostic];
 }
 
 /** @param array<string, string> $values */
@@ -680,6 +794,9 @@ function server_cell_start_environment(array $plan): array
     $environment = [];
     foreach (['SystemRoot', 'SYSTEMROOT', 'WINDIR', 'PATH', 'Path', 'PATHEXT', 'COMSPEC', 'USERPROFILE', 'LOCALAPPDATA', 'APPDATA',
         'TABLO_SERVER_OBSERVER_FILE', 'TABLO_SERVER_OBSERVER_SHA256', 'TABLO_TEST_BASELINE_DIRECTORY',
+        'TABLO_SERVER_LINUX_ADAPTER', 'TABLO_SERVER_LINUX_ADAPTER_SHA256', 'TABLO_SERVER_LINUX_BUILD', 'TABLO_SERVER_LINUX_BUILD_SHA256',
+        'TABLO_SERVER_LINUX_QUALIFICATION', 'TABLO_SERVER_LINUX_QUALIFICATION_SHA256',
+        'TABLO_SERVER_LINUX_SHELL', 'TABLO_SERVER_LINUX_SHELL_SHA256',
         'TABLO_TEST_BASELINE_PHASE_FILE', 'TABLO_TEST_BASELINE_PHASE_SHA256'] as $name) {
         $value = getenv($name); if (is_string($value)) { $environment[$name] = $value; }
     }
@@ -698,7 +815,7 @@ function server_cell_secrets(array $plan, string $engine): void
 {
     $services = JsonRecord::checked($plan['services'] ?? null); $service = JsonRecord::checked($services[$engine] ?? null);
     server_cell_private_write(SqlColumn::string($service, 'passwordFile'), \Tablo\JsonEncoding::encode([
-        'writer' => bin2hex(random_bytes(32)), 'reader' => bin2hex(random_bytes(32)), 'migrator' => bin2hex(random_bytes(32)), 'deniedDdl' => bin2hex(random_bytes(32))]));
+        'writer' => bin2hex(random_bytes(32)), 'reader' => bin2hex(random_bytes(32)), 'migrator' => bin2hex(random_bytes(32)), 'deniedDdl' => bin2hex(random_bytes(32)), 'metadata' => bin2hex(random_bytes(32))]));
     $password = bin2hex(random_bytes(32));
     server_cell_private_write(SqlColumn::string($service, 'rootPasswordFile'), $password);
     server_cell_private_write(SqlColumn::string($service, 'rootOptionsFile'), "[client]\nuser=root\npassword=" . $password . "\nprotocol=socket\nsocket=" . SqlColumn::string($service, 'socket') . "\n");
@@ -1448,6 +1565,7 @@ function server_cell_native_ready_command(array $context, string $engine, string
 /** No implicit observer is constructed by PHP. Only the already armed owner may admit work. */
 function server_cell_observer_require(array $plan): void
 {
+    if (($plan['executionMode'] ?? null) !== 'qualified') { throw new RuntimeException('Qualified execution mode required.'); }
     $configuration = server_cell_observer_configuration(); $observer = JsonRecord::checked($plan['observer'] ?? null);
     $selected = server_cell_observer_declaration($plan, SqlColumn::string($configuration, 'phase'));
     if ([$configuration['cellNonce'] ?? null, $configuration['nonce'] ?? null, $configuration['host'] ?? null, $configuration['port'] ?? null,

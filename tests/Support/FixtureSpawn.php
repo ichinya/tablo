@@ -18,7 +18,8 @@ final class FixtureSpawn
         }
         // Explicit empty defaults also prevent the project .env from supplying private configuration.
         $defaults = array_fill_keys(['TABLO_DB_NAME', 'TABLO_DB_HOST', 'TABLO_DB_PORT', 'TABLO_DB_SOCKET', 'TABLO_DB_USER', 'TABLO_DB_PASSWORD',
-            'TABLO_DB_READ_USER', 'TABLO_DB_READ_PASSWORD', 'TABLO_DB_MIGRATE_USER', 'TABLO_DB_MIGRATE_PASSWORD', 'TABLO_DB_TLS',
+            'TABLO_DB_READ_USER', 'TABLO_DB_READ_PASSWORD', 'TABLO_DB_MIGRATE_USER', 'TABLO_DB_MIGRATE_PASSWORD',
+            'TABLO_DB_METADATA_USER', 'TABLO_DB_METADATA_PASSWORD', 'TABLO_DB_TLS',
             'TABLO_DB_TLS_CA', 'TABLO_DB_TLS_CERT', 'TABLO_DB_TLS_KEY', 'TABLO_TOKEN_KEY_FILE'], value: '');
         $defaults['TABLO_DB_DRIVER'] = 'sqlite';
         $defaults['TABLO_DB'] = ':memory:';

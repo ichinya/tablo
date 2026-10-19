@@ -121,7 +121,7 @@ jobs:
           retention-days: 7
 
   server:
-    name: Ubuntu / ${{ matrix.engine }} / PHP ${{ matrix.php }}
+    name: Ubuntu / ${{ matrix.engine }} / PHP ${{ matrix.php }}${{ matrix.declarationOnly && ' / declaration-only' || '' }}
     runs-on: ubuntu-latest
     timeout-minutes: 45
     strategy:
@@ -129,6 +129,11 @@ jobs:
       matrix:
         engine: [mysql, mariadb]
         php: ['8.2', '8.5']
+        declarationOnly: [false]
+        include:
+          - engine: mysql
+            php: '8.2'
+            declarationOnly: true
     defaults:
       run:
         shell: pwsh
@@ -137,6 +142,17 @@ jobs:
       COMPOSER_PROCESS_TIMEOUT: '1800'
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - name: Seed safe declaration status before input preparation
+        run: |
+          $cellDirectory = Join-Path $env:RUNNER_TEMP 'tablo-server-cell'
+          New-Item -ItemType Directory -Path $cellDirectory -ErrorAction Stop | Out-Null
+          $declaration = @{ schema = 'tablo/server-hosted-declaration/v1'; status = 'NOTRUN_OR_FAILED'; stage = 'WORKFLOW_INPUT_PREPARATION'; type = $null; source = $null; line = $null; nativeExit = $null; executed = $false; head = $env:GITHUB_SHA; run = $env:GITHUB_RUN_ID; attempt = $env:GITHUB_RUN_ATTEMPT; engine = '${{ matrix.engine }}'; php = '${{ matrix.php }}'; declarationOnly = [bool]::Parse('${{ matrix.declarationOnly }}'); issueAccepted = $false }
+          if (!$declaration.declarationOnly) {
+            $cellNonce = [Convert]::ToHexString([Security.Cryptography.RandomNumberGenerator]::GetBytes(16)).ToLowerInvariant()
+            $declaration.nonce = $cellNonce
+            [IO.File]::AppendAllText($env:GITHUB_ENV, "TABLO_SERVER_CELL_NONCE=$cellNonce`n", [Text.UTF8Encoding]::new($false))
+          }
+          [IO.File]::WriteAllText((Join-Path $cellDirectory 'safe-declaration.json'), ($declaration | ConvertTo-Json -Depth 5), [Text.UTF8Encoding]::new($false))
       - uses: shivammathur/setup-php@b604ade2a87db23f8871b7182e69ec5e75effb45 # v2
         with:
           php-version: ${{ matrix.php }}
@@ -167,7 +183,7 @@ jobs:
           php tools/install-mago.php
           exit $LASTEXITCODE
       - name: Build Lekalo v0.6.4 (CLI 0.6.3)
-        if: steps.server-lekalo-cache.outputs.cache-hit != 'true'
+        if: steps.server-lekalo-cache.outputs.cache-hit != 'true' && !matrix.declarationOnly
         run: |
           git clone --no-checkout https://github.com/ichinya/lekalo.git .ci/lekalo-source
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
@@ -177,6 +193,10 @@ jobs:
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
           New-Item -ItemType Directory -Force .ci/lekalo-bin | Out-Null
           Copy-Item -LiteralPath .ci/lekalo-source/target/release/lekalo -Destination .ci/lekalo-bin/lekalo
+      - name: Require prepared Lekalo for declaration-only diagnostics
+        if: matrix.declarationOnly && steps.server-lekalo-cache.outputs.cache-hit != 'true'
+        run: |
+          throw 'Declaration-only diagnostics require the existing pinned tool cache; no compiler is launched.'
       - name: Prepare exact Node24.13.0 for the opt-in server observer
         run: |
           if ($env:RUNNER_OS -ne 'Linux' -or $env:RUNNER_ARCH -ne 'X64') { throw 'Unqualified server observer platform' }
@@ -196,18 +216,147 @@ jobs:
           $nodeVersion = & $selectedNode --version
           if ($LASTEXITCODE -ne 0 -or $nodeVersion.Trim() -cne 'v24.13.0') { throw 'Pinned Node version differs' }
           [IO.File]::AppendAllText($env:GITHUB_ENV, "TABLO_TEST_NODE_BIN=$selectedNode`n", [Text.UTF8Encoding]::new($false))
-      - name: Declare and execute the finite isolated real-server cell
+      - name: Select the canonical Linux command shell before qualification
+        if: ${{ !matrix.declarationOnly }}
+        run: |
+          $shellCommand = (Get-Command sh -CommandType Application -ErrorAction Stop).Source
+          $selectedShell = readlink -f -- $shellCommand
+          if ($LASTEXITCODE -ne 0 -or $selectedShell -isnot [string] -or !$selectedShell.StartsWith('/')) { throw 'Canonical command shell unavailable' }
+          $shellFile = Get-Item -LiteralPath $selectedShell -ErrorAction Stop
+          if ($shellFile.PSIsContainer -or $shellFile.LinkType -or ($shellFile.Attributes -band [IO.FileAttributes]::ReparsePoint)) { throw 'Canonical command shell is not regular' }
+          $shellDigest = (Get-FileHash -LiteralPath $selectedShell -Algorithm SHA256).Hash.ToLowerInvariant()
+          [IO.File]::AppendAllText($env:GITHUB_ENV, "TABLO_SERVER_LINUX_SHELL=$selectedShell`nTABLO_SERVER_LINUX_SHELL_SHA256=$shellDigest`n", [Text.UTF8Encoding]::new($false))
+      - name: Compile the pinned Linux admission helper in an isolated output directory
+        if: ${{ !matrix.declarationOnly }}
+        timeout-minutes: 12
+        run: |
+          $cellDirectory = Join-Path $env:RUNNER_TEMP 'tablo-server-cell'
+          $privateDirectory = Join-Path $cellDirectory 'compiler-private'
+          $outputDirectory = Join-Path $cellDirectory 'compiler-out'
+          $compilerSource = Join-Path $cellDirectory 'compiler-source'
+          New-Item -ItemType Directory -Path $privateDirectory,$outputDirectory,(Join-Path $compilerSource 'tools') -ErrorAction Stop | Out-Null
+          chmod 700 -- $privateDirectory $outputDirectory
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          foreach ($name in @('server-supervisor-linux.c','server-supervisor-linux-controls.c','server-supervisor-linux-build.sh')) {
+            $inputPath = Join-Path $PWD "tools/$name"
+            $copyPath = Join-Path $compilerSource "tools/$name"
+            Copy-Item -LiteralPath $inputPath -Destination $copyPath -ErrorAction Stop
+            if ((Get-FileHash -LiteralPath $inputPath -Algorithm SHA256).Hash -cne (Get-FileHash -LiteralPath $copyPath -Algorithm SHA256).Hash) { throw 'Compiler source copy differs' }
+          }
+          function Invoke-FiniteTool([string]$label, [string]$executable, [string[]]$arguments, [int]$seconds) {
+            $start = [Diagnostics.ProcessStartInfo]::new($executable)
+            $start.UseShellExecute = $false
+            $start.RedirectStandardInput = $true
+            $start.RedirectStandardOutput = $true
+            $start.RedirectStandardError = $true
+            $start.WorkingDirectory = $privateDirectory
+            $start.Environment.Clear()
+            foreach ($entry in @{ PATH='/usr/local/bin:/usr/bin:/bin'; HOME=$privateDirectory; DOCKER_CONFIG=$privateDirectory; LANG='C' }.GetEnumerator()) { $start.Environment[$entry.Key] = $entry.Value }
+            foreach ($argument in $arguments) { $start.ArgumentList.Add($argument) }
+            $child = [Diagnostics.Process]::new()
+            $child.StartInfo = $start
+            try {
+              if (!$child.Start()) { throw 'Native preparation did not start' }
+              $child.StandardInput.Close()
+              $stdoutTask = $child.StandardOutput.ReadToEndAsync()
+              $stderrTask = $child.StandardError.ReadToEndAsync()
+              $closed = $child.WaitForExit($seconds * 1000)
+              $expired = !$closed
+              if (!$closed) { $child.Kill($true); $closed = $child.WaitForExit(1000) }
+              $streamsClosed = $stdoutTask.Wait(1000) -and $stderrTask.Wait(1000)
+              $nativeExit = if ($closed) { $child.ExitCode } else { $null }
+              $receipt = @{ label=$label; pid=$child.Id; nativeExit=$nativeExit; expired=$expired; processClosed=$closed; streamsClosed=$streamsClosed }
+              [IO.File]::WriteAllText((Join-Path $privateDirectory "$label.json"), ($receipt | ConvertTo-Json), [Text.UTF8Encoding]::new($false))
+              if (!$streamsClosed) { throw 'Native preparation stream closure unknown' }
+              [IO.File]::WriteAllText((Join-Path $privateDirectory "$label.stdout"), $stdoutTask.Result, [Text.UTF8Encoding]::new($false))
+              [IO.File]::WriteAllText((Join-Path $privateDirectory "$label.stderr"), $stderrTask.Result, [Text.UTF8Encoding]::new($false))
+              if ($expired -or !$closed -or $nativeExit -ne 0) { throw 'Native preparation failed or closure unknown' }
+              return $stdoutTask.Result
+            } finally { $child.Dispose() }
+          }
+          $dockerCommand = (Get-Command docker -CommandType Application -ErrorAction Stop).Source
+          $docker = (readlink -f -- $dockerCommand)
+          if ($LASTEXITCODE -ne 0 -or $docker -isnot [string] -or !$docker.StartsWith('/')) { throw 'Canonical Docker CLI unavailable' }
+          $identity = Invoke-FiniteTool 'host-identity' $env:TABLO_TEST_NODE_BIN @('--eval','process.stdout.write(JSON.stringify({uid:process.getuid(),gid:process.getgid()}))') 8 | ConvertFrom-Json
+          if ($identity.uid -lt 1 -or $identity.gid -lt 1) { throw 'Explicit unprivileged runner identity required' }
+          $compilerImage = 'docker.io/library/php@sha256:6114a2bd4956c50e4db20f08b9377e4fc7e08417b2aa34a44ec7ff52a07996b5'
+          $null = Invoke-FiniteTool 'compiler-pull' $docker @('pull','--platform=linux/amd64',$compilerImage) 300
+          $image = @(Invoke-FiniteTool 'compiler-image' $docker @('image','inspect',$compilerImage) 8 | ConvertFrom-Json)
+          $digestNames = @($image[0].RepoDigests | Where-Object { $_ -cmatch '^(?:docker\.io/)?(?:library/)?php@sha256:6114a2bd4956c50e4db20f08b9377e4fc7e08417b2aa34a44ec7ff52a07996b5$' })
+          if ($image.Count -ne 1 -or $digestNames.Count -lt 1 -or $image[0].Id -cnotmatch '^sha256:[0-9a-f]{64}$' -or $image[0].Os -cne 'linux' -or $image[0].Architecture -cne 'amd64' -or ($null -ne $image[0].Config.Volumes -and @($image[0].Config.Volumes.PSObject.Properties).Count -ne 0)) { throw 'Compiler image identity or volume declaration differs' }
+          $containerName = 'tablo-i39-compiler-' + $env:TABLO_SERVER_CELL_NONCE
+          $cidFile = Join-Path $privateDirectory 'compiler.cid'
+          $create = @('create','--platform=linux/amd64','--pull=never','--name',$containerName,'--cidfile',$cidFile,'--label',"tablo.issue39.nonce=$env:TABLO_SERVER_CELL_NONCE",'--network=none','--read-only','--cap-drop=ALL','--security-opt=no-new-privileges','--pids-limit=8','--memory=512m','--cpus=2','--no-healthcheck','--user',"$($identity.uid):$($identity.gid)",'--mount',"type=bind,source=$compilerSource,target=/src,readonly",'--mount',"type=bind,source=$outputDirectory,target=/out",'--tmpfs','/tmp:rw,noexec,nosuid,size=64m','--workdir','/src','--entrypoint','/bin/sh','--env','COMPILER_IMAGE_DIGEST=sha256:6114a2bd4956c50e4db20f08b9377e4fc7e08417b2aa34a44ec7ff52a07996b5',$compilerImage,'tools/server-supervisor-linux-build.sh')
+          $primaryFailure = $null; $cleanupFailure = $null; $compiled = $false; $cleanupKnown = $false
+          try {
+            $containerId = (Invoke-FiniteTool 'compiler-create' $docker $create 30).Trim()
+            if ($containerId -cnotmatch '^[0-9a-f]{64}$' -or (Get-Content -LiteralPath $cidFile -Raw).Trim() -cne $containerId) { throw 'Compiler container ID unknown' }
+            $owned = @(Invoke-FiniteTool 'compiler-before-start' $docker @('container','inspect',$containerId) 8 | ConvertFrom-Json)
+            if ($owned.Count -ne 1 -or $owned[0].Id -cne $containerId -or $owned[0].Name -cne "/$containerName" -or $owned[0].Config.Labels.'tablo.issue39.nonce' -cne $env:TABLO_SERVER_CELL_NONCE -or $owned[0].Image -cne $image[0].Id -or $owned[0].State.Status -cne 'created') { throw 'Compiler positive ownership differs' }
+            $null = Invoke-FiniteTool 'compiler-start' $docker @('start','--attach',$containerId) 180
+            $finished = @(Invoke-FiniteTool 'compiler-closed' $docker @('container','inspect',$containerId) 8 | ConvertFrom-Json)
+            if ($finished.Count -ne 1 -or $finished[0].Id -cne $containerId -or $finished[0].State.Running -or $finished[0].State.OOMKilled -or $finished[0].State.Dead -or $finished[0].State.Status -cne 'exited' -or $finished[0].State.ExitCode -ne 0) { throw 'Compiler native exit or closure failed' }
+            $compiled = $true
+          } catch { $primaryFailure = $_ }
+          finally {
+            try {
+              if (!(Test-Path -LiteralPath $cidFile)) { throw 'Compiler resource closure unknown' }
+              $cleanupId = (Get-Content -LiteralPath $cidFile -Raw).Trim()
+              if ($cleanupId -cnotmatch '^[0-9a-f]{64}$') { throw 'Compiler cleanup identity unknown' }
+              $owned = @(Invoke-FiniteTool 'compiler-cleanup-ownership' $docker @('container','inspect',$cleanupId) 8 | ConvertFrom-Json)
+              if ($owned.Count -ne 1 -or $owned[0].Id -cne $cleanupId -or $owned[0].Name -cne "/$containerName" -or $owned[0].Config.Labels.'tablo.issue39.nonce' -cne $env:TABLO_SERVER_CELL_NONCE -or $owned[0].Image -cne $image[0].Id) { throw 'Compiler cleanup ownership refused' }
+              if ($owned[0].State.Running) { $null = Invoke-FiniteTool 'compiler-cancel' $docker @('container','kill',$cleanupId) 8 }
+              $closed = @(Invoke-FiniteTool 'compiler-cleanup-closed' $docker @('container','inspect',$cleanupId) 8 | ConvertFrom-Json)
+              if ($closed.Count -ne 1 -or $closed[0].Id -cne $cleanupId -or $closed[0].State.Running) { throw 'Compiler daemon scope closure unknown' }
+              $null = Invoke-FiniteTool 'compiler-remove' $docker @('container','rm',$cleanupId) 8
+              $cleanupKnown = $true
+            } catch { $cleanupFailure = $_ }
+            [IO.File]::WriteAllText((Join-Path $cellDirectory 'safe-compiler.json'), (@{ compiled=$compiled; ownedCleanupClosed=$cleanupKnown; issueAccepted=$false } | ConvertTo-Json), [Text.UTF8Encoding]::new($false))
+          }
+          if ($null -ne $primaryFailure -or $null -ne $cleanupFailure -or !$compiled -or !$cleanupKnown) { throw 'Compiler preparation or owned cleanup failed; see private receipts' }
+          $binary = Join-Path $outputDirectory 'server-supervisor-linux'
+          $build = Join-Path $outputDirectory 'build.json'
+          foreach ($entry in @{ TABLO_TEST_DOCKER_BIN=$docker; TABLO_SERVER_LINUX_ADAPTER=$binary; TABLO_SERVER_LINUX_BUILD=$build }.GetEnumerator()) { [IO.File]::AppendAllText($env:GITHUB_ENV, "$($entry.Key)=$($entry.Value)`n", [Text.UTF8Encoding]::new($false)) }
+          foreach ($entry in @{ TABLO_SERVER_LINUX_ADAPTER=$binary; TABLO_SERVER_LINUX_BUILD=$build }.GetEnumerator()) { $digest=(Get-FileHash -LiteralPath $entry.Value -Algorithm SHA256).Hash.ToLowerInvariant(); [IO.File]::AppendAllText($env:GITHUB_ENV, "$($entry.Key)_SHA256=$digest`n", [Text.UTF8Encoding]::new($false)) }
+      - name: Prepare and actually qualify this host and these five runtime inputs
+        if: ${{ !matrix.declarationOnly }}
+        timeout-minutes: 32
+        run: |
+          $cellDirectory = Join-Path $env:RUNNER_TEMP 'tablo-server-cell'
+          foreach ($selection in @{ TABLO_SERVER_PREPARED_PHP='php'; TABLO_TEST_COMPOSER_PHAR='composer' }.GetEnumerator()) {
+            $command = (Get-Command $selection.Value -CommandType Application -ErrorAction Stop).Source
+            $canonical = readlink -f -- $command
+            if ($LASTEXITCODE -ne 0 -or $canonical -isnot [string] -or !$canonical.StartsWith('/')) { throw 'Canonical prepared tool unavailable' }
+            [Environment]::SetEnvironmentVariable($selection.Key, $canonical)
+            [IO.File]::AppendAllText($env:GITHUB_ENV, "$($selection.Key)=$canonical`n", [Text.UTF8Encoding]::new($false))
+          }
+          & $env:TABLO_TEST_NODE_BIN tools/server-linux-prepare.cjs "--cell=$cellDirectory" "--source=$PWD"
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          $prepared = Get-Content -LiteralPath (Join-Path $cellDirectory 'prepared-inputs.json') -Raw | ConvertFrom-Json
+          & $env:TABLO_TEST_NODE_BIN tools/server-supervisor-linux-qualify.cjs "--plan=$($prepared.qualificationPlan.path)" "--sha256=$($prepared.qualificationPlan.sha256)"
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          $qualification = $prepared.qualification.path
+          $qualificationDigest = (Get-FileHash -LiteralPath $qualification -Algorithm SHA256).Hash.ToLowerInvariant()
+          [IO.File]::AppendAllText($env:GITHUB_ENV, "TABLO_SERVER_LINUX_QUALIFICATION=$qualification`nTABLO_SERVER_LINUX_QUALIFICATION_SHA256=$qualificationDigest`nTABLO_SERVER_PHP_BOOTSTRAP_MODULES=$($prepared.modules.path)`nTABLO_SERVER_PHP_BOOTSTRAP_MODULES_SHA256=$($prepared.modules.sha256)`nTABLO_SERVER_PREPARED_PHP_INI=$($prepared.bootstrapIni)`nPHP_INI_SCAN_DIR=$($prepared.bootstrapIniScanDirectory)`n", [Text.UTF8Encoding]::new($false))
+      - name: Declare the finite cell and execute only qualified mode
         env:
           CELL_ENGINE: ${{ matrix.engine }}
           CELL_PHP: ${{ matrix.php }}
+          CELL_DECLARATION_ONLY: ${{ matrix.declarationOnly }}
         run: |
           $cellDirectory = Join-Path $env:RUNNER_TEMP 'tablo-server-cell'
-          New-Item -ItemType Directory -Path $cellDirectory -ErrorAction Stop | Out-Null
+          $safeDeclaration = Join-Path $cellDirectory 'safe-declaration.json'
+          $declaration = Get-Content -LiteralPath $safeDeclaration -Raw | ConvertFrom-Json
+          $diagnosticOnly = [bool]::Parse($env:CELL_DECLARATION_ONLY)
+          $declarationPhp = if ($diagnosticOnly) { (Get-Command php -CommandType Application -ErrorAction Stop).Source } else { $env:TABLO_SERVER_PREPARED_PHP }
+          $bootstrapArguments = if ($diagnosticOnly) { @() } else { @('-c',$env:TABLO_SERVER_PREPARED_PHP_INI) }
+          $declaration.stage = 'WORKFLOW_SOURCE_INVENTORY'
+          [IO.File]::WriteAllText($safeDeclaration, ($declaration | ConvertTo-Json -Depth 5), [Text.UTF8Encoding]::new($false))
           $files = @(git ls-files)
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
           $trackedPaths = Join-Path $cellDirectory 'tracked-paths.json'
           [IO.File]::WriteAllText($trackedPaths, ($files | ConvertTo-Json), [Text.UTF8Encoding]::new($false))
-          $selectedPaths = php -r 'require $argv[1]; $paths = json_decode(file_get_contents($argv[2]), true, 64, JSON_THROW_ON_ERROR); echo json_encode(\Tablo\Tools\ServerFixturePlan::sourcePaths($paths), JSON_THROW_ON_ERROR);' tools/ServerFixturePlan.php $trackedPaths
+          $selectedPaths = & $declarationPhp @bootstrapArguments -r 'require $argv[1]; $paths = json_decode(file_get_contents($argv[2]), true, 64, JSON_THROW_ON_ERROR); echo json_encode(\Tablo\Tools\ServerFixturePlan::sourcePaths($paths), JSON_THROW_ON_ERROR);' tools/ServerFixturePlan.php $trackedPaths
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
           $files = @($selectedPaths | ConvertFrom-Json)
           $inventory = @($files | ForEach-Object { @{ path = $_; sha256 = (Get-FileHash -LiteralPath $_ -Algorithm SHA256).Hash.ToLowerInvariant() } })
@@ -215,17 +364,50 @@ jobs:
           [IO.File]::WriteAllText($sourceManifest, (@{ files = $inventory } | ConvertTo-Json -Depth 5), [Text.UTF8Encoding]::new($false))
           $env:TABLO_TEST_SOURCE_MANIFEST = $sourceManifest
           $env:TABLO_TEST_SOURCE_MANIFEST_SHA256 = (Get-FileHash -LiteralPath $sourceManifest -Algorithm SHA256).Hash.ToLowerInvariant()
-          $env:TABLO_TEST_DOCKER_BIN = (Get-Command docker -CommandType Application -ErrorAction Stop).Source
+          $declaration.stage = 'WORKFLOW_TOOL_SELECTION'
+          [IO.File]::WriteAllText($safeDeclaration, ($declaration | ConvertTo-Json -Depth 5), [Text.UTF8Encoding]::new($false))
+          if ($diagnosticOnly) { $env:TABLO_TEST_DOCKER_BIN = (Get-Command docker -CommandType Application -ErrorAction Stop).Source }
           $env:TABLO_TEST_OBSERVER_PORT = '46399'
-          $env:TABLO_TEST_COMPOSER_PHAR = (Get-Command composer -CommandType Application -ErrorAction Stop).Source
+          if ($diagnosticOnly) { $env:TABLO_TEST_COMPOSER_PHAR = (Get-Command composer -CommandType Application -ErrorAction Stop).Source }
           $env:LEKALO_BIN = Join-Path $PWD '.ci/lekalo-bin/lekalo'
           $version = & $env:LEKALO_BIN --version
           if ($LASTEXITCODE -ne 0 -or $version.Trim() -ne 'lekalo 0.6.3') { throw 'Unexpected Lekalo CLI version' }
           $plan = Join-Path $cellDirectory 'cell.json'
-          $arguments = @('tools/server-cell.php', "--plan=$plan", "--engine=$env:CELL_ENGINE", '--pull')
-          if ($env:CELL_ENGINE -eq 'mysql' -and $env:CELL_PHP -eq '8.5') { $arguments += '--cross' }
-          php @arguments
+          $arguments = @('tools/server-cell.php', "--plan=$plan", "--engine=$env:CELL_ENGINE")
+          if ($diagnosticOnly) { $arguments += '--declaration-diagnostic' }
+          else {
+            $arguments += '--pull'
+            if ($env:CELL_ENGINE -eq 'mysql' -and $env:CELL_PHP -eq '8.5') { $arguments += '--cross' }
+          }
+          $captureDirectory = Join-Path $cellDirectory 'private-declaration'
+          New-Item -ItemType Directory -Path $captureDirectory -ErrorAction Stop | Out-Null
+          chmod 700 -- $captureDirectory
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          $stdout = Join-Path $captureDirectory 'php.stdout'
+          $stderr = Join-Path $captureDirectory 'php.stderr'
+          $declaration.stage = 'PHP_NO_SAFE_RECORD'
+          [IO.File]::WriteAllText($safeDeclaration, ($declaration | ConvertTo-Json -Depth 5), [Text.UTF8Encoding]::new($false))
+          & $declarationPhp @bootstrapArguments @arguments 1> $stdout 2> $stderr
+          $declarationExit = $LASTEXITCODE
+          $declaration.nativeExit = $declarationExit
+          if ($declarationExit -eq 0) { $declaration.status = 'declared'; $declaration.stage = 'PLAN_REPORTED' }
+          else {
+            try {
+              $parserStderr = Join-Path $captureDirectory 'parser.stderr'
+              $projection = & $declarationPhp @bootstrapArguments -r 'require "tools/server-cell.php"; $bytes = file_get_contents($argv[1], false, null, 0, 4097); echo json_encode(server_cell_declaration_record($bytes), JSON_THROW_ON_ERROR);' $stderr 2> $parserStderr
+              if ($LASTEXITCODE -eq 0 -and ($projection -join "`n").Length -le 2048) {
+                $record = ($projection -join "`n") | ConvertFrom-Json
+                if ($null -ne $record) {
+                  $declaration.status = 'failed'
+                  foreach ($field in @('stage','type','source','line')) { $declaration.$field = $record.$field }
+                }
+              }
+            } catch { $declaration.stage = 'PHP_NO_SAFE_RECORD' }
+          }
+          [IO.File]::WriteAllText($safeDeclaration, ($declaration | ConvertTo-Json -Depth 5), [Text.UTF8Encoding]::new($false))
+          if ($null -eq $declarationExit) { throw 'Declaration native exit unknown.' }
+          if ($declarationExit -ne 0) { exit $declarationExit }
+          if ($diagnosticOnly) { exit 0 }
           $planDigest = (Get-FileHash -LiteralPath $plan -Algorithm SHA256).Hash.ToLowerInvariant()
           & $env:TABLO_TEST_NODE_BIN tools/server-supervisor.cjs "--execute=$plan" "--sha256=$planDigest"
           $observerExit = $LASTEXITCODE
@@ -236,7 +418,7 @@ jobs:
         run: |
           $cellDirectory = Join-Path $env:RUNNER_TEMP 'tablo-server-cell'
           if (!(Test-Path -LiteralPath $cellDirectory)) { New-Item -ItemType Directory -Path $cellDirectory -ErrorAction Stop | Out-Null }
-          $status = @{ schema = 'tablo/server-hosted-summary/v1'; status = 'NOTRUN_OR_FAILED'; run = $env:GITHUB_RUN_ID; attempt = $env:GITHUB_RUN_ATTEMPT; head = (git rev-parse HEAD); engine = '${{ matrix.engine }}'; php = '${{ matrix.php }}'; issueAccepted = $false }
+          $status = @{ schema = 'tablo/server-hosted-summary/v1'; status = 'NOTRUN_OR_FAILED'; run = $env:GITHUB_RUN_ID; attempt = $env:GITHUB_RUN_ATTEMPT; head = (git rev-parse HEAD); engine = '${{ matrix.engine }}'; php = '${{ matrix.php }}'; declarationOnly = [bool]::Parse('${{ matrix.declarationOnly }}'); issueAccepted = $false }
           $planPath = Join-Path $cellDirectory 'cell.json'
           if (Test-Path -LiteralPath $planPath) {
             $plan = Get-Content -LiteralPath $planPath -Raw | ConvertFrom-Json
@@ -265,7 +447,7 @@ jobs:
         if: always()
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2, Node24
         with:
-          name: server-cell-${{ github.run_id }}-${{ github.run_attempt }}-${{ matrix.engine }}-php-${{ matrix.php }}
+          name: server-cell-${{ github.run_id }}-${{ github.run_attempt }}-${{ matrix.engine }}-php-${{ matrix.php }}${{ matrix.declarationOnly && '-declaration-only' || '' }}
           path: ${{ runner.temp }}/tablo-server-cell/safe-*.json
           if-no-files-found: error
           include-hidden-files: false

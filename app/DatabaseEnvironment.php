@@ -6,7 +6,7 @@ namespace Tablo;
 final class DatabaseEnvironment
 {
     private const FIELDS = ['NAME', 'HOST', 'PORT', 'SOCKET', 'USER', 'PASSWORD', 'READ_USER', 'READ_PASSWORD',
-        'MIGRATE_USER', 'MIGRATE_PASSWORD', 'TLS', 'TLS_CA', 'TLS_CERT', 'TLS_KEY'];
+        'MIGRATE_USER', 'MIGRATE_PASSWORD', 'METADATA_USER', 'METADATA_PASSWORD', 'TLS', 'TLS_CA', 'TLS_CERT', 'TLS_KEY'];
     /** @param array<string, string>|null $values */
     public function __construct(#[\SensitiveParameter] private readonly ?array $values) {}
     public function read(string $name): string|false { return $this->values === null ? getenv($name) : ($this->values[$name] ?? false); }

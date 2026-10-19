@@ -6,7 +6,8 @@ namespace Tablo;
 use PDO;
 use WeakMap;
 
-/** Policy belongs to the exact admitted PDO, including callers' transactions. */
+/** Policy belongs to the exact admitted PDO, including callers' transactions.
+ * @phpstan-import-type Observation from ServerMetadataAdmission */
 final class DatabaseSession
 {
     /** @var WeakMap<PDO, self>|null */
@@ -14,6 +15,8 @@ final class DatabaseSession
     public string $installationId = '';
     public bool $keyAuthenticated = false;
     public ?TokenVault $vault = null;
+    /** @var Observation|null */
+    public ?array $metadataObservation = null;
 
     private function __construct(#[\SensitiveParameter] public readonly DatabaseConfiguration $configuration) {}
 

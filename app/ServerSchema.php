@@ -27,13 +27,7 @@ final class ServerSchema
     /** @return list<string> */
     public static function objects(PDO $db): array
     {
-        $rows = self::rows($db, 'SELECT TABLE_NAME AS name, TABLE_TYPE AS kind FROM information_schema.TABLES WHERE TABLE_SCHEMA = DATABASE() ORDER BY TABLE_NAME');
-        $names = [];
-        foreach ($rows as $row) {
-            if (!is_string($row['name'] ?? null) || ($row['kind'] ?? null) !== 'BASE TABLE') { self::refuse(); }
-            $names[] = $row['name'];
-        }
-        return $names;
+        return ServerMetadataAdmission::objects($db);
     }
     /**
      * @param list<int|string|null> $values
@@ -48,6 +42,4 @@ final class ServerSchema
             return SqlRows::all($statement->fetchAll(PDO::FETCH_ASSOC), static fn (array $row): array => $row);
         } finally { $statement->closeCursor(); }
     }
-    private static function refuse(): never { throw new DatabaseFailure('schema'); }
-
 }

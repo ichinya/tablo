@@ -21,7 +21,8 @@ final class DatabaseConfiguration
     public readonly string $key;
 
     /** @param Values $values */
-    private function __construct(public readonly string $engine, public readonly string $role, #[\SensitiveParameter] array $values)
+    private function __construct(public readonly string $engine, public readonly string $role, #[\SensitiveParameter] private readonly array $values,
+        #[\SensitiveParameter] private readonly string $metadataUser = '', #[\SensitiveParameter] private readonly ?string $metadataPassword = null)
     {
         $this->catalog = $values['catalog']; $this->host = $values['host']; $this->port = $values['port']; $this->socket = $values['socket'];
         $this->user = $values['user']; $this->password = $values['password']; $this->tls = $values['tls'];
@@ -38,10 +39,21 @@ final class DatabaseConfiguration
             return new self($engine, $role, ['catalog' => '', 'host' => '', 'port' => null, 'socket' => '', 'user' => '', 'password' => '', 'tls' => 'local', 'ca' => '', 'certificate' => '', 'key' => '']);
         }
         $transport = ServerTransport::read($source);
-        return new self($engine, $role, ['catalog' => $source->catalog()] + $transport + ServerCredentials::read($source, $role) + ServerTls::read($source, $transport));
+        $metadataUser = $source->read('TABLO_DB_METADATA_USER'); $metadataPassword = $source->read('TABLO_DB_METADATA_PASSWORD');
+        return new self($engine, $role, ['catalog' => $source->catalog()] + $transport + ServerCredentials::read($source, $role) + ServerTls::read($source, $transport),
+            $metadataUser === false ? '' : $metadataUser, $metadataPassword === false ? null : $metadataPassword);
     }
 
     public function server(): bool { return $this->engine !== 'sqlite'; }
+
+    public function metadata(): self
+    {
+        if (!$this->server() || preg_match('/\A[a-zA-Z0-9_]{1,32}\z/D', $this->metadataUser) !== 1 || $this->metadataPassword === null || str_contains($this->metadataPassword, "\0")) {
+            throw new DatabaseFailure('configuration');
+        }
+        $values = $this->values; $values['user'] = $this->metadataUser; $values['password'] = $this->metadataPassword;
+        return new self($this->engine, 'metadata', $values);
+    }
 
     public function dsn(): string
     {

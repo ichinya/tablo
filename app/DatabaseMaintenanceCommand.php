@@ -9,7 +9,8 @@ final class DatabaseMaintenanceCommand
     public static function run(array $arguments): int
     {
         if (PHP_SAPI !== 'cli' || !in_array($arguments[0] ?? null, ['--init', '--migrate', '--status'], strict: true)
-            || (count($arguments) !== 1 && !(count($arguments) === 3 && $arguments[0] === '--init' && $arguments[1] === '--receipt'))) {
+            || (count($arguments) !== 1 && !(count($arguments) === 3 && $arguments[0] === '--init' && $arguments[1] === '--receipt'
+                && $arguments[2] !== '' && !str_starts_with($arguments[2], '--')))) {
             throw new \InvalidArgumentException('Usage: php bin/database.php --init --receipt <private-file>|--migrate|--status');
         }
         $configuration = DatabaseConfiguration::fromEnvironment('migrator');

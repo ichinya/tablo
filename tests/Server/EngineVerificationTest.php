@@ -22,7 +22,7 @@ final class EngineVerificationTest
 
     #[Test]
     public function availabilityClassificationRetainsStageAndCodesWithoutPrivateErrorText(): void
-    { engine_verification_availability_failure(); }
+    { engine_verification_availability_failure(); engine_verification_declaration_failure(); }
 
     #[Test]
     public function initializeDiagnosticsRemainPrivateAndGuardFailureStaysNonzeroBeforeAutoload(): void
@@ -296,6 +296,196 @@ function engine_verification_availability_failure(): void
     Assert::same([$runtime['type'], $runtime['sqlState'], $runtime['nativeCode']], ['runtime', null, null]);
     $database = \server_cell_availability_failure(new \Tablo\DatabaseFailure('unavailable'), engine: 'mysql', stage: 'connection');
     Assert::same([$database['type'], $database['category']], ['database', 'unavailable']);
+}
+
+/** Synthetic exceptions exercise only the diagnostic boundary, never selected-engine behavior. */
+function engine_verification_declaration_failure(): void
+{
+    require_once dirname(__DIR__, levels: 2) . '/tools/server-cell.php';
+    $secret = \Tablo\Tests\Support\FixtureCredentials::value(label: 'declaration-canary');
+    engine_verification_declaration_mode();
+    $error = new \RuntimeException($secret, previous: new \RuntimeException($secret));
+    $record = \server_cell_declaration_failure($error, checkpoint: 'PLAN_WRITE');
+    Assert::same(array_keys($record), ['schema', 'status', 'stage', 'type', 'source', 'line', 'executed']);
+    Assert::same([$record['status'], $record['stage'], $record['type'], $record['executed']], ['failed', 'PLAN_WRITE', 'runtime', false]);
+    Assert::same($record['source'], 'tests/Server/EngineVerificationTest.php');
+    $wire = json_encode($record, JSON_THROW_ON_ERROR);
+    Assert::false(str_contains($wire, $secret)); Assert::false(str_contains($wire, dirname(__DIR__, levels: 2)));
+    Assert::same(\server_cell_declaration_record('TABLO_DECLARATION ' . $wire . "\nNative server cell failed.\n"), $record);
+    foreach (['server_fixture_plan_bootstrap_ini' => 'BOOTSTRAP_INI', 'server_fixture_plan_tool' => 'TOOL_INPUT',
+        'server_fixture_plan_linux_inputs' => 'LINUX_QUALIFICATION', 'server_fixture_plan_linux_file' => 'LINUX_QUALIFICATION',
+        'server_fixture_plan_linux_provenance' => 'LINUX_QUALIFICATION', 'server_fixture_plan_linux_receipt' => 'LINUX_QUALIFICATION',
+        'server_fixture_plan_linux_qualification' => 'LINUX_QUALIFICATION', 'server_fixture_plan_linux_runtimes' => 'LINUX_QUALIFICATION',
+        'server_fixture_plan_linux_runtime_binding' => 'LINUX_QUALIFICATION', 'server_fixture_plan_linux_references' => 'LINUX_QUALIFICATION',
+        'server_fixture_plan_linux_reference' => 'LINUX_QUALIFICATION', 'server_fixture_plan_linux_path' => 'LINUX_QUALIFICATION',
+        'server_fixture_plan_linux_shell' => 'LINUX_QUALIFICATION', 'server_fixture_plan_nonce' => 'OPTIONS',
+        'server_fixture_plan_php_modules' => 'BOOTSTRAP_MODULES', 'server_fixture_plan_php_module_decode' => 'BOOTSTRAP_MODULES',
+        'server_fixture_plan_php_module_record' => 'BOOTSTRAP_MODULES', 'server_fixture_plan_php_module_pins' => 'BOOTSTRAP_MODULES',
+        'server_fixture_plan_source_manifest' => 'SOURCE_MANIFEST', 'server_fixture_plan_vendor' => 'VENDOR_REFERENCES',
+        'server_fixture_plan_vendor_files' => 'VENDOR_FILES', 'server_fixture_plan_mago_files' => 'MAGO_FILES', 'verify_worker_dependencies' => 'DEPENDENCY_GUARD'] as $function => $stage) {
+        Assert::same(\server_cell_declaration_stage([['function' => $function, 'args' => [$secret]]], checkpoint: 'PINS'), $stage);
+    }
+    Assert::same(\server_cell_declaration_stage([['function' => 'server_fixture_plan_tool', 'class' => $secret, 'args' => [$secret]]], $secret), 'UNKNOWN');
+    foreach ([$secret, dirname(__DIR__, levels: 2) . '-foreign/tools/server-cell.php', dirname(__DIR__, levels: 2) . '/tools/../tools/server-cell.php'] as $origin) {
+        Assert::same(\server_cell_declaration_origin($origin, line: 123), ['source' => null, 'line' => null]);
+    }
+    foreach (['', 'TABLO_DECLARATION {', 'TABLO_DECLARATION ' . $wire . "\nTABLO_DECLARATION " . $wire, str_repeat('x', times: 4097)] as $invalid) {
+        Assert::same(\server_cell_declaration_record($invalid), null);
+    }
+    foreach ([['message' => $secret], ['stage' => $secret], ['type' => $secret], ['source' => $secret], ['line' => 0], ['executed' => true], ['status' => 'passed']] as $changes) {
+        Assert::same(\server_cell_declaration_record('TABLO_DECLARATION ' . json_encode(array_replace($record, $changes), JSON_THROW_ON_ERROR)), null);
+    }
+    Assert::same(\server_cell_declaration_record('TABLO_DECLARATION ' . str_replace('"status":"failed"', replace: '"status":"failed","status":"failed"', subject: $wire)), null);
+}
+
+function engine_verification_declaration_mode(): void
+{
+    require_once dirname(__DIR__, levels: 2) . '/tools/ServerFixturePlan.php';
+    $arguments = ['--plan=/synthetic/private-plan.json', '--engine=mysql', '--declaration-diagnostic'];
+    $options = \server_cell_plan_options($arguments);
+    Assert::same([$options['diagnostic'], $options['pull'], $options['cross']], [true, false, false]);
+    foreach (['--pull', '--cross', '--declaration-diagnostic'] as $invalid) {
+        $caught = null;
+        try { \server_cell_plan_options([...$arguments, $invalid]); } catch (\RuntimeException $error) { $caught = $error; }
+        Assert::instanceOf($caught, \RuntimeException::class);
+    }
+    Assert::same(\Tablo\Tools\server_fixture_plan_linux_inputs('/synthetic/unopened-source', executionMode: 'diagnostic-only'), []);
+    $failure = null;
+    try { \Tablo\Tools\server_fixture_plan_linux_inputs('/synthetic/unopened-source', executionMode: 'unknown'); }
+    catch (\RuntimeException $error) { $failure = $error; }
+    Assert::same($failure?->getMessage(), 'Explicit execution mode required.');
+    engine_verification_declaration_nonce();
+    engine_verification_qualification_components();
+    engine_verification_bootstrap_modules();
+}
+
+function engine_verification_declaration_nonce(): void
+{
+    $nonce = str_repeat('a', times: 32);
+    Assert::same(\Tablo\Tools\server_fixture_plan_nonce(executionMode: 'qualified', supplied: $nonce), $nonce);
+    foreach ([false, '', str_repeat('a', times: 31), str_repeat('a', times: 33), str_repeat('A', times: 32), $nonce . "\n"] as $invalid) {
+        $caught = null;
+        try { \Tablo\Tools\server_fixture_plan_nonce(executionMode: 'qualified', supplied: $invalid); }
+        catch (\RuntimeException $error) { $caught = $error; }
+        Assert::same($caught?->getMessage(), 'Explicit fresh qualified cell nonce required.');
+    }
+    foreach (['', $nonce] as $override) {
+        $caught = null;
+        try { \Tablo\Tools\server_fixture_plan_nonce(executionMode: 'diagnostic-only', supplied: $override); }
+        catch (\RuntimeException $error) { $caught = $error; }
+        Assert::same($caught?->getMessage(), 'Diagnostic-only nonce override refused.');
+    }
+    $first = \Tablo\Tools\server_fixture_plan_nonce(executionMode: 'diagnostic-only', supplied: false);
+    $second = \Tablo\Tools\server_fixture_plan_nonce(executionMode: 'diagnostic-only', supplied: false);
+    Assert::same(preg_match('/\A[0-9a-f]{32}\z/D', $first), 1);
+    Assert::same(preg_match('/\A[0-9a-f]{32}\z/D', $second), 1); Assert::false($first === $second);
+}
+
+/** In-memory fragments test declaration components only; no qualified receipt is fabricated or written. */
+function engine_verification_qualification_components(): void
+{
+    $pin = ['path' => '/synthetic/unopened/tool', 'sha256' => str_repeat('a', times: 64)];
+    Assert::same(\Tablo\Tools\server_fixture_plan_linux_reference($pin), $pin);
+    foreach ([[], ['sha256' => $pin['sha256'], 'path' => $pin['path']], $pin + ['extra' => 'refused'],
+        array_replace($pin, ['sha256' => str_repeat('A', times: 64)])] as $invalid) {
+        Assert::true(engine_verification_native_refuses(static fn (): array => \Tablo\Tools\server_fixture_plan_linux_reference($invalid)));
+    }
+    foreach (['relative', '/synthetic/../foreign', '/synthetic/./tool', '/synthetic//tool', '/synthetic/tool/', "/synthetic/\0tool", '/synthetic/\\tool', str_repeat('/', times: 4097)] as $path) {
+        Assert::true(engine_verification_native_refuses(static function () use ($path): void { \Tablo\Tools\server_fixture_plan_linux_path($path); }));
+    }
+    engine_verification_runtime_pin_components($pin);
+    engine_verification_reference_components($pin);
+    foreach ([null, false, '', 'diagnostic-only', 'QUALIFIED', 'unknown'] as $mode) {
+        $caught = null;
+        try { \server_cell_observer_require(['executionMode' => $mode]); } catch (\RuntimeException $error) { $caught = $error; }
+        Assert::same($caught?->getMessage(), 'Qualified execution mode required.');
+    }
+    $missing = null;
+    try { \server_cell_observer_require([]); } catch (\RuntimeException $error) { $missing = $error; }
+    Assert::same($missing?->getMessage(), 'Qualified execution mode required.');
+}
+
+/** All paths remain unopened synthetic strings; this is not native runtime attestation. */
+/** @param array{path: string, sha256: string} $pin */
+function engine_verification_runtime_pin_components(array $pin): void
+{
+    $runtimes = [];
+    foreach (['node', 'php', 'composer', 'shell', 'docker'] as $name) { $runtimes[$name] = ['path' => '/synthetic/unopened/' . $name, 'sha256' => $pin['sha256']]; }
+    \Tablo\Tools\server_fixture_plan_linux_runtime_binding(['runtimes' => $runtimes], $runtimes);
+    foreach (['node', 'php', 'composer', 'shell', 'docker'] as $name) {
+        $changed = $runtimes; $changed[$name]['sha256'] = str_repeat('b', times: 64);
+        Assert::true(engine_verification_native_refuses(static function () use ($runtimes, $changed): void {
+            \Tablo\Tools\server_fixture_plan_linux_runtime_binding(['runtimes' => $changed], $runtimes);
+        }));
+    }
+    foreach ([array_reverse($runtimes, preserve_keys: true), array_slice($runtimes, offset: 0, length: 4), $runtimes + ['extra' => $pin]] as $invalid) {
+        Assert::true(engine_verification_native_refuses(static function () use ($invalid, $runtimes): void {
+            \Tablo\Tools\server_fixture_plan_linux_runtime_binding(['runtimes' => $invalid], $runtimes);
+        }));
+    }
+}
+
+/** Partial reference fields have no status/schema/nonce claim and cannot be a qualification receipt. */
+/** @param array{path: string, sha256: string} $pin */
+function engine_verification_reference_components(array $pin): void
+{
+    $root = '/synthetic/unopened/tablo-linux-' . str_repeat('a', times: 32); $references = [];
+    foreach (['runtimeControls', 'platformReceipt', 'neutralControls'] as $name) {
+        $references[$name] = array_replace($pin, ['path' => $root . '/' . $name . '.json']);
+        if ($name !== 'neutralControls') { $references[$name . 'Sha256'] = $pin['sha256']; }
+    }
+    \Tablo\Tools\server_fixture_plan_linux_references($references, $root);
+    foreach (['runtimeControls', 'platformReceipt', 'neutralControls'] as $name) {
+        $foreign = $references; $foreign[$name] = array_replace($pin, ['path' => $root . '-foreign/' . $name . '.json']);
+        Assert::true(engine_verification_native_refuses(static function () use ($foreign, $root): void { \Tablo\Tools\server_fixture_plan_linux_references($foreign, $root); }));
+    }
+    foreach (['runtimeControls', 'platformReceipt'] as $name) {
+        $changed = $references; $changed[$name . 'Sha256'] = str_repeat('b', times: 64);
+        Assert::true(engine_verification_native_refuses(static function () use ($changed, $root): void { \Tablo\Tools\server_fixture_plan_linux_references($changed, $root); }));
+    }
+}
+
+/** In-memory prepared input only: no modules, INIs or capability probes are opened or executed. */
+function engine_verification_bootstrap_modules(): void
+{
+    $ini = [['path' => '/synthetic/unopened/php.ini', 'sha256' => str_repeat('a', times: 64)],
+        ['path' => '/synthetic/unopened/extensions.ini', 'sha256' => str_repeat('b', times: 64)]];
+    $extensions = [['path' => '/synthetic/unopened/first.so', 'sha256' => str_repeat('c', times: 64)],
+        ['path' => '/synthetic/unopened/second.so', 'sha256' => str_repeat('d', times: 64)]];
+    $record = ['schema' => 'tablo/php-bootstrap-modules/v1', 'iniFiles' => $ini, 'extensionFiles' => $extensions];
+    Assert::same(\Tablo\Tools\server_fixture_plan_php_module_record($record, $ini), $extensions);
+    Assert::same(\Tablo\Tools\server_fixture_plan_php_module_decode(json_encode($record, JSON_THROW_ON_ERROR), $ini), $extensions);
+    $empty = $record; $empty['extensionFiles'] = [];
+    Assert::same(\Tablo\Tools\server_fixture_plan_php_module_decode(json_encode($empty, JSON_THROW_ON_ERROR), $ini), []);
+    foreach ([$record + ['extra' => 'refused'], array_reverse($record, preserve_keys: true), array_replace($record, ['schema' => 'unknown']),
+        array_replace($record, ['iniFiles' => array_reverse($ini)]), array_replace($record, ['iniFiles' => []]),
+        array_replace($record, ['extensionFiles' => [$extensions[0], $extensions[0]]])] as $invalid) {
+        Assert::true(engine_verification_native_refuses(static fn (): array => \Tablo\Tools\server_fixture_plan_php_module_record($invalid, $ini)));
+    }
+    Assert::true(engine_verification_native_refuses(static fn (): array => \Tablo\Tools\server_fixture_plan_php_module_record($record, [])));
+    $changed = $ini; $changed[0]['sha256'] = str_repeat('e', times: 64);
+    Assert::true(engine_verification_native_refuses(static fn (): array => \Tablo\Tools\server_fixture_plan_php_module_record($record, $changed)));
+    $wire = json_encode($empty, JSON_THROW_ON_ERROR);
+    foreach (['[]', '{}', '{', str_repeat('x', times: 131_073), str_replace('"extensionFiles":[]', replace: '"extensionFiles":{}', subject: $wire)] as $invalid) {
+        Assert::true(engine_verification_native_refuses(static fn (): array => \Tablo\Tools\server_fixture_plan_php_module_decode($invalid, $ini)));
+    }
+    engine_verification_bootstrap_pin_envelope();
+    Assert::same(\Tablo\Tools\server_fixture_plan_linux_inputs('/synthetic/unopened/source', executionMode: 'diagnostic-only', nonce: '', iniFiles: ['invalid-unopened-pins']), []);
+}
+
+/** Pin-list refusals do not stat even the mentioned nonexistent paths. */
+function engine_verification_bootstrap_pin_envelope(): void
+{
+    $pin = ['path' => '/synthetic/unopened/module.so', 'sha256' => str_repeat('a', times: 64)];
+    $pins = [];
+    for ($index = 0; $index < 128; ++$index) { $pins[] = array_replace($pin, ['path' => '/synthetic/unopened/module-' . $index . '.so']); }
+    Assert::same(count(\Tablo\Tools\server_fixture_plan_php_module_pins($pins)), 128);
+    $pins[] = array_replace($pin, ['path' => '/synthetic/unopened/module-128.so']);
+    foreach ([$pins, [$pin, $pin], ['named' => $pin], [$pin + ['extra' => 'refused']],
+        [array_replace($pin, ['path' => "/synthetic/unopened/\"module.so"])], [array_replace($pin, ['path' => "/synthetic/\nmodule.so"])],
+        [array_replace($pin, ['path' => '/synthetic/../foreign.so'])], [array_replace($pin, ['sha256' => str_repeat('A', times: 64)])]] as $invalid) {
+        Assert::true(engine_verification_native_refuses(static fn (): array => \Tablo\Tools\server_fixture_plan_php_module_pins($invalid)));
+    }
 }
 
 /** Synthetic exceptions exercise only the diagnostic boundary, never selected-engine behavior. */
