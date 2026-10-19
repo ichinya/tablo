@@ -8,7 +8,8 @@
       "tools/server-supervisor-linux-controls.c",
       "tools/server-supervisor-linux-build.sh",
       "tools/server-supervisor-linux-qualify.cjs",
-      "tools/server-linux-prepare.cjs"
+      "tools/server-linux-prepare.cjs",
+      "tools/server-qualification-diagnostic.cjs"
     ]
   },
   "app/AddressRange.php": {
@@ -9259,6 +9260,15 @@
       "Composer analyze",
       "tests/Server/EngineBoundaryAdmissionTest.php",
       "Explicit native fixture source inventory; excluded from test discovery"
+    ]
+  },
+  "tools/server-qualification-diagnostic.cjs": {
+    "owner": "Fixed-enum bounded public Linux qualification failure projection and pure hostile-payload selftests",
+    "consumers": [
+      "tools/server-supervisor-linux-qualify.cjs",
+      ".github/workflows/verify.yml",
+      "tools/server-native-tests.json",
+      "node tools/server-qualification-diagnostic.cjs --self-test"
     ]
   }
 }

@@ -318,9 +318,10 @@ jobs:
           $build = Join-Path $outputDirectory 'build.json'
           foreach ($entry in @{ TABLO_TEST_DOCKER_BIN=$docker; TABLO_SERVER_LINUX_ADAPTER=$binary; TABLO_SERVER_LINUX_BUILD=$build }.GetEnumerator()) { [IO.File]::AppendAllText($env:GITHUB_ENV, "$($entry.Key)=$($entry.Value)`n", [Text.UTF8Encoding]::new($false)) }
           foreach ($entry in @{ TABLO_SERVER_LINUX_ADAPTER=$binary; TABLO_SERVER_LINUX_BUILD=$build }.GetEnumerator()) { $digest=(Get-FileHash -LiteralPath $entry.Value -Algorithm SHA256).Hash.ToLowerInvariant(); [IO.File]::AppendAllText($env:GITHUB_ENV, "$($entry.Key)_SHA256=$digest`n", [Text.UTF8Encoding]::new($false)) }
-      - name: Prepare and actually qualify this host and these five runtime inputs
-        if: ${{ !matrix.declarationOnly }}
+      - name: Prepare owned PHP inputs and qualify only execution cells
         timeout-minutes: 32
+        env:
+          CELL_DECLARATION_ONLY: ${{ matrix.declarationOnly }}
         run: |
           $cellDirectory = Join-Path $env:RUNNER_TEMP 'tablo-server-cell'
           foreach ($selection in @{ TABLO_SERVER_PREPARED_PHP='php'; TABLO_TEST_COMPOSER_PHAR='composer' }.GetEnumerator()) {
@@ -330,14 +331,21 @@ jobs:
             [Environment]::SetEnvironmentVariable($selection.Key, $canonical)
             [IO.File]::AppendAllText($env:GITHUB_ENV, "$($selection.Key)=$canonical`n", [Text.UTF8Encoding]::new($false))
           }
-          & $env:TABLO_TEST_NODE_BIN tools/server-linux-prepare.cjs "--cell=$cellDirectory" "--source=$PWD"
+          $diagnosticOnly = [bool]::Parse($env:CELL_DECLARATION_ONLY)
+          & $env:TABLO_TEST_NODE_BIN tools/server-qualification-diagnostic.cjs --self-test
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          $preparationArguments = @("--cell=$cellDirectory", "--source=$PWD")
+          if ($diagnosticOnly) { $preparationArguments += '--declaration-only' }
+          & $env:TABLO_TEST_NODE_BIN tools/server-linux-prepare.cjs @preparationArguments
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
           $prepared = Get-Content -LiteralPath (Join-Path $cellDirectory 'prepared-inputs.json') -Raw | ConvertFrom-Json
+          [IO.File]::AppendAllText($env:GITHUB_ENV, "TABLO_SERVER_PHP_BOOTSTRAP_MODULES=$($prepared.modules.path)`nTABLO_SERVER_PHP_BOOTSTRAP_MODULES_SHA256=$($prepared.modules.sha256)`nTABLO_SERVER_PREPARED_PHP_INI=$($prepared.bootstrapIni)`nPHP_INI_SCAN_DIR=$($prepared.bootstrapIniScanDirectory)`n", [Text.UTF8Encoding]::new($false))
+          if ($diagnosticOnly) { exit 0 }
           & $env:TABLO_TEST_NODE_BIN tools/server-supervisor-linux-qualify.cjs "--plan=$($prepared.qualificationPlan.path)" "--sha256=$($prepared.qualificationPlan.sha256)"
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
           $qualification = $prepared.qualification.path
           $qualificationDigest = (Get-FileHash -LiteralPath $qualification -Algorithm SHA256).Hash.ToLowerInvariant()
-          [IO.File]::AppendAllText($env:GITHUB_ENV, "TABLO_SERVER_LINUX_QUALIFICATION=$qualification`nTABLO_SERVER_LINUX_QUALIFICATION_SHA256=$qualificationDigest`nTABLO_SERVER_PHP_BOOTSTRAP_MODULES=$($prepared.modules.path)`nTABLO_SERVER_PHP_BOOTSTRAP_MODULES_SHA256=$($prepared.modules.sha256)`nTABLO_SERVER_PREPARED_PHP_INI=$($prepared.bootstrapIni)`nPHP_INI_SCAN_DIR=$($prepared.bootstrapIniScanDirectory)`n", [Text.UTF8Encoding]::new($false))
+          [IO.File]::AppendAllText($env:GITHUB_ENV, "TABLO_SERVER_LINUX_QUALIFICATION=$qualification`nTABLO_SERVER_LINUX_QUALIFICATION_SHA256=$qualificationDigest`n", [Text.UTF8Encoding]::new($false))
       - name: Declare the finite cell and execute only qualified mode
         env:
           CELL_ENGINE: ${{ matrix.engine }}
@@ -348,8 +356,8 @@ jobs:
           $safeDeclaration = Join-Path $cellDirectory 'safe-declaration.json'
           $declaration = Get-Content -LiteralPath $safeDeclaration -Raw | ConvertFrom-Json
           $diagnosticOnly = [bool]::Parse($env:CELL_DECLARATION_ONLY)
-          $declarationPhp = if ($diagnosticOnly) { (Get-Command php -CommandType Application -ErrorAction Stop | Select-Object -First 1).Source } else { $env:TABLO_SERVER_PREPARED_PHP }
-          $bootstrapArguments = if ($diagnosticOnly) { @() } else { @('-c',$env:TABLO_SERVER_PREPARED_PHP_INI) }
+          $declarationPhp = $env:TABLO_SERVER_PREPARED_PHP
+          $bootstrapArguments = @('-c',$env:TABLO_SERVER_PREPARED_PHP_INI)
           $declaration.stage = 'WORKFLOW_SOURCE_INVENTORY'
           [IO.File]::WriteAllText($safeDeclaration, ($declaration | ConvertTo-Json -Depth 5), [Text.UTF8Encoding]::new($false))
           $files = @(git ls-files)

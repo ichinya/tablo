@@ -70,20 +70,10 @@ async function phpInfo(php, cell, label, ini = null, scan = null) {
   return info;
 }
 
-async function prepare(args) {
-  if (process.platform !== 'linux' || process.arch !== 'x64' || process.version !== 'v24.13.0'
-      || args.length !== 2 || !args[0].startsWith('--cell=') || !args[1].startsWith('--source=')) fail();
-  const cell = args[0].slice(7), source = args[1].slice(9), nonce = process.env.TABLO_SERVER_CELL_NONCE;
-  if (!literal(cell) || !literal(source) || !/^[0-9a-f]{32}$/.test(nonce ?? '')) fail();
-  for (const dir of [cell, source]) {
-    if (await fs.realpath(dir) !== dir || !(await fs.lstat(dir)).isDirectory()) fail();
-  }
-  const runtimes = { node: await pin(process.execPath), php: await selected('TABLO_SERVER_PREPARED_PHP'),
-    composer: await selected('TABLO_TEST_COMPOSER_PHAR'), shell: await selected('TABLO_SERVER_LINUX_SHELL'),
-    docker: await selected('TABLO_TEST_DOCKER_BIN') };
+async function acquireBootstrap(php, cell) {
   // Acquire only the actual reported INIs into this fresh owned bootstrap, preserving bytes/order.
   // No application autoload, include or PHP package execution occurs in either query.
-  const original = await phpInfo(runtimes.php, cell, 'php-original-input-query');
+  const original = await phpInfo(php, cell, 'php-original-input-query');
   const bootstrap = cell + '/php-bootstrap', scan = bootstrap + '/scan';
   await fs.mkdir(bootstrap, { mode: 0o700 }); await fs.mkdir(scan, { mode: 0o700 });
   const iniFiles = [], originals = [], extensionFiles = [], seen = new Set();
@@ -100,9 +90,32 @@ async function prepare(args) {
       seen.add(module); extensionFiles.push(await pin(module));
     }
   }
-  const info = await phpInfo(runtimes.php, cell, 'php-owned-input-query', iniFiles[0].path, scan);
+  const info = await phpInfo(php, cell, 'php-owned-input-query', iniFiles[0].path, scan);
   if (JSON.stringify(iniNames(info)) !== JSON.stringify(iniFiles.map(v => v.path)) || info.extensionDirectory !== original.extensionDirectory) fail();
   const modules = await write(cell + '/php-bootstrap-modules.json', { schema: 'tablo/php-bootstrap-modules/v1', iniFiles, extensionFiles });
+  return { iniFiles, extensionFiles, originals, modules, scan };
+}
+
+async function prepare(args) {
+  const declarationOnly = args.length === 3 && args[2] === '--declaration-only';
+  if (process.platform !== 'linux' || process.arch !== 'x64' || process.version !== 'v24.13.0'
+      || !(args.length === 2 || declarationOnly) || !args[0].startsWith('--cell=') || !args[1].startsWith('--source=')) fail();
+  const cell = args[0].slice(7), source = args[1].slice(9), nonce = process.env.TABLO_SERVER_CELL_NONCE;
+  if (!literal(cell) || !literal(source) || (declarationOnly ? nonce !== undefined : !/^[0-9a-f]{32}$/.test(nonce ?? ''))) fail();
+  for (const dir of [cell, source]) {
+    if (await fs.realpath(dir) !== dir || !(await fs.lstat(dir)).isDirectory()) fail();
+  }
+  const runtimes = { node: await pin(process.execPath), php: await selected('TABLO_SERVER_PREPARED_PHP') };
+  const { iniFiles, extensionFiles, originals, modules, scan } = await acquireBootstrap(runtimes.php, cell);
+  if (declarationOnly) {
+    // Declaration inputs only: no native pins, controls, qualification or product execution.
+    await write(cell + '/prepared-inputs.json', { schema: 'tablo/linux-declaration-inputs/v1', modules, runtimes,
+      originalIniFiles: originals, phpBootstrap: { iniFiles, extensionFiles },
+      bootstrapIni: iniFiles[0].path, bootstrapIniScanDirectory: scan });
+    return;
+  }
+  runtimes.composer = await selected('TABLO_TEST_COMPOSER_PHAR');
+  runtimes.shell = await selected('TABLO_SERVER_LINUX_SHELL'); runtimes.docker = await selected('TABLO_TEST_DOCKER_BIN');
   const observer = { linuxAdapter: await selected('TABLO_SERVER_LINUX_ADAPTER'),
     linuxAdapterSource: await pin(source + '/tools/server-supervisor-linux.c'),
     linuxAdapterRecipe: await pin(source + '/tools/server-supervisor-linux-build.sh'),

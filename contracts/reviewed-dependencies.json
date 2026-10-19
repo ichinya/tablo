@@ -8,7 +8,7 @@
                 "Composer verify",
                 "Reviewed dependency capture"
             ],
-            "fingerprint": "sha256:2a8f5267a0b69b20a568fb8c4013a719c83081d6238569fcecbba01fc2d95b4e"
+            "fingerprint": "sha256:2ae79811c5cbd346190f8eb83205059d72c49ce697a5830abccaeb0d3d9c5499"
         },
         {
             "path": "tools/reviewed-dependencies.php",
@@ -47,9 +47,10 @@
                 "tools/server-supervisor-linux-controls.c",
                 "tools/server-supervisor-linux-build.sh",
                 "tools/server-supervisor-linux-qualify.cjs",
-                "tools/server-linux-prepare.cjs"
+                "tools/server-linux-prepare.cjs",
+                "tools/server-qualification-diagnostic.cjs"
             ],
-            "fingerprint": "sha256:691967e35cdecf6ae9ad1de88bd50cce77442c70c5f49b98c27f387c69ebc920"
+            "fingerprint": "sha256:d60968fae03983ffcb867ed21ec6f768bdfe152f31335eaa0120f4bee1c84940"
         },
         {
             "path": "app/AddressRange.php",
@@ -11013,7 +11014,7 @@
                 "tools/server-supervisor-linux-qualify.cjs",
                 "tools/server-linux-prepare.cjs"
             ],
-            "fingerprint": "sha256:395fa2a66516c40d1e3af7ab86f4eabed044ff3bcb19e15bd9f2cc1cc122530b"
+            "fingerprint": "sha256:8b050ddcf95bdc52bc381c36237f629676a3847d8b4b4907b35defb1fca4ffdb"
         },
         {
             "path": "tools/ServerTestEvidence.php",
@@ -11412,7 +11413,7 @@
                 "tools/server-native-tests.json",
                 "docs/database-engines.md"
             ],
-            "fingerprint": "sha256:6725cf096e900ae6bc343028a563514c2f3dcf96d2d2553a9d789a928c7c2aa9"
+            "fingerprint": "sha256:6051f27d8654ac413221968652a9a9bca8d868b036174a46bc9c7b94b02ba456"
         },
         {
             "path": "tools/server-linux-prepare.cjs",
@@ -11424,7 +11425,7 @@
                 "tools/server-native-tests.json",
                 "docs/database-engines.md"
             ],
-            "fingerprint": "sha256:622f24395b91e719c360eb5172859b6f7b4cca0d2abedbf8d6f58d6708f1a88e"
+            "fingerprint": "sha256:8cb32a12f835125f9d3758f37dd65c5f4675e1ade9fbde2707b5ce413e4a95d6"
         },
         {
             "path": "tests/Support/EngineBoundaryProbe.php",
@@ -11436,6 +11437,17 @@
                 "Explicit native fixture source inventory; excluded from test discovery"
             ],
             "fingerprint": "sha256:679d3b51ca271fb8dfc0ed5a2b49c5845b261abd178b0c7481733da1b10a4534"
+        },
+        {
+            "path": "tools/server-qualification-diagnostic.cjs",
+            "owner": "Fixed-enum bounded public Linux qualification failure projection and pure hostile-payload selftests",
+            "consumers": [
+                "tools/server-supervisor-linux-qualify.cjs",
+                ".github/workflows/verify.yml",
+                "tools/server-native-tests.json",
+                "node tools/server-qualification-diagnostic.cjs --self-test"
+            ],
+            "fingerprint": "sha256:18ccc9f8aca09f6648cd15af3e5f97ddd6c81ce4382d1be7337563745da09115"
         }
     ]
 }
