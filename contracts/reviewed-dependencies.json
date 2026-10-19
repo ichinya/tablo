@@ -8,7 +8,7 @@
                 "Composer verify",
                 "Reviewed dependency capture"
             ],
-            "fingerprint": "sha256:2ae79811c5cbd346190f8eb83205059d72c49ce697a5830abccaeb0d3d9c5499"
+            "fingerprint": "sha256:21af426b85c3d4e8c32fbd6a17a0d165f695ba7142c38680e6b02f95f9196f5a"
         },
         {
             "path": "tools/reviewed-dependencies.php",
@@ -48,9 +48,10 @@
                 "tools/server-supervisor-linux-build.sh",
                 "tools/server-supervisor-linux-qualify.cjs",
                 "tools/server-linux-prepare.cjs",
-                "tools/server-qualification-diagnostic.cjs"
+                "tools/server-qualification-diagnostic.cjs",
+                "tools/server-native-denial.test.cjs"
             ],
-            "fingerprint": "sha256:d60968fae03983ffcb867ed21ec6f768bdfe152f31335eaa0120f4bee1c84940"
+            "fingerprint": "sha256:5f8caaaa819f3abb73e330458aeb5d65df89c2b8fc037e6bb9d1cc5695b35b04"
         },
         {
             "path": "app/AddressRange.php",
@@ -11014,7 +11015,7 @@
                 "tools/server-supervisor-linux-qualify.cjs",
                 "tools/server-linux-prepare.cjs"
             ],
-            "fingerprint": "sha256:8b050ddcf95bdc52bc381c36237f629676a3847d8b4b4907b35defb1fca4ffdb"
+            "fingerprint": "sha256:7bb7cacee5806e8fe46aa6f9e530f9792c13453365e011412901c20566a1fbb1"
         },
         {
             "path": "tools/ServerTestEvidence.php",
@@ -11221,9 +11222,11 @@
                 "tools/server-supervisor-linux-controls.c",
                 "tools/server-supervisor-linux-build.sh",
                 "tools/server-supervisor-linux-qualify.cjs",
-                "tools/server-linux-prepare.cjs"
+                "tools/server-linux-prepare.cjs",
+                "tools/server-qualification-diagnostic.cjs",
+                "tools/server-native-denial.test.cjs"
             ],
-            "fingerprint": "sha256:9bb853e738c0adb4abe33ecebeaae7c7dabb8f672c54f770fa12a29ad108f195"
+            "fingerprint": "sha256:aa8e2cc8dc5dc507a2d61658c9e1c36666a471e8ac24aa933f905271748d8608"
         },
         {
             "path": "tools/server-supervisor-windows.ps1",
@@ -11374,7 +11377,7 @@
                 "tools/server-supervisor-linux-qualify.cjs",
                 "tools/server-linux-prepare.cjs"
             ],
-            "fingerprint": "sha256:9f9cf47af06111ca85f4161949aecaa155565a4d10c8ea4770377692efe7c401"
+            "fingerprint": "sha256:d3f475e4e56e8d77531136ed52b7bf9fd1516fe46ac3b84e4ea6f4d8ba32dd17"
         },
         {
             "path": "tools/server-supervisor-linux-controls.c",
@@ -11413,7 +11416,7 @@
                 "tools/server-native-tests.json",
                 "docs/database-engines.md"
             ],
-            "fingerprint": "sha256:6051f27d8654ac413221968652a9a9bca8d868b036174a46bc9c7b94b02ba456"
+            "fingerprint": "sha256:bbfec9a4df07b512f9a38107e23c42779fe984835168fdffc0c864fe0ca69ef7"
         },
         {
             "path": "tools/server-linux-prepare.cjs",
@@ -11445,9 +11448,20 @@
                 "tools/server-supervisor-linux-qualify.cjs",
                 ".github/workflows/verify.yml",
                 "tools/server-native-tests.json",
-                "node tools/server-qualification-diagnostic.cjs --self-test"
+                "node tools/server-qualification-diagnostic.cjs --self-test",
+                "tools/server-native-denial.test.cjs"
             ],
-            "fingerprint": "sha256:18ccc9f8aca09f6648cd15af3e5f97ddd6c81ce4382d1be7337563745da09115"
+            "fingerprint": "sha256:cd37e08bb8bd258c0443fbd9d40549cbecd502cf23f213b70bc0a7e20c16bc7b"
+        },
+        {
+            "path": "tools/server-native-denial.test.cjs",
+            "owner": "Pure production native-record parser and nonauthoritative denial projection tests",
+            "consumers": [
+                ".github/workflows/verify.yml",
+                "tools/server-native-tests.json",
+                "node --test tools/server-native-denial.test.cjs"
+            ],
+            "fingerprint": "sha256:fcbe221dc1f6cb107d5ce3caab3a30a641ec23cc96db12390bd5898b937c0de3"
         }
     ]
 }

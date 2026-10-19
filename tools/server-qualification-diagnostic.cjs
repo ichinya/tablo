@@ -15,6 +15,14 @@ const enumeration = (value, values) => values.includes(value) ? value : UNKNOWN;
 const number = (value, min = 0, max = 2147483647) => Number.isSafeInteger(value) && value >= min && value <= max ? value : UNKNOWN;
 const boolean = value => typeof value === 'boolean' ? value : UNKNOWN;
 const nullable = (value, project) => value === null ? null : project(value);
+const { DENIAL_FIELDS, linuxDenialDiagnostic } = require('./server-supervisor.cjs');
+function projectDenials(value, deniedCount) {
+  try {
+    if (!value || typeof value !== 'object' || Array.isArray(value)
+        || Object.keys(value).length !== DENIAL_FIELDS.length || !DENIAL_FIELDS.every(key => Object.hasOwn(value, key))) return UNKNOWN;
+    return linuxDenialDiagnostic(DENIAL_FIELDS.map(key => value[key]), deniedCount);
+  } catch { return UNKNOWN; }
+}
 
 function projectFailure(input) {
   const owner = input?.owner, events = owner?.adapterState;
@@ -37,6 +45,7 @@ function projectFailure(input) {
       signal: nullable(root?.posixSignal, value => number(value, 1, 64)), exitObserved: boolean(root?.rootExitObserved),
       terminationRequested: boolean(root?.terminationRequested) },
     cancellation: nullable(owner?.cancelReason, value => enumeration(value, ['deadline', 'protocol'])),
+    nativeDenialDiagnostic: projectDenials(owner?.nativeDenialDiagnostic, admission?.deniedAdmissions),
     closure: { scopeObservedEmpty: boolean(closed?.scopeObservedEmpty), custodySettled: boolean(closed?.custodySettled),
       inputSettled: boolean(closed?.inputSettled), stdinClosed: boolean(closed?.stdinClosed),
       stdoutClosed: boolean(closed?.stdout?.closed), stderrClosed: boolean(closed?.stderr?.closed) },

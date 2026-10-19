@@ -359,7 +359,9 @@ if (require.main === module) main().catch(async () => {
   process.exitCode = 1;
   if (safeFailurePath) {
     try {
-      await fs.writeFile(safeFailurePath, JSON.stringify(firstFailure ?? projectFailure(progress), null, 2) + '\n', { flag: 'wx', mode: 0o600 });
+      const bytes = JSON.stringify(firstFailure ?? projectFailure(progress), null, 2) + '\n';
+      if (Buffer.byteLength(bytes) > 4096) throw Error('SAFE_QUALIFICATION_RECORD_LIMIT');
+      await fs.writeFile(safeFailurePath, bytes, { flag: 'wx', mode: 0o600 });
     } catch { process.stderr.write('SAFE_QUALIFICATION_RECORD_UNAVAILABLE\n'); }
   }
   process.stderr.write('LINUX_QUALIFICATION_FAILED\n');

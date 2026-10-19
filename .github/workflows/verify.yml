@@ -216,6 +216,24 @@ jobs:
           $nodeVersion = & $selectedNode --version
           if ($LASTEXITCODE -ne 0 -or $nodeVersion.Trim() -cne 'v24.13.0') { throw 'Pinned Node version differs' }
           [IO.File]::AppendAllText($env:GITHUB_ENV, "TABLO_TEST_NODE_BIN=$selectedNode`n", [Text.UTF8Encoding]::new($false))
+      - name: Select canonical PHP Composer and Docker for both server modes
+        run: |
+          # BEGIN SHARED SERVER TOOL SELECTION
+          foreach ($selection in @(
+            @{ Key='TABLO_SERVER_PREPARED_PHP'; Command='php' },
+            @{ Key='TABLO_TEST_COMPOSER_PHAR'; Command='composer' },
+            @{ Key='TABLO_TEST_DOCKER_BIN'; Command='docker' }
+          )) {
+            $command = (Get-Command $selection.Command -CommandType Application -ErrorAction Stop | Select-Object -First 1).Source
+            if ($command -isnot [string] -or !$command.StartsWith('/') -or $command -match '[\x00-\x1f\x7f]') { throw 'Selected server command is not an absolute scalar' }
+            $canonical = readlink -f -- $command
+            if ($LASTEXITCODE -ne 0 -or $canonical -isnot [string] -or !$canonical.StartsWith('/') -or $canonical -match '[\x00-\x1f\x7f]') { throw 'Canonical server tool unavailable' }
+            $toolFile = Get-Item -LiteralPath $canonical -ErrorAction Stop
+            if ($toolFile -isnot [IO.FileInfo] -or $toolFile.PSIsContainer -or $toolFile.LinkType -or ($toolFile.Attributes -band [IO.FileAttributes]::ReparsePoint) -or $toolFile.FullName -cne $canonical) { throw 'Canonical server tool is not a regular nonlink target' }
+            [Environment]::SetEnvironmentVariable($selection.Key, $canonical)
+            [IO.File]::AppendAllText($env:GITHUB_ENV, "$($selection.Key)=$canonical`n", [Text.UTF8Encoding]::new($false))
+          }
+          # END SHARED SERVER TOOL SELECTION
       - name: Select the canonical Linux command shell before qualification
         if: ${{ !matrix.declarationOnly }}
         run: |
@@ -274,9 +292,7 @@ jobs:
               return $stdoutTask.Result
             } finally { $child.Dispose() }
           }
-          $dockerCommand = (Get-Command docker -CommandType Application -ErrorAction Stop | Select-Object -First 1).Source
-          $docker = (readlink -f -- $dockerCommand)
-          if ($LASTEXITCODE -ne 0 -or $docker -isnot [string] -or !$docker.StartsWith('/')) { throw 'Canonical Docker CLI unavailable' }
+          $docker = $env:TABLO_TEST_DOCKER_BIN
           $identity = Invoke-FiniteTool 'host-identity' $env:TABLO_TEST_NODE_BIN @('--eval','process.stdout.write(JSON.stringify({uid:process.getuid(),gid:process.getgid()}))') 8 | ConvertFrom-Json
           if ($identity.uid -lt 1 -or $identity.gid -lt 1) { throw 'Explicit unprivileged runner identity required' }
           $compilerImage = 'docker.io/library/php@sha256:6114a2bd4956c50e4db20f08b9377e4fc7e08417b2aa34a44ec7ff52a07996b5'
@@ -316,7 +332,7 @@ jobs:
           if ($null -ne $primaryFailure -or $null -ne $cleanupFailure -or !$compiled -or !$cleanupKnown) { throw 'Compiler preparation or owned cleanup failed; see private receipts' }
           $binary = Join-Path $outputDirectory 'server-supervisor-linux'
           $build = Join-Path $outputDirectory 'build.json'
-          foreach ($entry in @{ TABLO_TEST_DOCKER_BIN=$docker; TABLO_SERVER_LINUX_ADAPTER=$binary; TABLO_SERVER_LINUX_BUILD=$build }.GetEnumerator()) { [IO.File]::AppendAllText($env:GITHUB_ENV, "$($entry.Key)=$($entry.Value)`n", [Text.UTF8Encoding]::new($false)) }
+          foreach ($entry in @{ TABLO_SERVER_LINUX_ADAPTER=$binary; TABLO_SERVER_LINUX_BUILD=$build }.GetEnumerator()) { [IO.File]::AppendAllText($env:GITHUB_ENV, "$($entry.Key)=$($entry.Value)`n", [Text.UTF8Encoding]::new($false)) }
           foreach ($entry in @{ TABLO_SERVER_LINUX_ADAPTER=$binary; TABLO_SERVER_LINUX_BUILD=$build }.GetEnumerator()) { $digest=(Get-FileHash -LiteralPath $entry.Value -Algorithm SHA256).Hash.ToLowerInvariant(); [IO.File]::AppendAllText($env:GITHUB_ENV, "$($entry.Key)_SHA256=$digest`n", [Text.UTF8Encoding]::new($false)) }
       - name: Prepare owned PHP inputs and qualify only execution cells
         timeout-minutes: 32
@@ -324,15 +340,10 @@ jobs:
           CELL_DECLARATION_ONLY: ${{ matrix.declarationOnly }}
         run: |
           $cellDirectory = Join-Path $env:RUNNER_TEMP 'tablo-server-cell'
-          foreach ($selection in @{ TABLO_SERVER_PREPARED_PHP='php'; TABLO_TEST_COMPOSER_PHAR='composer' }.GetEnumerator()) {
-            $command = (Get-Command $selection.Value -CommandType Application -ErrorAction Stop | Select-Object -First 1).Source
-            $canonical = readlink -f -- $command
-            if ($LASTEXITCODE -ne 0 -or $canonical -isnot [string] -or !$canonical.StartsWith('/')) { throw 'Canonical prepared tool unavailable' }
-            [Environment]::SetEnvironmentVariable($selection.Key, $canonical)
-            [IO.File]::AppendAllText($env:GITHUB_ENV, "$($selection.Key)=$canonical`n", [Text.UTF8Encoding]::new($false))
-          }
           $diagnosticOnly = [bool]::Parse($env:CELL_DECLARATION_ONLY)
           & $env:TABLO_TEST_NODE_BIN tools/server-qualification-diagnostic.cjs --self-test
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          & $env:TABLO_TEST_NODE_BIN --test tools/server-native-denial.test.cjs
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
           $preparationArguments = @("--cell=$cellDirectory", "--source=$PWD")
           if ($diagnosticOnly) { $preparationArguments += '--declaration-only' }
@@ -374,9 +385,7 @@ jobs:
           $env:TABLO_TEST_SOURCE_MANIFEST_SHA256 = (Get-FileHash -LiteralPath $sourceManifest -Algorithm SHA256).Hash.ToLowerInvariant()
           $declaration.stage = 'WORKFLOW_TOOL_SELECTION'
           [IO.File]::WriteAllText($safeDeclaration, ($declaration | ConvertTo-Json -Depth 5), [Text.UTF8Encoding]::new($false))
-          if ($diagnosticOnly) { $env:TABLO_TEST_DOCKER_BIN = (Get-Command docker -CommandType Application -ErrorAction Stop | Select-Object -First 1).Source }
           $env:TABLO_TEST_OBSERVER_PORT = '46399'
-          if ($diagnosticOnly) { $env:TABLO_TEST_COMPOSER_PHAR = (Get-Command composer -CommandType Application -ErrorAction Stop | Select-Object -First 1).Source }
           $env:LEKALO_BIN = Join-Path $PWD '.ci/lekalo-bin/lekalo'
           $version = & $env:LEKALO_BIN --version
           if ($LASTEXITCODE -ne 0 -or $version.Trim() -ne 'lekalo 0.6.3') { throw 'Unexpected Lekalo CLI version' }

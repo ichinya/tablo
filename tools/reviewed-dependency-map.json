@@ -9,7 +9,8 @@
       "tools/server-supervisor-linux-build.sh",
       "tools/server-supervisor-linux-qualify.cjs",
       "tools/server-linux-prepare.cjs",
-      "tools/server-qualification-diagnostic.cjs"
+      "tools/server-qualification-diagnostic.cjs",
+      "tools/server-native-denial.test.cjs"
     ]
   },
   "app/AddressRange.php": {
@@ -9082,7 +9083,9 @@
       "tools/server-supervisor-linux-controls.c",
       "tools/server-supervisor-linux-build.sh",
       "tools/server-supervisor-linux-qualify.cjs",
-      "tools/server-linux-prepare.cjs"
+      "tools/server-linux-prepare.cjs",
+      "tools/server-qualification-diagnostic.cjs",
+      "tools/server-native-denial.test.cjs"
     ]
   },
   "tools/server-supervisor-windows.ps1": {
@@ -9268,7 +9271,16 @@
       "tools/server-supervisor-linux-qualify.cjs",
       ".github/workflows/verify.yml",
       "tools/server-native-tests.json",
-      "node tools/server-qualification-diagnostic.cjs --self-test"
+      "node tools/server-qualification-diagnostic.cjs --self-test",
+      "tools/server-native-denial.test.cjs"
+    ]
+  },
+  "tools/server-native-denial.test.cjs": {
+    "owner": "Pure production native-record parser and nonauthoritative denial projection tests",
+    "consumers": [
+      ".github/workflows/verify.yml",
+      "tools/server-native-tests.json",
+      "node --test tools/server-native-denial.test.cjs"
     ]
   }
 }

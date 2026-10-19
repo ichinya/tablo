@@ -453,10 +453,31 @@ async function linuxPins(observer, control = false, selected = null) {
 // JSON parser: its pipe ends are private inherited handles, closed before child
 // exec. Node validates the finite native grammar and authenticates retained event
 // payloads with the same Frames implementation used for the other owner channels.
+const DENIAL_FIELDS = Object.freeze(['ptrace', 'seccomp', 'prctlSetSeccomp', 'prctlSetPtracer', 'prctlSetDumpable',
+  'unshare', 'setns', 'ioUringSetup', 'cloneFlags', 'cloneLimit', 'forkLimit', 'vforkLimit', 'unknown',
+  'epermRegisterWrites', 'eagainRegisterWrites']);
+function linuxDenialDiagnostic(values, deniedCount) {
+  if (!Array.isArray(values) || values.length !== DENIAL_FIELDS.length
+      || !integer(deniedCount, 1, 2147483647) || values.some(value => !integer(value, 0, 2147483647))) fail('LINUX_DENIAL_DIAGNOSTIC');
+  const decisions = values.slice(0, 13).reduce((sum, value) => sum + value, 0);
+  const eperm = values.slice(0, 9).reduce((sum, value) => sum + value, 0) + values[12];
+  const eagain = values[9] + values[10] + values[11];
+  if (decisions !== deniedCount || values[13] > eperm || values[14] > eagain
+      || values[13] + values[14] > deniedCount) fail('LINUX_DENIAL_DIAGNOSTIC');
+  return Object.freeze(Object.fromEntries(DENIAL_FIELDS.map((key, index) => [key, values[index]])));
+}
 class LinuxRecords {
-  constructor() { this.pending = Buffer.alloc(0); this.count = 0; }
+  constructor() {
+    this.pending = Buffer.alloc(0); this.count = 0; this.total = 0;
+    this.seen = new Set(); this.denials = null; this.denialDiagnostic = 'UNKNOWN'; this.closed = false;
+  }
   push(bytes, receive) {
-    if (this.pending.length + bytes.length > 8192) fail('LINUX_RECORD_LIMIT');
+    try { this.read(bytes, receive); }
+    catch (error) { this.denialDiagnostic = 'UNKNOWN'; throw error; }
+  }
+  read(bytes, receive) {
+    this.total += bytes.length;
+    if (this.total > 8192) fail('LINUX_RECORD_LIMIT');
     this.pending = Buffer.concat([this.pending, bytes]);
     let end;
     while ((end = this.pending.indexOf(10)) >= 0) {
@@ -464,16 +485,29 @@ class LinuxRecords {
       if (++this.count > 8 || line.length > 512 || !/^[A-Z0-9a-z -]+$/.test(line.toString('ascii'))
           || [...line].some(value => value > 127)) fail('LINUX_RECORD_ENCODING');
       const [kind, ...values] = line.toString('ascii').split(' ');
-      const lengths = { READY: 3, STARTED: 1, INPUT: 4, EXITED: 4, CLOSED: 13 };
+      const lengths = { READY: 3, STARTED: 1, INPUT: 4, EXITED: 4, DENIALS: 15, CLOSED: 13 };
       if (values.length !== lengths[kind]) fail('LINUX_RECORD_FIELDS');
+      if (this.denials && this.closed) fail('LINUX_DENIAL_ORDER');
+      if (this.denials && !this.closed && kind !== 'CLOSED') fail('LINUX_DENIAL_ORDER');
+      if (kind === 'DENIALS' && (this.denials || this.closed
+          || !['READY', 'STARTED', 'INPUT', 'EXITED'].every(event => this.seen.has(event)))) fail('LINUX_DENIAL_ORDER');
       if (kind === 'READY') {
         if (!/^[1-9][0-9]{0,9}$/.test(values[0]) || values[1] !== LINUX_POLICY
             || !/^[1-9][0-9]{0,19}$/.test(values[2])) fail('LINUX_RECORD_POLICY');
         receive(kind, [Number(values[0]), values[1], values[2]]);
       } else {
         if (values.some(value => !/^(0|[1-9][0-9]{0,9}|-1)$/.test(value) || !Number.isSafeInteger(Number(value)))) fail('LINUX_RECORD_INTEGER');
-        receive(kind, values.map(Number));
+        const numbers = values.map(Number);
+        if (kind === 'DENIALS') {
+          const sum = numbers.slice(0, 13).reduce((total, value) => total + value, 0);
+          linuxDenialDiagnostic(numbers, sum); this.denials = numbers;
+        } else if (kind === 'CLOSED') {
+          if (this.denials) this.denialDiagnostic = linuxDenialDiagnostic(this.denials, numbers[6]);
+          this.closed = true;
+        }
+        receive(kind, numbers);
       }
+      this.seen.add(kind);
     }
     if (this.pending.length > 512) fail('LINUX_RECORD_SIZE');
   }
@@ -505,6 +539,7 @@ async function runLinuxAdapter(owner, plan) {
     owner.adapter = child;
     const state = adapterState(plan); owner.adapterState = state;
     const records = new LinuxRecords(); const frames = new Frames(owner.phase.adapterAuthority, plan.nonce, 'adapter-to-node', 'node-to-adapter');
+    owner.nativeDenialDiagnostic = 'UNKNOWN'; // Never an admission/event field.
     let stdout = Buffer.alloc(0), stderr = Buffer.alloc(0), authenticated = Buffer.alloc(0);
     let spawnError = false, stderrTruncated = false, protocolFailed = false, closedRecord = null, commands = 0;
     const send = (kind, value = {}) => {
@@ -555,7 +590,8 @@ async function runLinuxAdapter(owner, plan) {
       try {
         if (stdout.length + bytes.length > 8192) fail('LINUX_OUTPUT_LIMIT');
         stdout = Buffer.concat([stdout, bytes]); records.push(bytes, receive);
-      } catch { protocolFailed = true; owner.cancel('protocol'); child.stdin.end(); }
+        owner.nativeDenialDiagnostic = protocolFailed ? 'UNKNOWN' : records.denialDiagnostic;
+      } catch { owner.nativeDenialDiagnostic = 'UNKNOWN'; protocolFailed = true; owner.cancel('protocol'); child.stdin.end(); }
     });
     const close = await new Promise(resolve => {
       child.once('close', (code, signal) => resolve({ code, signal, closeObserved: true }));
@@ -566,6 +602,7 @@ async function runLinuxAdapter(owner, plan) {
       };
     });
     owner.expire = null;
+    if (!close.closeObserved || records.pending.length || protocolFailed) owner.nativeDenialDiagnostic = 'UNKNOWN';
     for (let i = 0; i < handles.length; i++) if (i < 2) await handles[i].sync();
     for (const handle of handles) await handle.close();
     handles.length = 0;
@@ -998,5 +1035,5 @@ async function main(arguments_) {
   else fail('EXACT_MODE');
 }
 
-module.exports = { Frames, Leases, LinuxRecords, declaration, environment, acceptEvent, runLinuxAdapter, linuxPins, linuxContext, readPlan, regular, pinned, retain };
+module.exports = { Frames, Leases, LinuxRecords, DENIAL_FIELDS, linuxDenialDiagnostic, declaration, environment, acceptEvent, runLinuxAdapter, linuxPins, linuxContext, readPlan, regular, pinned, retain };
 if (require.main === module) main(process.argv.slice(2)).catch(() => { process.stderr.write('SERVER_OBSERVER_FAILED\n'); process.exitCode = 1; });

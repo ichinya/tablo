@@ -43,6 +43,11 @@ static struct group groups[GROUPS];
 static pid_t early_stops[TASKS];
 static unsigned live, pending, peak, births, reservations, failed_creations;
 static unsigned denied, clone3_fallbacks, waits, exec_retired, thread_births;
+// Diagnostic only: positional DENIALS fields never participate in policy.
+enum { D_PTRACE, D_SECCOMP, D_PRCTL_SECCOMP, D_PRCTL_PTRACER, D_PRCTL_DUMPABLE,
+    D_UNSHARE, D_SETNS, D_IO_URING, D_CLONE_FLAGS, D_CLONE_LIMIT, D_FORK_LIMIT,
+    D_VFORK_LIMIT, D_UNKNOWN, D_BUCKETS };
+static unsigned denial_buckets[D_BUCKETS], eperm_register_writes, eagain_register_writes;
 static unsigned command_count, input_bytes, written_bytes;
 static int limit, failed, cancelled, ready, launched, started, root_terminal;
 static int input_write = -1, input_settled, source_eof, root_code = -1, root_signal;
@@ -51,6 +56,21 @@ static pid_t root;
 static int witness = -1;
 static uint64_t end;
 static volatile sig_atomic_t interrupted;
+
+static void diagnostic_increment(unsigned *counter) {
+    if (*counter < INT32_MAX) (*counter)++; // Saturation cannot alter admission.
+}
+static unsigned denied_operation(uint64_t nr, uint64_t option) {
+    if (nr == SYS_ptrace) return D_PTRACE;
+    if (nr == SYS_seccomp) return D_SECCOMP;
+    if (nr == SYS_prctl && option == PR_SET_SECCOMP) return D_PRCTL_SECCOMP;
+    if (nr == SYS_prctl && option == PR_SET_PTRACER) return D_PRCTL_PTRACER;
+    if (nr == SYS_prctl && option == PR_SET_DUMPABLE) return D_PRCTL_DUMPABLE;
+    if (nr == SYS_unshare) return D_UNSHARE;
+    if (nr == SYS_setns) return D_SETNS;
+    if (nr == SYS_io_uring_setup) return D_IO_URING;
+    return D_UNKNOWN;
+}
 
 static uint64_t now(void) {
     struct timespec t;
@@ -163,17 +183,20 @@ static int gate(struct task *t) {
     if (nr == SYS_prctl && flags != PR_SET_SECCOMP && flags != PR_SET_PTRACER
         && flags != PR_SET_DUMPABLE) return resume(t, 0);
     if (nr != SYS_clone && nr != SYS_fork && nr != SYS_vfork) {
+        diagnostic_increment(&denial_buckets[denied_operation(nr, flags)]);
         denied++; failed = 1; return suppress(t, &regs, EPERM, REJECT);
     }
     const uint64_t allowed = CSIGNAL | CLONE_VM | CLONE_FS | CLONE_FILES | CLONE_SIGHAND
         | CLONE_THREAD | CLONE_SYSVSEM | CLONE_SETTLS | CLONE_PARENT_SETTID
         | CLONE_CHILD_CLEARTID | CLONE_CHILD_SETTID | CLONE_VFORK | CLONE_DETACHED | CLONE_PIDFD;
     if (nr == SYS_clone && ((flags & ~allowed) || (flags & CSIGNAL) > 64)) {
+        diagnostic_increment(&denial_buckets[D_CLONE_FLAGS]);
         denied++; failed = 1; return suppress(t, &regs, EPERM, REJECT);
     }
     int thread = nr == SYS_clone && (flags & CLONE_THREAD);
     if (!thread) {
         if (live + pending >= (unsigned)limit) {
+            diagnostic_increment(&denial_buckets[nr == SYS_clone ? D_CLONE_LIMIT : nr == SYS_fork ? D_FORK_LIMIT : D_VFORK_LIMIT]);
             denied++; failed = 1; return suppress(t, &regs, EAGAIN, REJECT);
         }
         pending++; reservations++; if (live + pending > peak) peak = live + pending;
@@ -191,6 +214,9 @@ static int syscall_exit(struct task *t) {
         if (ptrace(PTRACE_GETREGS, t->tid, NULL, &regs)) return -1;
         regs.rax = (unsigned long long)-(long long)t->reject_errno;
         if (ptrace(PTRACE_SETREGS, t->tid, NULL, &regs)) return -1;
+        // A completed register write is not proof of a program-observed return.
+        if (t->pending == REJECT && t->reject_errno == EPERM) diagnostic_increment(&eperm_register_writes);
+        if (t->pending == REJECT && t->reject_errno == EAGAIN) diagnostic_increment(&eagain_register_writes);
     } else if (info.exit.is_error) {
         if (t->born) return -1;
         if (t->pending == PROCESS) { if (!pending) return -1; pending--; }
@@ -425,6 +451,15 @@ int main(int argc, char **argv) {
             if (!root_terminal || !started || !input_settled || pending || fsync(3) || fsync(4)) failed = 1;
             close(3); close(4);
             char line[512];
+            if (denied) {
+                snprintf(line, sizeof(line), "DENIALS %u %u %u %u %u %u %u %u %u %u %u %u %u %u %u\n",
+                    denial_buckets[D_PTRACE], denial_buckets[D_SECCOMP], denial_buckets[D_PRCTL_SECCOMP],
+                    denial_buckets[D_PRCTL_PTRACER], denial_buckets[D_PRCTL_DUMPABLE], denial_buckets[D_UNSHARE],
+                    denial_buckets[D_SETNS], denial_buckets[D_IO_URING], denial_buckets[D_CLONE_FLAGS],
+                    denial_buckets[D_CLONE_LIMIT], denial_buckets[D_FORK_LIMIT], denial_buckets[D_VFORK_LIMIT],
+                    denial_buckets[D_UNKNOWN], eperm_register_writes, eagain_register_writes);
+                event(line);
+            }
             snprintf(line, sizeof(line), "CLOSED %u %u %u %u %u %u %u %u %u %u %u %d %d\n",
                 live, pending, peak, births, reservations, failed_creations, denied, clone3_fallbacks,
                 thread_births, waits, exec_retired, closure_echild, failed || cancelled);
