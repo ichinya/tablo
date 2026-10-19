@@ -25,7 +25,8 @@ try {
         $name = array_shift($arguments);
         if ($name === '--offline') { continue; }
         $value = array_shift($arguments);
-        if (!in_array($name, ['--archive', '--scratch', '--sqlite-target'], strict: true) || !is_string($value) || array_key_exists($name, $options)) {
+        if (!in_array($name, ['--archive', '--scratch', '--sqlite-target'], strict: true) || !is_string($value)
+            || str_starts_with($value, '--') || array_key_exists($name, $options)) {
             throw new \Tablo\DatabaseFailure('configuration');
         }
         $options[$name] = $value;

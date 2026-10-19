@@ -140,7 +140,11 @@ function database_transfer_value_value(#[\SensitiveParameter] mixed $value, arra
     if ($column['type'] === 'longtext') {
         if (str_contains($value, "\0") || preg_match('//u', $value) !== 1) { throw new DatabaseFailure('schema'); }
     }
-    if ($column['type'] === 'varbinary(20)' && HistoryTime::canonical($value) !== $value) { throw new DatabaseFailure('schema'); }
+    if ($column['type'] === 'varbinary(20)') {
+        try { $canonical = HistoryTime::canonical($value); }
+        catch (\InvalidArgumentException) { throw new DatabaseFailure('schema'); }
+        if ($canonical !== $value) { throw new DatabaseFailure('schema'); }
+    }
     $match = [];
     if (preg_match('/\Avarbinary\(([0-9]+)\)\z/D', $column['type'], $match) === 1 && strlen($value) > (int) ($match[1] ?? throw new DatabaseFailure('schema'))) {
         throw new DatabaseFailure('schema');

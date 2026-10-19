@@ -24,6 +24,7 @@ final class ServerMigrationState
 
     public function phase(string $phase): void
     {
+        if ($this->db->inTransaction() || WriteTransaction::owns($this->db)) { throw new \LogicException('Caller owns database transaction.'); }
         $this->db->exec('START TRANSACTION');
         try {
             ServerWriterAdmission::lock($this->db);
@@ -33,6 +34,7 @@ final class ServerMigrationState
 
     public function publish(int $predecessor, int $target): void
     {
+        if ($this->db->inTransaction() || WriteTransaction::owns($this->db)) { throw new \LogicException('Caller owns database transaction.'); }
         $this->point('before-publication', $target);
         $this->db->exec('START TRANSACTION');
         try {

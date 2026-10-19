@@ -16,7 +16,7 @@ final class ServerFixturePlan
     public static function slots(string $nonce, string $engine): array
     { return server_fixture_plan_slots($nonce, $engine); }
 
-    /** @return array{writer: string, reader: string, migrator: string} */
+    /** @return array{writer: string, reader: string, migrator: string, deniedDdl: string} */
     public static function accounts(string $nonce, string $engine): array
     { return server_fixture_plan_accounts($nonce, $engine); }
 
@@ -33,6 +33,29 @@ final class ServerFixturePlan
      * @param array{engine: string, cross: bool, pull: bool, output: string} $options */
     public static function cell(string $root, array $options): array
     { return server_fixture_plan_cell($root, $options); }
+
+    /** Select source names before any caller hashes or opens them.
+     * @param list<string> $names
+     * @return list<string> */
+    public static function sourcePaths(array $names): array
+    { return server_fixture_plan_source_paths($names); }
+}
+
+/** This pure composition step never probes even excluded or nonexistent paths.
+ * @param list<string> $names
+ * @return list<string> */
+function server_fixture_plan_source_paths(array $names): array
+{
+    $paths = [];
+    foreach ($names as $name) {
+        if ($name === '' || str_contains($name, '..') || str_contains($name, '\\') || str_contains($name, ':') || str_contains($name, "\0") || str_starts_with($name, '/')) {
+            throw new RuntimeException('Malformed source inventory path.');
+        }
+        if (preg_match('~\A(?:storage|artifacts|vendor|\.git)(?:/|\z)~D', $name) === 1
+            || in_array(basename($name), ['.env', 'real.env'], strict: true)) { continue; }
+        $paths[] = $name;
+    }
+    return $paths;
 }
 
 /** @param array{engine: string, cross: bool, pull: bool, output: string} $options */
@@ -232,12 +255,12 @@ function server_fixture_plan_slots(string $nonce, string $engine): array
     return $names;
 }
 
-/** @return array{writer: string, reader: string, migrator: string} */
+/** @return array{writer: string, reader: string, migrator: string, deniedDdl: string} */
 function server_fixture_plan_accounts(string $nonce, string $engine): array
 {
     server_fixture_plan_selection($nonce, $engine);
     $prefix = 'i39' . substr($nonce, offset: 0, length: 12);
-    return ['writer' => $prefix . 'w', 'reader' => $prefix . 'r', 'migrator' => $prefix . 'm'];
+    return ['writer' => $prefix . 'w', 'reader' => $prefix . 'r', 'migrator' => $prefix . 'm', 'deniedDdl' => $prefix . 'd'];
 }
 
 /** @return list<\Tablo\Tools\ServerFixturePlan::Fixture> */

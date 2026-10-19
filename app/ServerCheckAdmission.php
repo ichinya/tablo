@@ -15,13 +15,7 @@ final class ServerCheckAdmission
     /** @param Table $table */
     public static function verify(PDO $db, array $table): void
     {
-        $checks = ServerSchema::rows($db, 'SELECT c.CONSTRAINT_NAME AS name, c.CHECK_CLAUSE AS clause FROM information_schema.CHECK_CONSTRAINTS c JOIN information_schema.TABLE_CONSTRAINTS t ON t.CONSTRAINT_SCHEMA = c.CONSTRAINT_SCHEMA AND t.CONSTRAINT_NAME = c.CONSTRAINT_NAME WHERE t.TABLE_SCHEMA = DATABASE() AND t.TABLE_NAME = ? AND t.CONSTRAINT_TYPE = ?', [$table['name'], 'CHECK']);
-        if (count($checks) !== count($table['checks'])) { self::refuse(); }
-        $clauses = [];
-        foreach ($checks as $check) {
-            if (!is_string($check['name'] ?? null) || !is_string($check['clause'] ?? null)) { self::refuse(); }
-            $clauses[$check['name']] = ServerExpression::canonical($check['clause']);
-        }
+        $clauses = server_check_admission_clauses($db, $table);
         foreach ($table['checks'] as $check) {
             if (($clauses[$check['name']] ?? null) === ServerExpression::canonical($check['expression'])) { continue; }
             self::refuse();
@@ -41,4 +35,21 @@ final class ServerCheckAdmission
     }
     private static function refuse(): never { throw new DatabaseFailure('schema'); }
 
+}
+
+/** @param \Tablo\ServerSchema::Table $table
+ * @return array<string, string> */
+function server_check_admission_clauses(PDO $db, array $table): array
+{
+    $mysql = DatabaseSession::get($db)?->configuration->engine === 'mysql';
+    $enforcement = $mysql ? ', t.ENFORCED AS enforced' : '';
+    $checks = ServerSchema::rows($db, 'SELECT c.CONSTRAINT_NAME AS name, c.CHECK_CLAUSE AS clause' . $enforcement . ' FROM information_schema.CHECK_CONSTRAINTS c JOIN information_schema.TABLE_CONSTRAINTS t ON t.CONSTRAINT_SCHEMA = c.CONSTRAINT_SCHEMA AND t.CONSTRAINT_NAME = c.CONSTRAINT_NAME WHERE t.TABLE_SCHEMA = DATABASE() AND t.TABLE_NAME = ? AND t.CONSTRAINT_TYPE = ?', [$table['name'], 'CHECK']);
+    if (count($checks) !== count($table['checks'])) { throw new DatabaseFailure('schema'); }
+    $clauses = [];
+    foreach ($checks as $check) {
+        if (!is_string($check['name'] ?? null) || !is_string($check['clause'] ?? null)) { throw new DatabaseFailure('schema'); }
+        if ($mysql && ($check['enforced'] ?? null) !== 'YES') { throw new DatabaseFailure('schema'); }
+        $clauses[$check['name']] = ServerExpression::canonical($check['clause']);
+    }
+    return $clauses;
 }

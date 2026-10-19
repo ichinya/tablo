@@ -49,7 +49,10 @@ final class EngineReadApiTest
     public function admittedReadSnapshotKeepsAuthenticationDataAndMetadataAcrossRevocation(): void
     {
         $fixture = new EngineFixture('api-snapshot');
-        $writer = $fixture->database(); ReadApiAssertions::administrator($writer); ReadApiAssertions::insert($writer);
+        $writer = $fixture->database();
+        $password = \Tablo\Tests\Support\FixtureCredentials::syntheticPassword();
+        (new \Tablo\Auth($writer))->setup($password, $password);
+        ReadApiAssertions::insert($writer);
         $tokens = new ReadApiTokenRepository($writer);
         $fingerprint = ReadApiTokenRepository::administrator($writer);
         Assert::notNull($fingerprint);

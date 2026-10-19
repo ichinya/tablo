@@ -64,13 +64,15 @@ final class EngineMigrationPreviousTest
     #[Test]
     public function nativeCreateDenialRetainsIntentAndRowsUntilTheRealMigratorResumes(): void
     {
-        // Runner prepares this empty catalog with DML-only writer grants, never CREATE/ALTER.
+        // A dedicated test actor can journal/mark phase, but cannot CREATE/ALTER.
         $fixture = new EngineFixture('migration-previous-denied-ddl'); $db = $fixture->maintenance();
         $tables = self::materialize($fixture, $db); $before = self::snapshot($db, $tables);
         $environment = $fixture->environment();
-        $environment['TABLO_DB_MIGRATE_USER'] = SqlColumn::string($environment, 'TABLO_DB_USER');
-        $environment['TABLO_DB_MIGRATE_PASSWORD'] = SqlColumn::string($environment, 'TABLO_DB_PASSWORD');
+        $environment['TABLO_DB_MIGRATE_USER'] = SqlColumn::string($environment, 'TABLO_TEST_DB_DENIED_DDL_USER');
+        $environment['TABLO_DB_MIGRATE_PASSWORD'] = SqlColumn::string($environment, 'TABLO_TEST_DB_DENIED_DDL_PASSWORD');
         $restricted = \Tablo\DatabaseConnectionFactory::open(\Tablo\DatabaseConfiguration::fromEnvironment('migrator', $environment), mode: 'maintenance');
+        Assert::same($restricted->exec('UPDATE tablo_migration_journal SET phase = phase WHERE step = -1'), 0);
+        Assert::same($restricted->exec('UPDATE tablo_database_state SET phase = phase WHERE id = 0'), 0);
         $native = null;
         try { $restricted->exec('CREATE TABLE synthetic_denied_ddl (id BIGINT NOT NULL PRIMARY KEY) ENGINE=InnoDB'); }
         catch (\PDOException $error) { $native = \Tablo\DatabaseInteger::checked($error->errorInfo[1] ?? null); }
@@ -124,9 +126,9 @@ final class EngineMigrationPreviousTest
         ServerSchema::rows($db, 'INSERT INTO users (id,password_hash,created_at) VALUES (1,?,?)', [$hash, '0001-01-01T00:00:00Z']);
         ServerSchema::rows($db, 'INSERT INTO git_tokens (id,name,provider,encrypted_token,created_at,updated_at) VALUES (7,?,?,?,?,?)',
             ['Café ', 'github', $vault->encrypt(FixtureCredentials::value(label: 'previous-token')), '0099-12-31T23:59:59Z', '0100-01-01T00:00:00Z']);
-        ServerSchema::rows($db, 'INSERT INTO sites (id,name,url,git_token_id,github_token,endpoint_token,config_revision,checked_at) VALUES (20,?,?,7,?,?,6,?)',
-            ['Сайт 🧪 ', 'https://synthetic.invalid', $vault->encrypt(FixtureCredentials::value(label: 'previous-legacy')),
-                $vault->encrypt(FixtureCredentials::value(label: 'previous-endpoint')), '0001-01-01T00:00:00Z']);
+        ServerSchema::rows($db, 'INSERT INTO sites (id,name,url,repository,git_token_id,github_token,endpoint_token,config_revision,created_at,updated_at,checked_at) VALUES (20,?,?,?,7,?,?,6,?,?,?)',
+            ['Сайт 🧪 ', 'https://synthetic.invalid', 'synthetic/previous', $vault->encrypt(FixtureCredentials::value(label: 'previous-legacy')),
+                $vault->encrypt(FixtureCredentials::value(label: 'previous-endpoint')), '0001-01-01T00:00:00Z', '0099-12-31T23:59:59Z', '0001-01-01T00:00:00Z']);
         ServerSchema::rows($db, 'INSERT INTO login_limits (`key`,failures,window_start) VALUES (?,3,4)', [hash('sha256', data: 'synthetic-previous-address')]);
         ServerSchema::rows($db, 'INSERT INTO github_cooldowns (scope,resource,eligible_at) VALUES (?,?,?)', [$vault->credentialScope(FixtureCredentials::value(label: 'previous-token')), 'core', 2_147_483_648]);
         $db->exec('INSERT INTO installation_settings (id,check_interval_minutes,session_idle_timeout_minutes) VALUES (1,17,42)');

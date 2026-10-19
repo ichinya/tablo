@@ -13,6 +13,10 @@ use Testo\Test;
 final class EngineTransferRefusalTest
 {
     #[Test]
+    public function flagValuesRefuseBeforeKeyDatabaseOrTransferFilesAreOpened(): void
+    { engine_transfer_cli_flag_values(); }
+
+    #[Test]
     public function blobStoredInTextPrimaryKeyRefusesWithoutNormalizationOrRepeatedCursor(): void
     {
         $fixture = new EngineFixture('transfer-storage-refusal');
@@ -114,6 +118,32 @@ final class EngineTransferRefusalTest
         $manifest = \Tablo\JsonEncoding::encode($envelope);
         Assert::same(file_put_contents($manifestPath, $manifest), strlen($manifest));
     }
+}
+
+/** Exercise the public CLI with missing synthetic key/database paths, never inherited credentials. */
+function engine_transfer_cli_flag_values(): void
+{
+    $directory = new \Tablo\Tests\Support\TemporaryDirectory('tablo-transfer-cli-options-');
+    try {
+        $root = $directory->path; $archive = $root . '/archive'; $scratch = $root . '/scratch.sqlite'; $target = $root . '/target.sqlite';
+        $variants = [
+            ['--export', '--archive', '--offline', '--scratch', $scratch],
+            ['--export', '--offline', '--archive', '--scratch'],
+            ['--import', '--offline', '--archive', $archive, '--scratch', $scratch, '--sqlite-target', '--archive'],
+        ];
+        foreach ($variants as $arguments) {
+            $result = \Tablo\Tests\Support\Subprocess::run([PHP_BINARY, dirname(__DIR__, levels: 2) . '/bin/database-transfer.php', ...$arguments],
+                $directory, ['TABLO_DB' => $root . '/database.sqlite', 'TABLO_TOKEN_KEY_FILE' => $root . '/absent-key.bin'],
+                new \Tablo\Tests\Support\CommandOptions(timeout: 2, cwd: $root));
+            Assert::same($result['exit_code'], 1); Assert::same($result['stdout'], '');
+            Assert::same($result['stderr'], "Database configuration invalid.\n");
+            foreach ([$archive, $scratch, $target, $root . '/absent-key.bin', $root . '/database.sqlite',
+                $root . '/--offline', $root . '/--scratch', $root . '/--archive', $root . '/--sqlite-target'] as $path) {
+                Assert::false(file_exists($path));
+            }
+        }
+    } catch (\Throwable $error) { $directory->retainFailure($error); throw $error; }
+    finally { $directory->close(); }
 }
 
 /** Both entry points refuse caller ownership before allocating or changing the session. */

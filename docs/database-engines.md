@@ -245,10 +245,22 @@ as the destination. The destination must not already exist:
 php bin/database-transfer.php --import --offline --archive /private/transfer-a --scratch /private/new-target.staging.sqlite --sqlite-target /private/new-target.sqlite
 ```
 
-The original allocation floors and committed history watermark are preserved,
-including deleted high history IDs and prune-all installations. AUTO_INCREMENT
-reservation gaps remain distinct from accepted observations. SQL foreign keys stay
-enabled. Publication follows complete byte/count/constraint/key/sequence checks;
+The archive records the original allocation floors and committed history watermark
+separately, including deleted high history IDs and prune-all installations. A server
+target preserves both values independently: AUTO_INCREMENT reservation gaps remain
+distinct from accepted observations.
+
+Unchanged SQLite schema 10 has one sequence-based activation/cursor frontier rather
+than a separate committed-watermark field. A SQLite target preserves the allocation
+floor and represents its frontier as the greater of the archived committed watermark
+and history allocation floor. A rolled-back server reservation can therefore promote
+the SQLite frontier conservatively. No committed history row is invented, omitted or
+rewritten, and the next accepted ID remains above every preserved reservation. A later
+SQLite export reports this combined frontier; it cannot roundtrip the two original
+numeric frontiers independently. Keep the original archive when that distinction is
+needed for audit. Server verification still requires its exact committed watermark.
+
+SQL foreign keys stay enabled. Publication follows complete byte/count/constraint/key/sequence checks;
 API/password behavior must also be checked before the operator changes the live
 configuration.
 

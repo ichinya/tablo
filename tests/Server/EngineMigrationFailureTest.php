@@ -105,9 +105,11 @@ function engine_migration_denied_ddl(int $step): void
         $db = $fixture->maintenance(); $sql = engine_migration_ddl_sql($db, $step);
         if ($step > 0) { engine_migration_ddl_prepare_prefix($fixture, $step - 1); }
         engine_migration_ddl_prefix($db, $step); $environment = $fixture->environment();
-        $environment['TABLO_DB_MIGRATE_USER'] = \Tablo\SqlColumn::string($environment, 'TABLO_DB_USER');
-        $environment['TABLO_DB_MIGRATE_PASSWORD'] = \Tablo\SqlColumn::string($environment, 'TABLO_DB_PASSWORD');
+        $environment['TABLO_DB_MIGRATE_USER'] = \Tablo\SqlColumn::string($environment, 'TABLO_TEST_DB_DENIED_DDL_USER');
+        $environment['TABLO_DB_MIGRATE_PASSWORD'] = \Tablo\SqlColumn::string($environment, 'TABLO_TEST_DB_DENIED_DDL_PASSWORD');
         $restricted = \Tablo\DatabaseConnectionFactory::open(\Tablo\DatabaseConfiguration::fromEnvironment('migrator', $environment), mode: 'maintenance');
+        if ($step > 0) { Assert::same($restricted->exec('UPDATE tablo_migration_journal SET phase = phase WHERE step = -1'), 0); }
+        if ($step > 1) { Assert::same($restricted->exec('UPDATE tablo_database_state SET phase = phase WHERE id = 0'), 0); }
         $native = null;
         try { $restricted->exec($sql); } catch (\PDOException $error) { $native = \Tablo\DatabaseInteger::checked($error->errorInfo[1] ?? null); }
         Assert::same($native, 1142); engine_migration_ddl_prefix($db, $step);

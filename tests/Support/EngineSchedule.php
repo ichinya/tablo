@@ -19,7 +19,9 @@ final class EngineSchedule
         $environment = [];
         foreach (array_keys($values) as $name) {
             $name = (string) $name;
-            if (!str_starts_with($name, 'TABLO_DB_')) { throw new \RuntimeException('Fixture environment refused.'); }
+            if (!str_starts_with($name, 'TABLO_DB_') && !in_array($name, ['TABLO_TEST_DB_DENIED_DDL_USER', 'TABLO_TEST_DB_DENIED_DDL_PASSWORD'], strict: true)) {
+                throw new \RuntimeException('Fixture environment refused.');
+            }
             $environment[$name] = \Tablo\SqlColumn::string($values, $name);
         }
         $environment['TABLO_DB_DRIVER'] = \Tablo\SqlColumn::string($manifest, 'engine');

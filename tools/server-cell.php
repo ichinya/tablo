@@ -146,7 +146,8 @@ function server_cell_catalogs(array $context): array
             static fn (#[\SensitiveParameter] string $sql, float $remaining): string => server_cell_admin($context, $engine, $sql, $remaining));
         $service = server_cell_service($context, $engine);
         $private = server_cell_private_input($context['plan'], SqlColumn::string($service, 'passwordFile'));
-        $passwords = ['writer' => SqlColumn::string($private, 'writer'), 'reader' => SqlColumn::string($private, 'reader'), 'migrator' => SqlColumn::string($private, 'migrator')];
+        $passwords = ['writer' => SqlColumn::string($private, 'writer'), 'reader' => SqlColumn::string($private, 'reader'),
+            'migrator' => SqlColumn::string($private, 'migrator'), 'deniedDdl' => SqlColumn::string($private, 'deniedDdl')];
         $catalog->bootstrap($passwords); unset($passwords, $private);
         $catalogs[$engine] = $catalog;
     }
@@ -245,7 +246,8 @@ function server_cell_fixture_environment(array $plan, array $service, string $en
     return ['TABLO_DB_HOST' => '127.0.0.1', 'TABLO_DB_PORT' => (string) SqlColumn::integer($service, 'port'), 'TABLO_DB_TLS' => 'verify',
         'TABLO_DB_TLS_CA' => SqlColumn::string($plan, 'ca'), 'TABLO_DB_USER' => $accounts['writer'], 'TABLO_DB_PASSWORD' => SqlColumn::string($passwords, 'writer'),
         'TABLO_DB_READ_USER' => $accounts['reader'], 'TABLO_DB_READ_PASSWORD' => SqlColumn::string($passwords, 'reader'),
-        'TABLO_DB_MIGRATE_USER' => $accounts['migrator'], 'TABLO_DB_MIGRATE_PASSWORD' => SqlColumn::string($passwords, 'migrator')];
+        'TABLO_DB_MIGRATE_USER' => $accounts['migrator'], 'TABLO_DB_MIGRATE_PASSWORD' => SqlColumn::string($passwords, 'migrator'),
+        'TABLO_TEST_DB_DENIED_DDL_USER' => $accounts['deniedDdl'], 'TABLO_TEST_DB_DENIED_DDL_PASSWORD' => SqlColumn::string($passwords, 'deniedDdl')];
 }
 
 /** This separate bounded setup process never executes the behavior of an initial=empty case. */
@@ -696,7 +698,7 @@ function server_cell_secrets(array $plan, string $engine): void
 {
     $services = JsonRecord::checked($plan['services'] ?? null); $service = JsonRecord::checked($services[$engine] ?? null);
     server_cell_private_write(SqlColumn::string($service, 'passwordFile'), \Tablo\JsonEncoding::encode([
-        'writer' => bin2hex(random_bytes(32)), 'reader' => bin2hex(random_bytes(32)), 'migrator' => bin2hex(random_bytes(32))]));
+        'writer' => bin2hex(random_bytes(32)), 'reader' => bin2hex(random_bytes(32)), 'migrator' => bin2hex(random_bytes(32)), 'deniedDdl' => bin2hex(random_bytes(32))]));
     $password = bin2hex(random_bytes(32));
     server_cell_private_write(SqlColumn::string($service, 'rootPasswordFile'), $password);
     server_cell_private_write(SqlColumn::string($service, 'rootOptionsFile'), "[client]\nuser=root\npassword=" . $password . "\nprotocol=socket\nsocket=" . SqlColumn::string($service, 'socket') . "\n");

@@ -47,7 +47,8 @@
       "lane": "main",
       "paths": [
         "tests/Server/EngineConstraintsTest.php",
-        "tests/Server/EngineAutoIdentityTest.php"
+        "tests/Server/EngineAutoIdentityTest.php",
+        "tests/Server/EngineCheckAdmissionTest.php"
       ]
     },
     {
@@ -134,7 +135,8 @@
       "name": "MigrationAdmission",
       "lane": "main",
       "paths": [
-        "tests/Server/EngineMigrationAdmissionTest.php"
+        "tests/Server/EngineMigrationAdmissionTest.php",
+        "tests/Server/EngineCheckAdmissionTest.php"
       ]
     },
     {
@@ -2306,6 +2308,100 @@
         "minimumAssertions": 28,
         "deadlineSeconds": 8,
         "fixtures": []
+      },
+      {
+        "identity": "Tablo\\Tests\\Server\\EngineSourceInventoryTest::sourceInventoryCompositionFiltersPrivateNamesBeforeAnyFileRead",
+        "path": "tests/Server/EngineSourceInventoryTest.php",
+        "dataRows": [],
+        "minimumAssertions": 16,
+        "deadlineSeconds": 8,
+        "fixtures": []
+      },
+      {
+        "identity": "Tablo\\Tests\\Server\\EngineCheckAdmissionTest::nativeCheckEnforcementIsRequiredForAdmission",
+        "path": "tests/Server/EngineCheckAdmissionTest.php",
+        "dataRows": [],
+        "minimumAssertions": 3,
+        "deadlineSeconds": 8,
+        "fixtures": [
+          {
+            "alias": "admission-enforcement",
+            "engine": "selected",
+            "initial": "ready"
+          }
+        ]
+      },
+      {
+        "identity": "Tablo\\Tests\\Server\\EngineTransferAdmissionTest::invalidUtcCodecAlwaysReturnsAFreshSanitizedSchemaFailure",
+        "path": "tests/Server/EngineTransferAdmissionTest.php",
+        "dataRows": [],
+        "minimumAssertions": 22,
+        "deadlineSeconds": 8,
+        "fixtures": []
+      },
+      {
+        "identity": "Tablo\\Tests\\Server\\EngineTransferTest::rolledBackServerHistoryReservationImportsWithoutLosingRowsOrAllocation",
+        "path": "tests/Server/EngineTransferTest.php",
+        "dataRows": [],
+        "minimumAssertions": 35,
+        "deadlineSeconds": 8,
+        "fixtures": [
+          {
+            "alias": "transfer-gap",
+            "engine": "selected",
+            "initial": "ready"
+          }
+        ]
+      },
+      {
+        "identity": "Tablo\\Tests\\Server\\EngineTransferTest::prunedServerHistoryReservationImportsWithTheConservativeSqliteFrontier",
+        "path": "tests/Server/EngineTransferTest.php",
+        "dataRows": [],
+        "minimumAssertions": 36,
+        "deadlineSeconds": 8,
+        "fixtures": [
+          {
+            "alias": "transfer-gap-pruned",
+            "engine": "selected",
+            "initial": "ready"
+          }
+        ]
+      },
+      {
+        "identity": "Tablo\\Tests\\Server\\EngineTransactionFailureTest::migrationPhaseAndPublishPreserveTheRawCallerTransactionBeforeAnyBarrier",
+        "path": "tests/Server/EngineTransactionFailureTest.php",
+        "dataRows": [],
+        "minimumAssertions": 17,
+        "deadlineSeconds": 8,
+        "fixtures": [
+          {
+            "alias": "migration-raw-caller",
+            "engine": "selected",
+            "initial": "ready"
+          }
+        ]
+      },
+      {
+        "identity": "Tablo\\Tests\\Server\\EngineTransactionFailureTest::migrationPhaseAndPublishPreserveTheExactWriteTransactionOwner",
+        "path": "tests/Server/EngineTransactionFailureTest.php",
+        "dataRows": [],
+        "minimumAssertions": 19,
+        "deadlineSeconds": 8,
+        "fixtures": [
+          {
+            "alias": "migration-owned-caller",
+            "engine": "selected",
+            "initial": "ready"
+          }
+        ]
+      },
+      {
+        "identity": "Tablo\\Tests\\Server\\EngineTransferRefusalTest::flagValuesRefuseBeforeKeyDatabaseOrTransferFilesAreOpened",
+        "path": "tests/Server/EngineTransferRefusalTest.php",
+        "dataRows": [],
+        "minimumAssertions": 36,
+        "deadlineSeconds": 8,
+        "fixtures": []
       }
     ],
     "cross": [
@@ -2640,7 +2736,8 @@
         "tests/Server/EngineTransferAdmissionTest.php",
         "tests/Server/EngineTransferEnvelopeTest.php",
         "tests/Server/EngineTransferRefusalTest.php",
-        "tests/Server/EngineTransferTest.php"
+        "tests/Server/EngineTransferTest.php",
+        "tests/Server/EngineCheckAdmissionTest.php"
       ],
       "cross": [
         "tests/ServerCross/EngineCrossTransferTest.php",
@@ -2680,7 +2777,8 @@
         "tests/Server/EngineTransferAdmissionTest.php",
         "tests/Server/EngineTransferEnvelopeTest.php",
         "tests/Server/EngineTransferRefusalTest.php",
-        "tests/Server/EngineTransferTest.php"
+        "tests/Server/EngineTransferTest.php",
+        "tests/Server/EngineCheckAdmissionTest.php"
       ],
       "cross": [
         "tests/ServerCross/EngineCrossTransferTest.php",
@@ -2720,7 +2818,8 @@
         "tests/Server/EngineTransferAdmissionTest.php",
         "tests/Server/EngineTransferEnvelopeTest.php",
         "tests/Server/EngineTransferRefusalTest.php",
-        "tests/Server/EngineTransferTest.php"
+        "tests/Server/EngineTransferTest.php",
+        "tests/Server/EngineCheckAdmissionTest.php"
       ],
       "cross": [
         "tests/ServerCross/EngineCrossTransferTest.php",
@@ -2760,7 +2859,8 @@
         "tests/Server/EngineTransferAdmissionTest.php",
         "tests/Server/EngineTransferEnvelopeTest.php",
         "tests/Server/EngineTransferRefusalTest.php",
-        "tests/Server/EngineTransferTest.php"
+        "tests/Server/EngineTransferTest.php",
+        "tests/Server/EngineCheckAdmissionTest.php"
       ],
       "cross": [
         "tests/ServerCross/EngineCrossTransferTest.php",
@@ -2969,7 +3069,8 @@
         "tests/Server/EngineTransferAdmissionTest.php",
         "tests/Server/EngineTransferEnvelopeTest.php",
         "tests/Server/EngineTransferRefusalTest.php",
-        "tests/Server/EngineTransferTest.php"
+        "tests/Server/EngineTransferTest.php",
+        "tests/Server/EngineCheckAdmissionTest.php"
       ],
       "cross": [
         "tests/ServerCross/EngineCrossTransferTest.php",
@@ -3009,7 +3110,8 @@
         "tests/Server/EngineTransferAdmissionTest.php",
         "tests/Server/EngineTransferEnvelopeTest.php",
         "tests/Server/EngineTransferRefusalTest.php",
-        "tests/Server/EngineTransferTest.php"
+        "tests/Server/EngineTransferTest.php",
+        "tests/Server/EngineCheckAdmissionTest.php"
       ],
       "cross": [
         "tests/ServerCross/EngineCrossTransferTest.php",
@@ -3049,7 +3151,8 @@
         "tests/Server/EngineTransferAdmissionTest.php",
         "tests/Server/EngineTransferEnvelopeTest.php",
         "tests/Server/EngineTransferRefusalTest.php",
-        "tests/Server/EngineTransferTest.php"
+        "tests/Server/EngineTransferTest.php",
+        "tests/Server/EngineCheckAdmissionTest.php"
       ],
       "cross": [
         "tests/ServerCross/EngineCrossTransferTest.php",
@@ -3089,7 +3192,8 @@
         "tests/Server/EngineTransferAdmissionTest.php",
         "tests/Server/EngineTransferEnvelopeTest.php",
         "tests/Server/EngineTransferRefusalTest.php",
-        "tests/Server/EngineTransferTest.php"
+        "tests/Server/EngineTransferTest.php",
+        "tests/Server/EngineCheckAdmissionTest.php"
       ],
       "cross": [
         "tests/ServerCross/EngineCrossTransferTest.php",
@@ -3159,7 +3263,8 @@
         "tests/Server/EngineMigrationAdmissionTest.php",
         "tests/Server/EngineMigrationFreshTest.php",
         "tests/Server/EngineMigrationPreviousTest.php",
-        "tests/Server/EngineWatermarkTest.php"
+        "tests/Server/EngineWatermarkTest.php",
+        "tests/Server/EngineCheckAdmissionTest.php"
       ],
       "cross": [],
       "requiredFamilies": [
@@ -3177,7 +3282,8 @@
         "tests/Server/EngineMigrationAdmissionTest.php",
         "tests/Server/EngineMigrationFreshTest.php",
         "tests/Server/EngineMigrationPreviousTest.php",
-        "tests/Server/EngineWatermarkTest.php"
+        "tests/Server/EngineWatermarkTest.php",
+        "tests/Server/EngineCheckAdmissionTest.php"
       ],
       "cross": [],
       "requiredFamilies": [
@@ -3209,7 +3315,8 @@
         "tests/Server/EngineTransferAdmissionTest.php",
         "tests/Server/EngineTransferEnvelopeTest.php",
         "tests/Server/EngineTransferRefusalTest.php",
-        "tests/Server/EngineTransferTest.php"
+        "tests/Server/EngineTransferTest.php",
+        "tests/Server/EngineCheckAdmissionTest.php"
       ],
       "cross": [
         "tests/ServerCross/EngineCrossTransferTest.php",
@@ -3249,7 +3356,8 @@
         "tests/Server/EngineTransferAdmissionTest.php",
         "tests/Server/EngineTransferEnvelopeTest.php",
         "tests/Server/EngineTransferRefusalTest.php",
-        "tests/Server/EngineTransferTest.php"
+        "tests/Server/EngineTransferTest.php",
+        "tests/Server/EngineCheckAdmissionTest.php"
       ],
       "cross": [
         "tests/ServerCross/EngineCrossTransferTest.php",
@@ -3275,7 +3383,8 @@
         "tests/Server/EngineMigrationAdmissionTest.php",
         "tests/Server/EngineMigrationFreshTest.php",
         "tests/Server/EngineMigrationPreviousTest.php",
-        "tests/Server/EngineWatermarkTest.php"
+        "tests/Server/EngineWatermarkTest.php",
+        "tests/Server/EngineCheckAdmissionTest.php"
       ],
       "cross": [],
       "requiredFamilies": [
@@ -3307,7 +3416,8 @@
         "tests/Server/EngineTransferAdmissionTest.php",
         "tests/Server/EngineTransferEnvelopeTest.php",
         "tests/Server/EngineTransferRefusalTest.php",
-        "tests/Server/EngineTransferTest.php"
+        "tests/Server/EngineTransferTest.php",
+        "tests/Server/EngineCheckAdmissionTest.php"
       ],
       "cross": [
         "tests/ServerCross/EngineCrossTransferTest.php",
@@ -3347,7 +3457,8 @@
         "tests/Server/EngineTransferAdmissionTest.php",
         "tests/Server/EngineTransferEnvelopeTest.php",
         "tests/Server/EngineTransferRefusalTest.php",
-        "tests/Server/EngineTransferTest.php"
+        "tests/Server/EngineTransferTest.php",
+        "tests/Server/EngineCheckAdmissionTest.php"
       ],
       "cross": [
         "tests/ServerCross/EngineCrossTransferTest.php",
@@ -3387,7 +3498,8 @@
         "tests/Server/EngineTransferAdmissionTest.php",
         "tests/Server/EngineTransferEnvelopeTest.php",
         "tests/Server/EngineTransferRefusalTest.php",
-        "tests/Server/EngineTransferTest.php"
+        "tests/Server/EngineTransferTest.php",
+        "tests/Server/EngineCheckAdmissionTest.php"
       ],
       "cross": [
         "tests/ServerCross/EngineCrossTransferTest.php",
@@ -3532,7 +3644,8 @@
         "tests/Server/EngineMigrationFailureTest.php",
         "tests/Server/EngineMigrationProcessTest.php",
         "tests/Server/EngineMigrationRaceTest.php",
-        "tests/Server/EngineReadApiTest.php"
+        "tests/Server/EngineReadApiTest.php",
+        "tests/Server/EngineCheckAdmissionTest.php"
       ],
       "cross": [],
       "requiredFamilies": [
@@ -3559,7 +3672,8 @@
         "tests/Server/EngineMigrationFailureTest.php",
         "tests/Server/EngineMigrationProcessTest.php",
         "tests/Server/EngineMigrationRaceTest.php",
-        "tests/Server/EngineReadApiTest.php"
+        "tests/Server/EngineReadApiTest.php",
+        "tests/Server/EngineCheckAdmissionTest.php"
       ],
       "cross": [],
       "requiredFamilies": [
@@ -3586,7 +3700,8 @@
         "tests/Server/EngineMigrationFailureTest.php",
         "tests/Server/EngineMigrationProcessTest.php",
         "tests/Server/EngineMigrationRaceTest.php",
-        "tests/Server/EngineReadApiTest.php"
+        "tests/Server/EngineReadApiTest.php",
+        "tests/Server/EngineCheckAdmissionTest.php"
       ],
       "cross": [],
       "requiredFamilies": [
@@ -3613,7 +3728,8 @@
         "tests/Server/EngineMigrationFailureTest.php",
         "tests/Server/EngineMigrationProcessTest.php",
         "tests/Server/EngineMigrationRaceTest.php",
-        "tests/Server/EngineReadApiTest.php"
+        "tests/Server/EngineReadApiTest.php",
+        "tests/Server/EngineCheckAdmissionTest.php"
       ],
       "cross": [],
       "requiredFamilies": [
@@ -3640,7 +3756,8 @@
         "tests/Server/EngineMigrationFailureTest.php",
         "tests/Server/EngineMigrationProcessTest.php",
         "tests/Server/EngineMigrationRaceTest.php",
-        "tests/Server/EngineReadApiTest.php"
+        "tests/Server/EngineReadApiTest.php",
+        "tests/Server/EngineCheckAdmissionTest.php"
       ],
       "cross": [],
       "requiredFamilies": [
@@ -3667,7 +3784,8 @@
         "tests/Server/EngineMigrationFailureTest.php",
         "tests/Server/EngineMigrationProcessTest.php",
         "tests/Server/EngineMigrationRaceTest.php",
-        "tests/Server/EngineReadApiTest.php"
+        "tests/Server/EngineReadApiTest.php",
+        "tests/Server/EngineCheckAdmissionTest.php"
       ],
       "cross": [],
       "requiredFamilies": [
@@ -3701,7 +3819,8 @@
         "tests/Server/EngineTransferAdmissionTest.php",
         "tests/Server/EngineTransferEnvelopeTest.php",
         "tests/Server/EngineTransferRefusalTest.php",
-        "tests/Server/EngineTransferTest.php"
+        "tests/Server/EngineTransferTest.php",
+        "tests/Server/EngineCheckAdmissionTest.php"
       ],
       "cross": [
         "tests/ServerCross/EngineCrossTransferTest.php",
@@ -6817,9 +6936,9 @@
     "missingSublaneIsFailure": true
   },
   "qualification": [
-    "Current source declares165 main and6 cross identities, including actual server crash/restart mechanisms. Engine, cross, crash, memory and hosted qualification remains UNQUALIFIED until observed.",
+    "Current source declares173 main and6 cross identities, including actual server crash/restart mechanisms. Engine, cross, crash, memory and hosted qualification remains UNQUALIFIED until observed.",
     "Every method requires exact real Testo discovery, source path, data-row qualification, passed status, nonzero assertions and its fixed8/20-second deadline.",
-    "Current declaration totals607 distinct identities:436 baseline,165 main and6 cross. The two accepted fixtureless parser cases are bounded prior evidence; the new caller-transaction case and full current engine/cross/crash suites remain NOTRUN. Callback interruption and independent-session locks do not prove an actual server crash or simultaneous migration process.",
+    "Current declaration totals615 distinct identities:436 baseline,173 main and6 cross. The two accepted fixtureless parser cases are bounded prior evidence; the new caller-transaction case and full current engine/cross/crash suites remain NOTRUN. Callback interruption and independent-session locks do not prove an actual server crash or simultaneous migration process.",
     "Verification never generates this declaration or recaptures bindings/dependencies. All six SQLite/four real-engine Ubuntu cells, MySQL85 cross/crash sublanes and Root reviews remain mandatory.",
     "Post-gamma source adds canonical typed-line refusal before target mutation and its real-engine target-state test. Gamma runtime8 retains its separately hashed79-source/26-selected scope and does not test this delta. Transfer metadata accumulation/actual2MiB working-data qualification remains required before acceptance.",
     "Source89 adds one actual two-process migration schedule with native failed GET_LOCK while owner holds across metadata DDL, partial writer/reader refusal, exact shared receipt and final ready journal. It has NOTRUN; callback and source schedules still do not count as actual server crash/restart. Entity/reader MigrationRace consumers concern shared admission and retain their independent functional cases.",
@@ -6830,8 +6949,8 @@
     "tests/Server/EngineMigrationPreviousTest.php"
   ],
   "requiredFixtureRoles": {
-    "migration-previous-denied-ddl": "Explicit isolated DML-only native actor on17-table predecessor, no CREATE/ALTER, actual1142 required; excluded from frozen revision9 and needs future specific fixture grant.",
-    "migration-denied-ddl-0..17": "For each positively owned exact catalog: app principal has catalog DML only, no CREATE/ALTER/DROP, sufficient DML on existing prefix; migrator separately creates prefix/resumes. Native1142 must be observed for the exact absent descriptor table CREATE, then product migration fails at that same step. Future explicit fixture grant required; frozen revision9 excludes all18."
+    "migration-previous-denied-ddl": "Dedicated nonce-owned deniedDdl principal has SELECT/INSERT/UPDATE on only owned catalogs, including journal/phase DML, and no CREATE/ALTER/INDEX/REFERENCES/DROP; ordinary writer grants stay unchanged. Exact native1142 and intended before-ddl barrier/journal/resume are mandatory; runtime NOTRUN.",
+    "migration-denied-ddl-0..17": "Dedicated nonce-owned deniedDdl principal has only SELECT/INSERT/UPDATE on owned catalogs. Steps1..17 prove metadata DML succeeds before the exact descriptor CREATE fails1142 at the declared before-ddl boundary; step0 cannot invent a prior journal. Real migrator separately creates/resumes prefixes; all18 existing identities and deadlines preserved, runtime NOTRUN."
   },
   "transferEnvelopeProposal": {
     "rawRowStringBytes": 98304,
@@ -7589,5 +7708,39 @@
       "maximumAssociatedObserved": "Raw sampled associated objects including rejected objects; NOT a runnable peak/exact maximum",
       "currentProtocolRuntime": "NOTRUN"
     }
+  },
+  "source41Fixes": {
+    "authority": [
+      "msg_66c83092422b",
+      "msg_cb2f46e0ad06",
+      "msg_784ea117b34f",
+      "msg_29654e9d18f4",
+      "msg_d58460ffc12b"
+    ],
+    "previousMainIdentitiesPreserved": 165,
+    "baselineIdentitiesPreserved": 436,
+    "crossIdentitiesPreserved": 6,
+    "newCases": [
+      "Tablo\\Tests\\Server\\EngineSourceInventoryTest::sourceInventoryCompositionFiltersPrivateNamesBeforeAnyFileRead",
+      "Tablo\\Tests\\Server\\EngineCheckAdmissionTest::nativeCheckEnforcementIsRequiredForAdmission",
+      "Tablo\\Tests\\Server\\EngineTransferAdmissionTest::invalidUtcCodecAlwaysReturnsAFreshSanitizedSchemaFailure",
+      "Tablo\\Tests\\Server\\EngineTransferTest::rolledBackServerHistoryReservationImportsWithoutLosingRowsOrAllocation",
+      "Tablo\\Tests\\Server\\EngineTransferTest::prunedServerHistoryReservationImportsWithTheConservativeSqliteFrontier",
+      "Tablo\\Tests\\Server\\EngineTransactionFailureTest::migrationPhaseAndPublishPreserveTheRawCallerTransactionBeforeAnyBarrier",
+      "Tablo\\Tests\\Server\\EngineTransactionFailureTest::migrationPhaseAndPublishPreserveTheExactWriteTransactionOwner",
+      "Tablo\\Tests\\Server\\EngineTransferRefusalTest::flagValuesRefuseBeforeKeyDatabaseOrTransferFilesAreOpened"
+    ],
+    "currentMainIdentities": 173,
+    "currentTotalIdentities": 615,
+    "status": "AUTHORED_NOTRUN",
+    "sqliteFrontier": "Server committed watermark stays exact; unchanged SQLite10 verifies max(original committed watermark, preserved allocation floor) and cannot separately roundtrip both original frontiers.",
+    "noAutomaticCapture": true,
+    "newPhysicalTestOwners": [
+      "tests/Server/EngineSourceInventoryTest.php",
+      "tests/Server/EngineCheckAdmissionTest.php"
+    ],
+    "approvedFixItems": 12,
+    "migrationCallerPreservation": "Latent guard gap: both migration state entry points refuse before transaction control and publication barriers; real raw/WriteTransaction caller regressions authored, NOTRUN.",
+    "transferCliRefusal": "Three malformed public CLI invocations require configuration refusal before synthetic key/database/filesystem allocation; three sequential direct children, each bounded to 2s, total native case 8s; NOTRUN."
   }
 }

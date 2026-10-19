@@ -18,6 +18,14 @@ use Testo\Test;
 final class EngineTransferTest
 {
     #[Test]
+    public function rolledBackServerHistoryReservationImportsWithoutLosingRowsOrAllocation(): void
+    { engine_transfer_rollback_gap('transfer-gap', [100, 9001]); }
+
+    #[Test]
+    public function prunedServerHistoryReservationImportsWithTheConservativeSqliteFrontier(): void
+    { engine_transfer_rollback_gap('transfer-gap-pruned', []); }
+
+    #[Test]
     public function completeNativeRoundTripOverEightMiBUsesAtMostTwoMiBOfPhpWorkingData(): void
     { engine_transfer_working_data(); }
 
@@ -111,6 +119,79 @@ final class EngineTransferTest
         ServerSchema::rows($db, 'INSERT INTO notification_slots (site_id,event,event_id,source_id,config_revision,channel_revision,payload,private_cipher,created_at,expires_at,due_at,status,attempts,claim,lease_until,acknowledged_at) VALUES (20,?,?,100,6,2,?,?,1,2,1,?,2,?,2,3)',
             ['unavailable', 'synthetic-event ', '{"version":1}', $vault->encrypt(FixtureCredentials::value(label: 'transfer-private')), 'sent', "completed-claim \0\xff"]);
     }
+}
+
+/** One real native rollback, with a distinct complete transfer for each pruning state.
+ * @param list<int> $expectedIds */
+function engine_transfer_rollback_gap(string $case, array $expectedIds): void
+{
+    $fixture = new EngineFixture($case);
+    try {
+        $root = EngineSchedule::directory() . '/cases/' . $fixture->case;
+        $source = EngineTransferTest::source($root . '/source.sqlite', $fixture->vault);
+        $initial = DatabaseTransfer::export($source, $fixture->vault, $root . '/initial', $root . '/initial-export.sqlite', offline: true);
+        Assert::same(DatabaseTransfer::importServer($fixture->maintenance(), $fixture->vault, $root . '/initial', $root . '/initial-import.sqlite', offline: true), $initial);
+        $server = $fixture->database();
+        ['committed' => $committed, 'reserved' => $reserved] = engine_transfer_reserve_history($fixture, $server);
+        if ($expectedIds === []) { Assert::same((new \Tablo\CheckHistoryRepository($server))->pruneBatch('2027-01-01T00:00:00Z'), 2); }
+        Assert::same($fixture->scalar('SELECT COUNT(*) FROM check_history'), count($expectedIds));
+        $before = engine_transfer_typed_digests($server);
+        $digest = DatabaseTransfer::export($fixture->independent(), $fixture->vault, $root . '/archive', $root . '/export.sqlite', offline: true);
+        $manifest = \Tablo\DatabaseTransferVerification::manifest($root . '/archive', $fixture->vault);
+        Assert::same([$manifest['header']['watermark'], $manifest['header']['sequences']['check_history']], [$committed, $reserved]);
+        Assert::same(DatabaseTransfer::importSqlite($fixture->vault, $root . '/archive', $root . '/staging.sqlite', $root . '/target.sqlite', offline: true), $digest);
+        $target = new PDO('sqlite:' . $root . '/target.sqlite', options: [PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION, PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC]);
+        $target->exec('PRAGMA foreign_keys = ON');
+        Assert::same(DatabaseTransfer::verify($target, $fixture->vault, $root . '/archive', $root . '/verify.sqlite'), $digest);
+        Assert::same(count($before), 15);
+        $after = engine_transfer_typed_digests($target);
+        foreach ($before as $table => $hash) { Assert::same($after[$table] ?? null, $hash); }
+        Assert::same(DatabaseTransferSequence::floors($target)['check_history'], $reserved);
+        Assert::same(DatabaseTransferSequence::watermark($target), $reserved);
+        Assert::same((new \Tablo\NotificationSettingsStore($target))->activation(0), $reserved);
+        Assert::same(ServerSchema::rows($target, 'SELECT id FROM check_history ORDER BY id'), array_map(static fn (int $id): array => ['id' => $id], $expectedIds));
+        $scope = $fixture->vault->credentialScope(FixtureCredentials::value(label: 'transfer-token'));
+        Assert::same(ServerSchema::rows($target, 'SELECT scope FROM github_cooldowns'), [['scope' => $scope]]);
+        \Tablo\ExternalKeyAuthentication::authenticateExternalKey($target, $fixture->vault);
+        $targetSites = new \Tablo\SiteRepository($target, $fixture->vault);
+        Assert::true(\Tablo\Tests\Support\IncidentFixtures::accept($targetSites, 20, 1, '2028-01-01T00:00:00Z'));
+        Assert::same(DatabaseTransferSequence::scalar($target, 'SELECT MAX(id) AS value FROM check_history'), $reserved + 1);
+        Assert::same(engine_transfer_typed_digests($server), $before);
+        Assert::same(DatabaseTransferSequence::watermark($server), $committed);
+    } finally { $fixture->close(); }
+}
+
+/** @return array{committed: int, reserved: int} */
+function engine_transfer_reserve_history(EngineFixture $fixture, PDO $server): array
+{
+    $sites = new \Tablo\SiteRepository($server, $fixture->vault);
+    Assert::true(\Tablo\Tests\Support\IncidentFixtures::accept($sites, 20, 1, '2026-01-01T00:00:00Z'));
+    $committed = DatabaseTransferSequence::watermark($server);
+    Assert::same($committed, 9001);
+    $owner = \Tablo\WriteTransaction::begin($server);
+    try {
+        ServerSchema::rows($server, "INSERT INTO check_history (site_id,config_revision,checked_at,version_status) VALUES (20,6,'2026-01-01T00:00:01Z','skipped')");
+        $reserved = \Tablo\DatabaseInteger::positive($server->lastInsertId());
+        Assert::same($reserved, 9002);
+    } finally { $owner->rollback(); }
+    Assert::same(DatabaseTransferSequence::watermark($server), $committed);
+    Assert::same($fixture->scalar('SELECT COUNT(*) FROM check_history WHERE id = 9002'), 0);
+    Assert::same(DatabaseTransferSequence::floors($server)['check_history'], $reserved);
+    return ['committed' => $committed, 'reserved' => $reserved];
+}
+
+/** @return array<string, string> */
+function engine_transfer_typed_digests(PDO $db): array
+{
+    $digests = [];
+    foreach (DatabaseTransferManifest::tables() as $table) {
+        $hash = hash_init('sha256');
+        foreach (\Tablo\DatabaseTransferRows::read($db, $table) as $values) {
+            hash_update($hash, \Tablo\JsonEncoding::encode(\Tablo\DatabaseTransferRows::encode($values)) . "\n");
+        }
+        $digests[$table['name']] = hash_final($hash);
+    }
+    return $digests;
 }
 
 /** Fixture generation is separate from the child's measured complete transfer, with no transfer warmup. */

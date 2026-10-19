@@ -15,6 +15,10 @@ use Testo\Test;
 final class EngineTransferAdmissionTest
 {
     #[Test]
+    public function invalidUtcCodecAlwaysReturnsAFreshSanitizedSchemaFailure(): void
+    { engine_transfer_invalid_utc_codec(); }
+
+    #[Test]
     public function unknownHeaderKeysAndNoncanonicalManifestBytesRefuseBelowTheSizeLimit(): void
     {
         $fixture = new EngineFixture('transfer-manifest-shape'); $directory = EngineTransferEnvelopeTest::archive($fixture);
@@ -103,5 +107,19 @@ final class EngineTransferAdmissionTest
             if ($table['name'] === $name) { return $table; }
         }
         throw new \RuntimeException('Fixed transfer table absent.');
+    }
+}
+
+function engine_transfer_invalid_utc_codec(): void
+{
+    $utc = ['name' => 'created_at', 'type' => 'varbinary(20)', 'nullable' => false];
+    foreach (['0001-01-01T00:00:00Z', '0099-12-31T23:59:59Z', '0999-12-31T23:59:59Z', '2000-02-29T12:00:00Z'] as $valid) {
+        Assert::same(\Tablo\DatabaseTransferRows::value($valid, $utc), $valid);
+    }
+    foreach ([null, '', 'not-a-timestamp', '0000-01-01T00:00:00Z', '1900-02-29T00:00:00Z',
+        '2026-02-30T00:00:00Z', '2026-01-01T00:00:60Z', '2026-01-01T00:00:00+00:00', "synthetic:\xFF\0"] as $invalid) {
+        $caught = null;
+        try { \Tablo\DatabaseTransferRows::value($invalid, $utc); } catch (DatabaseFailure $error) { $caught = $error; }
+        Assert::same($caught?->category, 'schema'); Assert::same($caught?->getPrevious(), null);
     }
 }

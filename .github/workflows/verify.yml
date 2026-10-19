@@ -205,6 +205,11 @@ jobs:
           New-Item -ItemType Directory -Path $cellDirectory -ErrorAction Stop | Out-Null
           $files = @(git ls-files)
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          $trackedPaths = Join-Path $cellDirectory 'tracked-paths.json'
+          [IO.File]::WriteAllText($trackedPaths, ($files | ConvertTo-Json), [Text.UTF8Encoding]::new($false))
+          $selectedPaths = php -r 'require $argv[1]; $paths = json_decode(file_get_contents($argv[2]), true, 64, JSON_THROW_ON_ERROR); echo json_encode(\Tablo\Tools\ServerFixturePlan::sourcePaths($paths), JSON_THROW_ON_ERROR);' tools/ServerFixturePlan.php $trackedPaths
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          $files = @($selectedPaths | ConvertFrom-Json)
           $inventory = @($files | ForEach-Object { @{ path = $_; sha256 = (Get-FileHash -LiteralPath $_ -Algorithm SHA256).Hash.ToLowerInvariant() } })
           $sourceManifest = Join-Path $cellDirectory 'source.json'
           [IO.File]::WriteAllText($sourceManifest, (@{ files = $inventory } | ConvertTo-Json -Depth 5), [Text.UTF8Encoding]::new($false))

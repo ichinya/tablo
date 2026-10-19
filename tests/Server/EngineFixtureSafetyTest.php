@@ -41,7 +41,7 @@ final class EngineFixtureSafetyTest
         require_once dirname(__DIR__, levels: 2) . '/tools/ServerFixtureCatalog.php';
         $nonce = 'abcdef0123456789abcdef0123456789'; $attempts = 0; $primary = new \RuntimeException('synthetic administrative outcome unknown');
         $catalogs = new \Tablo\Tools\ServerFixtureCatalog($nonce, 'mysql', static function (#[\SensitiveParameter] string $sql) use (&$attempts, $primary): never { $attempts++; throw $primary; });
-        $passwords = ['writer' => str_repeat('a', times: 64), 'reader' => str_repeat('b', times: 64), 'migrator' => str_repeat('c', times: 64)];
+        $passwords = ['writer' => str_repeat('a', times: 64), 'reader' => str_repeat('b', times: 64), 'migrator' => str_repeat('c', times: 64), 'deniedDdl' => str_repeat('d', times: 64)];
         $caught = null;
         try { $catalogs->bootstrap($passwords); } catch (\RuntimeException $error) { $caught = $error; }
         Assert::same($caught, $primary); Assert::same($attempts, 1);
@@ -66,7 +66,8 @@ final class EngineFixtureSafetyTest
             $slots = \Tablo\Tools\ServerFixturePlan::slots($nonce, $engine);
             Assert::same(count($slots), 8); Assert::same(count(array_unique($slots)), 8);
             Assert::same([$slots[0] ?? null, $slots[7] ?? null], ['ti39_1234567890abcdef_' . $letter . '_000', 'ti39_1234567890abcdef_' . $letter . '_007']);
-            Assert::same(\Tablo\Tools\ServerFixturePlan::accounts($nonce, $engine), ['writer' => 'i391234567890abw', 'reader' => 'i391234567890abr', 'migrator' => 'i391234567890abm']);
+            Assert::same(\Tablo\Tools\ServerFixturePlan::accounts($nonce, $engine), ['writer' => 'i391234567890abw', 'reader' => 'i391234567890abr',
+                'migrator' => 'i391234567890abm', 'deniedDdl' => 'i391234567890abd']);
         }
         $one = ['alias' => 'migration-fresh', 'engine' => 'selected', 'initial' => 'empty'];
         $valid = \Tablo\Tools\ServerFixturePlan::fixtures(['fixtures' => [$one]], $nonce, 'mysql');

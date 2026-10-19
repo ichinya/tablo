@@ -652,7 +652,8 @@
       "app/DatabaseTransferImport.php",
       "app/DatabaseTransferPreflight.php",
       "app/DatabaseTransferTarget.php",
-      "app/DatabaseTransferVerification.php"
+      "app/DatabaseTransferVerification.php",
+      "tests/Server/EngineTransferAdmissionTest.php"
     ]
   },
   "app/DatabaseTransferSequence.php": {
@@ -687,7 +688,8 @@
       "Composer analyze",
       "Composer verify",
       "app/DatabaseTransfer.php",
-      "app/DatabaseTransferImport.php"
+      "app/DatabaseTransferImport.php",
+      "tests/Server/EngineTransferTest.php"
     ]
   },
   "app/DeploymentFields.php": {
@@ -2442,7 +2444,9 @@
       "Composer analyze",
       "Composer verify",
       "app/ServerColumnAdmission.php",
-      "app/ServerTableAdmission.php"
+      "app/ServerTableAdmission.php",
+      "tests/Server/EngineMigrationAdmissionTest.php",
+      "tests/Server/EngineCheckAdmissionTest.php"
     ]
   },
   "app/ServerColumnAdmission.php": {
@@ -2633,7 +2637,8 @@
       "app/DatabaseTransferImport.php",
       "app/ServerBootstrap.php",
       "app/ServerMigration.php",
-      "app/ServerMigrationStep.php"
+      "app/ServerMigrationStep.php",
+      "tests/Server/EngineTransactionFailureTest.php"
     ]
   },
   "app/ServerMigrationStep.php": {
@@ -4037,7 +4042,8 @@
       "Operator offline transfer runbook",
       "Native transfer/refusal/cross tests",
       "Composer lint",
-      "Composer analyze"
+      "Composer analyze",
+      "tests/Server/EngineTransferRefusalTest.php"
     ]
   },
   "bin/database.php": {
@@ -8924,7 +8930,8 @@
       "Composer analyze",
       ".github/workflows/verify.yml",
       "docs/database-engines.md",
-      "tools/server-supervisor.cjs"
+      "tools/server-supervisor.cjs",
+      "tests/Server/EngineSourceInventoryTest.php"
     ]
   },
   "tools/ServerFixtureCatalog.php": {
@@ -8992,6 +8999,22 @@
   },
   "tests/Server/EngineObserverAuditTest.php": {
     "owner": "Selected real-engine file-only observer evidence validation",
+    "consumers": [
+      "Composer lint",
+      "Composer analyze",
+      "Composer verify:server"
+    ]
+  },
+  "tests/Server/EngineSourceInventoryTest.php": {
+    "owner": "Pure source-only prehash inventory composition evidence",
+    "consumers": [
+      "Composer lint",
+      "Composer analyze",
+      "Composer verify:server"
+    ]
+  },
+  "tests/Server/EngineCheckAdmissionTest.php": {
+    "owner": "Selected real-engine CHECK enforcement admission evidence",
     "consumers": [
       "Composer lint",
       "Composer analyze",

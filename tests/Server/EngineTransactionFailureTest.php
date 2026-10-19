@@ -13,6 +13,38 @@ use Testo\Test;
 final class EngineTransactionFailureTest
 {
     #[Test]
+    public function migrationPhaseAndPublishPreserveTheRawCallerTransactionBeforeAnyBarrier(): void
+    {
+        $fixture = new EngineFixture('migration-raw-caller'); $db = $fixture->maintenance();
+        try {
+            $observer = $fixture->independent(); $db->beginTransaction();
+            $db->exec('UPDATE installation_settings SET check_interval_minutes = 17');
+            engine_migration_caller_preserved($fixture, $db, $observer);
+            Assert::false(WriteTransaction::owns($db));
+            $db->rollBack(); Assert::false($db->inTransaction());
+            Assert::same($fixture->scalar('SELECT check_interval_minutes FROM installation_settings', $db), 10);
+        } finally {
+            if ($db->inTransaction()) { $db->rollBack(); }
+            $fixture->close();
+        }
+    }
+
+    #[Test]
+    public function migrationPhaseAndPublishPreserveTheExactWriteTransactionOwner(): void
+    {
+        $fixture = new EngineFixture('migration-owned-caller'); $db = $fixture->database();
+        $owner = WriteTransaction::begin($db);
+        try {
+            $observer = $fixture->independent();
+            $db->exec('UPDATE installation_settings SET check_interval_minutes = 17');
+            engine_migration_caller_preserved($fixture, $db, $observer);
+            Assert::true(WriteTransaction::owns($db)); Assert::false(WriteTransaction::owns($observer));
+            $owner->rollback(); Assert::false($db->inTransaction()); Assert::false(WriteTransaction::owns($db));
+            Assert::same($fixture->scalar('SELECT check_interval_minutes FROM installation_settings', $db), 10);
+        } finally { $owner->rollbackPreserving(); $fixture->close(); }
+    }
+
+    #[Test]
     public function callerTransactionSurvivesRefusedWriterBeginWithItsWritesUncommitted(): void
     {
         $fixture = new EngineFixture('transaction-caller');
@@ -81,5 +113,27 @@ final class EngineTransactionFailureTest
         Assert::false($maintenance->inTransaction());
         Assert::same($fixture->scalar('SELECT check_interval_minutes FROM installation_settings'), 10);
         $fixture->close();
+    }
+}
+
+/** Actual pending writes and an independent observer detect an implicit commit or rollback. */
+function engine_migration_caller_preserved(EngineFixture $fixture, \PDO $db, \PDO $observer): void
+{
+    $metadata = \Tablo\ServerSchema::rows($db, 'SELECT * FROM tablo_database_state');
+    $journal = \Tablo\ServerSchema::rows($db, 'SELECT * FROM tablo_migration_journal ORDER BY step');
+    $points = [];
+    $state = new \Tablo\ServerMigrationState($db, static function (string $phase, int $step) use (&$points): void { $points[] = [$phase, $step]; });
+    foreach (['phase', 'publish'] as $operation) {
+        $caught = null;
+        try {
+            if ($operation === 'phase') { $state->phase('migrating'); }
+            if ($operation === 'publish') { $state->publish(10, 10); }
+        } catch (\LogicException $error) { $caught = $error; }
+        Assert::same($caught?->getMessage(), 'Caller owns database transaction.');
+        Assert::true($db->inTransaction()); Assert::same($points, []);
+        Assert::same($fixture->scalar('SELECT check_interval_minutes FROM installation_settings', $db), 17);
+        Assert::same($fixture->scalar('SELECT check_interval_minutes FROM installation_settings', $observer), 10);
+        Assert::same(\Tablo\ServerSchema::rows($db, 'SELECT * FROM tablo_database_state'), $metadata);
+        Assert::same(\Tablo\ServerSchema::rows($db, 'SELECT * FROM tablo_migration_journal ORDER BY step'), $journal);
     }
 }

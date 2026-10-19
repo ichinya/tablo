@@ -32,7 +32,7 @@ final class ServerFixtureCatalog
         $this->context = ['nonce' => $nonce, 'engine' => $engine, 'execute' => $execute, 'deadline' => 0.0];
     }
 
-    /** @param array{writer: string, reader: string, migrator: string} $passwords */
+    /** @param array{writer: string, reader: string, migrator: string, deniedDdl: string} $passwords */
     public function bootstrap(#[\SensitiveParameter] array $passwords): void
     {
         if ($this->bootstrapAttempted) { throw new RuntimeException('Fixture account/catalog bootstrap cannot be replayed.'); }
@@ -72,7 +72,7 @@ final class ServerFixtureCatalog
 }
 
 /** @param ServerFixtureCatalog::Context $context
- * @param array{writer: string, reader: string, migrator: string} $passwords
+ * @param array{writer: string, reader: string, migrator: string, deniedDdl: string} $passwords
  * @return ServerFixtureCatalog::Slots */
 function server_fixture_catalog_bootstrap(array $context, #[\SensitiveParameter] array $passwords): array
 {
@@ -86,6 +86,8 @@ function server_fixture_catalog_bootstrap(array $context, #[\SensitiveParameter]
     foreach (ServerFixturePlan::slots($context['nonce'], $context['engine']) as $catalog) {
         $sql[] = 'CREATE DATABASE `' . $catalog . '` CHARACTER SET utf8mb4;';
         $sql[] = 'GRANT SELECT,INSERT,UPDATE,DELETE,CREATE,ALTER,INDEX,REFERENCES ON `' . $catalog . "`.* TO '" . $accounts['migrator'] . "'@'%';";
+        // Test-only actor can maintain durable intent/phase but cannot execute DDL.
+        $sql[] = 'GRANT SELECT,INSERT,UPDATE ON `' . $catalog . "`.* TO '" . $accounts['deniedDdl'] . "'@'%';";
         $slots[$catalog] = ['phase' => 'fresh', 'identity' => null];
     }
     $sql[] = 'SELECT COUNT(*) FROM information_schema.TABLES WHERE TABLE_SCHEMA IN (' . implode(',', array_map(static fn (string $name): string => "'" . $name . "'", array_keys($slots))) . ');';
@@ -183,7 +185,7 @@ function server_fixture_catalog_tables(string $engine): array
     return $layout['tables'];
 }
 
-/** @param array{writer: string, reader: string, migrator: string} $accounts */
+/** @param array{writer: string, reader: string, migrator: string, deniedDdl: string} $accounts */
 function server_fixture_catalog_grants(string $catalog, array $accounts): string
 {
     $database = '`' . $catalog . '`'; $writer = "'" . $accounts['writer'] . "'@'%'"; $reader = "'" . $accounts['reader'] . "'@'%'"; $sql = [];

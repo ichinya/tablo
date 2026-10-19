@@ -81,8 +81,12 @@ function database_transfer_verification_database(PDO $db, array $header, #[\Sens
     $floors = DatabaseTransferSequence::floors($db);
     foreach ($header['sequences'] as $table => $floor) { if (SqlColumn::integer($floors, $table) < $floor) { throw new DatabaseFailure('schema'); } }
     $rows = ServerSchema::rows($db, 'SELECT installation_id FROM notification_settings WHERE id = 1');
+    // SQLite schema10 represents its activation frontier with sqlite_sequence.
+    // A server rollback may reserve IDs beyond its separately committed watermark.
+    $watermark = DatabaseSession::server($db) ? $header['watermark']
+        : max($header['watermark'], $header['sequences']['check_history']);
     if (SqlColumn::string($rows[0] ?? [], 'installation_id') !== $header['installation']
-        || DatabaseTransferSequence::watermark($db) !== $header['watermark']) { throw new DatabaseFailure('schema'); }
+        || DatabaseTransferSequence::watermark($db) !== $watermark) { throw new DatabaseFailure('schema'); }
     ExternalKeyAuthentication::authenticateExternalKey($db, $vault);
 }
 

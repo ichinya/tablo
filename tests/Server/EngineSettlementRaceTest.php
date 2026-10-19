@@ -96,9 +96,14 @@ final class EngineSettlementRaceTest
         $tokenId = $tokens->save($original);
         $id = $sites->save(array_replace(UnitFixtures::site(), ['git_token_id' => $tokenId]));
         $snapshot = FixtureValue::row($sites->find($id));
+        Assert::same($snapshot['config_revision'], 0);
         $tokens->save(array_replace($original, ['token' => FixtureCredentials::value(label: 'settlement-rotated')]), $tokenId);
+        Assert::same(FixtureValue::row($sites->find($id))['config_revision'], 1);
         $tokens->save($original, $tokenId);
-        Assert::same(FixtureValue::row($sites->find($id))['config_revision'], 0);
+        $returned = FixtureValue::row($sites->find($id));
+        Assert::same($returned['config_revision'], 2);
+        Assert::notSame($returned['selected_token_snapshot'], $snapshot['selected_token_snapshot']);
+        Assert::same($fixture->vault->decrypt(\Tablo\SqlColumn::string($returned, 'selected_token_snapshot')), $original['token']);
         Assert::false($sites->settleWorkerCheck($snapshot, ['checked_at' => 'invalid']));
         self::unchangedSettlement($fixture);
         $fixture->close();
