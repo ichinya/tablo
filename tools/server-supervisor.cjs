@@ -23,10 +23,49 @@ const FALLBACK_NAMES = Object.freeze(['uring-handled', 'uring-repeat', 'uring-ar
 const utf8 = new TextDecoder('utf-8', { fatal: true });
 const normalize = value => value.replaceAll('\\', '/');
 const sha = bytes => createHash('sha256').update(bytes).digest('hex');
-const fail = code => { throw new Error(code); };
+// Refusal identity comes only from this owner, never from Error.message/stack.
+const observerRefusals = new WeakMap();
+const fail = code => { const error = new Error(code); observerRefusals.set(error, code); throw error; };
 const object = value => value !== null && typeof value === 'object' && !Array.isArray(value);
 const integer = (value, minimum, maximum) => Number.isSafeInteger(value) && value >= minimum && value <= maximum;
 const exactKeys = (value, keys) => object(value) && Object.keys(value).sort().join('\n') === [...keys].sort().join('\n');
+const OBSERVER_STAGES = Object.freeze(['arguments', 'preflight', 'admission', 'declaration', 'pins', 'linux-pins', 'root-layout',
+  'listener', 'phase-admission', 'phase-layout', 'launch-description', 'adapter-plan', 'adapter-run', 'custody', 'phase-proof',
+  'phase-retention', 'retention', 'settlement']);
+const OBSERVER_REFUSALS = Object.freeze(['EXACT_ARGUMENTS', 'EXACT_MODE', 'NODE_VERSION', 'PLAN_DIGEST', 'PLAN_SIZE', 'PLAN_CHANGED',
+  'EXECUTION_MODE_UNQUALIFIED', 'CELL_DECLARATION', 'OBSERVER_DECLARATION', 'PHASE_DECLARATION', 'CONTROL_DECLARATION', 'CONTROL_PHASE',
+  'CONTROL_ENVIRONMENT', 'PIN_CHANGED', 'BOOTSTRAP_INI_DECLARATION', 'OWNER_PIN', 'UNQUALIFIED_PLATFORM', 'LINUX_BUILD_UNQUALIFIED',
+  'LINUX_RUNTIME_UNQUALIFIED', 'LINUX_FOREIGN_QUALIFICATION', 'LINUX_FOREIGN_RUNTIME', 'LINUX_EVIDENCE_SCOPE', 'LINUX_CLIENT_UNQUALIFIED',
+  'LINUX_FALLBACK_BINDING', 'LINUX_FALLBACK_COVERAGE', 'PRIOR_PHASE_UNSETTLED', 'OBSERVER_CLOSURE_UNKNOWN', 'CONTROLLER_INPUT_UNSETTLED',
+  'CONTROLLER_NATIVE_FAILURE', 'CONTROLLER_CUSTODY', 'PREPARATION_PROOF', 'BASELINE_EXPORT', 'CELL_RESULT_MISSING', 'CUSTODY_LATE', 'CELL_FAILED']);
+function observerFailure() { return { stage: 'arguments', phase: 'MISSING', first: null }; }
+function latchObserverFailure(failure, error, owner) {
+  if (failure.first) return;
+  const stage = OBSERVER_STAGES.includes(failure.stage) ? failure.stage : 'UNKNOWN';
+  const phase = ['prepare', 'baseline', 'engine', 'control', 'MISSING'].includes(failure.phase) ? failure.phase : 'UNKNOWN';
+  const base = { schema: 'tablo/server-safe-observer-failure/v1', status: 'failed', rootCause: 'UNKNOWN', issueAccepted: false, stage, phase };
+  try {
+    const scalar = (value, valid) => value === undefined ? 'MISSING' : value === null ? null : valid(value) ? value : 'UNKNOWN';
+    const prototype = object(error) ? Object.getPrototypeOf(error) : null;
+    const errorClass = [[Error, 'Error'], [TypeError, 'TypeError'], [RangeError, 'RangeError'], [SyntaxError, 'SyntaxError']]
+      .find(([type]) => prototype === type.prototype)?.[1] ?? 'UNKNOWN';
+    const refusal = observerRefusals.get(error);
+    failure.first = Object.freeze({ ...base, errorClass, refusal: OBSERVER_REFUSALS.includes(refusal) ? refusal : 'UNKNOWN',
+      cancellation: scalar(owner?.cancelReason, value => ['deadline', 'owner-loss', 'protocol'].includes(value)),
+      completedPhases: scalar(owner?.phaseResults?.length, value => integer(value, 0, 3)),
+      adapterExit: scalar(owner?.adapterClose?.code, value => integer(value, -2147483648, 2147483647)),
+      controllerExit: scalar(owner?.adapterState?.exited?.exitCode, value => integer(value, 0, 2147483647)),
+      inputSettled: scalar(owner?.adapterState?.input?.settled, value => typeof value === 'boolean'),
+      scopeObservedEmpty: scalar(owner?.adapterState?.closed?.scopeObservedEmpty, value => typeof value === 'boolean') });
+  } catch { failure.first = Object.freeze({ ...base, errorClass: 'UNKNOWN', refusal: 'UNKNOWN' }); }
+}
+function emitObserverFailure(failure) {
+  try {
+    const bytes = JSON.stringify(failure.first) + '\n';
+    if (!failure.first || Buffer.byteLength(bytes) > 4096) return false;
+    process.stderr.write(bytes); return true;
+  } catch { return false; }
+}
 function json(bytes) {
   if (bytes.length >= 3 && bytes[0] === 239 && bytes[1] === 187 && bytes[2] === 191) fail('JSON_BOM');
   const text = utf8.decode(bytes); let cursor = 0;
@@ -960,13 +999,19 @@ async function verifyPhase(owner, custody) {
   return { result: resultFile, sha256: await digest(resultFile), nestedPhpClosure: 'PROVEN_BY_CELL_RECEIPT_AUDIT', custody };
 }
 
-async function supervise(file, hash, control = false) {
+async function supervise(file, hash, control = false, failure = observerFailure()) {
+  let owner;
+  try {
+  failure.stage = 'preflight';
   if (process.version !== 'v24.13.0') fail('NODE_VERSION');
   const leases = new Leases(START + 1800n * SECOND);
   const plan = await readPlan(file, hash);
+  failure.stage = 'admission';
   executionAdmission(plan); // Before pins, directories, listeners or child/resource creation.
+  failure.stage = 'declaration';
   const observer = control ? controlDeclaration(plan, file) : declaration(plan, file);
   if (control) leases.parentEnd = START + BigInt(plan.seconds) * SECOND;
+  failure.stage = 'pins';
   await pinned(observer.node); await pinned(observer.nodeOwner); if (!control || plan.php) await pinned(plan.php);
   if (!control && (!Array.isArray(observer.bootstrapIniFiles) || observer.bootstrapIniFiles.length < 1
       || observer.bootstrapIniFiles.length > 128 || typeof observer.bootstrapIniScanDirectory !== 'string'
@@ -975,14 +1020,15 @@ async function supervise(file, hash, control = false) {
   if (normalize(observer.node.path).toLowerCase() !== normalize(process.execPath).toLowerCase()
       || normalize(observer.nodeOwner.path) !== normalize(__filename)) fail('OWNER_PIN');
   if (process.platform === 'win32') { await pinned(observer.powershell); await pinned(observer.windowsAdapter); }
-  else if (process.platform === 'linux' && process.arch === 'x64') await linuxPins(observer, control,
+  else if (process.platform === 'linux' && process.arch === 'x64') { failure.stage = 'linux-pins'; await linuxPins(observer, control,
     { nonce: plan.nonce, runtimes: { node: observer.node, php: plan.php, composer: plan.composer, shell: observer.linuxShell, docker: plan.docker },
-      phpBootstrap: { iniFiles: observer.bootstrapIniFiles, extensionFiles: observer.bootstrapExtensionFiles } });
+      phpBootstrap: { iniFiles: observer.bootstrapIniFiles, extensionFiles: observer.bootstrapExtensionFiles } }); }
   else fail('UNQUALIFIED_PLATFORM');
+  failure.stage = 'root-layout';
   const parent = path.dirname(observer.root); await regular(path.join(parent, path.basename(file)));
   await fs.mkdir(observer.root, { mode: 0o700 });
   for (const directory of ['private', 'evidence', 'phases']) await fs.mkdir(observer.root + '/' + directory, { mode: 0o700 });
-  const owner = { plan, observer, leases, control, cancelReason: null, phaseResults: [] };
+  owner = { plan, observer, leases, control, cancelReason: null, phaseResults: [] };
   owner.cancel = reason => {
     if (!owner.cancelReason) {
       owner.cancelReason = reason;
@@ -997,16 +1043,28 @@ async function supervise(file, hash, control = false) {
   process.once('SIGINT', lost); process.once('SIGTERM', lost);
   let verdict = { schema: control ? 'tablo/server-observer-control-result/v1' : 'tablo/server-observer-result/v1', nonce: plan.nonce,
     status: 'failed', qualification: control ? 'NEUTRAL_CONTROL_ONLY' : 'ENGINE_CELL', nestedPhpClosure: 'UNKNOWN' };
+  let failed = false;
   try {
+    failure.stage = 'listener';
     await listen(owner);
     for (const declaration of observer.phases) {
+      failure.stage = 'phase-admission'; failure.phase = declaration.kind;
       if (owner.cancelReason || owner.connections !== 0 || leases.active.size !== 0) fail('PRIOR_PHASE_UNSETTLED');
       owner.phase = { ...declaration, authority: randomBytes(32), adapterAuthority: randomBytes(32), sequence: 0 };
+      failure.stage = 'phase-layout';
       await fs.mkdir(owner.phase.root, { mode: 0o700 });
       for (const directory of ['private', 'evidence', 'cwd']) await fs.mkdir(owner.phase.root + '/' + directory, { mode: 0o700 });
-      const adapter = await adapterPlan(owner, await controllerLaunch(owner, file, hash));
+      failure.stage = 'launch-description';
+      const launch = await controllerLaunch(owner, file, hash);
+      failure.stage = 'adapter-plan';
+      const adapter = await adapterPlan(owner, launch);
+      failure.stage = 'adapter-run';
       const state = await runAdapter(owner, adapter);
-      const custody = await verifyPhase(owner, await verifyCustody(owner, state));
+      failure.stage = 'custody';
+      const verifiedCustody = await verifyCustody(owner, state);
+      failure.stage = 'phase-proof';
+      const custody = await verifyPhase(owner, verifiedCustody);
+      failure.stage = 'phase-retention';
       const proof = owner.phase.root + '/evidence/phase-result.json';
       await retain(proof, { schema: 'tablo/server-observer-phase/v1', status: 'passed', cellNonce: plan.nonce, phaseNonce: owner.phase.nonce,
         kind: owner.phase.kind, custody, adapterClose: owner.adapterClose });
@@ -1014,19 +1072,29 @@ async function supervise(file, hash, control = false) {
     }
     verdict = { ...verdict, status: 'passed', phases: owner.phaseResults,
       nestedPhpClosure: control ? 'NOT_APPLICABLE_NODE_CONTROL' : 'PROVEN_BY_CELL_RECEIPT_AUDIT' };
+  } catch (error) {
+    failed = true; latchObserverFailure(failure, error, owner); throw error;
   } finally {
-    owner.server?.close();
     // The parent deadline stays armed until final custody has been written.
     try {
+      failure.stage = 'retention';
+      owner.server?.close();
       await retain(observer.root + '/evidence/leases.json', { parentStartedNanoseconds: START.toString(), parentEndNanoseconds: leases.parentEnd.toString(),
         events: leases.events, active: [...leases.active.values()].map(value => ({ id: value.id, label: value.label,
           startedNanoseconds: value.started.toString(), endNanoseconds: value.end.toString() })) });
       await retain(observer.root + '/evidence/observer-result.json', { ...verdict, cancellation: owner.cancelReason,
         adapterClose: owner.adapterClose ?? null, elapsedNanoseconds: (process.hrtime.bigint() - START).toString(),
         bound: 'OBSERVED_QUALIFIED_HOST_PROCESS_SCOPE_NOT_UNIVERSAL_KERNEL_IO_GUARANTEE' });
-    } finally { clearInterval(timer); process.removeListener('SIGINT', lost); process.removeListener('SIGTERM', lost); }
+    } catch (error) {
+      if (!failed) { failed = true; latchObserverFailure(failure, error, owner); throw error; }
+    } finally {
+      try { clearInterval(timer); process.removeListener('SIGINT', lost); process.removeListener('SIGTERM', lost); }
+      catch (error) { if (!failed) { latchObserverFailure(failure, error, owner); throw error; } }
+    }
   }
+  failure.stage = 'settlement';
   if (verdict.status !== 'passed' || leases.remaining() <= 0n) fail('CELL_FAILED');
+  } catch (error) { latchObserverFailure(failure, error, owner); throw error; }
 }
 
 // Executable neutral tests live in this same approved owner. They do not run on import.
@@ -1175,13 +1243,19 @@ function registerTests() {
 }
 
 async function main(arguments_) {
+  const failure = observerFailure();
+  try {
   if (arguments_.length === 1 && arguments_[0] === '--self-test') { registerTests(); return; }
   if (arguments_.length !== 2 || !arguments_[1].startsWith('--sha256=')) fail('EXACT_ARGUMENTS');
   const expected = arguments_[1].slice(9);
-  if (arguments_[0].startsWith('--execute=')) await supervise(arguments_[0].slice(10), expected);
-  else if (arguments_[0].startsWith('--control-plan=')) await supervise(arguments_[0].slice(15), expected, true);
+  if (arguments_[0].startsWith('--execute=')) await supervise(arguments_[0].slice(10), expected, false, failure);
+  else if (arguments_[0].startsWith('--control-plan=')) await supervise(arguments_[0].slice(15), expected, true, failure);
   else fail('EXACT_MODE');
+  } catch (error) { latchObserverFailure(failure, error); emitObserverFailure(failure); throw error; }
 }
 
 module.exports = { Frames, Leases, LinuxRecords, DENIAL_FIELDS, linuxDenialDiagnostic, declaration, environment, acceptEvent, runLinuxAdapter, linuxPins, linuxContext, readPlan, regular, pinned, retain, verifyCustody };
-if (require.main === module) main(process.argv.slice(2)).catch(() => { process.stderr.write('SERVER_OBSERVER_FAILED\n'); process.exitCode = 1; });
+if (require.main === module) main(process.argv.slice(2)).catch(() => {
+  process.exitCode = 1;
+  try { process.stderr.write('SERVER_OBSERVER_FAILED\n'); } catch { /* Original failure remains exit1. */ }
+});

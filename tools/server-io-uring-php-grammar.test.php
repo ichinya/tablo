@@ -79,16 +79,47 @@ namespace {
         'nonce' => $nonce, 'runtimes' => $runtimes, 'runtimeControls' => $reference('runtime-controls.json'),
         'platformReceipt' => $reference('platform.json'), 'neutralControls' => $reference('neutral-controls.json'),
         'fallbackControlsSha256' => $hash, 'fallbackControls' => $reference('fallback-controls.json')];
-    $run = static function (array $b, array $q) use ($inputs, $nonce, $hash, $runtimes): void {
+    $run = static function (array|string $b, array|string $q) use ($inputs, $nonce, $hash, $runtimes): void {
         $state = &\Tablo\Tools\grammar_state();
-        $state['inputs'] = [$inputs['linuxAdapterBuild']['path'] => json_encode($b, flags: JSON_THROW_ON_ERROR),
-            $inputs['linuxAdapterQualification']['path'] => json_encode($q, flags: JSON_THROW_ON_ERROR)];
+        $state['inputs'] = [$inputs['linuxAdapterBuild']['path'] => is_string($b) ? $b : json_encode($b, flags: JSON_THROW_ON_ERROR),
+            $inputs['linuxAdapterQualification']['path'] => is_string($q) ? $q : json_encode($q, flags: JSON_THROW_ON_ERROR)];
         $state['reads'] = [];
         \Tablo\Tools\server_fixture_plan_linux_provenance($inputs, $nonce, $hash, $runtimes);
         grammar_expect($state['effects'] === []);
         grammar_expect($state['reads'] === [$inputs['linuxAdapterBuild']['path'], $inputs['linuxAdapterQualification']['path']]);
     };
     $run($build, $qualified);
+    $rawBuild = json_encode($build, flags: JSON_THROW_ON_ERROR);
+    $rawQualified = json_encode($qualified, flags: JSON_THROW_ON_ERROR);
+    $run($rawBuild, $rawQualified);
+    // Escape-equivalent unique names retain their exact decoded order.
+    $run($rawBuild, str_replace('"schema":', replace: '"sch\\u0065ma":', subject: $rawQualified));
+    foreach (['"schema":"old",', '"schema":"tablo/linux-adapter-qualification/v3",',
+        '"sch\\u0065ma":"old",', '"\\u0073chema":"old",'] as $duplicate) {
+        grammar_refused(static fn () => $run($rawBuild, '{' . $duplicate . substr($rawQualified, offset: 1)));
+    }
+    foreach (['"policy":"old",', '"pol\\u0069cy":"tgid-seccomp-ptrace-x64-v2",'] as $duplicate) {
+        grammar_refused(static fn () => $run($rawBuild, str_replace('"policy":', $duplicate . '"policy":', $rawQualified)));
+    }
+    foreach (['"path":"foreign",', '"pa\\u0074h":"foreign",',
+        '"sha256":"' . $hash . '",', '"sha\\u003256":"wrong",'] as $duplicate) {
+        $key = str_starts_with($duplicate, '"pa') ? 'path' : 'sha256';
+        grammar_refused(static fn () => $run($rawBuild, str_replace('"' . $key . '":', $duplicate . '"' . $key . '":', $rawQualified)));
+    }
+    grammar_refused(static fn () => $run('{"schema":"old",' . substr($rawBuild, offset: 1), $rawQualified));
+    // Arbitrary depth, arrays, literal UTF-8, surrogate pairs and escaped punctuation.
+    foreach (['{"x":[{"path":0,"pa\\u0074h":1}]}', '{"é":0,"\\u00e9":0}',
+        '{"😀":0,"\\ud83d\\ude00":1}', '{"a\"b":0,"a\\u0022b":1}',
+        '{"x":{"sha256":0,"sha256":0}}'] as $raw) {
+        grammar_refused(static fn () => \Tablo\Tools\server_fixture_plan_linux_unique_names($raw));
+    }
+    \Tablo\Tools\server_fixture_plan_linux_unique_names('{"x":[{"path":0},{"path":1}],"text":"{},\"path\":", "0":0,"00":0}');
+    grammar_expect(\Tablo\Tools\grammar_state()['effects'] === []);
+    $run($rawBuild, $rawQualified . str_repeat(' ', times: max(0, 16_384 - strlen($rawQualified))));
+    grammar_refused(static fn () => $run($rawBuild, $rawQualified . str_repeat(' ', times: max(0, 16_385 - strlen($rawQualified)))));
+    foreach (['{', '{"schema":', $rawQualified . 'false', "\xef\xbb\xbf" . $rawQualified] as $raw) {
+        grammar_refused(static fn () => $run($rawBuild, $raw));
+    }
     foreach (['schema' => 'tablo/linux-adapter-qualification/v2', 'policy' => 'tgid-seccomp-ptrace-x64-v1', 'status' => 'failed',
         'nonce' => str_repeat('c', times: 32), 'binarySha256' => str_repeat('d', times: 64),
         'sourceSha256' => str_repeat('d', times: 64), 'recipeSha256' => str_repeat('d', times: 64),

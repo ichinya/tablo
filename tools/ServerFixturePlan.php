@@ -343,6 +343,7 @@ function server_fixture_plan_linux_receipt(array $file, string $schema, array $k
 {
     $bytes = \Tablo\RequiredFile::bytes(file_get_contents($file['path'], length: 16_385));
     if (strlen($bytes) > 16_384) { throw new RuntimeException('Linux adapter receipt envelope exceeded.'); }
+    server_fixture_plan_linux_unique_names($bytes);
     $record = JsonRecord::decode($bytes);
     if (array_keys($record) !== $keys || [$record['schema'] ?? null, $record['policy'] ?? null] !== [$schema, 'tgid-seccomp-ptrace-x64-v2']) { throw new RuntimeException('Linux adapter receipt shape refused.'); }
     foreach ($keys as $key) {
@@ -350,6 +351,45 @@ function server_fixture_plan_linux_receipt(array $file, string $schema, array $k
         if (preg_match('/\A[0-9a-f]{64}\z/D', SqlColumn::string($record, $key)) !== 1) { throw new RuntimeException('Linux adapter receipt hash refused.'); }
     }
     return $record;
+}
+
+/** Scan bounded raw tokens before associative decoding can collapse object names.
+ * Full JSON syntax and ordered receipt validation remain with the existing decoder. */
+function server_fixture_plan_linux_unique_names(string $bytes): void
+{
+    $matches = [];
+    if (preg_match_all('/"(?:[^"\\\\]|\\\\.)*"|[{}\[\]:,]/s', $bytes, $matches) === false) {
+        throw new RuntimeException('Linux adapter receipt token scan refused.');
+    }
+    /** @var list<array{object: bool, key: bool, seen: array<string, true>}> $stack */
+    $stack = [];
+    foreach ($matches[0] ?? [] as $lexeme) {
+        if (in_array($lexeme, ['{', '['], strict: true)) {
+            $stack[] = ['object' => $lexeme === '{', 'key' => true, 'seen' => []];
+            continue;
+        }
+        if (in_array($lexeme, ['}', ']'], strict: true)) { array_pop($stack); continue; }
+        $index = array_key_last($stack);
+        $frame = $index === null ? null : ($stack[$index] ?? null);
+        if ($index === null || $frame === null || !$frame['object']) { continue; }
+        if ($lexeme === ',') { $frame['key'] = true; $stack[$index] = $frame; continue; }
+        if ($lexeme[0] !== '"' || !$frame['key']) { continue; }
+        server_fixture_plan_linux_unique_name($lexeme, $frame['seen']);
+        $frame['key'] = false;
+        $stack[$index] = $frame;
+    }
+}
+
+/** @param array<string, true> $seen */
+function server_fixture_plan_linux_unique_name(string $lexeme, array &$seen): void
+{
+    /** @var mixed $name Raw JSON string tokens need explicit string admission. */
+    $name = json_decode($lexeme, flags: JSON_THROW_ON_ERROR);
+    if (!is_string($name)) { throw new RuntimeException('Linux adapter receipt name refused.'); }
+    // Prefix prevents PHP numeric-key conversion from changing name identity.
+    $key = 'name:' . $name;
+    if (array_key_exists($key, $seen)) { throw new RuntimeException('Duplicate Linux adapter receipt name refused.'); }
+    $seen[$key] = true;
 }
 
 /** Each adapter has exactly one controller and its own never-reused protocol authority. */

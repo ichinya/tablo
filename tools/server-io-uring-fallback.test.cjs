@@ -69,7 +69,7 @@ function ownerModule(files) {
       if (['node:crypto','node:util'].includes(name)) return require(name);
       tripwire('UNEXPECTED_IMPORT ' + name);
     } };
-  vm.runInNewContext(source, sandbox, { filename: sandbox.__filename });
+  vm.runInNewContext(source + '\nObject.assign(module.exports, { observerFailure, latchObserverFailure });', sandbox, { filename: sandbox.__filename });
   return { api: module.exports, context, effects };
 }
 function receiptFixture() {
@@ -251,6 +251,24 @@ test('actual product custody equation preserves all root/input/close/failure gat
     assert.deepEqual(effects,[]);state.exited.exitCode=23;await assert.rejects(api.verifyCustody(owner,state));assert.deepEqual(effects,[]);
   }
 });
+test('actual custody refusal variants retain their exact owner classification with no effect attempts', async () => {
+  for (const [code, mutate] of [
+    ['OBSERVER_CLOSURE_UNKNOWN', (owner, state) => { state.input = null; }],
+    ['CONTROLLER_INPUT_UNSETTLED', (owner, state) => { state.input.settled = false; }],
+    ['CONTROLLER_NATIVE_FAILURE', (owner, state) => { state.closed.admission = admission(6,5,5); }],
+    ['CONTROLLER_CUSTODY', (owner, state) => { state.closed.stdout.sha256 = '0'.repeat(64); }],
+  ]) {
+    const files = new Map(), root = '/synthetic/custody', state = eventSet(admission(), root, '', files);
+    const { api, effects } = ownerModule(files);
+    const owner = { phase: { root, kind: 'engine' }, control: true, plan: { job: { activeProcessLimit: 8 }, launch: { input: { mode: 'none', bytes: 0 } } },
+      leases: { active: new Set() }, cancelReason: null, phaseResults: [], adapterClose: nativeClose(), adapterState: state };
+    mutate(owner, state); let error;
+    try { await api.verifyCustody(owner, state); } catch (caught) { error = caught; }
+    assert.deepEqual(effects, []); assert(error); const failure = api.observerFailure(); failure.stage = 'custody'; failure.phase = 'engine';
+    api.latchObserverFailure(failure, error, owner); assert.equal(failure.first.refusal, code);
+    assert.equal(failure.first.stage, 'custody'); assert.equal(failure.first.issueAccepted, false);
+  }
+});
 test('safe projection v2 preserves both new counters without minting success or raising bounds',()=>{
   const result=projectFailure({stage:'FALLBACK_CONTROL',subject:'uring-mixed-quota',index:6,check:'Q146',completed:38,
     owner:{adapterState:{closed:{admission:admission(6,5,4,true)}}}});
@@ -343,4 +361,184 @@ for(const [label,change] of [
   const f=qualifierModule(row=>{if(row.label==='uring-handled')change(row);});
   await assert.rejects(f.api.qualifyFallback(f.spec,f.base,f.observer,f.spec.controls,process.hrtime.bigint()+1800_000_000_000n));
   assert.deepEqual(f.effects,[]);assert(!f.files.has(f.base+'/fallback-controls.json'));
+});
+
+// Exercise the actual main/supervise flow only inside a non-main VM. Every
+// reachable external effect is closed; the finite seams below are synthetic.
+function observerHarness(options = {}) {
+  const effects = [], calls = [], output = [], writes = [], listeners = new Set(), timers = new Set();
+  const tripwire = name => { effects.push(name); throw Error('FORBIDDEN_OBSERVER_EFFECT'); };
+  const original = options.error ?? new Error('PRIVATE secret /private/path ' + 'x'.repeat(8192));
+  const retentionError = new TypeError('PRIVATE retention');
+  const step = name => { calls.push(name); if (options.at === name) throw original; };
+  const file = '/synthetic/plan.json', root = '/synthetic/observer';
+  const phases = ['prepare','baseline','engine'].map(kind => ({ kind, root: root + '/' + kind }));
+  const observer = { root, phases, node: {}, nodeOwner: {}, bootstrapIniFiles: [{ path: 'synthetic.ini' }],
+    bootstrapIni: 'synthetic.ini', bootstrapIniScanDirectory: '', bootstrapExtensionFiles: [] };
+  const plan = { executionMode: Object.hasOwn(options, 'mode') ? options.mode : 'qualified', observer, php: {}, nonce: 'a'.repeat(32) };
+  const memoryDirectories = new Set([root, ...['private','evidence','phases'].map(name => root + '/' + name),
+    ...phases.flatMap(phase => [phase.root, ...['private','evidence','cwd'].map(name => phase.root + '/' + name)])]);
+  const retained = new Set([root + '/evidence/leases.json', root + '/evidence/observer-result.json',
+    ...phases.map(phase => phase.root + '/evidence/phase-result.json')]);
+  const closed = target => new Proxy(target, { get(value, key) {
+    if (!Object.hasOwn(value, key)) tripwire('UNEXPECTED_ACCESS ' + String(key)); return value[key];
+  } });
+  const module = { exports: {} };
+  let expired = false;
+  const sandbox = { module, exports: module.exports, Buffer, Error, TypeError, RangeError, SyntaxError,
+    JSON: { parse: JSON.parse, stringify(...values) { if (options.serializationFails) throw retentionError; return JSON.stringify(...values); } },
+    __filename: '/synthetic/owner.cjs',
+    setInterval(callback, delay) { assert.equal(delay, 10); step('timer'); const token = {}; timers.add(token); return token; },
+    clearInterval(token) { assert(timers.delete(token)); step('timer-clear'); },
+    process: closed({ version: options.version ?? 'v24.13.0', platform: 'linux', arch: 'x64', execPath: '/synthetic/node',
+      hrtime: { bigint: () => expired ? 1801_000_000_000n : 1n }, once(signal) { assert(['SIGINT','SIGTERM'].includes(signal)); listeners.add(signal); },
+      removeListener(signal) { assert(listeners.delete(signal)); },
+      stderr: { write(bytes) { step('output'); if (options.outputFails) throw retentionError; output.push(bytes); } } }),
+    require(name) {
+      if (name === 'node:crypto') return { createHash, createHmac: () => tripwire('HMAC'), timingSafeEqual: () => tripwire('COMPARE'),
+        randomBytes: length => { assert.equal(length, 32); step('entropy'); return Buffer.alloc(length, 1); } };
+      if (name === 'node:fs') return closed({ createReadStream: () => tripwire('STREAM') });
+      if (name === 'node:fs/promises') return closed({ mkdir: async (directory, mode) => {
+        assert.equal(mode.mode, 0o700); assert.equal(Object.keys(mode).join(','), 'mode');
+        if (!memoryDirectories.has(directory)) tripwire('DIRECTORY');
+        step(directory.startsWith(root + '/prepare') ? 'phase-layout' : 'root-layout');
+      } });
+      if (name === 'node:net') return closed({});
+      if (name === 'node:child_process') return closed({ spawn: () => tripwire('SPAWN') });
+      if (name === 'node:path') return path.posix;
+      if (name === 'node:util') return { TextDecoder };
+      return tripwire('IMPORT ' + name);
+    } };
+  // require.main differs from module, so the real executable entry never fires.
+  sandbox.require.main = {};
+  vm.runInNewContext(source + `\nmodule.exports.testOnly = { main, supervise, observerFailure, latchObserverFailure, emitObserverFailure, fail,
+    setSeams(seams) { readPlan=seams.readPlan; declaration=seams.declaration; pinned=seams.pinned; linuxPins=seams.linuxPins;
+      regular=seams.regular; listen=seams.listen; controllerLaunch=seams.controllerLaunch; adapterPlan=seams.adapterPlan;
+      runAdapter=seams.runAdapter; verifyCustody=seams.verifyCustody; verifyPhase=seams.verifyPhase; retain=seams.retain; digest=seams.digest; }
+  };`, sandbox, { filename: sandbox.__filename });
+  const api = module.exports.testOnly;
+  observer.node.path = '/synthetic/node'; observer.nodeOwner.path = sandbox.__filename;
+  api.setSeams({
+    readPlan: async () => { step('preflight'); return plan; },
+    declaration: () => { step('declaration'); return observer; },
+    pinned: async () => step('pins'), linuxPins: async () => step('linux-pins'),
+    regular: async value => { if (value !== file) tripwire('REGULAR'); step('root-layout'); return value; },
+    listen: async owner => { step('listener'); owner.connections = 0; owner.server = { close() { step('server-close'); } }; },
+    controllerLaunch: async () => { step('launch-description'); return {}; },
+    adapterPlan: async () => { step('adapter-plan'); return {}; },
+    runAdapter: async owner => { step('adapter-run'); owner.adapterClose = { code: 0 };
+      owner.adapterState = { exited: { exitCode: 0 }, input: { settled: true }, closed: { scopeObservedEmpty: true } };
+      if (options.cancel) owner.cancel(options.cancel); return owner.adapterState; },
+    verifyCustody: async () => { step('custody'); return {}; }, verifyPhase: async () => { step('phase-proof'); return {}; },
+    retain: async (value, record) => {
+      if (!retained.has(value)) tripwire('RETAIN');
+      const final = value === root + '/evidence/leases.json' || value === root + '/evidence/observer-result.json';
+      step(final ? 'retention' : 'phase-retention');
+      if (final && options.retentionFails) throw retentionError;
+      writes.push({ value, status: record.status });
+      if (options.expireAtRetention && value === root + '/evidence/observer-result.json') expired = true;
+    },
+    digest: async value => { if (!retained.has(value)) tripwire('DIGEST'); step('phase-digest'); return 'a'.repeat(64); }
+  });
+  return { api, effects, calls, output, writes, listeners, timers, original, retentionError,
+    run: () => api.main(['--execute=' + file, '--sha256=' + 'a'.repeat(64)]) };
+}
+function observerClosed(harness) {
+  assert.deepEqual(harness.effects, []); assert.equal(harness.listeners.size, 0); assert.equal(harness.timers.size, 0);
+}
+for (const stage of ['preflight','declaration','pins','linux-pins','root-layout','listener','phase-layout',
+  'launch-description','adapter-plan','adapter-run','custody','phase-proof','phase-retention','retention']) {
+  test('actual observer first-failure stage: ' + stage, async () => {
+    const h = observerHarness({ at: stage });
+    await assert.rejects(h.run(), error => error === h.original);
+    observerClosed(h);
+    assert.equal(h.output.length, 1); const record = JSON.parse(h.output[0]);
+    assert.equal(record.stage, stage); assert.equal(record.status, 'failed'); assert.equal(record.rootCause, 'UNKNOWN');
+    assert.equal(record.issueAccepted, false); assert.equal(record.errorClass, 'Error'); assert.equal(record.refusal, 'UNKNOWN');
+    assert(Buffer.byteLength(h.output[0]) <= 4096); assert(!h.output[0].includes('PRIVATE')); assert(!h.output[0].includes('/synthetic'));
+    assert.equal(record.phase, stage === 'retention' ? 'engine' : ['phase-layout','launch-description','adapter-plan','adapter-run','custody','phase-proof','phase-retention'].includes(stage) ? 'prepare' : 'MISSING');
+    if (['preflight','declaration','pins','linux-pins','root-layout'].includes(stage)) assert.deepEqual(h.writes, []);
+  });
+}
+test('actual observer successful evaluation order and cleanup stay intact without failure output', async () => {
+  const h = observerHarness(); await h.run(); observerClosed(h); assert.deepEqual(h.output, []);
+  assert.deepEqual(h.calls.filter(name => ['listener','launch-description','adapter-plan','adapter-run','custody','phase-proof','phase-retention','phase-digest'].includes(name)),
+    ['listener', ...Array.from({length:3}, () => ['launch-description','adapter-plan','adapter-run','custody','phase-proof','phase-retention','phase-digest']).flat()]);
+  assert.equal(h.writes.at(-1).status, 'passed');
+});
+test('actual observer preserves original exception and first stage across failed retention and failed output', async () => {
+  for (const outputFails of [false, true]) {
+    const h = observerHarness({ at: 'custody', retentionFails: true, outputFails });
+    await assert.rejects(h.run(), error => error === h.original); observerClosed(h);
+    assert(h.calls.includes('retention')); assert.equal(h.output.length, outputFails ? 0 : 1);
+    if (!outputFails) assert.equal(JSON.parse(h.output[0]).stage, 'custody');
+  }
+});
+test('actual observer admission refusal stays before pins or layout and retains exact owner refusal identity', async () => {
+  for (const mode of ['diagnostic', null, 'UNKNOWN']) {
+    const h = observerHarness({ mode });
+    await assert.rejects(h.run(), /EXECUTION_MODE_UNQUALIFIED/); observerClosed(h);
+    const record = JSON.parse(h.output[0]); assert.equal(record.stage, 'admission'); assert.equal(record.refusal, 'EXECUTION_MODE_UNQUALIFIED');
+    assert.deepEqual(h.calls, ['preflight','output']); assert.deepEqual(h.writes, []);
+  }
+});
+test('actual argument and version refusals remain static before admission', async () => {
+  const arguments_ = observerHarness();
+  await assert.rejects(arguments_.api.main([]), /EXACT_ARGUMENTS/); observerClosed(arguments_);
+  assert.equal(JSON.parse(arguments_.output[0]).stage, 'arguments'); assert.equal(JSON.parse(arguments_.output[0]).refusal, 'EXACT_ARGUMENTS');
+  assert.deepEqual(arguments_.calls, ['output']);
+  const version = observerHarness({ version: 'PRIVATE' });
+  await assert.rejects(version.run(), /NODE_VERSION/); observerClosed(version);
+  assert.equal(JSON.parse(version.output[0]).stage, 'preflight'); assert.equal(JSON.parse(version.output[0]).refusal, 'NODE_VERSION');
+  assert.deepEqual(version.calls, ['output']);
+});
+test('observer error classes use exact prototypes without reading names or messages', () => {
+  for (const type of [Error, TypeError, RangeError, SyntaxError]) {
+    const h = observerHarness(), failure = h.api.observerFailure();
+    h.api.latchObserverFailure(failure, new type('PRIVATE')); assert.equal(failure.first.errorClass, type.name); observerClosed(h);
+  }
+});
+test('observer finite projection distinguishes missing, null and unknown and discards hostile fields', () => {
+  const h = observerHarness(), failure = h.api.observerFailure(); failure.stage = 'custody'; failure.phase = 'engine';
+  const privateReads = [], hostile = new Error('PRIVATE');
+  // Materialize V8's lazy stack before installing independently latched getters.
+  void hostile.stack;
+  for (const field of ['message','stack','name']) Object.defineProperty(hostile, field, { get() { privateReads.push(field); throw Error('PRIVATE_READ'); } });
+  h.api.latchObserverFailure(failure, hostile, { cancelReason: null, phaseResults: [], adapterClose: { code: null },
+    adapterState: { exited: { exitCode: 2147483648 }, input: { settled: 'PRIVATE' }, closed: { scopeObservedEmpty: false } }, secret: 'PRIVATE' });
+  assert(h.api.emitObserverFailure(failure)); const record = JSON.parse(h.output[0]);
+  assert.equal(record.cancellation, null); assert.equal(record.adapterExit, null); assert.equal(record.completedPhases, 0);
+  assert.equal(record.controllerExit, 'UNKNOWN'); assert.equal(record.inputSettled, 'UNKNOWN'); assert.equal(record.scopeObservedEmpty, false);
+  assert(!h.output[0].includes('PRIVATE')); const first = failure.first;
+  failure.stage = 'retention'; h.api.latchObserverFailure(failure, new TypeError('PRIVATE')); assert.equal(failure.first, first);
+  const missing = h.api.observerFailure(); h.api.latchObserverFailure(missing, 'PRIVATE');
+  assert.equal(missing.first.adapterExit, 'MISSING'); assert.equal(missing.first.cancellation, 'MISSING');
+  assert.equal(missing.first.errorClass, 'UNKNOWN'); assert.deepEqual(privateReads, []); observerClosed(h);
+});
+test('observer cancellation enums and hostile stage/phase cannot escape bounded projection', () => {
+  for (const reason of ['deadline','owner-loss','protocol',null,undefined,'PRIVATE']) {
+    const h = observerHarness(), f = h.api.observerFailure(); f.stage = 'PRIVATE'.repeat(8192); f.phase = 'PRIVATE';
+    h.api.latchObserverFailure(f, new Error('CONTROLLER_NATIVE_FAILURE'), { cancelReason: reason, phaseResults: { length: 2147483648 } });
+    assert(h.api.emitObserverFailure(f)); const record = JSON.parse(h.output[0]);
+    assert.equal(record.stage, 'UNKNOWN'); assert.equal(record.phase, 'UNKNOWN'); assert.equal(record.refusal, 'UNKNOWN');
+    assert.equal(record.completedPhases, 'UNKNOWN'); assert.equal(record.cancellation, reason === undefined ? 'MISSING' : reason === 'PRIVATE' ? 'UNKNOWN' : reason);
+    assert(Buffer.byteLength(h.output[0]) <= 4096); assert(!h.output[0].includes('PRIVATE')); observerClosed(h);
+  }
+});
+test('observer serialization failure cannot replace original failure or create a successful result', async () => {
+  const serialized = observerHarness({ at: 'custody', serializationFails: true });
+  await assert.rejects(serialized.run(), value => value === serialized.original); observerClosed(serialized);
+  assert.deepEqual(serialized.output, []); assert.equal(serialized.writes.at(-1).status, 'failed');
+  const error = new Proxy({}, { getPrototypeOf() { throw Error('PRIVATE'); } });
+  const h = observerHarness({ at: 'custody', error }); await assert.rejects(h.run(), value => value === error);
+  observerClosed(h); assert.equal(JSON.parse(h.output[0]).stage, 'custody'); assert.equal(h.writes.at(-1).status, 'failed');
+});
+test('actual cancellation and final deadline refusals retain their phase and never promote success', async () => {
+  const cancelled = observerHarness({ cancel: 'deadline' });
+  await assert.rejects(cancelled.run(), /PRIOR_PHASE_UNSETTLED/); observerClosed(cancelled);
+  const first = JSON.parse(cancelled.output[0]); assert.equal(first.stage, 'phase-admission'); assert.equal(first.phase, 'baseline');
+  assert.equal(first.cancellation, 'deadline'); assert.equal(first.completedPhases, 1);
+  const expired = observerHarness({ expireAtRetention: true });
+  await assert.rejects(expired.run(), /CELL_FAILED/); observerClosed(expired);
+  const last = JSON.parse(expired.output[0]); assert.equal(last.stage, 'settlement'); assert.equal(last.refusal, 'CELL_FAILED');
 });
