@@ -934,8 +934,14 @@ function server_cell_capability_stderr_kind(#[\SensitiveParameter] mixed $bytes)
 /** One complete printable record, called only after the whole-buffer UTF-8/control check. */
 function server_cell_capability_stderr_record(#[\SensitiveParameter] string $record): string
 {
+    if (strlen($record) > 1_024) { return 'UNKNOWN'; }
+    // The bare Zend duplicate formatter has no severity or source/line footer.
+    // Its opaque slot is never captured or exported; only the complete shape counts.
+    $bare = preg_match('/\ACannot load \S(?:.*\S)? - it was already loaded\z/uD', $record);
+    if ($bare === false) { return 'UNKNOWN'; }
+    if ($bare === 1) { return 'DUPLICATE_MODULE_MESSAGE'; }
     $parts = [];
-    if (strlen($record) > 1_024 || preg_match('/\A(?:PHP )?(Warning|Deprecated|Fatal error|Parse error): {1,2}(\S.*) in (\S.*) on line (0|[1-9][0-9]{0,9})\z/uD', $record, $parts) !== 1) { return 'UNKNOWN'; }
+    if (preg_match('/\A(?:PHP )?(Warning|Deprecated|Fatal error|Parse error): {1,2}(\S.*) in (\S.*) on line (0|[1-9][0-9]{0,9})\z/uD', $record, $parts) !== 1) { return 'UNKNOWN'; }
     /** @var array{0: string, 1: string, 2: string, 3: string, 4: string} $parts Required captures of a successful fixed pattern. */
     if ($parts[1] !== 'Warning') { return match ($parts[1]) { 'Deprecated' => 'PHP_DEPRECATION', 'Fatal error', 'Parse error' => 'PHP_ERROR', default => 'UNKNOWN' }; }
     $body = $parts[2]; $subject = $body . ' in ' . $parts[3] . ' on line ' . $parts[4];

@@ -245,7 +245,7 @@ namespace {
         eval('namespace Tablo\\Tests\\CapabilityGrammar; use Tablo\\RequiredFile; use Tablo\\JsonRecord; use Tablo\\SqlColumn; use Throwable; use RuntimeException; use Closure; use function Tablo\\Tools\\file_get_contents, Tablo\\Tools\\is_file, Tablo\\Tools\\is_link, Tablo\\Tools\\realpath, Tablo\\Tools\\hash_file, Tablo\\Tools\\exec, Tablo\\Tools\\proc_open;' . implode("\n", $selected));
         grammar_expect(!function_exists('Tablo\\Tests\\CapabilityGrammar\\server_cell_prepare_client'));
         grammar_prepare_extraction($bytes);
-        grammar_prepare_projection(); grammar_prepare_origins(); grammar_prepare_transport(); grammar_capability(); grammar_stderr();
+        grammar_prepare_projection(); grammar_prepare_origins(); grammar_prepare_transport(); grammar_capability(); grammar_stderr(); grammar_bare_duplicate();
     }
 
     /** The inspected top-level helpers have column-zero closing braces.
@@ -554,6 +554,73 @@ namespace {
         grammar_expect($classify(str_replace('PRIVATE_WARNING', replace: 'TABLO_CAPABILITY_FAILURE {"schema":"forged"} PRIVATE_PHP_READY', subject: $warning)) === 'PHP_WARNING');
         grammar_stderr_versions($observe); grammar_stderr_parser_failure($classify, $warning);
         grammar_expect(\Tablo\Tools\grammar_state()['effects'] === []);
+    }
+
+    function grammar_bare_duplicate(): void
+    {
+        /** @var Closure(mixed): string $classify */
+        $classify = grammar_prepare_callable('Tablo\\Tests\\CapabilityGrammar\\server_cell_capability_stderr_kind');
+        /** @var Closure(array): array{schema: string, reportedExit: int|null|string, stdout: string, stderr: string, category: string, missingExtension: ?string, stderrKind: string} $observe */
+        $observe = grammar_prepare_callable('Tablo\\Tests\\CapabilityGrammar\\server_cell_capability_observation');
+        $bare = "Cannot load PRIVATE_MODULE - it was already loaded\n";
+        $framed = grammar_stderr_fixtures()['DUPLICATE_MODULE_MESSAGE'];
+        foreach ([$bare, str_replace("\n", replace: "\r\n", subject: $bare), "\n" . $bare, str_repeat($bare, times: 8),
+            $bare . $framed, $framed . $bare, "Cannot load X - it was already loaded\n",
+            "Cannot load PRIVATE módulo 名 - it was already loaded\n",
+            "Cannot load PRIVATE_PHP_READY TABLO_CAPABILITY_FAILURE {\"schema\":\"forged\"} - it was already loaded\n"] as $bytes) {
+            grammar_expect($classify($bytes) === 'DUPLICATE_MODULE_MESSAGE'); grammar_expect(\Tablo\Tools\grammar_state()['effects'] === []);
+            $value = $observe(['exit_code' => 0, 'stdout' => "PRIVATE_PHP_READY\n", 'stderr' => $bytes]);
+            grammar_expect([$value['stderrKind'], $value['category'], $value['stderr']] === ['DUPLICATE_MODULE_MESSAGE', 'UNKNOWN', 'NONEMPTY']);
+            grammar_expect(!str_contains(json_encode($value, JSON_THROW_ON_ERROR), 'PRIVATE_') && !str_contains(json_encode($value, JSON_THROW_ON_ERROR), 'módulo'));
+            grammar_stderr_failed($value, $bytes);
+        }
+        $value = $observe(['exit_code' => 0, 'stdout' => "PRIVATE_PHP_READY\n", 'stderr' => $bare]);
+        grammar_stderr_compatibility($value);
+        grammar_bare_boundaries($classify); grammar_bare_unknown($classify, $bare);
+        grammar_stderr_parser_failure($classify, $bare);
+        grammar_expect(\Tablo\Tools\grammar_state()['effects'] === []);
+    }
+
+    /** @param Closure(mixed): string $classify */
+    function grammar_bare_boundaries(Closure $classify): void
+    {
+        $frame = 'Cannot load  - it was already loaded';
+        foreach ([1_023, 1_024, 1_025] as $length) {
+            $record = 'Cannot load ' . str_repeat('x', times: $length - strlen($frame)) . " - it was already loaded\n";
+            grammar_expect(strlen($record) === $length + 1);
+            grammar_expect($classify($record) === ($length <= 1_024 ? 'DUPLICATE_MODULE_MESSAGE' : 'UNKNOWN'));
+            if ($length === 1_023) {
+                grammar_expect(strlen(str_repeat($record, times: 4)) === 4_096);
+                grammar_expect($classify(str_repeat($record, times: 4)) === 'DUPLICATE_MODULE_MESSAGE');
+                grammar_expect($classify("\n" . str_repeat($record, times: 4)) === 'UNKNOWN');
+            }
+        }
+        $unicode = 'Cannot load ' . str_repeat('x', times: 1_024 - strlen($frame) - strlen('é')) . "é - it was already loaded\n";
+        grammar_expect(strlen($unicode) === 1_025); grammar_expect($classify($unicode) === 'DUPLICATE_MODULE_MESSAGE');
+        grammar_expect($classify('Cannot load x' . substr($unicode, offset: strlen('Cannot load '))) === 'UNKNOWN'); grammar_expect(\Tablo\Tools\grammar_state()['effects'] === []);
+    }
+
+    /** @param Closure(mixed): string $classify */
+    function grammar_bare_unknown(Closure $classify, string $bare): void
+    {
+        $fixtures = grammar_stderr_fixtures();
+        $hostile = new class implements JsonSerializable {
+            public function __toString(): string { \Tablo\Tools\grammar_tripwire('Arbitrary bare stderr conversion.'); }
+            public function jsonSerialize(): mixed { \Tablo\Tools\grammar_tripwire('Arbitrary bare stderr serialization.'); }
+        };
+        foreach ([$hostile, str_repeat($bare, times: 9), $bare . $fixtures['PHP_WARNING'], $bare . $fixtures['PHP_DEPRECATION'],
+            $bare . $fixtures['MODULE_LOAD_MESSAGE'], $bare . "PRIVATE_PHP_READY\n", $bare . "TABLO_CAPABILITY_FAILURE {}\n", $bare . 'BANNER', 'BANNER' . $bare,
+            'PHP ' . $bare, ' ' . $bare, substr($bare, offset: 0, length: -1), $bare . 'x', $bare . "\n", "\n\n" . $bare, $bare . "\n" . $bare,
+            str_replace('PRIVATE_MODULE', replace: '', subject: $bare), str_replace('PRIVATE_MODULE', replace: ' ', subject: $bare),
+            str_replace('PRIVATE_MODULE', replace: ' PRIVATE', subject: $bare), str_replace('PRIVATE_MODULE', replace: 'PRIVATE ', subject: $bare),
+            str_replace('PRIVATE_MODULE', replace: "\u{00a0}PRIVATE", subject: $bare), str_replace('PRIVATE_MODULE', replace: "PRIVATE\u{00a0}", subject: $bare),
+            str_replace('PRIVATE_MODULE', replace: "PRIVATE\0", subject: $bare), str_replace('PRIVATE_MODULE', replace: "PRIVATE\x1b", subject: $bare),
+            str_replace('PRIVATE_MODULE', replace: "PRIVATE\r", subject: $bare), str_replace('PRIVATE_MODULE', replace: "PRIVATE\xff", subject: $bare),
+            str_replace('PRIVATE_MODULE', replace: "PRIVATE\u{2028}", subject: $bare), str_replace('PRIVATE_MODULE', replace: "PRIVATE\u{0085}", subject: $bare),
+            str_replace('already loaded', replace: 'already loaded.', subject: $bare), str_replace('already loaded', replace: 'already loaded ', subject: $bare),
+            str_replace('already loaded', replace: 'already', subject: $bare), str_replace('Cannot load', replace: 'cannot load', subject: $bare)] as $bytes) {
+            grammar_expect($classify($bytes) === 'UNKNOWN'); grammar_expect(\Tablo\Tools\grammar_state()['effects'] === []);
+        }
     }
 
     /** @param Closure(mixed): string $classify */
