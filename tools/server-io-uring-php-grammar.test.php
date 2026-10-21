@@ -28,6 +28,26 @@ namespace Tablo\Tools {
     function is_link(string $filename): bool { grammar_tripwire('Unexpected grammar link access.'); }
     function realpath(string $path): string|false { grammar_tripwire('Unexpected grammar realpath access.'); }
     function hash_file(string $algorithm, string $filename): string|false { grammar_tripwire('Unexpected grammar hash access.'); }
+    /** @param-out list<string> $output
+     * @param-out int $result_code */
+    function exec(string $command, ?array &$output = null, ?int &$result_code = null): string|false
+    { grammar_tripwire('Unexpected grammar command.'); }
+    /** @param string|list<string> $command
+     * @param array<int, mixed> $descriptor_spec
+     * @param-out array<int, resource> $pipes
+     * @param null|array<string, string> $env_vars
+     * @param null|array<string, mixed> $options
+     * @return resource|false */
+    // Match the native signature so source analysis of other owners remains accurate.
+    // @mago-expect lint:excessive-parameter-list
+    function proc_open(array|string $command, array $descriptor_spec, mixed &$pipes, ?string $cwd = null, ?array $env_vars = null, ?array $options = null): mixed
+    { grammar_tripwire('Unexpected grammar process.'); }
+}
+
+namespace Tablo\Tests\CapabilityGrammar {
+    use function Tablo\Tools\grammar_state;
+    use function Tablo\Tools\grammar_tripwire;
+
     // Match the builtin signature and independently latch any autoload request.
     // @mago-expect lint:no-boolean-flag-parameter
     function class_exists(string $class, bool $autoload = true): bool
@@ -79,20 +99,6 @@ namespace Tablo\Tools {
         if (!is_array($output)) { grammar_tripwire('Missing closed output seam.'); }
         $output[] = $data; $state['capability']['output'] = $output; return strlen($data);
     }
-    /** @param-out list<string> $output
-     * @param-out int $result_code */
-    function exec(string $command, ?array &$output = null, ?int &$result_code = null): string|false
-    { grammar_tripwire('Unexpected grammar command.'); }
-    /** @param string|list<string> $command
-     * @param array<int, mixed> $descriptor_spec
-     * @param-out array<int, resource> $pipes
-     * @param null|array<string, string> $env_vars
-     * @param null|array<string, mixed> $options
-     * @return resource|false */
-    // Match the native signature so source analysis of other owners remains accurate.
-    // @mago-expect lint:excessive-parameter-list
-    function proc_open(array|string $command, array $descriptor_spec, mixed &$pipes, ?string $cwd = null, ?array $env_vars = null, ?array $options = null): mixed
-    { grammar_tripwire('Unexpected grammar process.'); }
 }
 
 namespace {
@@ -225,8 +231,8 @@ namespace {
         // Only these inspected public helper bodies enter an isolated namespace;
         // no include, autoload, cell entry or source transformation is executed.
         // @mago-expect lint:no-eval
-        eval('namespace Tablo\\Tools; use Tablo\\RequiredFile; use Tablo\\JsonRecord; use Tablo\\SqlColumn; use Throwable; use RuntimeException; use Closure;' . implode("\n", $selected));
-        grammar_expect(!function_exists('Tablo\\Tools\\server_cell_prepare_client'));
+        eval('namespace Tablo\\Tests\\CapabilityGrammar; use Tablo\\RequiredFile; use Tablo\\JsonRecord; use Tablo\\SqlColumn; use Throwable; use RuntimeException; use Closure; use function Tablo\\Tools\\file_get_contents, Tablo\\Tools\\is_file, Tablo\\Tools\\is_link, Tablo\\Tools\\realpath, Tablo\\Tools\\hash_file, Tablo\\Tools\\exec, Tablo\\Tools\\proc_open;' . implode("\n", $selected));
+        grammar_expect(!function_exists('Tablo\\Tests\\CapabilityGrammar\\server_cell_prepare_client'));
         grammar_prepare_extraction($bytes);
         grammar_prepare_projection(); grammar_prepare_origins(); grammar_prepare_transport(); grammar_capability();
     }
@@ -270,7 +276,7 @@ namespace {
         /** @var Closure(Throwable $error, string $checkpoint, list<string> $roots): array{schema: string, status: string, phase: string, rootCause: string, issueAccepted: bool, stage: string, errorClass: string, source: ?string, line: ?int} $project */
         // The local type annotation describes the runtime-extracted producer.
         // @mago-expect lint:inline-variable-return
-        $project = grammar_prepare_callable('Tablo\\Tools\\server_cell_prepare_failure'); return $project;
+        $project = grammar_prepare_callable('Tablo\\Tests\\CapabilityGrammar\\server_cell_prepare_failure'); return $project;
     }
 
     function grammar_prepare_projection(): void
@@ -301,7 +307,7 @@ namespace {
         $canary = 'PRIVATE canary'; $error = new RuntimeException($canary);
         $file = new ReflectionProperty(Exception::class, 'file'); $line = new ReflectionProperty(Exception::class, 'line'); $line->setValue($error, 123);
         /** @var Closure(): list<string> $sources */
-        $sources = grammar_prepare_callable('Tablo\\Tools\\server_cell_prepare_sources');
+        $sources = grammar_prepare_callable('Tablo\\Tests\\CapabilityGrammar\\server_cell_prepare_sources');
         foreach ($sources() as $source) {
             foreach ([$root, $copy] as $base) {
                 $file->setValue($error, $base . '/' . $source);
@@ -325,7 +331,7 @@ namespace {
     function grammar_prepare_roots(string $root, string $copy): void
     {
         /** @var Closure(string $root, string $path, array $plan): list<string> $roots */
-        $roots = grammar_prepare_callable('Tablo\\Tools\\server_cell_prepare_roots');
+        $roots = grammar_prepare_callable('Tablo\\Tests\\CapabilityGrammar\\server_cell_prepare_roots');
         $nonce = str_repeat('a', times: 32); $plan = ['sourceInput' => $root, 'nonce' => $nonce, 'runtime' => dirname($copy), 'source' => $copy];
         grammar_expect($roots($root, path: '/synthetic/cell/plan.json', plan: $plan) === [$root, $copy]);
         foreach (['source' => $copy . '-lookalike', 'nonce' => '../private', 'sourceInput' => $root . '-lookalike', 'runtime' => '/private'] as $key => $invalid) {
@@ -339,7 +345,7 @@ namespace {
     function grammar_prepare_transport(): void
     {
         /** @var Closure(Throwable $error, array $failure, bool $ready, ?Closure $retain): never $rethrow */
-        $rethrow = grammar_prepare_callable('Tablo\\Tools\\server_cell_prepare_rethrow');
+        $rethrow = grammar_prepare_callable('Tablo\\Tests\\CapabilityGrammar\\server_cell_prepare_rethrow');
         foreach ([false, true] as $ready) {
             foreach ([false, true] as $helpers) {
                 foreach (['accepted', 'rejected', 'broken'] as $mode) {
@@ -383,9 +389,9 @@ namespace {
 
     function grammar_capability(): void
     {
-        $capability = grammar_prepare_callable('Tablo\\Tools\\server_cell_capability');
+        $capability = grammar_prepare_callable('Tablo\\Tests\\CapabilityGrammar\\server_cell_capability');
         /** @var Closure(string): array{category: string, missingExtension: ?string} $marker */
-        $marker = grammar_prepare_callable('Tablo\\Tools\\server_cell_capability_marker');
+        $marker = grammar_prepare_callable('Tablo\\Tests\\CapabilityGrammar\\server_cell_capability_marker');
         $success = grammar_capability_case($capability, []); grammar_expect($success === ['error' => null, 'output' => "PRIVATE_PHP_READY\n"]);
         foreach (['curl','openssl','pdo','pdo_mysql','pdo_sqlite','mbstring','dom','xml','xmlwriter'] as $extension) {
             $case = grammar_capability_case($capability, ['missing' => $extension]); grammar_expect($case['error'] instanceof RuntimeException);
@@ -423,10 +429,10 @@ namespace {
     function grammar_capability_results(): void
     {
         /** @var Closure(array): array{schema: string, reportedExit: int|null|string, stdout: string, stderr: string, category: string, missingExtension: ?string} $observe */
-        $observe = grammar_prepare_callable('Tablo\\Tools\\server_cell_capability_observation');
+        $observe = grammar_prepare_callable('Tablo\\Tests\\CapabilityGrammar\\server_cell_capability_observation');
         /** @var Closure(array): ?array $project */
-        $project = grammar_prepare_callable('Tablo\\Tools\\server_cell_capability_projection');
-        $check = grammar_prepare_callable('Tablo\\Tools\\server_cell_capability_check');
+        $project = grammar_prepare_callable('Tablo\\Tests\\CapabilityGrammar\\server_cell_capability_projection');
+        $check = grammar_prepare_callable('Tablo\\Tests\\CapabilityGrammar\\server_cell_capability_check');
         foreach ([0, 23, null, '0', -2_147_483_648, 2_147_483_647, 2_147_483_648] as $exit) {
             $value = $observe(['exit_code' => $exit, 'stdout' => '', 'stderr' => 'PRIVATE']);
             grammar_expect($value['reportedExit'] === (is_string($exit) || $exit === 2_147_483_648 ? 'UNKNOWN' : $exit));
@@ -455,13 +461,13 @@ namespace {
     /** @param Closure(array): array $observe */
     function grammar_capability_transport(Closure $observe): void
     {
-        $capability = grammar_prepare_callable('Tablo\\Tools\\server_cell_capability');
+        $capability = grammar_prepare_callable('Tablo\\Tests\\CapabilityGrammar\\server_cell_capability');
         $case = grammar_capability_case($capability, ['missing' => 'curl']);
         $observation = $observe(['exit_code' => 1, 'stdout' => $case['output'], 'stderr' => '']);
         /** @var Closure(Throwable $error, string $checkpoint, array $roots, ?array $capability): array $prepare */
-        $prepare = grammar_prepare_callable('Tablo\\Tools\\server_cell_prepare_failure');
+        $prepare = grammar_prepare_callable('Tablo\\Tests\\CapabilityGrammar\\server_cell_prepare_failure');
         /** @var Closure(Throwable $error, array $failure, bool $ready, ?Closure $retain): never $rethrow */
-        $rethrow = grammar_prepare_callable('Tablo\\Tools\\server_cell_prepare_rethrow');
+        $rethrow = grammar_prepare_callable('Tablo\\Tests\\CapabilityGrammar\\server_cell_prepare_rethrow');
         $primary = new RuntimeException('PRIVATE original'); $diagnostic = $prepare($primary, checkpoint: 'EXECUTE', roots: [], capability: $observation);
         $state = &\Tablo\Tools\grammar_state(); $state['helpers'] = true; $state['sendMode'] = 'broken'; $state['requests'] = [];
         $caught = null;

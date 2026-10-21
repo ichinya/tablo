@@ -11497,7 +11497,7 @@
                 "tools/server-native-tests.json",
                 "php -n tools/server-io-uring-php-grammar.test.php"
             ],
-            "fingerprint": "sha256:f9f594ac2b5cfc87be28dfcc20e6bba8007bf51bd33a54224299a89ead39c77b"
+            "fingerprint": "sha256:b10cae47b14191a504234d4fd9ce7cf7dfb1fae9c44a2657ee73ed5c5bbcdf89"
         },
         {
             "path": "tools/server-supervisor-linux-fallback-unit.c",
