@@ -391,7 +391,7 @@ function observerHarness(options = {}) {
     __filename: '/synthetic/owner.cjs',
     setInterval(callback, delay) { assert.equal(delay, 10); step('timer'); const token = {}; timers.add(token); return token; },
     clearInterval(token) { assert(timers.delete(token)); step('timer-clear'); },
-    process: closed({ version: options.version ?? 'v24.13.0', platform: 'linux', arch: 'x64', execPath: '/synthetic/node',
+    process: closed({ version: options.version ?? 'v24.13.0', platform: options.platform ?? 'linux', arch: 'x64', execPath: '/synthetic/node',
       env: { PATH: '/synthetic/tools' },
       hrtime: { bigint: () => expired ? 1801_000_000_000n : 1n }, once(signal) { assert(['SIGINT','SIGTERM'].includes(signal)); listeners.add(signal); },
       removeListener(signal) { assert(listeners.delete(signal)); },
@@ -464,6 +464,22 @@ for (const kind of ['prepare', 'baseline', 'engine']) {
     assert.equal(launch.input.mode, 'none'); assert.deepEqual(h.effects, []);
   });
 }
+for (const platform of ['linux', 'win32']) for (const kind of ['prepare', 'baseline', 'engine']) {
+  test('actual ' + platform + ' ' + kind + ' launch refuses scan-list paths before effects', async () => {
+    const h = observerHarness({ launchOnly: true, platform });
+    for (const runtime of ['', null, '/synthetic/runtime\0', platform === 'linux' ? '/synthetic/a:b/runtime' : 'C:/synthetic/a;b/runtime']) {
+      await assert.rejects(h.api.controllerLaunch({ plan: { runtime }, observer: {}, phase: { kind } }, '/synthetic/plan.json', 'a'.repeat(64)), /PHP_SCAN_PATH/);
+      assert.deepEqual(h.effects, []); assert.deepEqual(h.calls, []);
+    }
+  });
+}
+test('actual Windows launch accepts a drive colon without treating it as a scan separator', async () => {
+  const h = observerHarness({ launchOnly: true, platform: 'win32' });
+  const launch = await h.api.controllerLaunch({ plan: { runtime: 'C:/synthetic/runtime', sourceInput: '/synthetic/input', php: {} },
+    observer: { bootstrapIni: '/synthetic/bootstrap/php.ini', bootstrapIniScanDirectory: '/synthetic/bootstrap/scan' },
+    phase: { kind: 'prepare', root: '/synthetic/phase' } }, '/synthetic/plan.json', 'a'.repeat(64));
+  assert.equal(launch.environment.PHP_INI_SCAN_DIR, '/synthetic/bootstrap/scan'); assert.deepEqual(h.effects, []);
+});
 for (const stage of ['preflight','declaration','pins','linux-pins','root-layout','listener','phase-layout',
   'launch-description','adapter-plan','adapter-run','custody','phase-proof','phase-retention','retention']) {
   test('actual observer first-failure stage: ' + stage, async () => {

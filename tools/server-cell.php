@@ -803,6 +803,7 @@ function server_cell_continue_entry(array $arguments): void
 function server_cell_materialize(array $plan): void
 {
     $runtime = SqlColumn::string($plan, 'runtime'); $nonce = SqlColumn::string($plan, 'nonce');
+    server_cell_ini_scan_directory($runtime); // Refuse list-valued paths before creating any runtime directory.
     if (basename($runtime) !== 'tablo-server-' . $nonce || preg_match('/\A[0-9a-f]{32}\z/D', $nonce) !== 1) { throw new RuntimeException('Fresh cell root refused.'); }
     server_cell_directory($runtime);
     foreach (['private', 'private/tls', 'private/docker-config', 'private/php-ini-scan', 'tmp', 'sessions', 'composer-home', 'composer-cache', 'evidence', 'evidence/closure', 'source'] as $directory) { server_cell_directory($runtime . '/' . $directory); }
@@ -1107,9 +1108,19 @@ function server_cell_capability_check(#[\SensitiveParameter] array $ready, ?arra
     }
 }
 
+/** One literal directory, never PHP's platform-separated scan list. */
+function server_cell_ini_scan_directory(string $runtime): string
+{
+    if ($runtime === '' || str_contains($runtime, "\0") || str_contains($runtime, PHP_OS_FAMILY === 'Windows' ? ';' : ':')) {
+        throw new RuntimeException('Single private PHP scan directory required.');
+    }
+    return $runtime . '/private/php-ini-scan';
+}
+
 /** @return array<string, string> */
 function server_cell_start_environment(array $plan): array
 {
+    $runtime = SqlColumn::string($plan, 'runtime'); $scan = server_cell_ini_scan_directory($runtime);
     $environment = [];
     foreach (['SystemRoot', 'SYSTEMROOT', 'WINDIR', 'PATH', 'Path', 'PATHEXT', 'COMSPEC', 'USERPROFILE', 'LOCALAPPDATA', 'APPDATA',
         'TABLO_SERVER_OBSERVER_FILE', 'TABLO_SERVER_OBSERVER_SHA256', 'TABLO_TEST_BASELINE_DIRECTORY',
@@ -1119,11 +1130,11 @@ function server_cell_start_environment(array $plan): array
         'TABLO_TEST_BASELINE_PHASE_FILE', 'TABLO_TEST_BASELINE_PHASE_SHA256'] as $name) {
         $value = getenv($name); if (is_string($value)) { $environment[$name] = $value; }
     }
-    $runtime = SqlColumn::string($plan, 'runtime'); $composer = JsonRecord::checked($plan['composer'] ?? null); $lekalo = JsonRecord::checked($plan['lekalo'] ?? null);
+    $composer = JsonRecord::checked($plan['composer'] ?? null); $lekalo = JsonRecord::checked($plan['lekalo'] ?? null);
     return $environment + ['TABLO_DB_DRIVER' => 'sqlite', 'TABLO_DB' => ':memory:', 'TABLO_TOKEN_KEY_FILE' => '',
         'TABLO_TEST_SOURCE_ROOT' => SqlColumn::string($plan, 'source'), 'TABLO_TEST_RUN_NONCE' => SqlColumn::string($plan, 'nonce'),
         // proc_open drops empty environment values; a nonempty owned directory survives nested PHP launches.
-        'TABLO_TEST_DB_DRIVER' => SqlColumn::string($plan, 'selectedEngine'), 'PHPRC' => SqlColumn::string($plan, 'ini'), 'PHP_INI_SCAN_DIR' => $runtime . '/private/php-ini-scan',
+        'TABLO_TEST_DB_DRIVER' => SqlColumn::string($plan, 'selectedEngine'), 'PHPRC' => SqlColumn::string($plan, 'ini'), 'PHP_INI_SCAN_DIR' => $scan,
         'TMPDIR' => $runtime . '/tmp', 'TMP' => $runtime . '/tmp', 'TEMP' => $runtime . '/tmp',
         'TABLO_SESSION_EVIDENCE_DIRECTORY' => $runtime . '/evidence/closure',
         'COMPOSER_HOME' => $runtime . '/composer-home', 'COMPOSER_CACHE_DIR' => $runtime . '/composer-cache',
@@ -1773,10 +1784,25 @@ function server_cell_publication_fields(array $record): array
 function server_cell_require_publication(array $record, int $port): array
 {
     $fields = server_cell_publication_fields($record);
-    if (!server_cell_loopback_mapping($fields['requested'], $port) || !server_cell_loopback_mapping($fields['actual'], $port)) {
+    if (!server_cell_loopback_mapping($fields['requested'], $port) || !server_cell_actual_loopback_mapping($fields['actual'], $port)) {
         throw new RuntimeException('Exact loopback port publication not observed.');
     }
     return $fields;
+}
+
+/** Unpublished EXPOSE metadata is distinct from an additional host publication. */
+function server_cell_actual_loopback_mapping(mixed $ports, int $port): bool
+{
+    if (!is_array($ports) || count($ports) > 128 || !array_key_exists('3306/tcp', $ports)) { return false; }
+    foreach (array_keys($ports) as $name) {
+        if ($name === '3306/tcp') { continue; }
+        $parts = [];
+        if ($ports[$name] !== null || !is_string($name)
+            || preg_match('/\A([1-9][0-9]{0,4})(?:-([1-9][0-9]{0,4}))?\/(?:tcp|udp)\z/D', $name, $parts) !== 1) { return false; }
+        $first = (int) ($parts[1] ?? 0); $last = (int) ($parts[2] ?? $first);
+        if ($first > 65_535 || $last < $first || $last > 65_535) { return false; }
+    }
+    return server_cell_loopback_mapping(['3306/tcp' => $ports['3306/tcp']], $port);
 }
 
 function server_cell_loopback_mapping(mixed $ports, int $port): bool

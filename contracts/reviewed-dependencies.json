@@ -7919,7 +7919,7 @@
                 "Composer verify:server",
                 "Tablo\\Tests\\Support\\EngineFixture inherited-key refusal"
             ],
-            "fingerprint": "sha256:50d5035907be8498ad296cd500b52f8a79b255613197a0df7f84f00f5bf38a3a"
+            "fingerprint": "sha256:1bd46330df5c89720df0c41d954361d45b2b8c05cdcc20540465e9dc6f6db9c3"
         },
         {
             "path": "tests/Server/EngineFlowTest.php",
@@ -11199,7 +11199,7 @@
                 "tests/Server/EngineVerificationTest.php",
                 "tools/server-io-uring-php-grammar.test.php"
             ],
-            "fingerprint": "sha256:2f4af6c7c88c694b96943c70f45689baf34f5e693d87199f1006d8cd4fa38527"
+            "fingerprint": "sha256:4a03ca55eb7894c9f3bb8f8208290c3ccaf493e0f9230d26f9366e4da4990c6b"
         },
         {
             "path": "tests/ServerCross/EngineServerCrashTest.php",
@@ -11236,7 +11236,7 @@
                 "tools/server-native-denial.test.cjs",
                 "tools/server-io-uring-fallback.test.cjs"
             ],
-            "fingerprint": "sha256:d6b5cadbdfd9005090adce8f1d6417078c0ee8f1334a7f2f2499739df52387df"
+            "fingerprint": "sha256:ceca4420dfc3b3dd62df186a0606c26f11aea75de861e92b07f0ef3dfb9d0a36"
         },
         {
             "path": "tools/server-supervisor-windows.ps1",
@@ -11487,7 +11487,7 @@
                 "tools/server-native-tests.json",
                 "node --test tools/server-io-uring-fallback.test.cjs"
             ],
-            "fingerprint": "sha256:0260a1cfe42d4ee1a0e3aaef8c4db7f9f773c7a0f00566e1d7f21dc648758988"
+            "fingerprint": "sha256:a05384d4832b60de952ba74bc4fdeab54b6290b6bc1e768fe2ee9992042f1427"
         },
         {
             "path": "tools/server-io-uring-php-grammar.test.php",
@@ -11497,7 +11497,7 @@
                 "tools/server-native-tests.json",
                 "php -n tools/server-io-uring-php-grammar.test.php"
             ],
-            "fingerprint": "sha256:86a373c14c606c95d6331532f3d3c5289f8778dbf99c51a11705ee4c5a00001d"
+            "fingerprint": "sha256:875055b3745bef5d8d17a99a58a180504ea1dbeb2088ed32d9dacd946de387e4"
         },
         {
             "path": "tools/server-supervisor-linux-fallback-unit.c",

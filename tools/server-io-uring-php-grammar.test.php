@@ -175,6 +175,7 @@ namespace Tablo\Tests\PrivateIniGrammar {
 }
 
 namespace Tablo\Tests\ScanEnvironmentGrammar {
+    const PHP_OS_FAMILY = 'Linux';
     // Only synthetic absence is available; the extracted helper cannot read the host environment.
     function getenv(string $name): false { return false; }
     /** @return list<string> */
@@ -334,7 +335,7 @@ namespace {
 
     function grammar_scan_environment(string $cell): void
     {
-        $body = grammar_ini_functions($cell, ['server_cell_start_environment', 'server_cell_materialize']);
+        $body = grammar_ini_functions($cell, ['server_cell_ini_scan_directory', 'server_cell_start_environment', 'server_cell_materialize']);
         // Only the uniquely extracted producer is evaluated, with a closed getenv seam.
         // @mago-expect lint:no-eval
         eval('namespace Tablo\\Tests\\ScanEnvironmentGrammar; use Tablo\\JsonRecord, Tablo\\SqlColumn, Tablo\\RequiredFile; use RuntimeException;' . implode("\n", $body));
@@ -356,6 +357,27 @@ namespace {
         grammar_expect(\Tablo\Tests\ScanEnvironmentGrammar\directories() === [$runtime, ...array_map(static fn (string $name): string => $runtime . '/' . $name,
             ['private', 'private/tls', 'private/docker-config', 'private/php-ini-scan', 'tmp', 'sessions', 'composer-home', 'composer-cache', 'evidence', 'evidence/closure', 'source'])]);
         grammar_expect(\Tablo\Tools\grammar_state()['effects'] === []);
+        grammar_scan_paths($cell, $start, $materialize);
+    }
+
+    function grammar_scan_paths(string $cell, Closure $start, Closure $materialize): void
+    {
+        $body = grammar_ini_functions($cell, ['server_cell_ini_scan_directory']);
+        // The exact pure helper is checked with a fixed Windows platform, without any filesystem seam.
+        // @mago-expect lint:no-eval
+        eval('namespace Tablo\\Tests\\ScanWindowsGrammar; const PHP_OS_FAMILY = "Windows"; use RuntimeException;' . implode("\n", $body));
+        /** @var Closure(string): string $windows */
+        $windows = grammar_prepare_callable('Tablo\\Tests\\ScanWindowsGrammar\\server_cell_ini_scan_directory');
+        grammar_expect($windows('C:/synthetic/runtime') === 'C:/synthetic/runtime/private/php-ini-scan');
+        foreach (['', 'C:/synthetic/a;b/runtime', ";C:/synthetic/runtime", "C:/synthetic/runtime\0"] as $runtime) {
+            grammar_refused(static fn () => $windows($runtime));
+        }
+        $before = \Tablo\Tests\ScanEnvironmentGrammar\directories();
+        foreach (['', '/synthetic/a:b/runtime', ':/synthetic/runtime', "/synthetic/runtime\0"] as $runtime) {
+            grammar_refused(static fn () => $start(['runtime' => $runtime]));
+            grammar_refused(static fn () => $materialize(['runtime' => $runtime, 'nonce' => str_repeat('a', times: 32)]));
+            grammar_expect(\Tablo\Tests\ScanEnvironmentGrammar\directories() === $before);
+        }
     }
 
     /** @param list<string> $names

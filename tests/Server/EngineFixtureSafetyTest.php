@@ -511,6 +511,7 @@ function engine_fixture_loopback_publication(): void
     $reordered = ['HostPort' => '46394', 'HostIp' => '127.0.0.1'];
     $reorderedRecord = ['NetworkSettings' => ['Ports' => ['3306/tcp' => [$reordered]]], 'HostConfig' => ['PortBindings' => ['3306/tcp' => [$reordered]]]];
     Assert::same(\server_cell_require_publication($reorderedRecord, port: 46_394), \server_cell_publication_fields($reorderedRecord));
+    engine_fixture_unpublished_ports($record);
     foreach (['HostConfig' => 'PortBindings', 'NetworkSettings' => 'Ports'] as $section => $field) {
         foreach (engine_fixture_invalid_port_mappings($binding) as $mapping) {
             $invalid = $record; $invalid[$section] = [$field => $mapping]; engine_fixture_publication_refused($invalid);
@@ -523,11 +524,39 @@ function engine_fixture_loopback_publication(): void
     engine_fixture_publication_refused($record, port: 0); engine_fixture_publication_refused($record, port: 65_536);
 }
 
+/** Only null additional actual entries are metadata; requested entries stay exact.
+ * @param array{HostConfig: array{PortBindings: array}, NetworkSettings: array{Ports: array}} $record */
+function engine_fixture_unpublished_ports(array $record): void
+{
+    foreach ([['33060/tcp' => null], ['33060-33061/tcp' => null], ['1/udp' => null, '65535/tcp' => null, '33061/tcp' => null]] as $extra) {
+        $actual = $record; $actual['NetworkSettings']['Ports'] += $extra;
+        Assert::same(\server_cell_require_publication($actual, port: 46_394), \server_cell_publication_fields($actual));
+        $actual['NetworkSettings']['Ports'] = array_reverse($actual['NetworkSettings']['Ports'], preserve_keys: true);
+        Assert::same(\server_cell_require_publication($actual, port: 46_394), \server_cell_publication_fields($actual));
+        $requested = $record; $requested['HostConfig']['PortBindings'] += $extra;
+        engine_fixture_publication_refused($requested);
+    }
+    foreach (['', 'other/tcp', '0/tcp', '65536/tcp', '033060/tcp', '33060/sctp', '33060', '33061-33060/tcp', '33060-65536/tcp',
+        '33060-033061/tcp', "33060/tcp\n", '33060/tcp/private', 0] as $name) {
+        $actual = $record; $actual['NetworkSettings']['Ports'][$name] = null; engine_fixture_publication_refused($actual);
+    }
+    foreach ([false, '', [], [null], [['HostIp' => '127.0.0.1', 'HostPort' => '46394']], [['HostIp' => '0.0.0.0', 'HostPort' => '46394']]] as $value) {
+        $actual = $record; $actual['NetworkSettings']['Ports']['33060/tcp'] = $value; engine_fixture_publication_refused($actual);
+    }
+    $actual = $record;
+    for ($index = 1; $index <= 127; $index++) { $actual['NetworkSettings']['Ports'][$index . '/udp'] = null; }
+    Assert::same(\server_cell_require_publication($actual, port: 46_394), \server_cell_publication_fields($actual));
+    $actual = $record;
+    for ($index = 1; $index <= 128; $index++) { $actual['NetworkSettings']['Ports'][$index . '/udp'] = null; }
+    engine_fixture_publication_refused($actual);
+}
+
 /** @return list<array|false|null|string> */
 function engine_fixture_invalid_port_mappings(array $binding): array
 {
     return [null, false, 'malformed', [], ['other/tcp' => [$binding]], ['3306/tcp' => null], ['3306/tcp' => []], ['3306/tcp' => [null]],
         ['3306/tcp' => [$binding, $binding]], ['3306/tcp' => [array_replace($binding, ['HostIp' => '0.0.0.0'])]],
+        ['3306/tcp' => [array_replace($binding, ['HostIp' => '::1'])]], ['3306/tcp' => [$binding, array_replace($binding, ['HostIp' => '::1'])]],
         ['3306/tcp' => [array_replace($binding, ['HostPort' => '46393'])]], ['3306/tcp' => [array_replace($binding, ['HostPort' => 46_394])]],
         ['3306/tcp' => [$binding + ['extra' => 'refused']]], ['3306/tcp' => [$binding], '3307/tcp' => [$binding]],
         ['3306/tcp' => ['named-row' => $binding]]];

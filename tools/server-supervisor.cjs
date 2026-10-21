@@ -349,6 +349,7 @@ async function controllerLaunch(owner, file, hash) {
       environment: { ...environment(process.env), ...plan.launch.environment, TABLO_SERVER_OBSERVER_FILE: phase.root + '/private/controller.json', TABLO_SERVER_OBSERVER_SHA256: '' },
       stdout: phase.controllerStdout, stderr: phase.controllerStderr, input: plan.launch.input };
   }
+  if (typeof runtime !== 'string' || runtime === '' || runtime.includes('\0') || runtime.includes(process.platform === 'win32' ? ';' : ':')) fail('PHP_SCAN_PATH');
   let argv = ['-c', observer.bootstrapIni, normalize(path.join(plan.sourceInput, 'tools/server-cell.php')), '--execute=' + normalize(path.resolve(file)), '--sha256=' + hash];
   const cwd = phase.root + '/cwd'; let env = { ...environment(process.env), PHP_INI_SCAN_DIR: observer.bootstrapIniScanDirectory };
   if (phase.kind !== 'prepare') {
