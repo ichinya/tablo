@@ -11199,7 +11199,7 @@
                 "tests/Server/EngineVerificationTest.php",
                 "tools/server-io-uring-php-grammar.test.php"
             ],
-            "fingerprint": "sha256:ac9816152b1a89e14b461f522a8a3425b2ba2a4735fcd2e51ee8196f55a6cc19"
+            "fingerprint": "sha256:172b3fa6a773f314d719070a0f28ee1a08e7618cfe7d8fd2dc3a462db4c8c686"
         },
         {
             "path": "tests/ServerCross/EngineServerCrashTest.php",
@@ -11497,7 +11497,7 @@
                 "tools/server-native-tests.json",
                 "php -n tools/server-io-uring-php-grammar.test.php"
             ],
-            "fingerprint": "sha256:f323089fad5b62e7d4df7f8c544556b994505ba4c7ebaa9e60f0ca0e8e3a3e4f"
+            "fingerprint": "sha256:4f2c7d9a3525f0afbfa63627e1270096e6b925a1fe38c5900695eae84a5f7fd9"
         },
         {
             "path": "tools/server-supervisor-linux-fallback-unit.c",

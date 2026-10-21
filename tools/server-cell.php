@@ -11,6 +11,8 @@ use Tablo\Tests\Support\EngineFixture;
 use Tablo\Tests\Support\Subprocess;
 use Tablo\Tests\Support\SubprocessReceipt;
 use Tablo\Tests\Support\TemporaryDirectory;
+use function Tablo\Tools\server_fixture_plan_php_module_pins;
+use function Tablo\Tools\server_fixture_plan_linux_regular;
 
 /** A cell never adopts an existing service by its name: the frozen plan includes its saved creation ID.
  * @param array<string, string> $environment
@@ -837,10 +839,41 @@ function server_cell_copy_inventory(string $source, string $target, array $files
     }
 }
 
-/** Only this process's actually loaded native extensions are considered; a child must attest the new ini. */
+/** Linux uses only the frozen ordinary-module selection; a child must attest the new ini. */
 function server_cell_private_ini(array $plan): void
 {
-    $runtime = SqlColumn::string($plan, 'runtime'); $extensionDirectory = ini_get('extension_dir');
+    $runtime = SqlColumn::string($plan, 'runtime');
+    $ini = PHP_OS_FAMILY === 'Linux' ? server_cell_private_ini_linux($plan) : server_cell_private_ini_legacy();
+    $ini .= "display_errors=stderr\nlog_errors=0\nzend.exception_ignore_args=1\nerror_reporting=E_ALL\nmemory_limit=256M\nopcache.enable_cli=0\n";
+    foreach (['sys_temp_dir' => $runtime . '/tmp', 'session.save_path' => $runtime . '/sessions', 'openssl.cafile' => SqlColumn::string($plan, 'ca')] as $key => $value) {
+        if (str_contains($value, '"') || str_contains($value, "\n")) { throw new RuntimeException('Private ini value refused.'); }
+        $ini .= $key . '="' . $value . '"' . "\n";
+    }
+    server_cell_private_write(SqlColumn::string($plan, 'ini'), $ini);
+}
+
+/** Recheck only selected ordinary module pins; never discover filenames or loader kinds. */
+function server_cell_private_ini_linux(array $plan): string
+{
+    $observer = JsonRecord::checked($plan['observer'] ?? null);
+    $pins = server_fixture_plan_php_module_pins($observer['bootstrapExtensionFiles'] ?? null);
+    // Validate the entire list before inspecting even its first selected path.
+    foreach ($pins as $pin) {
+        if (preg_match('#\A/[a-zA-Z0-9_./+-]+\z#D', $pin['path']) !== 1) { throw new RuntimeException('Literal ordinary PHP module path required.'); }
+    }
+    $ini = '';
+    foreach ($pins as $pin) {
+        server_fixture_plan_linux_regular($pin['path']);
+        if (!hash_equals($pin['sha256'], RequiredFile::digest($pin['path']))) { throw new RuntimeException('Selected PHP extension file changed.'); }
+        $ini .= 'extension="' . $pin['path'] . '"' . "\n";
+    }
+    return $ini;
+}
+
+/** Preserve the existing non-Linux registry behavior and OPcache exception. */
+function server_cell_private_ini_legacy(): string
+{
+    $extensionDirectory = ini_get('extension_dir');
     if (!is_string($extensionDirectory) || !is_dir($extensionDirectory)) { throw new RuntimeException('Actual PHP extension directory unavailable.'); }
     $ini = 'extension_dir="' . $extensionDirectory . '"' . "\n";
     foreach (get_loaded_extensions() as $extension) {
@@ -848,12 +881,7 @@ function server_cell_private_ini(array $plan): void
         if ($name === 'zend opcache' || !is_file($file)) { continue; }
         $ini .= 'extension="' . $file . '"' . "\n";
     }
-    $ini .= "display_errors=stderr\nlog_errors=0\nzend.exception_ignore_args=1\nerror_reporting=E_ALL\nmemory_limit=256M\nopcache.enable_cli=0\n";
-    foreach (['sys_temp_dir' => $runtime . '/tmp', 'session.save_path' => $runtime . '/sessions', 'openssl.cafile' => SqlColumn::string($plan, 'ca')] as $key => $value) {
-        if (str_contains($value, '"') || str_contains($value, "\n")) { throw new RuntimeException('Private ini value refused.'); }
-        $ini .= $key . '="' . $value . '"' . "\n";
-    }
-    server_cell_private_write(SqlColumn::string($plan, 'ini'), $ini);
+    return $ini;
 }
 
 function server_cell_capability(): void

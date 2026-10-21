@@ -112,6 +112,56 @@ namespace Tablo\Tests\CapabilityGrammar {
     }
 }
 
+namespace Tablo\Tests\PrivateIniGrammar {
+    /** @return array{platform: string, files: array<string, array{digest: string, regular: bool, canonical: string|false}>, links: array<string, bool>, inspected: list<string>, writes: list<array{path: string, bytes: string}>} */
+    function &state(): array
+    {
+        static $value = ['platform' => 'Linux', 'files' => [], 'links' => [], 'inspected' => [], 'writes' => []]; return $value;
+    }
+    /** @return array{digest: string, regular: bool, canonical: string|false} */
+    function selected(string $path): array
+    {
+        $state = &state();
+        if (!array_key_exists($path, $state['files'])) { \Tablo\Tools\grammar_tripwire('Foreign private INI file inspection.'); }
+        $state['inspected'][] = $path; return $state['files'][$path];
+    }
+    // Closed digest stand-in for the exact extracted producer; no physical file access.
+    // @mago-expect lint:file-name
+    final class RequiredFile {
+        public static function digest(string $path): string { return selected($path)['digest']; }
+    }
+    function is_file(string $path): bool { return selected($path)['regular']; }
+    function realpath(string $path): string|false { return selected($path)['canonical']; }
+    function is_link(string $path): bool
+    {
+        $state = &state();
+        if (!array_key_exists($path, $state['links'])) { \Tablo\Tools\grammar_tripwire('Foreign private INI ancestor inspection.'); }
+        $state['inspected'][] = $path; return $state['links'][$path];
+    }
+    function ini_get(string $option): string|false
+    {
+        if (state()['platform'] !== 'Windows' || $option !== 'extension_dir') { \Tablo\Tools\grammar_tripwire('Ambient Linux INI query.'); }
+        return 'C:/synthetic/extensions';
+    }
+    function getenv(string $name): string|false { \Tablo\Tools\grammar_tripwire('Private INI environment discovery.'); }
+    function is_dir(string $path): bool
+    {
+        if (state()['platform'] !== 'Windows' || $path !== 'C:/synthetic/extensions') { \Tablo\Tools\grammar_tripwire('Guessed Linux extension directory.'); }
+        return true;
+    }
+    /** @return list<string> */
+    function get_loaded_extensions(): array
+    {
+        if (state()['platform'] !== 'Windows') { \Tablo\Tools\grammar_tripwire('Ambient Linux extension registry.'); }
+        return ['JSON', 'Zend OPcache', 'PDO_MYSQL', 'MISSING'];
+    }
+    function server_cell_private_write(string $path, string $bytes): void
+    {
+        if ($path !== '/synthetic/private/php.ini') { \Tablo\Tools\grammar_tripwire('Foreign private INI write.'); }
+        $state = &state(); $state['writes'][] = ['path' => $path, 'bytes' => $bytes];
+    }
+}
+
 namespace {
     require __DIR__ . '/../app/JsonRecord.php';
     require __DIR__ . '/../app/SqlColumn.php';
@@ -227,12 +277,127 @@ namespace {
     }
     $changed = $qualified; $changed['runtimes'] = array_reverse($runtimes, preserve_keys: true);
     grammar_refused(static fn () => $run($build, $changed));
-    grammar_prepare_failures();
+    grammar_prepare_failures(); grammar_private_ini();
     // The only reads above were the two explicit in-memory receipt strings;
     // none of their reference paths can be opened by this isolated harness.
     echo 'IO_URING_PHP_GRAMMAR_OK ' . \Tablo\Tools\grammar_state()['checks'] . "\n";
 
     /** Extract only the actual pure producer helpers, never cell main or its dependencies. */
+    function grammar_private_ini(): void
+    {
+        $cell = file_get_contents(__DIR__ . '/server-cell.php', length: 262_145);
+        $plan = file_get_contents(__DIR__ . '/ServerFixturePlan.php', length: 262_145);
+        if (!is_string($cell) || !is_string($plan)) { throw new RuntimeException('Required public INI sources absent.'); }
+        $bodies = array_merge(grammar_ini_functions($cell, ['server_cell_private_ini', 'server_cell_private_ini_linux', 'server_cell_private_ini_legacy']),
+            grammar_ini_functions($plan, ['server_fixture_plan_php_module_pins', 'server_fixture_plan_linux_reference', 'server_fixture_plan_linux_path', 'server_fixture_plan_linux_regular']));
+        foreach (['Linux', 'Windows'] as $platform) {
+            // Exact bodies and fixed platform only; every physical operation is a closed seam.
+            // @mago-expect lint:no-eval
+            eval('namespace Tablo\\Tests\\Ini' . $platform . '; const PHP_OS_FAMILY = "' . $platform . '"; use Tablo\\JsonRecord; use Tablo\\SqlColumn; use Tablo\\Tests\\PrivateIniGrammar\\RequiredFile; use RuntimeException; use function Tablo\\Tests\\PrivateIniGrammar\\is_file, Tablo\\Tests\\PrivateIniGrammar\\is_link, Tablo\\Tests\\PrivateIniGrammar\\realpath, Tablo\\Tests\\PrivateIniGrammar\\ini_get, Tablo\\Tests\\PrivateIniGrammar\\is_dir, Tablo\\Tests\\PrivateIniGrammar\\get_loaded_extensions, Tablo\\Tests\\PrivateIniGrammar\\getenv, Tablo\\Tests\\PrivateIniGrammar\\server_cell_private_write; use function Tablo\\Tools\\file_get_contents, Tablo\\Tools\\hash_file, Tablo\\Tools\\exec, Tablo\\Tools\\proc_open;' . implode("\n", $bodies));
+        }
+        $run = grammar_prepare_callable('Tablo\\Tests\\IniLinux\\server_cell_private_ini');
+        $pins = [['path' => '/opt/frozen/tokenizer-build42.bin', 'sha256' => str_repeat('a', times: 64)],
+            ['path' => '/opt/frozen/dependencies/fileinfo-helper.so', 'sha256' => str_repeat('b', times: 64)]];
+        foreach ([$pins, array_reverse($pins), []] as $ordered) {
+            grammar_ini_setup($ordered); $run(grammar_ini_plan($ordered));
+            $expected = ''; foreach ($ordered as $pin) { $expected .= 'extension="' . $pin['path'] . '"' . "\n"; }
+            grammar_expect(grammar_ini_bytes() === $expected . grammar_ini_settings());
+            grammar_expect(\Tablo\Tools\grammar_state()['effects'] === []);
+        }
+        $maximum = array_map(static fn (int $index): array => ['path' => '/opt/frozen/p' . $index, 'sha256' => str_repeat('a', times: 64)], range(0, end: 127));
+        grammar_ini_setup($maximum); $run(grammar_ini_plan($maximum));
+        grammar_expect(substr_count(grammar_ini_bytes(), needle: 'extension="') === 128); grammar_expect(\Tablo\Tools\grammar_state()['effects'] === []);
+        grammar_ini_invalid($run, $pins); grammar_ini_physical($run, $pins); grammar_ini_windows();
+    }
+
+    /** @param list<string> $names
+     * @return list<string> */
+    function grammar_ini_functions(string $source, array $names): array
+    {
+        if (strlen($source) > 262_144) { throw new RuntimeException('Public INI source bound exceeded.'); }
+        $bodies = [];
+        foreach ($names as $name) {
+            $marker = "\nfunction " . $name . '('; $at = strpos($source, $marker);
+            if ($at === false || strpos($source, $marker, offset: $at + strlen($marker)) !== false) { throw new RuntimeException('Unique INI helper required.'); }
+            $close = strpos($source, needle: "\n}", offset: $at + 1);
+            if ($close === false) { throw new RuntimeException('Exact INI helper boundary absent.'); }
+            $bodies[] = substr($source, offset: $at + 1, length: $close + 1 - $at);
+        }
+        return $bodies;
+    }
+
+    /** @param list<array{path: string, sha256: string}> $pins */
+    function grammar_ini_setup(array $pins): void
+    {
+        $state = &\Tablo\Tests\PrivateIniGrammar\state(); $state = ['platform' => 'Linux', 'files' => [], 'links' => [], 'inspected' => [], 'writes' => []];
+        foreach ($pins as $pin) {
+            $state['files'][$pin['path']] = ['digest' => $pin['sha256'], 'regular' => true, 'canonical' => $pin['path']];
+            $cursor = ''; foreach (explode('/', ltrim($pin['path'], characters: '/')) as $part) { $cursor .= '/' . $part; $state['links'][$cursor] = false; }
+        }
+    }
+
+    function grammar_ini_plan(mixed $pins): array
+    { return ['runtime' => '/synthetic/runtime', 'ini' => '/synthetic/private/php.ini', 'ca' => '/synthetic/ca.pem', 'observer' => ['bootstrapExtensionFiles' => $pins]]; }
+    function grammar_ini_settings(): string
+    { return "display_errors=stderr\nlog_errors=0\nzend.exception_ignore_args=1\nerror_reporting=E_ALL\nmemory_limit=256M\nopcache.enable_cli=0\nsys_temp_dir=\"/synthetic/runtime/tmp\"\nsession.save_path=\"/synthetic/runtime/sessions\"\nopenssl.cafile=\"/synthetic/ca.pem\"\n"; }
+    function grammar_ini_bytes(): string
+    {
+        $writes = \Tablo\Tests\PrivateIniGrammar\state()['writes']; grammar_expect(count($writes) === 1);
+        if (count($writes) !== 1) { throw new RuntimeException('Exactly one closed INI write required.'); }
+        return $writes[0]['bytes'];
+    }
+
+    /** @param array{0: array{path: string, sha256: string}, 1: array{path: string, sha256: string}} $pins */
+    function grammar_ini_invalid(Closure $run, array $pins): void
+    {
+        $bad = [null, ['foreign' => $pins[0]], [$pins[0], $pins[0]], [array_replace($pins[0], ['extra' => true])],
+            [array_replace($pins[0], ['sha256' => 'PRIVATE'])], array_map(static fn (int $index): array => ['path' => '/foreign/p' . $index, 'sha256' => str_repeat('a', times: 64)], range(0, end: 128))];
+        $hostile = new class implements JsonSerializable { public function jsonSerialize(): mixed { \Tablo\Tools\grammar_tripwire('Arbitrary INI pin conversion.'); } };
+        $bad[] = [array_replace($pins[0], ['sha256' => $hostile])];
+        foreach (['/foreign/../x.so', '/foreign/x".so', "/foreign/x\n.so", '/foreign/path space.so', '/foreign/semicolon;.so', '/foreign/ユ.so', 'relative.so'] as $path) {
+            $bad[] = [$pins[0], ['path' => $path, 'sha256' => str_repeat('a', times: 64)]];
+        }
+        foreach ($bad as $selection) {
+            grammar_ini_setup($pins); grammar_ini_refused($run, grammar_ini_plan($selection));
+            grammar_expect(\Tablo\Tests\PrivateIniGrammar\state()['inspected'] === []);
+        }
+        foreach (['missing', 'empty'] as $change) {
+            grammar_ini_setup($pins); $plan = grammar_ini_plan($pins); $plan['observer'] = [];
+            if ($change === 'missing') { unset($plan['observer']); }
+            grammar_ini_refused($run, $plan); grammar_expect(\Tablo\Tests\PrivateIniGrammar\state()['inspected'] === []);
+        }
+    }
+
+    function grammar_ini_refused(Closure $run, array $plan): void
+    {
+        grammar_refused(static fn () => $run($plan));
+        grammar_expect(\Tablo\Tests\PrivateIniGrammar\state()['writes'] === []); grammar_expect(\Tablo\Tools\grammar_state()['effects'] === []);
+    }
+
+    /** @param array{0: array{path: string, sha256: string}, 1: array{path: string, sha256: string}} $pins */
+    function grammar_ini_physical(Closure $run, array $pins): void
+    {
+        foreach (['digest', 'regular', 'canonical', 'linked'] as $fault) {
+            grammar_ini_setup($pins); $state = &\Tablo\Tests\PrivateIniGrammar\state(); $path = $pins[1]['path'];
+            if ($fault === 'digest') { $state['files'][$path]['digest'] = str_repeat('c', times: 64); }
+            if ($fault === 'regular') { $state['files'][$path]['regular'] = false; }
+            if ($fault === 'canonical') { $state['files'][$path]['canonical'] = '/foreign/canonical'; }
+            if ($fault === 'linked') { $state['links']['/opt/frozen'] = true; }
+            grammar_ini_refused($run, grammar_ini_plan($pins)); grammar_expect($state['inspected'] !== []);
+        }
+    }
+
+    function grammar_ini_windows(): void
+    {
+        grammar_ini_setup([]); $state = &\Tablo\Tests\PrivateIniGrammar\state(); $state['platform'] = 'Windows';
+        foreach (['json' => true, 'pdo_mysql' => true, 'missing' => false] as $name => $regular) {
+            $path = 'C:/synthetic/extensions/php_' . $name . '.dll'; $state['files'][$path] = ['digest' => '', 'regular' => $regular, 'canonical' => $path];
+        }
+        $run = grammar_prepare_callable('Tablo\\Tests\\IniWindows\\server_cell_private_ini'); $plan = grammar_ini_plan(null); unset($plan['observer']); $run($plan);
+        grammar_expect(grammar_ini_bytes() === "extension_dir=\"C:/synthetic/extensions\"\nextension=\"C:/synthetic/extensions/php_json.dll\"\nextension=\"C:/synthetic/extensions/php_pdo_mysql.dll\"\n" . grammar_ini_settings());
+        grammar_expect(\Tablo\Tools\grammar_state()['effects'] === []);
+    }
+
     function grammar_prepare_failures(): void
     {
         $bytes = file_get_contents(__DIR__ . '/server-cell.php', length: 262_145);
