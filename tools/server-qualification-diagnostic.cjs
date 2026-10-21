@@ -25,13 +25,30 @@ function projectDenials(value, deniedCount) {
   } catch { return UNKNOWN; }
 }
 
+function eventPresence(events) {
+  const present = name => !events || typeof events !== 'object' || Array.isArray(events) || !Object.hasOwn(events,name) ? UNKNOWN
+    : events[name] === null ? false : events[name] && typeof events[name] === 'object' && !Array.isArray(events[name]) ? true : UNKNOWN;
+  return Object.freeze(Object.fromEntries(['ready','started','input','exited','closed'].map(name=>[name,present(name)])));
+}
+function cancelOwner(owner, reason) {
+  if (owner.cancelReason) return;
+  owner.cancelReason = reason;
+  try { owner.eventsAtCancellation = eventPresence(owner.adapterState); } catch { /* Cancellation remains authoritative. */ }
+  owner.send?.('cancel', {reason});
+}
+function cancellationPresence(value) {
+  const keys=['ready','started','input','exited','closed'];
+  return value && typeof value === 'object' && !Array.isArray(value) && Object.keys(value).join(',') === keys.join(',')
+    && keys.every(key=>[true,false,UNKNOWN].includes(value[key])) ? Object.freeze(Object.fromEntries(keys.map(key=>[key,value[key]]))) : eventPresence();
+}
+
 function projectFailure(input) {
   const owner = input?.owner, events = owner?.adapterState;
   const invocation = input?.nativeStatus;
   const close = owner?.adapterClose ?? (input?.stage === 'INPUT_BOUNDARY' ? invocation : undefined);
   const root = events?.exited, closed = events?.closed, admission = closed?.admission;
   return {
-    schema: 'tablo/linux-safe-qualification-failure/v2', status: 'failed', qualified: false, rootCause: UNKNOWN,
+    schema: 'tablo/linux-safe-qualification-failure/v3', status: 'failed', qualified: false, rootCause: UNKNOWN,
     stage: enumeration(input?.stage, STAGES), subject: enumeration(input?.subject, SUBJECTS),
     index: number(input?.index, 0, 31), checkId: enumeration(input?.check, CHECK_IDS), completed: number(input?.completed, 0, 38),
     adapter: { exitCode: nullable(close?.code, value => number(value, -1, 255)),
@@ -46,6 +63,7 @@ function projectFailure(input) {
       signal: nullable(root?.posixSignal, value => number(value, 1, 64)), exitObserved: boolean(root?.rootExitObserved),
       terminationRequested: boolean(root?.terminationRequested) },
     cancellation: nullable(owner?.cancelReason, value => enumeration(value, ['deadline', 'protocol'])),
+    eventsAtFailure: eventPresence(events), eventsAtCancellation: cancellationPresence(owner?.eventsAtCancellation),
     nativeDenialDiagnostic: projectDenials(owner?.nativeDenialDiagnostic, admission?.deniedAdmissions),
     closure: { scopeObservedEmpty: boolean(closed?.scopeObservedEmpty), custodySettled: boolean(closed?.custodySettled),
       inputSettled: boolean(closed?.inputSettled), stdinClosed: boolean(closed?.stdinClosed),
@@ -122,7 +140,7 @@ function registerTests() {
   });
 }
 
-module.exports = { projectFailure };
+module.exports = { projectFailure, eventPresence, cancelOwner };
 if (require.main === module) {
   if (process.argv.length === 3 && process.argv[2] === '--self-test') registerTests();
   else { process.stderr.write('QUALIFICATION_DIAGNOSTIC_ARGUMENTS_REFUSED\n'); process.exitCode = 1; }

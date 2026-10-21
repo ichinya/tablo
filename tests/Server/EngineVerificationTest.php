@@ -344,15 +344,19 @@ function engine_verification_prepare_failure(): void
     $secret = \Tablo\Tests\Support\FixtureCredentials::value(label: 'prepare-diagnostic');
     $error = new \RuntimeException($secret);
     $record = \server_cell_prepare_failure($error, checkpoint: 'EXECUTE', roots: [$root]);
+    Assert::same($record['schema'], 'tablo/server-prepare-failure/v2'); Assert::null($record['capability']);
     Assert::same([$record['phase'], $record['rootCause'], $record['issueAccepted'], $record['errorClass']], ['prepare', 'UNKNOWN', false, 'RuntimeException']);
     Assert::same($record['source'], 'tests/Server/EngineVerificationTest.php');
     Assert::true(is_int($record['line']) && $record['line'] > 0);
     $wire = \Tablo\JsonEncoding::encode($record);
     Assert::false(str_contains($wire, $secret)); Assert::false(str_contains($wire, $root));
     $caught = null; $retained = false;
-    try { \server_cell_prepare_rethrow($error, checkpoint: 'EXECUTE', roots: [$root], ready: false, retain: static function () use (&$retained): void { $retained = true; throw new \RuntimeException('secondary'); }); }
+    try { \server_cell_prepare_rethrow($error, failure: ['checkpoint' => 'EXECUTE', 'roots' => [$root]], ready: false, retain: static function () use (&$retained): void { $retained = true; throw new \RuntimeException('secondary'); }); }
     catch (\Throwable $original) { $caught = $original; }
     Assert::same($caught, $error); Assert::true($retained);
+    $observation = \server_cell_capability_observation(['exit_code' => null, 'stdout' => '', 'stderr' => $secret]);
+    Assert::same([$observation['reportedExit'], $observation['stdout'], $observation['stderr'], $observation['category']], [null, 'EMPTY', 'NONEMPTY', 'UNKNOWN']);
+    Assert::false(str_contains(\Tablo\JsonEncoding::encode($observation), $secret));
 }
 
 function engine_verification_declaration_mode(): void

@@ -48,16 +48,31 @@ const PREPARE_SOURCES = Object.freeze(['tools/server-cell.php', 'tools/ServerFix
   'tools/MagoSource.php', 'tools/MagoPin.php', 'app/RequiredFile.php', 'app/JsonRecord.php', 'app/JsonEncoding.php', 'app/SqlColumn.php',
   'app/DatabaseInteger.php', 'app/DatabaseFailure.php', 'app/bootstrap.php', 'tests/Support/TemporaryDirectory.php', 'tests/Support/Subprocess.php',
   'tests/Support/SubprocessReceipt.php', 'tests/Server/EngineVerificationTest.php']);
+function capabilityDiagnostic(value) {
+  if (!exactKeys(value, ['schema','reportedExit','stdout','stderr','category','missingExtension'])
+      || Object.keys(value).join(',') !== 'schema,reportedExit,stdout,stderr,category,missingExtension'
+      || value.schema !== 'tablo/php-capability-observation/v1'
+      || !(value.reportedExit === null || value.reportedExit === 'UNKNOWN' || integer(value.reportedExit,-2147483648,2147483647))
+      || !['READY','EMPTY','OTHER','UNKNOWN'].includes(value.stdout) || !['EMPTY','NONEMPTY','UNKNOWN'].includes(value.stderr)
+      || !['MISSING_EXTENSION','MISSING_SOURCE','MISSING_INI','MISSING_LOADED_INI','INI_MISMATCH','TEMP_MISMATCH','READY_WRITE_FAILED','UNKNOWN'].includes(value.category)
+      || (value.category === 'MISSING_EXTENSION' ? !['curl','openssl','pdo','pdo_mysql','pdo_sqlite','mbstring','dom','xml','xmlwriter'].includes(value.missingExtension) : value.missingExtension !== null)
+      || (value.category !== 'UNKNOWN' && value.stdout !== 'OTHER')
+      || (value.reportedExit === 0 && value.stdout === 'READY' && value.stderr === 'EMPTY')) fail('CAPABILITY_DIAGNOSTIC');
+  return Object.freeze({schema:value.schema,reportedExit:value.reportedExit,stdout:value.stdout,stderr:value.stderr,category:value.category,missingExtension:value.missingExtension});
+}
 function prepareDiagnostic(value) {
-  if (!exactKeys(value, ['schema', 'status', 'phase', 'rootCause', 'issueAccepted', 'stage', 'errorClass', 'source', 'line'])
-      || Object.keys(value).join(',') !== 'schema,status,phase,rootCause,issueAccepted,stage,errorClass,source,line'
-      || value.schema !== 'tablo/server-prepare-failure/v1' || value.status !== 'failed' || value.phase !== 'prepare'
+  const v2 = value?.schema === 'tablo/server-prepare-failure/v2';
+  const keys = ['schema', 'status', 'phase', 'rootCause', 'issueAccepted', 'stage', 'errorClass', 'source', 'line', ...(v2 ? ['capability'] : [])];
+  if (!exactKeys(value, keys) || Object.keys(value).join(',') !== keys.join(',')
+      || !['tablo/server-prepare-failure/v1','tablo/server-prepare-failure/v2'].includes(value.schema) || value.status !== 'failed' || value.phase !== 'prepare'
       || value.rootCause !== 'UNKNOWN' || value.issueAccepted !== false || !PREPARE_STAGES.includes(value.stage)
       || !PREPARE_CLASSES.includes(value.errorClass) || !(value.source === null && value.line === null
-        || PREPARE_SOURCES.includes(value.source) && integer(value.line, 1, 1000000))
-      || Buffer.byteLength(JSON.stringify(value)) > 2048) fail('PREPARE_DIAGNOSTIC');
-  return Object.freeze({ schema: value.schema, status: value.status, phase: value.phase, rootCause: value.rootCause,
-    issueAccepted: value.issueAccepted, stage: value.stage, errorClass: value.errorClass, source: value.source, line: value.line });
+        || PREPARE_SOURCES.includes(value.source) && integer(value.line, 1, 1000000))) fail('PREPARE_DIAGNOSTIC');
+  const result = { schema: value.schema, status: value.status, phase: value.phase, rootCause: value.rootCause,
+    issueAccepted: value.issueAccepted, stage: value.stage, errorClass: value.errorClass, source: value.source, line: value.line,
+    ...(v2 ? {capability:value.capability === null ? null : capabilityDiagnostic(value.capability)} : {}) };
+  if (Buffer.byteLength(JSON.stringify(result)) > 2048) fail('PREPARE_DIAGNOSTIC');
+  return Object.freeze(result);
 }
 function consolePrepareDiagnostic(value) {
   try { return prepareDiagnostic(value); } catch { return 'MISSING'; }

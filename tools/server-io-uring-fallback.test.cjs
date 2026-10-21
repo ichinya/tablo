@@ -5,7 +5,7 @@ const fs = require('node:fs'), vm = require('node:vm'), path = require('node:pat
 const { createHash, createHmac } = require('node:crypto');
 const { EventEmitter } = require('node:events');
 const { LinuxRecords, acceptEvent } = require('./server-supervisor.cjs');
-const { projectFailure } = require('./server-qualification-diagnostic.cjs');
+const { projectFailure, eventPresence, cancelOwner } = require('./server-qualification-diagnostic.cjs');
 const sha = value => createHash('sha256').update(value).digest('hex');
 const policy = 'tgid-seccomp-ptrace-x64-v2';
 const names = ['uring-handled','uring-repeat','uring-arguments','uring-threads','uring-forkexec','uring-mixed-security','uring-mixed-quota','uring-unhandled'];
@@ -269,10 +269,10 @@ test('actual custody refusal variants retain their exact owner classification wi
     assert.equal(failure.first.stage, 'custody'); assert.equal(failure.first.issueAccepted, false);
   }
 });
-test('safe projection v2 preserves both new counters without minting success or raising bounds',()=>{
+test('safe projection v3 preserves both new counters without minting success or raising bounds',()=>{
   const result=projectFailure({stage:'FALLBACK_CONTROL',subject:'uring-mixed-quota',index:6,check:'Q146',completed:38,
     owner:{adapterState:{closed:{admission:admission(6,5,4,true)}}}});
-  assert.equal(result.schema,'tablo/linux-safe-qualification-failure/v2');assert.equal(result.admission.ioUringSetupAttempts,5);
+  assert.equal(result.schema,'tablo/linux-safe-qualification-failure/v3');assert.equal(result.admission.ioUringSetupAttempts,5);
   assert.equal(result.admission.ioUringSetupEpermWrites,4);assert.equal(result.completed,38);assert.equal(result.checkId,'Q146');
   assert.equal(result.qualified,false);assert.equal(result.rootCause,'UNKNOWN');assert(Buffer.byteLength(JSON.stringify(result,null,2)+'\n')<=4096);
 });
@@ -317,7 +317,7 @@ function qualifierModule(mutate = () => {}) {
     require(name){
       if(name==='node:fs/promises')return filesystem;
       if(name==='./server-supervisor.cjs')return api;
-      if(name==='./server-qualification-diagnostic.cjs')return {projectFailure};
+      if(name==='./server-qualification-diagnostic.cjs')return {projectFailure,cancelOwner};
       if(name==='node:path')return path.posix;
       if(name==='node:child_process')return {spawn(executable,argv,options){
         if(executable!==spec.controls.path||argv[0]!=='witness'||argv[1]!==f.observer.linuxAdapter.path
@@ -666,4 +666,65 @@ test('actual prepare-failure refuses expired owner old-phase and one-connection 
     const broken = await prepareChannel(option); broken.send(); broken.closed(); assert.deepEqual(broken.cancellations, ['protocol']);
     assert.equal(broken.phase.prepareDiagnostic.status, 'failed'); assert.equal(broken.owner.phaseResults.length, 0);
   }
+});
+
+const capabilityRecord = (changes={}) => ({schema:'tablo/php-capability-observation/v1',reportedExit:1,stdout:'OTHER',stderr:'EMPTY',category:'MISSING_EXTENSION',missingExtension:'curl',...changes});
+const prepareV2 = capability => prepareRecord({schema:'tablo/server-prepare-failure/v2',capability});
+test('actual authenticated prepare v2 preserves finite capability observations and v1 compatibility',async()=>{
+  for(const diagnostic of [prepareRecord(),prepareV2(null),prepareV2(capabilityRecord())]){
+    const h=await prepareChannel();h.send(h.payload({diagnostic}));h.closed();assert.deepEqual(h.cancellations,[]);
+    assert.deepEqual(JSON.parse(JSON.stringify(h.phase.prepareDiagnostic)),diagnostic);
+    assert(Buffer.byteLength(JSON.stringify(diagnostic))<=2048);
+  }
+  for(const reportedExit of [null,'UNKNOWN',-2147483648,2147483647]){
+    const h=await prepareChannel();h.send(h.payload({diagnostic:prepareV2(capabilityRecord({reportedExit}))}));h.closed();assert(h.phase.prepareDiagnostic);
+  }
+  for(const category of ['MISSING_SOURCE','MISSING_INI','MISSING_LOADED_INI','INI_MISMATCH','TEMP_MISMATCH','READY_WRITE_FAILED','UNKNOWN']){
+    const h=await prepareChannel();h.send(h.payload({diagnostic:prepareV2(capabilityRecord({category,missingExtension:null}))}));h.closed();assert(h.phase.prepareDiagnostic);
+  }
+  for(const missingExtension of ['curl','openssl','pdo','pdo_mysql','pdo_sqlite','mbstring','dom','xml','xmlwriter']){
+    const h=await prepareChannel();h.send(h.payload({diagnostic:prepareV2(capabilityRecord({missingExtension}))}));h.closed();assert(h.phase.prepareDiagnostic);
+  }
+  for(const stdout of ['READY','EMPTY','OTHER','UNKNOWN'])for(const stderr of ['EMPTY','NONEMPTY','UNKNOWN']){
+    const h=await prepareChannel();h.send(h.payload({diagnostic:prepareV2(capabilityRecord({stdout,stderr,category:'UNKNOWN',missingExtension:null}))}));h.closed();assert(h.phase.prepareDiagnostic);
+  }
+});
+for(const change of [{reportedExit:'1'},{reportedExit:2147483648},{reportedExit:{}},{stdout:'PRIVATE'},{stderr:'PRIVATE'},
+  {category:'PRIVATE'},{missingExtension:'PRIVATE'},{missingExtension:null},{category:'INI_MISMATCH'},{category:'UNKNOWN'},
+  {category:'INI_MISMATCH',missingExtension:null,stdout:'READY'},{category:'UNKNOWN',missingExtension:null,stdout:'READY',reportedExit:0},
+  {extra:'PRIVATE'},{schema:'tablo/php-capability-observation/v2'}])test('actual prepare v2 rejects hostile or inconsistent capability '+JSON.stringify(change),async()=>{
+  const h=await prepareChannel();h.send(h.payload({diagnostic:prepareV2(capabilityRecord(change))}));h.closed();assert.equal(h.phase.prepareDiagnostic,undefined);assert.deepEqual(h.cancellations,['protocol']);
+});
+test('prepare v2 rejects missing duplicate extra and oversized data without replacing first failure',async()=>{
+  for(const diagnostic of [prepareRecord({capability:null}),prepareRecord({schema:'tablo/server-prepare-failure/v2'}),prepareRecord({schema:'tablo/server-prepare-failure/v3'}),
+    prepareV2(capabilityRecord({category:'PRIVATE'.repeat(1024)}))]){
+    const h=await prepareChannel();h.send(h.payload({diagnostic}));h.closed();assert.equal(h.phase.prepareDiagnostic,undefined);
+  }
+  const duplicate=await prepareChannel();duplicate.send(duplicate.canonical(duplicate.payload({diagnostic:prepareV2(capabilityRecord())})).replace('"reportedExit":','"reportedExit":null,"reportedExit":'));duplicate.closed();assert.equal(duplicate.phase.prepareDiagnostic,undefined);
+  const hostile=await prepareChannel(),callbacks=[];
+  assert.throws(()=>hostile.api.prepareDiagnostic(prepareV2(capabilityRecord({category:{toJSON(){callbacks.push('PRIVATE');return 'UNKNOWN';}}}))));
+  assert.deepEqual(callbacks,[]);hostile.closed();
+  for(const outputFails of [false,true]){
+    const h=observerHarness({at:'custody',retentionFails:true,outputFails,prepareDiagnostic:prepareV2(capabilityRecord())});
+    await assert.rejects(h.run(),error=>error===h.original);observerClosed(h);
+    if(!outputFails){const record=JSON.parse(h.output[0]);assert.equal(record.prepareDiagnostic.capability.reportedExit,1);assert.equal(record.completedPhases,0);assert(Buffer.byteLength(h.output[0])<=4096);}
+  }
+});
+test('qualification v3 distinguishes uninitialized and admitted absent events and latches first cancellation snapshot',()=>{
+  const unknown={ready:'UNKNOWN',started:'UNKNOWN',input:'UNKNOWN',exited:'UNKNOWN',closed:'UNKNOWN'};
+  assert.deepEqual(eventPresence(),unknown);assert.deepEqual(eventPresence({}),unknown);
+  const state={ready:null,started:null,input:null,exited:null,closed:null};
+  const owner={adapterState:state,cancelReason:null}, sent=[];owner.send=(kind,payload)=>sent.push({kind,payload});
+  assert.deepEqual(eventPresence(state),{ready:false,started:false,input:false,exited:false,closed:false});
+  state.ready={private:'PRIVATE'};cancelOwner(owner,'deadline');const first=owner.eventsAtCancellation;
+  state.started={};state.input={};state.exited={};state.closed={};cancelOwner(owner,'protocol');
+  assert.equal(owner.eventsAtCancellation,first);assert.equal(owner.cancelReason,'deadline');assert.equal(sent.length,1);
+  const value=projectFailure({stage:'CLIENT_RUNTIME',subject:'docker',check:'Q100',owner});
+  assert.equal(value.schema,'tablo/linux-safe-qualification-failure/v3');assert.deepEqual(value.eventsAtCancellation,{ready:true,started:false,input:false,exited:false,closed:false});
+  assert.deepEqual(value.eventsAtFailure,{ready:true,started:true,input:true,exited:true,closed:true});assert(!JSON.stringify(value).includes('PRIVATE'));assert(Buffer.byteLength(JSON.stringify(value,null,2))<=4096);
+  const primary=Error('PRIVATE send'),broken={cancelReason:null,send(){throw primary;},adapterState:state};
+  assert.throws(()=>cancelOwner(broken,'deadline'),error=>error===primary);const snapshot=broken.eventsAtCancellation;cancelOwner(broken,'protocol');assert.equal(broken.eventsAtCancellation,snapshot);
+  const reads=[],hostile={cancelReason:null,adapterState:new Proxy({}, {getOwnPropertyDescriptor(){reads.push('projection');throw primary;}})};
+  cancelOwner(hostile,'deadline');assert.equal(hostile.cancelReason,'deadline');assert.deepEqual(reads,['projection']);
+  assert.deepEqual(projectFailure({owner:{eventsAtCancellation:{ready:'PRIVATE'}}}).eventsAtCancellation,unknown);
 });

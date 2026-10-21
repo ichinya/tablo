@@ -669,7 +669,7 @@ function server_cell_plan_value(array &$values, string $name, string $value): vo
  * @param list<string> $arguments */
 function server_cell_execute_entry(array $arguments): void
 {
-    $checkpoint = 'ARGUMENTS'; $ready = false; $context = null;
+    $checkpoint = 'ARGUMENTS'; $ready = false; $context = null; $capabilityFailure = null;
     $root = str_replace('\\', replace: '/', subject: dirname(__DIR__)); $roots = [$root];
     try {
     if (count($arguments) !== 2 || !str_starts_with($arguments[1] ?? '', '--sha256=')) { throw new RuntimeException('Exact frozen cell digest required.'); }
@@ -699,9 +699,9 @@ function server_cell_execute_entry(array $arguments): void
     }
     $checkpoint = 'CONTROLLER_DIRECTORY';
     $context = ['plan' => $plan, 'directory' => new TemporaryDirectory('tablo-cell-controller-', SqlColumn::string($plan, 'runtime') . '/tmp'), 'environment' => $environment];
-    $checkpoint = 'EXECUTE'; server_cell_execute($context);
+    $checkpoint = 'EXECUTE'; server_cell_execute($context, $capabilityFailure);
     } catch (Throwable $error) {
-        server_cell_prepare_rethrow($error, $checkpoint, $roots, $ready,
+        server_cell_prepare_rethrow($error, ['checkpoint' => $checkpoint, 'roots' => $roots, 'capability' => $capabilityFailure], $ready,
             $context === null ? null : static fn () => $context['directory']->retainFailure($error));
     }
 }
@@ -733,8 +733,8 @@ function server_cell_prepare_sources(): array
 
 /** Pure first-failure projection: no message, trace, private bytes or origin metadata.
  * @param list<string> $roots
- * @return array{schema: 'tablo/server-prepare-failure/v1', status: 'failed', phase: 'prepare', rootCause: 'UNKNOWN', issueAccepted: false, stage: string, errorClass: string, source: ?string, line: ?int} */
-function server_cell_prepare_failure(#[\SensitiveParameter] Throwable $error, string $checkpoint, array $roots): array
+ * @return array{schema: 'tablo/server-prepare-failure/v2', status: 'failed', phase: 'prepare', rootCause: 'UNKNOWN', issueAccepted: false, stage: string, errorClass: string, source: ?string, line: ?int, capability: ?array} */
+function server_cell_prepare_failure(#[\SensitiveParameter] Throwable $error, string $checkpoint, array $roots, ?array $capability = null): array
 {
     $stages = ['ARGUMENTS', 'DEPENDENCY_GUARD', 'LOAD', 'PLAN_BINDING', 'OBSERVER_BINDING', 'MATERIALIZE', 'AUTOLOAD', 'ENVIRONMENT', 'CONTROLLER_DIRECTORY', 'EXECUTE'];
     $classes = ['RuntimeException', 'LogicException', 'InvalidArgumentException', 'JsonException', 'Error', 'TypeError', 'ValueError', 'ParseError', 'ErrorException'];
@@ -747,9 +747,10 @@ function server_cell_prepare_failure(#[\SensitiveParameter] Throwable $error, st
             }
         }
     }
-    return ['schema' => 'tablo/server-prepare-failure/v1', 'status' => 'failed', 'phase' => 'prepare', 'rootCause' => 'UNKNOWN', 'issueAccepted' => false,
+    return ['schema' => 'tablo/server-prepare-failure/v2', 'status' => 'failed', 'phase' => 'prepare', 'rootCause' => 'UNKNOWN', 'issueAccepted' => false,
         'stage' => in_array($checkpoint, $stages, strict: true) ? $checkpoint : 'UNKNOWN',
-        'errorClass' => in_array($class, $classes, strict: true) ? $class : 'UNKNOWN', 'source' => $source, 'line' => $line];
+        'errorClass' => in_array($class, $classes, strict: true) ? $class : 'UNKNOWN', 'source' => $source, 'line' => $line,
+        'capability' => $capability === null ? null : server_cell_capability_projection($capability)];
 }
 
 /** Earlier failures stay MISSING: obtaining helpers or observer authority here is forbidden. */
@@ -765,10 +766,10 @@ function server_cell_prepare_report(array $record, bool $ready): void
     if (array_keys($reply) !== ['sequence', 'recorded'] || ($reply['recorded'] ?? null) !== true) { throw new RuntimeException('Prepare diagnostic acknowledgement refused.'); }
 }
 
-/** @param list<string> $roots */
-function server_cell_prepare_rethrow(#[\SensitiveParameter] Throwable $error, string $checkpoint, array $roots, bool $ready, ?Closure $retain): never
+/** @param array{checkpoint: string, roots: list<string>, capability?: ?array} $failure */
+function server_cell_prepare_rethrow(#[\SensitiveParameter] Throwable $error, array $failure, bool $ready, ?Closure $retain): never
 {
-    try { $record = server_cell_prepare_failure($error, $checkpoint, $roots); server_cell_prepare_report($record, $ready); }
+    try { $record = server_cell_prepare_failure($error, $failure['checkpoint'], $failure['roots'], $failure['capability'] ?? null); server_cell_prepare_report($record, $ready); }
     catch (Throwable $discarded) { unset($discarded); }
     try { if ($retain !== null) { $retain(); } } catch (Throwable $discarded) { unset($discarded); }
     throw $error;
@@ -857,17 +858,102 @@ function server_cell_private_ini(array $plan): void
 
 function server_cell_capability(): void
 {
+    $category = 'UNKNOWN'; $missing = null;
+    try {
     foreach (['curl', 'openssl', 'pdo', 'pdo_mysql', 'pdo_sqlite', 'mbstring', 'dom', 'xml', 'xmlwriter'] as $extension) {
-        if (!extension_loaded($extension)) { throw new RuntimeException('Required actual private PHP extension absent.'); }
+        if (extension_loaded($extension)) { continue; }
+        $category = 'MISSING_EXTENSION'; $missing = $extension; throw new RuntimeException('Required actual private PHP extension absent.');
     }
     $runtime = getenv('TABLO_TEST_SOURCE_ROOT'); $ini = getenv('PHPRC');
     $loaded = php_ini_loaded_file();
-    if (!is_string($runtime) || !is_string($ini) || !is_string($loaded)
-        || str_replace('\\', replace: '/', subject: $loaded) !== $ini
-        || str_replace('\\', replace: '/', subject: sys_get_temp_dir()) !== dirname($runtime) . '/tmp') {
+    if (!is_string($runtime) || !is_string($ini) || !is_string($loaded)) {
+        $category = match (true) { !is_string($runtime) => 'MISSING_SOURCE', !is_string($ini) => 'MISSING_INI', default => 'MISSING_LOADED_INI' };
         throw new RuntimeException('Actual private PHP configuration mismatch.');
     }
-    fwrite(STDOUT, data: "PRIVATE_PHP_READY\n");
+    if (str_replace('\\', replace: '/', subject: $loaded) !== $ini) { $category = 'INI_MISMATCH'; throw new RuntimeException('Actual private PHP configuration mismatch.'); }
+    if (str_replace('\\', replace: '/', subject: sys_get_temp_dir()) !== dirname($runtime) . '/tmp') { $category = 'TEMP_MISMATCH'; throw new RuntimeException('Actual private PHP configuration mismatch.'); }
+    if (fwrite(STDOUT, data: "PRIVATE_PHP_READY\n") !== strlen("PRIVATE_PHP_READY\n")) { $category = 'READY_WRITE_FAILED'; throw new RuntimeException('Private PHP readiness output incomplete.'); }
+    } catch (Throwable $error) {
+        // This CLI branch cannot obtain helpers or bootstrap merely to report.
+        try {
+            $marker = 'TABLO_CAPABILITY_FAILURE ' . json_encode(['schema' => 'tablo/php-capability-failure/v1', 'category' => $category, 'missingExtension' => $missing], JSON_THROW_ON_ERROR | JSON_UNESCAPED_SLASHES) . "\n";
+            if (strlen($marker) <= 1_024) { fwrite(STDOUT, $marker); }
+        } catch (Throwable $discarded) { unset($discarded); }
+        throw $error;
+    }
+}
+
+/** Parse only the exact finite marker in already-returned stdout, never a capture file.
+ * @return array{category: string, missingExtension: ?string} */
+function server_cell_capability_marker(#[\SensitiveParameter] string $bytes): array
+{
+    $unknown = ['category' => 'UNKNOWN', 'missingExtension' => null]; $prefix = 'TABLO_CAPABILITY_FAILURE ';
+    if (strlen($bytes) > 1_024 || !str_starts_with($bytes, $prefix) || !str_ends_with($bytes, "\n")) { return $unknown; }
+    $json = substr($bytes, offset: strlen($prefix), length: -1);
+    try {
+        /** @var mixed $record Core JSON decoding is followed by an exact finite shape check. */
+        $record = json_decode($json, associative: true, depth: 4, flags: JSON_THROW_ON_ERROR);
+        if (!is_array($record) || array_keys($record) !== ['schema', 'category', 'missingExtension']
+            || json_encode($record, JSON_THROW_ON_ERROR | JSON_UNESCAPED_SLASHES) !== $json
+            || ($record['schema'] ?? null) !== 'tablo/php-capability-failure/v1') { return $unknown; }
+        /** @var mixed $category Only an allowlisted category can survive. */
+        $category = $record['category'] ?? null;
+        /** @var mixed $missing The extension is checked against the fixed nine names. */
+        $missing = $record['missingExtension'] ?? null;
+        if (!in_array($category, ['MISSING_EXTENSION', 'MISSING_SOURCE', 'MISSING_INI', 'MISSING_LOADED_INI', 'INI_MISMATCH', 'TEMP_MISMATCH', 'READY_WRITE_FAILED', 'UNKNOWN'], strict: true)
+            || ($category === 'MISSING_EXTENSION' ? !in_array($missing, ['curl', 'openssl', 'pdo', 'pdo_mysql', 'pdo_sqlite', 'mbstring', 'dom', 'xml', 'xmlwriter'], strict: true) : $missing !== null)) { return $unknown; }
+        return ['category' => $category, 'missingExtension' => is_string($missing) ? $missing : null];
+    } catch (Throwable) { return $unknown; }
+}
+
+/** @return array{schema: string, reportedExit: int|null|string, stdout: string, stderr: string, category: string, missingExtension: ?string} */
+function server_cell_capability_observation(#[\SensitiveParameter] array $result): array
+{
+    /** @var mixed $exit The PHP result is a reported observation, never native proof. */
+    $exit = $result['exit_code'] ?? null;
+    /** @var mixed $stdout Only equality and emptiness are projected. */
+    $stdout = $result['stdout'] ?? null;
+    /** @var mixed $stderr No stderr content is parsed. */
+    $stderr = $result['stderr'] ?? null;
+    $marker = is_string($stdout) ? server_cell_capability_marker($stdout) : ['category' => 'UNKNOWN', 'missingExtension' => null];
+    return ['schema' => 'tablo/php-capability-observation/v1', 'reportedExit' => array_key_exists('exit_code', $result) ? server_cell_capability_exit($exit) : 'UNKNOWN',
+        'stdout' => match (true) { !is_string($stdout) => 'UNKNOWN', $stdout === "PRIVATE_PHP_READY\n" => 'READY', $stdout === '' => 'EMPTY', default => 'OTHER' },
+        'stderr' => match (true) { !is_string($stderr) => 'UNKNOWN', $stderr === '' => 'EMPTY', default => 'NONEMPTY' }, ...$marker];
+}
+
+function server_cell_capability_exit(#[\SensitiveParameter] mixed $value): int|null|string
+{
+    return $value === null || (is_int($value) && $value >= -2_147_483_648 && $value <= 2_147_483_647) ? $value : 'UNKNOWN';
+}
+
+/** @return ?array{schema: string, reportedExit: int|null|string, stdout: string, stderr: string, category: string, missingExtension: ?string} */
+function server_cell_capability_projection(array $value): ?array
+{
+    if (array_keys($value) !== ['schema', 'reportedExit', 'stdout', 'stderr', 'category', 'missingExtension']
+        || ($value['schema'] ?? null) !== 'tablo/php-capability-observation/v1'
+        || !in_array($value['stdout'] ?? null, ['READY', 'EMPTY', 'OTHER', 'UNKNOWN'], strict: true)
+        || !in_array($value['stderr'] ?? null, ['EMPTY', 'NONEMPTY', 'UNKNOWN'], strict: true)) { return null; }
+    /** @var array{schema: mixed, reportedExit: mixed, stdout: mixed, stderr: mixed, category: mixed, missingExtension: mixed} $value */
+    /** @var mixed $exit Every admitted exit must equal its bounded finite projection. */
+    $exit = $value['reportedExit'];
+    if ($exit !== server_cell_capability_exit($exit)) { return null; }
+    if (!is_string($value['category']) || (!is_string($value['missingExtension']) && $value['missingExtension'] !== null)) { return null; }
+    $marker = server_cell_capability_marker('TABLO_CAPABILITY_FAILURE ' . json_encode(['schema' => 'tablo/php-capability-failure/v1', 'category' => $value['category'], 'missingExtension' => $value['missingExtension']], JSON_THROW_ON_ERROR | JSON_UNESCAPED_SLASHES) . "\n");
+    if ($marker !== ['category' => $value['category'], 'missingExtension' => $value['missingExtension']]
+        || ($value['category'] !== 'UNKNOWN' && $value['stdout'] !== 'OTHER')
+        || [$exit, $value['stdout'], $value['stderr']] === [0, 'READY', 'EMPTY']) { return null; }
+    /** @var array{schema: string, reportedExit: int|null|string, stdout: string, stderr: string, category: string, missingExtension: ?string} $value */
+    return $value;
+}
+
+/** @param array{exit_code: mixed, stdout: mixed, stderr: mixed, ...} $ready */
+function server_cell_capability_check(#[\SensitiveParameter] array $ready, ?array &$failure): void
+{
+    if ([$ready['exit_code'], $ready['stdout'], $ready['stderr']] !== [0, "PRIVATE_PHP_READY\n", '']) {
+        $error = new RuntimeException('Actual private PHP capability failed.');
+        try { $failure = server_cell_capability_observation($ready); } catch (Throwable $discarded) { unset($discarded); }
+        throw $error;
+    }
 }
 
 /** @return array<string, string> */
@@ -936,13 +1022,13 @@ function server_cell_tls_server(string $directory, string $engine, OpenSSLCertif
 }
 
 /** @param array{plan: array, directory: TemporaryDirectory, environment: array<string, string>} $context */
-function server_cell_execute(array &$context): void
+function server_cell_execute(array &$context, ?array &$capabilityFailure = null): void
 {
     $plan = $context['plan']; server_cell_observer_remaining();
     server_cell_verify_tools($plan);
     $ready = Subprocess::run([PHP_BINARY, SqlColumn::string($plan, 'source') . '/tools/server-cell.php', '--capability'], $context['directory'], $context['environment'],
         new CommandOptions(timeout: 30, cwd: SqlColumn::string($plan, 'source'), replacementEnvironment: $context['environment']));
-    if ([$ready['exit_code'], $ready['stdout'], $ready['stderr']] !== [0, "PRIVATE_PHP_READY\n", '']) { throw new RuntimeException('Actual private PHP capability failed.'); }
+    server_cell_capability_check($ready, $capabilityFailure);
     server_cell_admit_docker($context);
     $services = JsonRecord::checked($plan['services'] ?? null);
     foreach (array_keys($services) as $engine) { server_cell_acquire($context, (string) $engine); server_cell_start_service($context, (string) $engine); }

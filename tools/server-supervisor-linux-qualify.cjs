@@ -11,7 +11,7 @@ const sha = bytes => createHash('sha256').update(bytes).digest('hex');
 const pin = async path => ({ path, sha256: sha(await fs.readFile(path)) });
 const pause = ms => new Promise(resolve => setTimeout(resolve, ms));
 
-const { projectFailure } = require('./server-qualification-diagnostic.cjs');
+const { projectFailure, cancelOwner } = require('./server-qualification-diagnostic.cjs');
 const progress = { stage: 'SETUP', subject: null, index: null, check: null, completed: 0 };
 let safeFailurePath = null, firstFailure = null;
 function check(id, assertion, ...args) { return checked(progress, id, assertion, ...args); }
@@ -191,7 +191,7 @@ async function main() {
       const issued = process.hrtime.bigint(), end = issued + BigInt(seconds) * 1_000_000_000n;
       check('Q053', assert, end < parentEnd);
       const owner = { phase: { root, adapterAuthority: randomBytes(32) }, cancelReason: null };
-      owner.cancel = reason => { if (!owner.cancelReason) { owner.cancelReason = reason; owner.send?.('cancel', { reason }); } };
+      owner.cancel = reason => cancelOwner(owner, reason);
       const plan = { schema: 'tablo/server-observer-linux-plan/v1', nonce, planId: nonce + '/linux-controller/' + index, root,
         adapter: observer.linuxAdapter, linux: { policy: 'tgid-seccomp-ptrace-x64-v2', unit: 'process/TGID',
           source: observer.linuxAdapterSource, recipe: observer.linuxAdapterRecipe, build: observer.linuxAdapterBuild,
@@ -278,7 +278,7 @@ async function qualifyFallback(spec, base, observer, controls, parentEnd) {
     const issued = process.hrtime.bigint(), deadline = issued + 8_000_000_000n;
     check('Q116', assert, deadline < parentEnd);
     const owner = { phase: { root, adapterAuthority: randomBytes(32) }, cancelReason: null };
-    owner.cancel = reason => { if (!owner.cancelReason) { owner.cancelReason = reason; owner.send?.('cancel', { reason }); } };
+    owner.cancel = reason => cancelOwner(owner, reason);
     const plan = { schema: 'tablo/server-observer-linux-plan/v1', nonce: spec.nonce, planId: spec.nonce + '/fallback/' + index,
       adapter: observer.linuxAdapter, linux: { policy: 'tgid-seccomp-ptrace-x64-v2', unit: 'process/TGID',
         source: observer.linuxAdapterSource, recipe: observer.linuxAdapterRecipe, build: observer.linuxAdapterBuild,
@@ -387,7 +387,7 @@ async function qualifyRemaining(spec, base, observer, controls, outcomes, parent
     }
     const issued = process.hrtime.bigint(), deadline = issued + 8_000_000_000n; check('Q099', assert, deadline < parentEnd);
     const owner = { phase: { root: phaseRoot, adapterAuthority: randomBytes(32) }, cancelReason: null };
-    owner.cancel = reason => { if (!owner.cancelReason) { owner.cancelReason = reason; owner.send?.('cancel', { reason }); } };
+    owner.cancel = reason => cancelOwner(owner, reason);
     const plan = { schema: 'tablo/server-observer-linux-plan/v1', nonce: spec.nonce, planId: spec.nonce + '/client/' + label,
       adapter: observer.linuxAdapter, linux: { policy: 'tgid-seccomp-ptrace-x64-v2', unit: 'process/TGID',
         source: observer.linuxAdapterSource, recipe: observer.linuxAdapterRecipe, build: observer.linuxAdapterBuild,
