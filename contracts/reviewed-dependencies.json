@@ -8,7 +8,7 @@
                 "Composer verify",
                 "Reviewed dependency capture"
             ],
-            "fingerprint": "sha256:cc1e8a8536fe382026c76e9d50433eca35419f89b2c40cb62bab86ea71450e49"
+            "fingerprint": "sha256:3093651df0f0651d909840ef2e89ab98f1089d72d8af7d562098bc51351b8e9f"
         },
         {
             "path": "tools/reviewed-dependencies.php",
@@ -8134,7 +8134,7 @@
                 "Composer analyze",
                 "Composer verify:server"
             ],
-            "fingerprint": "sha256:88f6b06bccffbe72b39ca8d93cbb2ae4ec37fe08158f12b2fd1e881ea6ba91a5"
+            "fingerprint": "sha256:ffaa4d2830ea057e6d4712cda07e32433f7a4215e5d2cca01258658a38e3075a"
         },
         {
             "path": "tests/Server/EngineWatermarkTest.php",
@@ -11195,9 +11195,11 @@
                 "tools/server-supervisor.cjs",
                 "tests/Server/EngineObserverAuditTest.php",
                 "Hosted declaration-only mysql82 diagnostic",
-                "tests/Server/EngineMetadataAdmissionTest.php"
+                "tests/Server/EngineMetadataAdmissionTest.php",
+                "tests/Server/EngineVerificationTest.php",
+                "tools/server-io-uring-php-grammar.test.php"
             ],
-            "fingerprint": "sha256:5ac9540ec626c3ea8a3a93a4ed049f5003be1ebbfbfb7196f6d8afb6b38d7b1d"
+            "fingerprint": "sha256:1f6390641379afabd1d82d2797c9c3f924b4cf5f0bac42cf84ca97a7d415a1e0"
         },
         {
             "path": "tests/ServerCross/EngineServerCrashTest.php",
@@ -11234,7 +11236,7 @@
                 "tools/server-native-denial.test.cjs",
                 "tools/server-io-uring-fallback.test.cjs"
             ],
-            "fingerprint": "sha256:c78cdfa61d71d2c8704151a67099fb8bfd4a37963a581c14a8513303569fc400"
+            "fingerprint": "sha256:b85b7e492565e1863408255129dcb4e79a8d4c249724f0aae4a724c8c3e6d651"
         },
         {
             "path": "tools/server-supervisor-windows.ps1",
@@ -11485,7 +11487,7 @@
                 "tools/server-native-tests.json",
                 "node --test tools/server-io-uring-fallback.test.cjs"
             ],
-            "fingerprint": "sha256:b1ba226ebb9fe5a75a7906de2fbd209ddc22185d107ae6c79e870a7f227ed58e"
+            "fingerprint": "sha256:b6897d5b4c99211c273eb5d8fe9463cd5af947f636b8800e62aea54e283e337a"
         },
         {
             "path": "tools/server-io-uring-php-grammar.test.php",
@@ -11495,7 +11497,7 @@
                 "tools/server-native-tests.json",
                 "php -n tools/server-io-uring-php-grammar.test.php"
             ],
-            "fingerprint": "sha256:faab7c3da05a9861ea4ea3e9675929f0dff48cb613aad69daf5244477fc861a1"
+            "fingerprint": "sha256:68f19af51e0badaa023a06177c91f1dd426054e4ca24485006d616033662de48"
         },
         {
             "path": "tools/server-supervisor-linux-fallback-unit.c",

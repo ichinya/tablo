@@ -39,6 +39,29 @@ const OBSERVER_REFUSALS = Object.freeze(['EXACT_ARGUMENTS', 'EXACT_MODE', 'NODE_
   'LINUX_FALLBACK_BINDING', 'LINUX_FALLBACK_COVERAGE', 'PRIOR_PHASE_UNSETTLED', 'OBSERVER_CLOSURE_UNKNOWN', 'CONTROLLER_INPUT_UNSETTLED',
   'CONTROLLER_NATIVE_FAILURE', 'CONTROLLER_CUSTODY', 'PREPARATION_PROOF', 'BASELINE_EXPORT', 'CELL_RESULT_MISSING', 'CUSTODY_LATE', 'CELL_FAILED']);
 function observerFailure() { return { stage: 'arguments', phase: 'MISSING', first: null }; }
+const PREPARE_STAGES = Object.freeze(['ARGUMENTS', 'DEPENDENCY_GUARD', 'LOAD', 'PLAN_BINDING', 'OBSERVER_BINDING', 'MATERIALIZE', 'AUTOLOAD',
+  'ENVIRONMENT', 'CONTROLLER_DIRECTORY', 'EXECUTE', 'UNKNOWN']);
+const PREPARE_CLASSES = Object.freeze(['RuntimeException', 'LogicException', 'InvalidArgumentException', 'JsonException', 'Error', 'TypeError',
+  'ValueError', 'ParseError', 'ErrorException', 'UNKNOWN']);
+const PREPARE_SOURCES = Object.freeze(['tools/server-cell.php', 'tools/ServerFixturePlan.php', 'tools/ServerFixtureCatalog.php', 'tools/reviewed-dependencies.php',
+  'tools/ReviewedDependencyManifest.php', 'tools/ReviewedDependencyCatalog.php', 'tools/ReviewedDependencyEntry.php', 'tools/ReviewedDependencyCoverage.php',
+  'tools/MagoSource.php', 'tools/MagoPin.php', 'app/RequiredFile.php', 'app/JsonRecord.php', 'app/JsonEncoding.php', 'app/SqlColumn.php',
+  'app/DatabaseInteger.php', 'app/DatabaseFailure.php', 'app/bootstrap.php', 'tests/Support/TemporaryDirectory.php', 'tests/Support/Subprocess.php',
+  'tests/Support/SubprocessReceipt.php', 'tests/Server/EngineVerificationTest.php']);
+function prepareDiagnostic(value) {
+  if (!exactKeys(value, ['schema', 'status', 'phase', 'rootCause', 'issueAccepted', 'stage', 'errorClass', 'source', 'line'])
+      || Object.keys(value).join(',') !== 'schema,status,phase,rootCause,issueAccepted,stage,errorClass,source,line'
+      || value.schema !== 'tablo/server-prepare-failure/v1' || value.status !== 'failed' || value.phase !== 'prepare'
+      || value.rootCause !== 'UNKNOWN' || value.issueAccepted !== false || !PREPARE_STAGES.includes(value.stage)
+      || !PREPARE_CLASSES.includes(value.errorClass) || !(value.source === null && value.line === null
+        || PREPARE_SOURCES.includes(value.source) && integer(value.line, 1, 1000000))
+      || Buffer.byteLength(JSON.stringify(value)) > 2048) fail('PREPARE_DIAGNOSTIC');
+  return Object.freeze({ schema: value.schema, status: value.status, phase: value.phase, rootCause: value.rootCause,
+    issueAccepted: value.issueAccepted, stage: value.stage, errorClass: value.errorClass, source: value.source, line: value.line });
+}
+function consolePrepareDiagnostic(value) {
+  try { return prepareDiagnostic(value); } catch { return 'MISSING'; }
+}
 function latchObserverFailure(failure, error, owner) {
   if (failure.first) return;
   const stage = OBSERVER_STAGES.includes(failure.stage) ? failure.stage : 'UNKNOWN';
@@ -56,12 +79,13 @@ function latchObserverFailure(failure, error, owner) {
       adapterExit: scalar(owner?.adapterClose?.code, value => integer(value, -2147483648, 2147483647)),
       controllerExit: scalar(owner?.adapterState?.exited?.exitCode, value => integer(value, 0, 2147483647)),
       inputSettled: scalar(owner?.adapterState?.input?.settled, value => typeof value === 'boolean'),
-      scopeObservedEmpty: scalar(owner?.adapterState?.closed?.scopeObservedEmpty, value => typeof value === 'boolean') });
-  } catch { failure.first = Object.freeze({ ...base, errorClass: 'UNKNOWN', refusal: 'UNKNOWN' }); }
+      scopeObservedEmpty: scalar(owner?.adapterState?.closed?.scopeObservedEmpty, value => typeof value === 'boolean'),
+      prepareDiagnostic: consolePrepareDiagnostic(owner?.phase?.kind === 'prepare' ? owner.phase.prepareDiagnostic : undefined) });
+  } catch { failure.first = Object.freeze({ ...base, errorClass: 'UNKNOWN', refusal: 'UNKNOWN', prepareDiagnostic: 'MISSING' }); }
 }
 function emitObserverFailure(failure) {
   try {
-    const bytes = JSON.stringify(failure.first) + '\n';
+    const bytes = JSON.stringify({ ...failure.first, prepareDiagnostic: consolePrepareDiagnostic(failure.first?.prepareDiagnostic) }) + '\n';
     if (!failure.first || Buffer.byteLength(bytes) > 4096) return false;
     process.stderr.write(bytes); return true;
   } catch { return false; }
@@ -182,6 +206,9 @@ class Frames {
     if (bytes.length > 32768 || bytes.toString('base64') !== frame.payload) fail('FRAME_PAYLOAD');
     const payload = json(bytes);
     if (!object(payload)) fail('FRAME_PAYLOAD');
+    // PHP's existing encoder escapes slashes. This command admits only its exact
+    // finite canonical representation, after authentication and duplicate checks.
+    if (frame.kind === 'prepare-failure' && bytes.toString('utf8') !== JSON.stringify(payload).replaceAll('/', '\\/')) fail('PREPARE_CANONICAL');
     this.received = frame.seq;
     return { kind: frame.kind, payload };
   }
@@ -340,17 +367,9 @@ async function listen(owner) {
     socket.on('data', bytes => {
       try {
         frames.push(bytes, ({ kind, payload }) => {
-          if (requestSeen || payload.sequence !== phase.sequence + 1 || phase.sequence >= 49152) fail('CONTROL_REPLAY');
-          requestSeen = true; phase.sequence++;
-          let result; let finishing = null;
-          if (kind === 'begin' && exactKeys(payload, ['sequence', 'seconds', 'label'])) {
-            result = leases.admit(payload.seconds, payload.label);
-          } else if (kind === 'finish' && exactKeys(payload, ['sequence', 'id', 'closureKnown'])) {
-            leases.validateFinish(payload.id, payload.closureKnown); finishing = payload.id; result = { closed: true };
-          } else if (kind === 'remaining' && exactKeys(payload, ['sequence'])) {
-            const remaining = leases.remaining(); if (remaining <= RESERVE) fail('PARENT_EXPIRED');
-            result = { remainingNanoseconds: remaining.toString() };
-          } else fail('CONTROL_COMMAND');
+          if (requestSeen) fail('CONTROL_REPLAY');
+          requestSeen = true;
+          const { result, finishing } = controllerRequest(owner, phase, kind, payload);
           socket.end(frames.encode('accepted', { sequence: phase.sequence, ...result }), error => {
             try {
               if (error) fail('CONTROL_ACK_WRITE');
@@ -366,6 +385,30 @@ async function listen(owner) {
   await new Promise((resolve, reject) => { server.once('error', reject); server.listen({ host: observer.host, port: observer.port, exclusive: true }, resolve); });
   const address = server.address();
   if (!object(address) || address.address !== observer.host || address.port !== observer.port) fail('CONTROL_LISTENER_IDENTITY');
+}
+
+/** The authenticated channel grants no new capability for a failure projection. */
+function controllerRequest(owner, phase, kind, payload) {
+  const { leases } = owner;
+  if (owner.phase !== phase || payload.sequence !== phase.sequence + 1 || phase.sequence >= 49152) fail('CONTROL_REPLAY');
+  phase.sequence++;
+  let result; let finishing = null;
+  if (kind === 'begin' && exactKeys(payload, ['sequence', 'seconds', 'label'])) {
+    result = leases.admit(payload.seconds, payload.label);
+  } else if (kind === 'finish' && exactKeys(payload, ['sequence', 'id', 'closureKnown'])) {
+    leases.validateFinish(payload.id, payload.closureKnown); finishing = payload.id; result = { closed: true };
+  } else if (kind === 'remaining' && exactKeys(payload, ['sequence'])) {
+    const remaining = leases.remaining(); if (remaining <= RESERVE) fail('PARENT_EXPIRED');
+    result = { remainingNanoseconds: remaining.toString() };
+  } else if (kind === 'prepare-failure' && exactKeys(payload, ['sequence', 'cellNonce', 'diagnostic'])
+      && Object.keys(payload).join(',') === 'sequence,cellNonce,diagnostic') {
+    if (owner.control !== false || owner.plan.executionMode !== 'qualified' || phase.kind !== 'prepare'
+        || !NONCE.test(phase.nonce) || !NONCE.test(owner.plan.nonce) || payload.cellNonce !== owner.plan.nonce
+        || phase.prepareDiagnosticOpen !== true || owner.cancelReason !== null || leases.remaining() <= RESERVE
+        || phase.prepareDiagnostic !== undefined) fail('PREPARE_CONTEXT');
+    phase.prepareDiagnostic = prepareDiagnostic(payload.diagnostic); result = { recorded: true };
+  } else fail('CONTROL_COMMAND');
+  return { result, finishing };
 }
 
 function phaseProcessLimit(control, kind) { return !control && kind === 'baseline' ? 9 : 8; }
@@ -1050,7 +1093,8 @@ async function supervise(file, hash, control = false, failure = observerFailure(
     for (const declaration of observer.phases) {
       failure.stage = 'phase-admission'; failure.phase = declaration.kind;
       if (owner.cancelReason || owner.connections !== 0 || leases.active.size !== 0) fail('PRIOR_PHASE_UNSETTLED');
-      owner.phase = { ...declaration, authority: randomBytes(32), adapterAuthority: randomBytes(32), sequence: 0 };
+      owner.phase = { ...declaration, authority: randomBytes(32), adapterAuthority: randomBytes(32), sequence: 0,
+        prepareDiagnosticOpen: declaration.kind === 'prepare' && !control };
       failure.stage = 'phase-layout';
       await fs.mkdir(owner.phase.root, { mode: 0o700 });
       for (const directory of ['private', 'evidence', 'cwd']) await fs.mkdir(owner.phase.root + '/' + directory, { mode: 0o700 });
@@ -1059,7 +1103,9 @@ async function supervise(file, hash, control = false, failure = observerFailure(
       failure.stage = 'adapter-plan';
       const adapter = await adapterPlan(owner, launch);
       failure.stage = 'adapter-run';
-      const state = await runAdapter(owner, adapter);
+      let state;
+      try { state = await runAdapter(owner, adapter); }
+      finally { owner.phase.prepareDiagnosticOpen = false; }
       failure.stage = 'custody';
       const verifiedCustody = await verifyCustody(owner, state);
       failure.stage = 'phase-proof';

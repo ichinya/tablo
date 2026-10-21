@@ -9060,7 +9060,9 @@
       "tools/server-supervisor.cjs",
       "tests/Server/EngineObserverAuditTest.php",
       "Hosted declaration-only mysql82 diagnostic",
-      "tests/Server/EngineMetadataAdmissionTest.php"
+      "tests/Server/EngineMetadataAdmissionTest.php",
+      "tests/Server/EngineVerificationTest.php",
+      "tools/server-io-uring-php-grammar.test.php"
     ]
   },
   "tests/ServerCross/EngineServerCrashTest.php": {

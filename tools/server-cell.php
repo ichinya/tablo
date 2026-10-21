@@ -669,27 +669,108 @@ function server_cell_plan_value(array &$values, string $name, string $value): vo
  * @param list<string> $arguments */
 function server_cell_execute_entry(array $arguments): void
 {
+    $checkpoint = 'ARGUMENTS'; $ready = false; $context = null;
+    $root = str_replace('\\', replace: '/', subject: dirname(__DIR__)); $roots = [$root];
+    try {
     if (count($arguments) !== 2 || !str_starts_with($arguments[1] ?? '', '--sha256=')) { throw new RuntimeException('Exact frozen cell digest required.'); }
     $path = substr($arguments[0], offset: strlen('--execute=')); $digest = substr($arguments[1] ?? '', offset: strlen('--sha256='));
-    $root = str_replace('\\', replace: '/', subject: dirname(__DIR__));
+    $checkpoint = 'DEPENDENCY_GUARD';
     require_once $root . '/tools/reviewed-dependencies.php'; verify_worker_dependencies($root);
+    $checkpoint = 'LOAD';
     foreach (['JsonRecord', 'JsonEncoding', 'SqlColumn', 'DatabaseInteger', 'DatabaseFailure'] as $name) { require_once $root . '/app/' . $name . '.php'; }
+    $checkpoint = 'PLAN_BINDING';
     if (is_link($path) || !hash_equals($digest, RequiredFile::digest($path))) { throw new RuntimeException('Frozen execution declaration changed.'); }
     $plan = JsonRecord::decode(RequiredFile::bytes(file_get_contents($path)), 64);
     if ([$plan['schema'] ?? null, $plan['sourceInput'] ?? null] !== ['tablo/server-cell-start/v1', $root]) { throw new RuntimeException('Cell declaration source identity refused.'); }
+    $roots = server_cell_prepare_roots($root, $path, $plan);
     require_once __DIR__ . '/ServerFixturePlan.php';
+    $checkpoint = 'OBSERVER_BINDING';
     server_cell_observer_require($plan);
     server_cell_observer_phase('prepare');
+    $ready = true; $checkpoint = 'MATERIALIZE';
     server_cell_materialize($plan);
     // The inherited installation environment is never loaded; only the fresh copy has an empty .env.
+    $checkpoint = 'AUTOLOAD';
     require_once SqlColumn::string($plan, 'source') . '/vendor/autoload.php';
+    $checkpoint = 'ENVIRONMENT';
     $environment = server_cell_start_environment($plan);
     if (!putenv('TABLO_SESSION_EVIDENCE_DIRECTORY=' . SqlColumn::string($environment, 'TABLO_SESSION_EVIDENCE_DIRECTORY'))) {
         throw new RuntimeException('Cannot select the exact owned server-cell receipt sink.');
     }
+    $checkpoint = 'CONTROLLER_DIRECTORY';
     $context = ['plan' => $plan, 'directory' => new TemporaryDirectory('tablo-cell-controller-', SqlColumn::string($plan, 'runtime') . '/tmp'), 'environment' => $environment];
-    try { server_cell_execute($context); }
-    catch (Throwable $error) { $context['directory']->retainFailure($error); throw $error; }
+    $checkpoint = 'EXECUTE'; server_cell_execute($context);
+    } catch (Throwable $error) {
+        server_cell_prepare_rethrow($error, $checkpoint, $roots, $ready,
+            $context === null ? null : static fn () => $context['directory']->retainFailure($error));
+    }
+}
+
+/** Only lexical, frozen repository roots are eligible; no origin is probed.
+ * @return list<string> */
+function server_cell_prepare_roots(string $root, string $path, array $plan): array
+{
+    /** @var mixed $nonce Only a validated literal nonce may name a copied source root. */
+    $nonce = $plan['nonce'] ?? null; $parent = str_replace('\\', replace: '/', subject: dirname($path));
+    $copy = is_string($nonce) ? $parent . '/tablo-server-' . $nonce . '/source' : '';
+    if (($plan['sourceInput'] ?? null) === $root && is_string($nonce) && preg_match('/\A[0-9a-f]{32}\z/D', $nonce) === 1
+        && preg_match('~\A(?:/[A-Za-z0-9_. /-]+|[A-Za-z]:/[A-Za-z0-9_. /-]+)\z~D', $parent) === 1
+        && !str_contains($parent, '//') && preg_match('~(?:\A|/)\.{1,2}(?:/|\z)~D', $parent) !== 1
+        && ($plan['runtime'] ?? null) === $parent . '/tablo-server-' . $nonce && ($plan['source'] ?? null) === $copy) { return [$root, $copy]; }
+    return [$root];
+}
+
+/** @return list<string> */
+function server_cell_prepare_sources(): array
+{
+    return ['tools/server-cell.php', 'tools/ServerFixturePlan.php', 'tools/ServerFixtureCatalog.php', 'tools/reviewed-dependencies.php',
+        'tools/ReviewedDependencyManifest.php', 'tools/ReviewedDependencyCatalog.php', 'tools/ReviewedDependencyEntry.php',
+        'tools/ReviewedDependencyCoverage.php', 'tools/MagoSource.php', 'tools/MagoPin.php', 'app/RequiredFile.php',
+        'app/JsonRecord.php', 'app/JsonEncoding.php', 'app/SqlColumn.php', 'app/DatabaseInteger.php', 'app/DatabaseFailure.php',
+        'app/bootstrap.php', 'tests/Support/TemporaryDirectory.php', 'tests/Support/Subprocess.php', 'tests/Support/SubprocessReceipt.php',
+        'tests/Server/EngineVerificationTest.php'];
+}
+
+/** Pure first-failure projection: no message, trace, private bytes or origin metadata.
+ * @param list<string> $roots */
+function server_cell_prepare_failure(#[\SensitiveParameter] Throwable $error, string $checkpoint, array $roots): array
+{
+    $stages = ['ARGUMENTS', 'DEPENDENCY_GUARD', 'LOAD', 'PLAN_BINDING', 'OBSERVER_BINDING', 'MATERIALIZE', 'AUTOLOAD', 'ENVIRONMENT', 'CONTROLLER_DIRECTORY', 'EXECUTE'];
+    $classes = ['RuntimeException', 'LogicException', 'InvalidArgumentException', 'JsonException', 'Error', 'TypeError', 'ValueError', 'ParseError', 'ErrorException'];
+    $class = get_class($error); $source = null; $line = null; $origin = str_replace('\\', replace: '/', subject: $error->getFile());
+    if ($error->getLine() > 0 && $error->getLine() <= 1_000_000) {
+        foreach ($roots as $root) {
+            foreach (server_cell_prepare_sources() as $candidate) {
+                if ($origin !== $root . '/' . $candidate) { continue; }
+                $source = $candidate; $line = $error->getLine();
+            }
+        }
+    }
+    return ['schema' => 'tablo/server-prepare-failure/v1', 'status' => 'failed', 'phase' => 'prepare', 'rootCause' => 'UNKNOWN', 'issueAccepted' => false,
+        'stage' => in_array($checkpoint, $stages, strict: true) ? $checkpoint : 'UNKNOWN',
+        'errorClass' => in_array($class, $classes, strict: true) ? $class : 'UNKNOWN', 'source' => $source, 'line' => $line];
+}
+
+/** Earlier failures stay MISSING: obtaining helpers or observer authority here is forbidden. */
+// @mago-expect lint:no-boolean-flag-parameter
+function server_cell_prepare_report(array $record, bool $ready): void
+{
+    if (!$ready) { return; }
+    foreach ([RequiredFile::class, JsonRecord::class, \Tablo\JsonEncoding::class, SqlColumn::class] as $helper) {
+        if (!class_exists($helper, autoload: false)) { return; }
+    }
+    if (strlen(\Tablo\JsonEncoding::encode($record)) > 2_048) { return; }
+    $reply = server_cell_observer_request('prepare-failure', ['diagnostic' => $record]);
+    if (array_keys($reply) !== ['sequence', 'recorded'] || ($reply['recorded'] ?? null) !== true) { throw new RuntimeException('Prepare diagnostic acknowledgement refused.'); }
+}
+
+/** @param list<string> $roots */
+function server_cell_prepare_rethrow(#[\SensitiveParameter] Throwable $error, string $checkpoint, array $roots, bool $ready, ?Closure $retain): never
+{
+    try { $record = server_cell_prepare_failure($error, $checkpoint, $roots); server_cell_prepare_report($record, $ready); }
+    catch (Throwable $discarded) { unset($discarded); }
+    try { if ($retain !== null) { $retain(); } } catch (Throwable $discarded) { unset($discarded); }
+    throw $error;
 }
 
 /** A distinct positively observed controller continues only the genuine saved preparation window.
@@ -1647,6 +1728,7 @@ function server_cell_observer_closed(array $result, array $receipt): bool
 function server_cell_observer_request(string $kind, array $payload): array
 {
     $configuration = server_cell_observer_configuration(); $authority = SqlColumn::string($configuration, 'authorityFile');
+    if ($kind === 'prepare-failure') { $payload = ['cellNonce' => SqlColumn::string($configuration, 'cellNonce'), ...$payload]; }
     if (is_link($authority)) { throw new RuntimeException('Linked observer authority refused.'); }
     $key = RequiredFile::bytes(file_get_contents($authority));
     if (strlen($key) !== 32) { throw new RuntimeException('Raw observer authority required.'); }

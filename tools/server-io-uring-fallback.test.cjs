@@ -2,7 +2,7 @@
 // Actual pinned owners, synthetic bytes and a closed in-memory filesystem only.
 const test = require('node:test'), assert = require('node:assert/strict');
 const fs = require('node:fs'), vm = require('node:vm'), path = require('node:path');
-const { createHash } = require('node:crypto');
+const { createHash, createHmac } = require('node:crypto');
 const { EventEmitter } = require('node:events');
 const { LinuxRecords, acceptEvent } = require('./server-supervisor.cjs');
 const { projectFailure } = require('./server-qualification-diagnostic.cjs');
@@ -38,7 +38,7 @@ function eventSet(a, root, marker, files, code = 0, signal = null, cancelled = f
 }
 const nativeClose = (code = 0) => ({ code, signal: null, closeObserved: true, spawnError: false, protocolFailed: false,
   stdoutTrailingBytes: 0, stderrBytes: 0, nativeProtocol: 'private-inherited-pipes/v2' });
-function ownerModule(files) {
+function ownerModule(files, transport = null) {
   const effects = [];
   const tripwire = effect => { effects.push(effect); throw Error('SANDBOX_EFFECT ' + effect); };
   const directories = new Set(['/']);
@@ -65,11 +65,11 @@ function ownerModule(files) {
       if (name === 'node:path') return path.posix;
       if (name === 'node:os') return { release: () => context.kernel };
       if (name === 'node:child_process') return { spawn: () => tripwire('FORBIDDEN_SPAWN') };
-      if (name === 'node:net') return new Proxy({}, { get() { tripwire('FORBIDDEN_NETWORK'); } });
+      if (name === 'node:net') return transport ?? new Proxy({}, { get() { tripwire('FORBIDDEN_NETWORK'); } });
       if (['node:crypto','node:util'].includes(name)) return require(name);
       tripwire('UNEXPECTED_IMPORT ' + name);
     } };
-  vm.runInNewContext(source + '\nObject.assign(module.exports, { observerFailure, latchObserverFailure });', sandbox, { filename: sandbox.__filename });
+  vm.runInNewContext(source + '\nObject.assign(module.exports, { observerFailure, latchObserverFailure, listen, controllerRequest, prepareDiagnostic, PREPARE_STAGES, PREPARE_CLASSES, PREPARE_SOURCES });', sandbox, { filename: sandbox.__filename });
   return { api: module.exports, context, effects };
 }
 function receiptFixture() {
@@ -427,6 +427,7 @@ function observerHarness(options = {}) {
     controllerLaunch: async () => { step('launch-description'); return {}; },
     adapterPlan: async () => { step('adapter-plan'); return {}; },
     runAdapter: async owner => { step('adapter-run'); owner.adapterClose = { code: 0 };
+      if (options.prepareDiagnostic !== undefined) owner.phase.prepareDiagnostic = options.prepareDiagnostic;
       owner.adapterState = { exited: { exitCode: 0 }, input: { settled: true }, closed: { scopeObservedEmpty: true } };
       if (options.cancel) owner.cancel(options.cancel); return owner.adapterState; },
     verifyCustody: async () => { step('custody'); return {}; }, verifyPhase: async () => { step('phase-proof'); return {}; },
@@ -541,4 +542,128 @@ test('actual cancellation and final deadline refusals retain their phase and nev
   const expired = observerHarness({ expireAtRetention: true });
   await assert.rejects(expired.run(), /CELL_FAILED/); observerClosed(expired);
   const last = JSON.parse(expired.output[0]); assert.equal(last.stage, 'settlement'); assert.equal(last.refusal, 'CELL_FAILED');
+});
+
+function prepareRecord(changes = {}) {
+  return { schema: 'tablo/server-prepare-failure/v1', status: 'failed', phase: 'prepare', rootCause: 'UNKNOWN', issueAccepted: false,
+    stage: 'EXECUTE', errorClass: 'RuntimeException', source: 'tools/server-cell.php', line: 123, ...changes };
+}
+async function prepareChannel(options = {}) {
+  let accept;
+  const server = new EventEmitter();
+  server.listen = (address, callback) => { assert.deepEqual(JSON.parse(JSON.stringify(address)), { host: '127.0.0.1', port: 46000, exclusive: true }); callback(); };
+  server.address = () => ({ address: '127.0.0.1', port: 46000 });
+  const f = ownerModule(new Map(), { createServer(callback) { accept = callback; return server; } });
+  const key = Buffer.alloc(32, 7), nonce = 'b'.repeat(32), cellNonce = 'a'.repeat(32);
+  const phase = { kind: 'prepare', nonce, authority: key, sequence: 0, prepareDiagnosticOpen: true };
+  const cancellations = [], owner = { plan: { nonce: cellNonce, executionMode: 'qualified' }, phase,
+    observer: { host: '127.0.0.1', port: 46000 }, leases: new f.api.Leases(100_000_000_000n, () => 1n),
+    control: false, cancelReason: null, phaseResults: [], cancel(reason) { cancellations.push(reason); this.cancelReason = reason; } };
+  if (options.owner) Object.assign(owner, options.owner);
+  if (options.phase) Object.assign(phase, options.phase);
+  await f.api.listen(owner);
+  const connect = () => {
+    const socket = new EventEmitter(); socket.output = []; socket.destroyed = false;
+    socket.setTimeout = milliseconds => assert.equal(milliseconds, 1000);
+    socket.destroy = () => { socket.destroyed = true; };
+    socket.end = (bytes, callback) => { if (options.outputThrows) throw Error('PRIVATE output'); socket.output.push(bytes); callback(options.ackError ? Error('PRIVATE ack') : null); };
+    accept(socket); return socket;
+  };
+  const wire = (raw, changes = {}) => {
+    const encoded = Buffer.from(raw).toString('base64'), selectedNonce = changes.nonce ?? nonce, kind = changes.kind ?? 'prepare-failure';
+    const mac = createHmac('sha256', key).update(`tablo-i39-windows-adapter/1\ncontroller-to-owner\n${selectedNonce}\n1\n${kind}\n${encoded}`).digest('hex');
+    return Buffer.from(JSON.stringify({ v: 1, nonce: selectedNonce, seq: 1, kind, payload: encoded, mac, ...changes }) + '\n');
+  };
+  const payload = (changes = {}) => ({ sequence: phase.sequence + 1, cellNonce, diagnostic: prepareRecord(), ...changes });
+  const canonical = value => JSON.stringify(value).replaceAll('/', '\\/');
+  const send = (value = payload(), changes = {}) => { const socket = connect(); socket.emit('data', wire(typeof value === 'string' ? value : canonical(value), changes)); return socket; };
+  const closed = () => { assert.deepEqual(f.effects, []); assert.equal(owner.leases.active.size, 0); assert.equal(owner.leases.events.length, 0); assert.equal(owner.phaseResults.length, 0); };
+  return { ...f, owner, phase, key, nonce, cellNonce, cancellations, payload, wire, canonical, connect, send, closed };
+}
+test('actual prepare-failure channel authenticates and records a finite first failure without capability or completion', async () => {
+  const h = await prepareChannel(), socket = h.send(); h.closed();
+  assert.equal(socket.destroyed, false); assert.deepEqual(h.cancellations, []);
+  assert.deepEqual(JSON.parse(JSON.stringify(h.phase.prepareDiagnostic)), prepareRecord());
+  const receiver = new h.api.Frames(h.key, h.nonce, 'controller-to-owner', 'owner-to-controller', 4096);
+  const replies = []; receiver.push(socket.output[0], value => replies.push(value));
+  assert.deepEqual(JSON.parse(JSON.stringify(replies)), [{ kind: 'accepted', payload: { sequence: 1, recorded: true } }]);
+  const first = h.phase.prepareDiagnostic; const second = h.send(h.payload({ diagnostic: prepareRecord({ stage: 'AUTOLOAD' }) }));
+  h.closed(); assert(second.destroyed); assert.equal(h.phase.prepareDiagnostic, first); assert.deepEqual(h.cancellations, ['protocol']);
+});
+test('actual prepare projector consumer accepts every finite stage class and source and revalidates console independently', async () => {
+  const h = await prepareChannel();
+  for (const stage of h.api.PREPARE_STAGES) assert.equal(h.api.prepareDiagnostic(prepareRecord({ stage })).stage, stage);
+  for (const errorClass of h.api.PREPARE_CLASSES) assert.equal(h.api.prepareDiagnostic(prepareRecord({ errorClass })).errorClass, errorClass);
+  for (const source of h.api.PREPARE_SOURCES) assert.equal(h.api.prepareDiagnostic(prepareRecord({ source })).source, source);
+  for (const line of [1, 1000000]) assert.equal(h.api.prepareDiagnostic(prepareRecord({ line })).line, line);
+  assert.equal(h.api.prepareDiagnostic(prepareRecord({ source: null, line: null })).source, null); h.closed();
+  const safe = observerHarness({ at: 'custody', prepareDiagnostic: prepareRecord(), retentionFails: true });
+  await assert.rejects(safe.run(), value => value === safe.original); observerClosed(safe);
+  const record = JSON.parse(safe.output[0]); assert.deepEqual(record.prepareDiagnostic, prepareRecord());
+  assert.equal(record.stage, 'custody'); assert.equal(record.completedPhases, 0); assert.equal(record.controllerExit, 0);
+  assert(Buffer.byteLength(safe.output[0]) <= 4096);
+  const invalid = observerHarness({ at: 'custody', prepareDiagnostic: prepareRecord({ message: 'PRIVATE canary' }) });
+  await assert.rejects(invalid.run(), value => value === invalid.original); observerClosed(invalid);
+  assert.equal(JSON.parse(invalid.output[0]).prepareDiagnostic, 'MISSING'); assert(!invalid.output[0].includes('PRIVATE'));
+});
+test('actual controller1 custody refusal survives an accepted prepare diagnostic without reading captures or completing a phase', async () => {
+  const files = new Map(), root = '/synthetic/product', state = eventSet(admission(), root, '', files, 1);
+  const { api, effects } = ownerModule(files);
+  const owner = { phase: { root, kind: 'prepare', prepareDiagnostic: api.prepareDiagnostic(prepareRecord()) }, control: false,
+    plan: {}, leases: { active: new Set() }, cancelReason: null, phaseResults: [], adapterClose: nativeClose(), adapterState: state };
+  let error; try { await api.verifyCustody(owner, state); } catch (caught) { error = caught; }
+  assert.deepEqual(effects, []); assert(error); assert.equal(owner.phaseResults.length, 0);
+  const failure = api.observerFailure(); failure.stage = 'custody'; failure.phase = 'prepare'; api.latchObserverFailure(failure, error, owner);
+  assert.equal(failure.first.refusal, 'CONTROLLER_NATIVE_FAILURE'); assert.equal(failure.first.controllerExit, 1);
+  assert.equal(failure.first.prepareDiagnostic.status, 'failed'); assert.equal(failure.first.completedPhases, 0);
+});
+for (const [label, mutate] of [
+  ['wrong MAC', h => h.send(h.payload(), { mac: '0'.repeat(64) })],
+  ['wrong nonce', h => h.send(h.payload(), { nonce: 'c'.repeat(32) })],
+  ['wrong cell', h => h.send(h.payload({ cellNonce: 'c'.repeat(32) }))],
+  ['replay', h => h.send(h.payload({ sequence: 0 }))],
+  ['extra command field', h => h.send({ ...h.payload(), extra: 'PRIVATE' })],
+  ['unknown command', h => h.send(h.payload(), { kind: 'diagnostic' })],
+  ['duplicate field', h => h.send(h.canonical(h.payload()).replace('"stage":', '"stage":"EXECUTE","stage":'))],
+  ['escape equivalent duplicate', h => h.send(h.canonical(h.payload()).replace('"stage":', '"st\\u0061ge":"EXECUTE","stage":'))],
+  ['extra projected field', h => h.send(h.payload({ diagnostic: prepareRecord({ message: 'PRIVATE' }) }))],
+  ['noncanonical slash', h => h.send(JSON.stringify(h.payload()))],
+  ['noncanonical whitespace', h => h.send(' ' + h.canonical(h.payload()))],
+  ['noncanonical order', h => h.send({ cellNonce: h.cellNonce, sequence: 1, diagnostic: prepareRecord() })],
+  ['unknown stage', h => h.send(h.payload({ diagnostic: prepareRecord({ stage: 'PRIVATE' }) }))],
+  ['unknown class', h => h.send(h.payload({ diagnostic: prepareRecord({ errorClass: 'PrivateException' }) }))],
+  ['unknown origin', h => h.send(h.payload({ diagnostic: prepareRecord({ source: '/private/session' }) }))],
+  ['uncoupled line', h => h.send(h.payload({ diagnostic: prepareRecord({ source: null }) }))],
+  ['zero line', h => h.send(h.payload({ diagnostic: prepareRecord({ line: 0 }) }))],
+  ['large line', h => h.send(h.payload({ diagnostic: prepareRecord({ line: 1000001 }) }))],
+  ['string line', h => h.send(h.payload({ diagnostic: prepareRecord({ line: '123' }) }))],
+  ['success status', h => h.send(h.payload({ diagnostic: prepareRecord({ status: 'passed' }) }))],
+  ['guessed cause', h => h.send(h.payload({ diagnostic: prepareRecord({ rootCause: 'PRIVATE' }) }))],
+  ['accepted issue', h => h.send(h.payload({ diagnostic: prepareRecord({ issueAccepted: true }) }))],
+  ['oversize projection', h => h.send(h.payload({ diagnostic: prepareRecord({ stage: 'PRIVATE'.repeat(400) }) }))],
+  ['oversize payload', h => h.send(h.payload({ diagnostic: prepareRecord({ stage: 'x'.repeat(32769) }) }))],
+  ['oversize frame', h => { const socket = h.connect(); socket.emit('data', Buffer.alloc(65537, 120)); return socket; }],
+  ['malformed JSON', h => h.send('{')],
+  ['malformed UTF8', h => { const socket = h.connect(); socket.emit('data', h.wire(Buffer.from([0xff]))); return socket; }],
+]) test('actual authenticated prepare-failure refuses ' + label, async () => {
+  const h = await prepareChannel(); const socket = mutate(h); h.closed();
+  assert.equal(h.phase.prepareDiagnostic, undefined); assert(socket.destroyed); assert.deepEqual(h.cancellations, ['protocol']);
+});
+for (const options of [
+  { owner: { control: true } }, { owner: { plan: { nonce: 'a'.repeat(32), executionMode: 'diagnostic-only' } } },
+  { phase: { kind: 'baseline' } }, { phase: { kind: 'engine' } }, { phase: { kind: 'control' } },
+  { phase: { prepareDiagnosticOpen: false } }, { owner: { cancelReason: 'deadline' } },
+]) test('actual prepare-failure refuses inactive context ' + JSON.stringify(options), async () => {
+  const h = await prepareChannel(options), socket = h.send(); h.closed(); assert(socket.destroyed); assert.equal(h.phase.prepareDiagnostic, undefined);
+});
+test('actual prepare-failure refuses expired owner old-phase and one-connection repetition; broken ACK never grants success', async () => {
+  const expired = await prepareChannel(); expired.owner.leases.parentEnd = 1n; expired.send(); expired.closed(); assert.equal(expired.phase.prepareDiagnostic, undefined);
+  const old = await prepareChannel(), socket = old.connect(); old.owner.phase = { ...old.phase };
+  socket.emit('data', old.wire(old.canonical(old.payload()))); old.closed(); assert.equal(old.phase.prepareDiagnostic, undefined);
+  const repeated = await prepareChannel(), connection = repeated.connect(), raw = repeated.wire(repeated.canonical(repeated.payload()));
+  connection.emit('data', Buffer.concat([raw, raw])); repeated.closed(); assert(connection.destroyed); assert(repeated.phase.prepareDiagnostic);
+  for (const option of [{ ackError: true }, { outputThrows: true }]) {
+    const broken = await prepareChannel(option); broken.send(); broken.closed(); assert.deepEqual(broken.cancellations, ['protocol']);
+    assert.equal(broken.phase.prepareDiagnostic.status, 'failed'); assert.equal(broken.owner.phaseResults.length, 0);
+  }
 });
