@@ -732,7 +732,8 @@ function server_cell_prepare_sources(): array
 }
 
 /** Pure first-failure projection: no message, trace, private bytes or origin metadata.
- * @param list<string> $roots */
+ * @param list<string> $roots
+ * @return array{schema: 'tablo/server-prepare-failure/v1', status: 'failed', phase: 'prepare', rootCause: 'UNKNOWN', issueAccepted: false, stage: string, errorClass: string, source: ?string, line: ?int} */
 function server_cell_prepare_failure(#[\SensitiveParameter] Throwable $error, string $checkpoint, array $roots): array
 {
     $stages = ['ARGUMENTS', 'DEPENDENCY_GUARD', 'LOAD', 'PLAN_BINDING', 'OBSERVER_BINDING', 'MATERIALIZE', 'AUTOLOAD', 'ENVIRONMENT', 'CONTROLLER_DIRECTORY', 'EXECUTE'];

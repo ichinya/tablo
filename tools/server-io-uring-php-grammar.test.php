@@ -182,28 +182,48 @@ namespace {
     /** Extract only the actual pure producer helpers, never cell main or its dependencies. */
     function grammar_prepare_failures(): void
     {
-        $bytes = file_get_contents(__DIR__ . '/server-cell.php');
+        $bytes = file_get_contents(__DIR__ . '/server-cell.php', length: 262_145);
         if (!is_string($bytes)) { throw new RuntimeException('Required public producer source absent.'); }
-        $tokens = token_get_all($bytes); $selected = []; $count = count($tokens);
-        for ($index = 0; $index < $count; $index++) {
-            $token = $tokens[$index] ?? null;
-            if (!is_array($token) || $token[0] !== T_FUNCTION) { continue; }
-            $name = $tokens[$index + 2] ?? null;
-            if (!is_array($name) || !in_array($name[1], ['server_cell_prepare_roots', 'server_cell_prepare_sources', 'server_cell_prepare_failure', 'server_cell_prepare_report', 'server_cell_prepare_rethrow'], strict: true)) { continue; }
-            $body = ''; $depth = 0; $opened = false;
-            for (; $index < $count; $index++) {
-                $current = $tokens[$index] ?? ''; $body .= is_array($current) ? $current[1] : $current;
-                if ($current === '{') { $depth++; $opened = true; }
-                if ($current === '}' && --$depth === 0 && $opened) { break; }
-            }
-            $selected[] = $body;
-        }
+        $selected = grammar_prepare_functions($bytes);
         grammar_expect(count($selected) === 5);
         // Only these five inspected public helper bodies enter an isolated namespace;
         // no include, autoload, cell entry or source transformation is executed.
         // @mago-expect lint:no-eval
         eval('namespace Tablo\\Tools; use Tablo\\RequiredFile; use Tablo\\JsonRecord; use Tablo\\SqlColumn; use Throwable; use RuntimeException; use Closure;' . implode("\n", $selected));
+        grammar_expect(!function_exists('Tablo\\Tools\\server_cell_prepare_client'));
+        grammar_prepare_extraction($bytes);
         grammar_prepare_projection(); grammar_prepare_origins(); grammar_prepare_transport();
+    }
+
+    /** The five inspected top-level helpers have column-zero closing braces.
+     * Refuse changed boundaries or duplicate declarations rather than parsing or
+     * importing any other PHP. Substrings preserve their exact original bytes.
+     * @return list<string> */
+    function grammar_prepare_functions(string $bytes): array
+    {
+        if (strlen($bytes) > 262_144) { throw new RuntimeException('Public producer source exceeds extraction bound.'); }
+        $selected = [];
+        foreach (['server_cell_prepare_roots', 'server_cell_prepare_sources', 'server_cell_prepare_failure', 'server_cell_prepare_report', 'server_cell_prepare_rethrow'] as $name) {
+            $marker = "\nfunction " . $name . '('; $position = strpos($bytes, $marker);
+            if ($position === false || strpos($bytes, $marker, offset: $position + strlen($marker)) !== false) { throw new RuntimeException('Exact unique pure helper declaration required.'); }
+            $start = $position + 1; $close = strpos($bytes, needle: "\n}", offset: $start);
+            if ($close === false) { throw new RuntimeException('Exact pure helper boundary absent.'); }
+            $end = $close + 2; $next = substr($bytes, offset: $end, length: 2);
+            if ($next !== '' && !str_starts_with($next, "\n") && $next !== "\r\n") { throw new RuntimeException('Changed pure helper boundary refused.'); }
+            $selected[] = substr($bytes, offset: $start, length: $end - $start);
+        }
+        return $selected;
+    }
+
+    function grammar_prepare_extraction(string $bytes): void
+    {
+        $lf = str_replace("\r\n", replace: "\n", subject: $bytes);
+        $windows = str_replace("\n", replace: "\r\n", subject: $lf);
+        grammar_expect(grammar_prepare_functions($lf) === array_map(static fn (string $body): string => str_replace("\r\n", replace: "\n", subject: $body), grammar_prepare_functions($windows)));
+        foreach ([$bytes . "\nfunction server_cell_prepare_roots() {}", str_replace('function server_cell_prepare_roots(', replace: 'function missing_prepare_roots(', subject: $bytes),
+            substr($bytes, offset: 0, length: (int) strpos($bytes, needle: 'function server_cell_prepare_rethrow(')), str_repeat('x', times: 262_145)] as $invalid) {
+            grammar_refused(static fn () => grammar_prepare_functions($invalid));
+        }
     }
 
     /** @return Closure(Throwable $error, string $checkpoint, list<string> $roots): array{schema: string, status: string, phase: string, rootCause: string, issueAccepted: bool, stage: string, errorClass: string, source: ?string, line: ?int} */
