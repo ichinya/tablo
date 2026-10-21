@@ -378,6 +378,7 @@ function observerHarness(options = {}) {
   const plan = { executionMode: Object.hasOwn(options, 'mode') ? options.mode : 'qualified', observer, php: {}, nonce: 'a'.repeat(32) };
   const memoryDirectories = new Set([root, ...['private','evidence','phases'].map(name => root + '/' + name),
     ...phases.flatMap(phase => [phase.root, ...['private','evidence','cwd'].map(name => phase.root + '/' + name)])]);
+  if (options.launchOnly) memoryDirectories.add('/synthetic/runtime/tmp/tablo-server-verify-' + 'b'.repeat(16));
   const retained = new Set([root + '/evidence/leases.json', root + '/evidence/observer-result.json',
     ...phases.map(phase => phase.root + '/evidence/phase-result.json')]);
   const closed = target => new Proxy(target, { get(value, key) {
@@ -391,6 +392,7 @@ function observerHarness(options = {}) {
     setInterval(callback, delay) { assert.equal(delay, 10); step('timer'); const token = {}; timers.add(token); return token; },
     clearInterval(token) { assert(timers.delete(token)); step('timer-clear'); },
     process: closed({ version: options.version ?? 'v24.13.0', platform: 'linux', arch: 'x64', execPath: '/synthetic/node',
+      env: { PATH: '/synthetic/tools' },
       hrtime: { bigint: () => expired ? 1801_000_000_000n : 1n }, once(signal) { assert(['SIGINT','SIGTERM'].includes(signal)); listeners.add(signal); },
       removeListener(signal) { assert(listeners.delete(signal)); },
       stderr: { write(bytes) { step('output'); if (options.outputFails) throw retentionError; output.push(bytes); } } }),
@@ -411,7 +413,7 @@ function observerHarness(options = {}) {
     } };
   // require.main differs from module, so the real executable entry never fires.
   sandbox.require.main = {};
-  vm.runInNewContext(source + `\nmodule.exports.testOnly = { main, supervise, observerFailure, latchObserverFailure, emitObserverFailure, fail,
+  vm.runInNewContext(source + `\nmodule.exports.testOnly = { main, supervise, observerFailure, latchObserverFailure, emitObserverFailure, fail, controllerLaunch,
     setSeams(seams) { readPlan=seams.readPlan; declaration=seams.declaration; pinned=seams.pinned; linuxPins=seams.linuxPins;
       regular=seams.regular; listen=seams.listen; controllerLaunch=seams.controllerLaunch; adapterPlan=seams.adapterPlan;
       runAdapter=seams.runAdapter; verifyCustody=seams.verifyCustody; verifyPhase=seams.verifyPhase; retain=seams.retain; digest=seams.digest; }
@@ -439,13 +441,28 @@ function observerHarness(options = {}) {
       writes.push({ value, status: record.status });
       if (options.expireAtRetention && value === root + '/evidence/observer-result.json') expired = true;
     },
-    digest: async value => { if (!retained.has(value)) tripwire('DIGEST'); step('phase-digest'); return 'a'.repeat(64); }
+    digest: async value => { if (!retained.has(value) && !(options.launchOnly && value === '/synthetic/runtime/evidence/started-cell.json')) tripwire('DIGEST'); step('phase-digest'); return 'a'.repeat(64); }
   });
   return { api, effects, calls, output, writes, listeners, timers, original, retentionError,
     run: () => api.main(['--execute=' + file, '--sha256=' + 'a'.repeat(64)]) };
 }
 function observerClosed(harness) {
   assert.deepEqual(harness.effects, []); assert.equal(harness.listeners.size, 0); assert.equal(harness.timers.size, 0);
+}
+for (const kind of ['prepare', 'baseline', 'engine']) {
+  test('actual ' + kind + ' launch selects only its owned PHP scan directory', async () => {
+    const h = observerHarness({ launchOnly: true }), runtime = '/synthetic/runtime';
+    const plan = { runtime, sourceInput: '/synthetic/input', source: runtime + '/source', nonce: 'a'.repeat(32),
+      selectedEngine: 'mysql', ini: runtime + '/private/php.ini', php: { path: '/synthetic/php' },
+      composer: { path: '/synthetic/composer' }, lekalo: { path: '/synthetic/lekalo' },
+      observer: { bootstrapIni: '/synthetic/bootstrap/php.ini', bootstrapIniScanDirectory: '/synthetic/bootstrap/scan' } };
+    const owner = { plan, observer: plan.observer, phase: { kind, root: '/synthetic/phase', nonce: 'b'.repeat(32), controllerStdout: '/synthetic/stdout', controllerStderr: '/synthetic/stderr' },
+      baselineDirectory: '/synthetic/baseline', phaseResults: [{ kind: 'baseline', path: '/synthetic/proof.json', sha256: 'a'.repeat(64) }] };
+    const launch = await h.api.controllerLaunch(owner, '/synthetic/plan.json', 'c'.repeat(64));
+    assert.equal(launch.environment.PHP_INI_SCAN_DIR, kind === 'prepare' ? '/synthetic/bootstrap/scan' : runtime + '/private/php-ini-scan');
+    if (kind !== 'prepare') assert.equal(launch.environment.PHPRC, runtime + '/private/php.ini');
+    assert.equal(launch.input.mode, 'none'); assert.deepEqual(h.effects, []);
+  });
 }
 for (const stage of ['preflight','declaration','pins','linux-pins','root-layout','listener','phase-layout',
   'launch-description','adapter-plan','adapter-run','custody','phase-proof','phase-retention','retention']) {

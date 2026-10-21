@@ -354,7 +354,7 @@ async function controllerLaunch(owner, file, hash) {
   if (phase.kind !== 'prepare') {
     const started = runtime + '/evidence/started-cell.json'; const startedSha = await digest(started);
     env = { ...environment(process.env), TABLO_TEST_SOURCE_ROOT: plan.source, TABLO_TEST_RUN_NONCE: plan.nonce,
-      TABLO_TEST_DB_DRIVER: plan.selectedEngine, PHPRC: plan.ini, PHP_INI_SCAN_DIR: '',
+      TABLO_TEST_DB_DRIVER: plan.selectedEngine, PHPRC: plan.ini, PHP_INI_SCAN_DIR: runtime + '/private/php-ini-scan',
       TEMP: runtime + '/tmp', TMP: runtime + '/tmp', TMPDIR: runtime + '/tmp',
       TABLO_SESSION_EVIDENCE_DIRECTORY: runtime + '/evidence/closure',
       COMPOSER_HOME: runtime + '/composer-home', COMPOSER_CACHE_DIR: runtime + '/composer-cache',

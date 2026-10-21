@@ -805,7 +805,7 @@ function server_cell_materialize(array $plan): void
     $runtime = SqlColumn::string($plan, 'runtime'); $nonce = SqlColumn::string($plan, 'nonce');
     if (basename($runtime) !== 'tablo-server-' . $nonce || preg_match('/\A[0-9a-f]{32}\z/D', $nonce) !== 1) { throw new RuntimeException('Fresh cell root refused.'); }
     server_cell_directory($runtime);
-    foreach (['private', 'private/tls', 'private/docker-config', 'tmp', 'sessions', 'composer-home', 'composer-cache', 'evidence', 'evidence/closure', 'source'] as $directory) { server_cell_directory($runtime . '/' . $directory); }
+    foreach (['private', 'private/tls', 'private/docker-config', 'private/php-ini-scan', 'tmp', 'sessions', 'composer-home', 'composer-cache', 'evidence', 'evidence/closure', 'source'] as $directory) { server_cell_directory($runtime . '/' . $directory); }
     $root = SqlColumn::string($plan, 'sourceInput'); $target = SqlColumn::string($plan, 'source');
     $manifest = JsonRecord::checked($plan['sourceManifest'] ?? null);
     $bytes = RequiredFile::bytes(file_get_contents(SqlColumn::string($manifest, 'path')));
@@ -899,6 +899,7 @@ function server_cell_capability(): void
         throw new RuntimeException('Actual private PHP configuration mismatch.');
     }
     if (str_replace('\\', replace: '/', subject: $loaded) !== $ini) { $category = 'INI_MISMATCH'; throw new RuntimeException('Actual private PHP configuration mismatch.'); }
+    if (php_ini_scanned_files() !== false) { $category = 'INI_MISMATCH'; throw new RuntimeException('Additional private PHP configuration refused.'); }
     if (str_replace('\\', replace: '/', subject: sys_get_temp_dir()) !== dirname($runtime) . '/tmp') { $category = 'TEMP_MISMATCH'; throw new RuntimeException('Actual private PHP configuration mismatch.'); }
     if (fwrite(STDOUT, data: "PRIVATE_PHP_READY\n") !== strlen("PRIVATE_PHP_READY\n")) { $category = 'READY_WRITE_FAILED'; throw new RuntimeException('Private PHP readiness output incomplete.'); }
     } catch (Throwable $error) {
@@ -1121,7 +1122,8 @@ function server_cell_start_environment(array $plan): array
     $runtime = SqlColumn::string($plan, 'runtime'); $composer = JsonRecord::checked($plan['composer'] ?? null); $lekalo = JsonRecord::checked($plan['lekalo'] ?? null);
     return $environment + ['TABLO_DB_DRIVER' => 'sqlite', 'TABLO_DB' => ':memory:', 'TABLO_TOKEN_KEY_FILE' => '',
         'TABLO_TEST_SOURCE_ROOT' => SqlColumn::string($plan, 'source'), 'TABLO_TEST_RUN_NONCE' => SqlColumn::string($plan, 'nonce'),
-        'TABLO_TEST_DB_DRIVER' => SqlColumn::string($plan, 'selectedEngine'), 'PHPRC' => SqlColumn::string($plan, 'ini'), 'PHP_INI_SCAN_DIR' => '',
+        // proc_open drops empty environment values; a nonempty owned directory survives nested PHP launches.
+        'TABLO_TEST_DB_DRIVER' => SqlColumn::string($plan, 'selectedEngine'), 'PHPRC' => SqlColumn::string($plan, 'ini'), 'PHP_INI_SCAN_DIR' => $runtime . '/private/php-ini-scan',
         'TMPDIR' => $runtime . '/tmp', 'TMP' => $runtime . '/tmp', 'TEMP' => $runtime . '/tmp',
         'TABLO_SESSION_EVIDENCE_DIRECTORY' => $runtime . '/evidence/closure',
         'COMPOSER_HOME' => $runtime . '/composer-home', 'COMPOSER_CACHE_DIR' => $runtime . '/composer-cache',

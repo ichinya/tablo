@@ -85,6 +85,18 @@ namespace Tablo\Tests\CapabilityGrammar {
         /** @var mixed $value No real PHP configuration is read. */
         $value = grammar_state()['capability']['loaded'] ?? null; return is_string($value) ? $value : false;
     }
+    function php_ini_scanned_files(): string|false
+    {
+        $state = &grammar_state();
+        /** @var mixed $queries The counter is validated before arithmetic. */
+        $queries = $state['capability']['scanQueries'] ?? 0;
+        if (!is_int($queries)) { grammar_tripwire('Invalid synthetic query counter.'); }
+        $state['capability']['scanQueries'] = $queries + 1;
+        /** @var mixed $value Closed seam; no configuration file or directory is inspected. */
+        $value = grammar_state()['capability']['scanned'] ?? false;
+        if ($value instanceof \Throwable) { throw $value; }
+        return is_string($value) ? $value : false;
+    }
     function sys_get_temp_dir(): string { return '/synthetic/' . ((grammar_state()['capability']['tempMismatch'] ?? false) === true ? 'different' : 'tmp'); }
     /** @param-out array<array-key, mixed> $matches */
     function preg_match(string $pattern, string $subject, ?array &$matches = null, int $flags = 0, int $offset = 0): int|false
@@ -160,6 +172,15 @@ namespace Tablo\Tests\PrivateIniGrammar {
         if ($path !== '/synthetic/private/php.ini') { \Tablo\Tools\grammar_tripwire('Foreign private INI write.'); }
         $state = &state(); $state['writes'][] = ['path' => $path, 'bytes' => $bytes];
     }
+}
+
+namespace Tablo\Tests\ScanEnvironmentGrammar {
+    // Only synthetic absence is available; the extracted helper cannot read the host environment.
+    function getenv(string $name): false { return false; }
+    /** @return list<string> */
+    function &directories(): array { static $value = []; return $value; }
+    function server_cell_directory(string $path): void { $value = &directories(); $value[] = $path; }
+    function file_get_contents(string $path): never { throw new \RuntimeException('SYNTHETIC_INVENTORY_STOP'); }
 }
 
 namespace {
@@ -288,6 +309,7 @@ namespace {
         $cell = file_get_contents(__DIR__ . '/server-cell.php', length: 262_145);
         $plan = file_get_contents(__DIR__ . '/ServerFixturePlan.php', length: 262_145);
         if (!is_string($cell) || !is_string($plan)) { throw new RuntimeException('Required public INI sources absent.'); }
+        grammar_scan_environment($cell);
         $bodies = array_merge(grammar_ini_functions($cell, ['server_cell_private_ini', 'server_cell_private_ini_linux', 'server_cell_private_ini_legacy']),
             grammar_ini_functions($plan, ['server_fixture_plan_php_module_pins', 'server_fixture_plan_linux_reference', 'server_fixture_plan_linux_path', 'server_fixture_plan_linux_regular']));
         foreach (['Linux', 'Windows'] as $platform) {
@@ -308,6 +330,32 @@ namespace {
         grammar_ini_setup($maximum); $run(grammar_ini_plan($maximum));
         grammar_expect(substr_count(grammar_ini_bytes(), needle: 'extension="') === 128); grammar_expect(\Tablo\Tools\grammar_state()['effects'] === []);
         grammar_ini_invalid($run, $pins); grammar_ini_physical($run, $pins); grammar_ini_windows();
+    }
+
+    function grammar_scan_environment(string $cell): void
+    {
+        $body = grammar_ini_functions($cell, ['server_cell_start_environment', 'server_cell_materialize']);
+        // Only the uniquely extracted producer is evaluated, with a closed getenv seam.
+        // @mago-expect lint:no-eval
+        eval('namespace Tablo\\Tests\\ScanEnvironmentGrammar; use Tablo\\JsonRecord, Tablo\\SqlColumn, Tablo\\RequiredFile; use RuntimeException;' . implode("\n", $body));
+        /** @var Closure(array): array<string, string> $start */
+        $start = grammar_prepare_callable('Tablo\\Tests\\ScanEnvironmentGrammar\\server_cell_start_environment');
+        $environment = $start([
+            'runtime' => '/synthetic/runtime', 'source' => '/synthetic/runtime/source', 'nonce' => str_repeat('a', times: 32),
+            'selectedEngine' => 'mysql', 'ini' => '/synthetic/runtime/private/php.ini',
+            'composer' => ['path' => '/synthetic/composer', 'sha256' => str_repeat('b', times: 64)], 'lekalo' => ['path' => '/synthetic/lekalo']]);
+        grammar_expect(\Tablo\SqlColumn::string($environment, 'PHP_INI_SCAN_DIR') === '/synthetic/runtime/private/php-ini-scan');
+        grammar_expect(\Tablo\SqlColumn::string($environment, 'PHPRC') === '/synthetic/runtime/private/php.ini');
+        grammar_expect(\Tablo\Tools\grammar_state()['effects'] === []);
+        $materialize = grammar_prepare_callable('Tablo\\Tests\\ScanEnvironmentGrammar\\server_cell_materialize');
+        $nonce = str_repeat('a', times: 32); $runtime = '/synthetic/tablo-server-' . $nonce;
+        $caught = null;
+        try { $materialize(['runtime' => $runtime, 'nonce' => $nonce, 'sourceInput' => '/synthetic/input', 'source' => $runtime . '/source',
+            'sourceManifest' => ['path' => '/synthetic/inventory.json']]); } catch (RuntimeException $error) { $caught = $error; }
+        grammar_expect($caught?->getMessage() === 'SYNTHETIC_INVENTORY_STOP');
+        grammar_expect(\Tablo\Tests\ScanEnvironmentGrammar\directories() === [$runtime, ...array_map(static fn (string $name): string => $runtime . '/' . $name,
+            ['private', 'private/tls', 'private/docker-config', 'private/php-ini-scan', 'tmp', 'sessions', 'composer-home', 'composer-cache', 'evidence', 'evidence/closure', 'source'])]);
+        grammar_expect(\Tablo\Tools\grammar_state()['effects'] === []);
     }
 
     /** @param list<string> $names
@@ -569,6 +617,7 @@ namespace {
         /** @var Closure(string): array{category: string, missingExtension: ?string} $marker */
         $marker = grammar_prepare_callable('Tablo\\Tests\\CapabilityGrammar\\server_cell_capability_marker');
         $success = grammar_capability_case($capability, []); grammar_expect($success === ['error' => null, 'output' => "PRIVATE_PHP_READY\n"]);
+        grammar_expect((\Tablo\Tools\grammar_state()['capability']['scanQueries'] ?? null) === 1);
         foreach (['curl','openssl','pdo','pdo_mysql','pdo_sqlite','mbstring','dom','xml','xmlwriter'] as $extension) {
             $case = grammar_capability_case($capability, ['missing' => $extension]); grammar_expect($case['error'] instanceof RuntimeException);
             grammar_expect($marker($case['output']) === ['category' => 'MISSING_EXTENSION', 'missingExtension' => $extension]);
@@ -579,10 +628,29 @@ namespace {
             grammar_expect($marker($case['output']) === ['category' => $category, 'missingExtension' => null]);
             grammar_expect(strlen($case['output']) <= 1_024 && !str_contains($case['output'], 'CANARY') && !str_contains($case['output'], '/synthetic'));
         }
+        grammar_capability_scan($capability, $marker);
         $primary = new RuntimeException('PRIVATE original'); $secondary = new TypeError('PRIVATE output');
         $failed = grammar_capability_case($capability, ['queryError' => $primary, 'markerError' => $secondary]);
         grammar_expect($failed['error'] === $primary && $failed['output'] === '');
         grammar_capability_markers($marker); grammar_capability_results();
+    }
+
+    /** @param Closure(string): array{category: string, missingExtension: ?string} $marker */
+    function grammar_capability_scan(Closure $capability, Closure $marker): void
+    {
+        $primary = new RuntimeException('PRIVATE original'); $secondary = new TypeError('PRIVATE output');
+        foreach (['', '/private/CANARY.ini', "/private/CANARY.ini,\n/private/SECOND.ini\n"] as $scanned) {
+            $case = grammar_capability_case($capability, ['scanned' => $scanned]);
+            grammar_expect($case['error'] instanceof RuntimeException);
+            grammar_expect($marker($case['output']) === ['category' => 'INI_MISMATCH', 'missingExtension' => null]);
+            grammar_expect(!str_contains($case['output'], 'CANARY') && !str_contains($case['output'], 'PRIVATE_PHP_READY'));
+            grammar_expect((\Tablo\Tools\grammar_state()['capability']['scanQueries'] ?? null) === 1);
+        }
+        $scanError = grammar_capability_case($capability, ['scanned' => $primary]);
+        grammar_expect($scanError['error'] === $primary);
+        grammar_expect($marker($scanError['output']) === ['category' => 'UNKNOWN', 'missingExtension' => null]);
+        $scanError = grammar_capability_case($capability, ['scanned' => $primary, 'markerError' => $secondary]);
+        grammar_expect($scanError['error'] === $primary && $scanError['output'] === '');
     }
 
     /** @param Closure(string): array{category: string, missingExtension: ?string} $marker */
