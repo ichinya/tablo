@@ -403,14 +403,14 @@ namespace {
         $bytes = file_get_contents(__DIR__ . '/server-cell.php', length: 262_145);
         if (!is_string($bytes)) { throw new RuntimeException('Required public producer source absent.'); }
         $selected = grammar_prepare_functions($bytes);
-        grammar_expect(count($selected) === 14);
+        grammar_expect(count($selected) === 17);
         // Only these inspected public helper bodies enter an isolated namespace;
         // no include, autoload, cell entry or source transformation is executed.
         // @mago-expect lint:no-eval
         eval('namespace Tablo\\Tests\\CapabilityGrammar; use Tablo\\RequiredFile; use Tablo\\JsonRecord; use Tablo\\SqlColumn; use Throwable; use RuntimeException; use Closure; use function Tablo\\Tools\\file_get_contents, Tablo\\Tools\\is_file, Tablo\\Tools\\is_link, Tablo\\Tools\\realpath, Tablo\\Tools\\hash_file, Tablo\\Tools\\exec, Tablo\\Tools\\proc_open;' . implode("\n", $selected));
         grammar_expect(!function_exists('Tablo\\Tests\\CapabilityGrammar\\server_cell_prepare_client'));
         grammar_prepare_extraction($bytes);
-        grammar_prepare_projection(); grammar_prepare_origins(); grammar_prepare_transport(); grammar_capability(); grammar_stderr(); grammar_bare_duplicate();
+        grammar_prepare_projection(); grammar_prepare_origins(); grammar_prepare_transport(); grammar_capability(); grammar_stderr(); grammar_bare_duplicate(); grammar_stderr_reasons();
     }
 
     /** The inspected top-level helpers have column-zero closing braces.
@@ -422,7 +422,7 @@ namespace {
         if (strlen($bytes) > 262_144) { throw new RuntimeException('Public producer source exceeds extraction bound.'); }
         $selected = [];
         foreach (['server_cell_prepare_roots', 'server_cell_prepare_sources', 'server_cell_prepare_failure', 'server_cell_prepare_report', 'server_cell_prepare_rethrow',
-            'server_cell_capability', 'server_cell_capability_marker', 'server_cell_capability_stderr_kind', 'server_cell_capability_stderr_record', 'server_cell_capability_observation', 'server_cell_capability_exit', 'server_cell_capability_shape', 'server_cell_capability_projection', 'server_cell_capability_check'] as $name) {
+            'server_cell_capability', 'server_cell_capability_marker', 'server_cell_capability_stderr_kind', 'server_cell_capability_stderr_shape', 'server_cell_capability_stderr_records', 'server_cell_capability_stderr_record', 'server_cell_capability_observation', 'server_cell_capability_exit', 'server_cell_capability_shape', 'server_cell_capability_stderr_reason_shape', 'server_cell_capability_projection', 'server_cell_capability_check'] as $name) {
             $marker = "\nfunction " . $name . '('; $position = strpos($bytes, $marker);
             if ($position === false || strpos($bytes, $marker, offset: $position + strlen($marker)) !== false) { throw new RuntimeException('Exact unique pure helper declaration required.'); }
             $start = $position + 1; $close = strpos($bytes, needle: "\n}", offset: $start);
@@ -839,13 +839,15 @@ namespace {
         /** @var Closure(Throwable $error, string $checkpoint, array $roots, ?array $capability): array{schema: string, capability: ?array} $prepare */
         $prepare = grammar_prepare_callable('Tablo\\Tests\\CapabilityGrammar\\server_cell_prepare_failure');
         $value = $observe(['exit_code' => 1, 'stdout' => '', 'stderr' => '']);
-        $legacy = $value; unset($legacy['stderrKind']); $legacy['schema'] = 'tablo/php-capability-observation/v1';
-        grammar_expect($project($legacy) === $legacy); grammar_expect($project($value) === $value);
+        $v2 = $value; unset($v2['stderrReason']); $v2['schema'] = 'tablo/php-capability-observation/v2';
+        $legacy = $v2; unset($legacy['stderrKind']); $legacy['schema'] = 'tablo/php-capability-observation/v1';
+        grammar_expect($project($legacy) === $legacy); grammar_expect($project($v2) === $v2); grammar_expect($project($value) === $value);
         $error = new RuntimeException('PRIVATE original');
         grammar_expect($prepare($error, checkpoint: 'EXECUTE', roots: [], capability: $legacy)['capability'] === null);
-        $outer = $prepare($error, checkpoint: 'EXECUTE', roots: [], capability: $value); grammar_expect($outer['schema'] === 'tablo/server-prepare-failure/v3' && $outer['capability'] === $value);
+        grammar_expect($prepare($error, checkpoint: 'EXECUTE', roots: [], capability: $v2)['capability'] === null);
+        $outer = $prepare($error, checkpoint: 'EXECUTE', roots: [], capability: $value); grammar_expect($outer['schema'] === 'tablo/server-prepare-failure/v4' && $outer['capability'] === $value);
         $hostile = new class implements JsonSerializable { public function jsonSerialize(): mixed { \Tablo\Tools\grammar_tripwire('Arbitrary finite domain serialization.'); } };
-        foreach ([$legacy, $value] as $record) { foreach (['category', 'missingExtension'] as $field) {
+        foreach ([$legacy, $v2, $value] as $record) { foreach (['category', 'missingExtension'] as $field) {
             grammar_expect($project(array_replace($record, [$field => $hostile])) === null); grammar_expect(\Tablo\Tools\grammar_state()['effects'] === []);
         } }
         foreach ([array_replace($legacy, ['stderrKind' => 'NONE']), array_diff_key($value, ['stderrKind' => true]),
@@ -853,6 +855,79 @@ namespace {
             array_replace($value, ['stderr' => 'NONEMPTY']), array_replace($value, ['stderr' => 'UNKNOWN', 'stderrKind' => 'PHP_WARNING']),
             array_reverse($value, preserve_keys: true)] as $invalid) { grammar_expect($project($invalid) === null); }
         grammar_expect(\Tablo\Tools\grammar_state()['effects'] === []);
+    }
+
+    function grammar_stderr_reasons(): void
+    {
+        /** @var Closure(mixed): array{stderrKind: string, stderrReason: string} $shape */
+        $shape = grammar_prepare_callable('Tablo\\Tests\\CapabilityGrammar\\server_cell_capability_stderr_shape');
+        /** @var Closure(array): array{stderrKind: string, stderrReason: string, stderr: string} $observe */
+        $observe = grammar_prepare_callable('Tablo\\Tests\\CapabilityGrammar\\server_cell_capability_observation');
+        $warning = grammar_stderr_fixtures()['PHP_WARNING'];
+        foreach (grammar_stderr_reason_cases() as [$bytes, $kind, $reason]) {
+            $expected = ['stderrKind' => $kind, 'stderrReason' => $reason]; grammar_expect($shape($bytes) === $expected);
+            $value = $observe(['exit_code' => 1, 'stdout' => '', 'stderr' => $bytes]);
+            grammar_expect([$value['stderrKind'], $value['stderrReason']] === [$kind, $reason]);
+            grammar_expect(!str_contains(json_encode($value, JSON_THROW_ON_ERROR), 'PRIVATE'));
+            grammar_stderr_reason_domain($value); grammar_expect(\Tablo\Tools\grammar_state()['effects'] === []);
+            if (is_string($bytes) && $bytes !== '') { grammar_stderr_failed($observe(['exit_code' => 0, 'stdout' => "PRIVATE_PHP_READY\n", 'stderr' => $bytes]), $bytes); }
+        }
+        grammar_stderr_reason_precedence($shape);
+        $state = &\Tablo\Tools\grammar_state();
+        foreach ([false, new TypeError('PRIVATE parser')] as $fault) {
+            $state['capability']['regexFault'] = $fault;
+            grammar_expect($shape($warning) === ['stderrKind' => 'UNKNOWN', 'stderrReason' => $fault === false ? 'UTF8_CHECK_FAILED' : 'CLASSIFIER_EXCEPTION']);
+        }
+        unset($state['capability']['regexFault']); grammar_expect($state['effects'] === []);
+        grammar_stderr_compatibility($observe(['exit_code' => 0, 'stdout' => "PRIVATE_PHP_READY\n", 'stderr' => "PRIVATE\n"]));
+    }
+
+    /** @return list<array{string|null|bool, string, string}> */
+    function grammar_stderr_reason_cases(): array
+    {
+        $fixtures = grammar_stderr_fixtures(); $warning = $fixtures['PHP_WARNING'];
+        $cases = [['', 'NONE', 'NONE'], [null, 'UNKNOWN', 'UNAVAILABLE'], [false, 'UNKNOWN', 'UNAVAILABLE'],
+            [str_repeat('x', times: 4_097), 'UNKNOWN', 'BUFFER_LIMIT'], ["\xff\n", 'UNKNOWN', 'UTF8_CHECK_FAILED'],
+            ["x\0\n", 'UNKNOWN', 'CONTROL_CHECK_FAILED'], ['PRIVATE', 'UNKNOWN', 'TERMINATOR_MISSING'],
+            [str_repeat($warning, times: 9), 'UNKNOWN', 'RECORD_COUNT_LIMIT'], [str_repeat('x', times: 1_025) . "\n", 'UNKNOWN', 'RECORD_BYTES_LIMIT'],
+            ["\n", 'UNKNOWN', 'EMPTY_RECORD'], ["\n\n" . $warning, 'UNKNOWN', 'EMPTY_RECORD'], ["PRIVATE\n", 'UNKNOWN', 'UNCLASSIFIED_RECORD'],
+            [$warning . $fixtures['PHP_DEPRECATION'], 'UNKNOWN', 'MIXED_KINDS']];
+        foreach ($fixtures as $kind => $bytes) { $cases[] = [$bytes, $kind, 'RECOGNIZED']; }
+        return $cases;
+    }
+
+    /** @param Closure(mixed): array{stderrKind: string, stderrReason: string} $shape */
+    function grammar_stderr_reason_precedence(Closure $shape): void
+    {
+        $fixtures = grammar_stderr_fixtures(); $warning = $fixtures['PHP_WARNING'];
+        // First refusal follows the parser's established order.
+        foreach ([["\xff" . str_repeat('x', times: 4_096), 'BUFFER_LIMIT'], ["\xff\0", 'UTF8_CHECK_FAILED'], ["x\0", 'CONTROL_CHECK_FAILED'],
+            [str_repeat('x', times: 1_025), 'TERMINATOR_MISSING'], [str_repeat("\n", times: 10), 'RECORD_COUNT_LIMIT'],
+            [str_repeat('x', times: 1_025) . "\n\n", 'RECORD_BYTES_LIMIT'], [$warning . "\nPRIVATE\n", 'EMPTY_RECORD'],
+            ["PRIVATE\n" . $warning . $fixtures['PHP_DEPRECATION'], 'UNCLASSIFIED_RECORD']] as [$bytes, $reason]) { grammar_expect($shape($bytes)['stderrReason'] === $reason); }
+    }
+
+    /** @param array{stderrKind: string, stderrReason: string, stderr: string} $value */
+    function grammar_stderr_reason_domain(array $value): void
+    {
+        $project = grammar_prepare_callable('Tablo\\Tests\\CapabilityGrammar\\server_cell_capability_projection');
+        grammar_expect($project($value) === $value);
+        $reasons = ['NONE', 'RECOGNIZED', 'UNAVAILABLE', 'BUFFER_LIMIT', 'UTF8_CHECK_FAILED', 'CONTROL_CHECK_FAILED', 'TERMINATOR_MISSING',
+            'RECORD_COUNT_LIMIT', 'RECORD_BYTES_LIMIT', 'EMPTY_RECORD', 'UNCLASSIFIED_RECORD', 'MIXED_KINDS', 'CLASSIFIER_EXCEPTION'];
+        foreach ($reasons as $reason) {
+            $valid = match ($value['stderr']) {
+                'EMPTY' => $reason === 'NONE', 'UNKNOWN' => $reason === 'UNAVAILABLE',
+                default => $value['stderrKind'] !== 'UNKNOWN' ? $reason === 'RECOGNIZED' : !in_array($reason, ['NONE', 'RECOGNIZED', 'UNAVAILABLE'], strict: true),
+            };
+            grammar_expect(($project(array_replace($value, ['stderrReason' => $reason])) !== null) === $valid);
+        }
+        $hostile = new class implements JsonSerializable {
+            public function __toString(): string { \Tablo\Tools\grammar_tripwire('Arbitrary reason conversion.'); }
+            public function jsonSerialize(): mixed { \Tablo\Tools\grammar_tripwire('Arbitrary reason serialization.'); }
+        };
+        foreach (['PRIVATE', 0, null, [], $hostile] as $reason) { grammar_expect($project(array_replace($value, ['stderrReason' => $reason])) === null); }
+        grammar_expect($project(array_diff_key($value, ['stderrReason' => true])) === null);
+        foreach (['tablo/php-capability-observation/v1', 'tablo/php-capability-observation/v2'] as $schema) { grammar_expect($project(array_replace($value, ['schema' => $schema])) === null); }
     }
 
     /** @param Closure(mixed): string $classify */

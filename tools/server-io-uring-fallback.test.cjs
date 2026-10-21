@@ -728,7 +728,7 @@ test('prepare consumers explicitly preserve all three version pairings and null 
 for(const [label,diagnostic] of [
   ['outer1 nested1',prepareRecord({capability:capabilityRecord()})],['outer1 nested2',prepareRecord({capability:capabilityV2()})],
   ['outer2 nested2',prepareV2(capabilityV2())],['outer3 nested1',prepareV3(capabilityRecord())],
-  ['unknown outer',prepareRecord({schema:'tablo/server-prepare-failure/v4',capability:capabilityV2()})],
+  ['unknown outer',prepareRecord({schema:'tablo/server-prepare-failure/v5',capability:capabilityV2()})],
   ['unknown nested',prepareV3(capabilityV2({schema:'tablo/php-capability-observation/v3'}))],
   ['missing kind',prepareV3(capabilityRecord({schema:'tablo/php-capability-observation/v2'}))],
   ['old extra kind',prepareV2({...capabilityRecord(),stderrKind:'NONE'})],['extra nested',prepareV3(capabilityV2({extra:'PRIVATE'}))],
@@ -768,6 +768,56 @@ test('prepare v3 console and retention revalidate shape without promoting succes
   const invalid=observerHarness({at:'custody',prepareDiagnostic:prepareV3(capabilityRecord({extra:'PRIVATE'}))});
   await assert.rejects(invalid.run(),error=>error===invalid.original);observerClosed(invalid);
   assert.equal(JSON.parse(invalid.output[0]).prepareDiagnostic,'MISSING');assert(!invalid.output[0].includes('PRIVATE'));
+});
+
+const stderrReasons = ['NONE','RECOGNIZED','UNAVAILABLE','BUFFER_LIMIT','UTF8_CHECK_FAILED','CONTROL_CHECK_FAILED','TERMINATOR_MISSING','RECORD_COUNT_LIMIT','RECORD_BYTES_LIMIT','EMPTY_RECORD','UNCLASSIFIED_RECORD','MIXED_KINDS','CLASSIFIER_EXCEPTION'];
+const capabilityV3 = (changes={}) => ({...capabilityV2(),schema:'tablo/php-capability-observation/v3',stderrReason:'NONE',...changes});
+const prepareV4 = capability => prepareRecord({schema:'tablo/server-prepare-failure/v4',capability});
+test('prepare v4 checks the full finite stderr kind/reason product and all four version pairings',async()=>{
+  const h=await prepareChannel();
+  for(const stderr of ['EMPTY','UNKNOWN','NONEMPTY'])for(const stderrKind of stderrKinds)for(const stderrReason of stderrReasons){
+    const value=capabilityV3({stderr,stderrKind,stderrReason});
+    const valid=stderr==='EMPTY'?stderrKind==='NONE'&&stderrReason==='NONE':stderr==='UNKNOWN'?stderrKind==='UNKNOWN'&&stderrReason==='UNAVAILABLE'
+      :stderrKind!=='NONE'&&(stderrKind==='UNKNOWN'?!['NONE','RECOGNIZED','UNAVAILABLE'].includes(stderrReason):stderrReason==='RECOGNIZED');
+    if(valid) assert.deepEqual(JSON.parse(JSON.stringify(h.api.prepareDiagnostic(prepareV4(value)))),prepareV4(value));
+    else assert.throws(()=>h.api.prepareDiagnostic(prepareV4(value)));
+  }
+  h.closed();
+  for(const diagnostic of [prepareRecord(),prepareV2(null),prepareV2(capabilityRecord()),prepareV3(null),prepareV3(capabilityV2()),prepareV4(null),prepareV4(capabilityV3())]){
+    const c=await prepareChannel();c.send(c.payload({diagnostic}));c.closed();assert.deepEqual(c.cancellations,[]);assert.deepEqual(JSON.parse(JSON.stringify(c.phase.prepareDiagnostic)),diagnostic);
+  }
+});
+for(const stderrReason of stderrReasons)test('authenticated prepare v4 carries finite first-refusal reason '+stderrReason,async()=>{
+  const stderr=stderrReason==='NONE'?'EMPTY':stderrReason==='UNAVAILABLE'?'UNKNOWN':'NONEMPTY';
+  const stderrKind=stderrReason==='NONE'?'NONE':stderrReason==='RECOGNIZED'?'PHP_WARNING':'UNKNOWN';
+  const diagnostic=prepareV4(capabilityV3({stderr,stderrKind,stderrReason}));
+  const h=await prepareChannel();h.send(h.payload({diagnostic}));h.closed();assert.deepEqual(h.cancellations,[]);assert.deepEqual(JSON.parse(JSON.stringify(h.phase.prepareDiagnostic)),diagnostic);
+  assert.equal(h.owner.phaseResults.length,0);assert.equal(diagnostic.rootCause,'UNKNOWN');assert.equal(diagnostic.issueAccepted,false);assert(Buffer.byteLength(JSON.stringify(diagnostic))<=2048);
+});
+test('prepare v4 refuses cross-version missing extra reordered and nonfinite reason records without conversion',async()=>{
+  const callbacks=[],hostile={toString(){callbacks.push('convert');return 'NONE';},toJSON(){callbacks.push('serialize');return 'NONE';}};
+  const missing=capabilityV3();delete missing.stderrReason;
+  const invalid=[prepareV2(capabilityV3()),prepareV3(capabilityV3()),prepareV4(capabilityRecord()),prepareV4(capabilityV2()),prepareV4(missing),
+    prepareV4(capabilityV3({extra:'PRIVATE'})),prepareV4(Object.fromEntries(Object.entries(capabilityV3()).reverse())),
+    ...['PRIVATE',0,null,[],hostile].map(stderrReason=>prepareV4(capabilityV3({stderrReason}))),
+    prepareV4(capabilityV3({reportedExit:0,stdout:'READY',category:'UNKNOWN',missingExtension:null}))];
+  const h=await prepareChannel();for(const diagnostic of invalid)assert.throws(()=>h.api.prepareDiagnostic(diagnostic));assert.deepEqual(callbacks,[]);h.closed();
+  for(const diagnostic of invalid.filter(x=>x.capability.stderrReason!==hostile)){
+    const c=await prepareChannel();c.send(c.payload({diagnostic}));c.closed();assert.equal(c.phase.prepareDiagnostic,undefined);assert.deepEqual(c.cancellations,['protocol']);
+  }
+});
+test('prepare v4 authenticates canonical raw records and preserves primary failure through ACK retention and output errors',async()=>{
+  const diagnostic=prepareV4(capabilityV3({stderr:'NONEMPTY',stderrKind:'UNKNOWN',stderrReason:'UNCLASSIFIED_RECORD'}));
+  for(const mutate of [raw=>raw.replace('"stderrReason":','"stderrReason":"NONE","stderrReason":'),raw=>raw.replace('"stderrReason":','"stderrRea\\u0073on":"NONE","stderrReason":'),raw=>' '+raw]){
+    const h=await prepareChannel();h.send(mutate(h.canonical(h.payload({diagnostic}))));h.closed();assert.equal(h.phase.prepareDiagnostic,undefined);
+  }
+  const bad=await prepareChannel();bad.send(bad.payload({diagnostic}),{mac:'0'.repeat(64)});bad.closed();assert.equal(bad.phase.prepareDiagnostic,undefined);
+  const h=await prepareChannel();h.send(h.payload({diagnostic}));const first=h.phase.prepareDiagnostic;h.send(h.payload({diagnostic:prepareV4(null)}));h.closed();assert.equal(h.phase.prepareDiagnostic,first);
+  for(const option of [{ackError:true},{outputThrows:true}]){const c=await prepareChannel(option);c.send(c.payload({diagnostic}));c.closed();assert.equal(c.phase.prepareDiagnostic.status,'failed');assert.equal(c.owner.phaseResults.length,0);}
+  for(const outputFails of [false,true]){
+    const o=observerHarness({at:'custody',retentionFails:true,outputFails,prepareDiagnostic:diagnostic});await assert.rejects(o.run(),error=>error===o.original);observerClosed(o);
+    if(!outputFails){const record=JSON.parse(o.output[0]);assert.deepEqual(record.prepareDiagnostic,diagnostic);assert.equal(record.completedPhases,0);assert.equal(record.rootCause,'UNKNOWN');assert(Buffer.byteLength(o.output[0])<=4096);}
+  }
 });
 
 test('qualification v3 distinguishes uninitialized and admitted absent events and latches first cancellation snapshot',()=>{

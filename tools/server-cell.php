@@ -735,7 +735,7 @@ function server_cell_prepare_sources(): array
 
 /** Pure first-failure projection: no message, trace, private bytes or origin metadata.
  * @param list<string> $roots
- * @return array{schema: 'tablo/server-prepare-failure/v3', status: 'failed', phase: 'prepare', rootCause: 'UNKNOWN', issueAccepted: false, stage: string, errorClass: string, source: ?string, line: ?int, capability: ?array} */
+ * @return array{schema: 'tablo/server-prepare-failure/v4', status: 'failed', phase: 'prepare', rootCause: 'UNKNOWN', issueAccepted: false, stage: string, errorClass: string, source: ?string, line: ?int, capability: ?array} */
 function server_cell_prepare_failure(#[\SensitiveParameter] Throwable $error, string $checkpoint, array $roots, ?array $capability = null): array
 {
     $stages = ['ARGUMENTS', 'DEPENDENCY_GUARD', 'LOAD', 'PLAN_BINDING', 'OBSERVER_BINDING', 'MATERIALIZE', 'AUTOLOAD', 'ENVIRONMENT', 'CONTROLLER_DIRECTORY', 'EXECUTE'];
@@ -749,10 +749,10 @@ function server_cell_prepare_failure(#[\SensitiveParameter] Throwable $error, st
             }
         }
     }
-    return ['schema' => 'tablo/server-prepare-failure/v3', 'status' => 'failed', 'phase' => 'prepare', 'rootCause' => 'UNKNOWN', 'issueAccepted' => false,
+    return ['schema' => 'tablo/server-prepare-failure/v4', 'status' => 'failed', 'phase' => 'prepare', 'rootCause' => 'UNKNOWN', 'issueAccepted' => false,
         'stage' => in_array($checkpoint, $stages, strict: true) ? $checkpoint : 'UNKNOWN',
         'errorClass' => in_array($class, $classes, strict: true) ? $class : 'UNKNOWN', 'source' => $source, 'line' => $line,
-        'capability' => $capability === null || ($capability['schema'] ?? null) !== 'tablo/php-capability-observation/v2' ? null : server_cell_capability_projection($capability)];
+        'capability' => $capability === null || ($capability['schema'] ?? null) !== 'tablo/php-capability-observation/v3' ? null : server_cell_capability_projection($capability)];
 }
 
 /** Earlier failures stay MISSING: obtaining helpers or observer authority here is forbidden. */
@@ -938,25 +938,44 @@ function server_cell_capability_marker(#[\SensitiveParameter] string $bytes): ar
  * Only the already-returned in-memory string is inspected; no arbitrary conversion. */
 function server_cell_capability_stderr_kind(#[\SensitiveParameter] mixed $bytes): string
 {
-    if (!is_string($bytes)) { return 'UNKNOWN'; }
-    if ($bytes === '') { return 'NONE'; }
-    if (strlen($bytes) > 4_096) { return 'UNKNOWN'; }
+    return server_cell_capability_stderr_shape($bytes)['stderrKind'];
+}
+
+/** First refusal of the existing bounded parser, never a diagnosis of the host.
+ * Only constant labels leave this helper; no input conversion or additional reads.
+ * @return array{stderrKind: string, stderrReason: string} */
+function server_cell_capability_stderr_shape(#[\SensitiveParameter] mixed $bytes): array
+{
+    if (!is_string($bytes)) { return ['stderrKind' => 'UNKNOWN', 'stderrReason' => 'UNAVAILABLE']; }
+    if ($bytes === '') { return ['stderrKind' => 'NONE', 'stderrReason' => 'NONE']; }
+    if (strlen($bytes) > 4_096) { return ['stderrKind' => 'UNKNOWN', 'stderrReason' => 'BUFFER_LIMIT']; }
     try {
-        if (preg_match('//u', $bytes) !== 1) { return 'UNKNOWN'; }
+        if (preg_match('//u', $bytes) !== 1) { return ['stderrKind' => 'UNKNOWN', 'stderrReason' => 'UTF8_CHECK_FAILED']; }
         $text = str_replace("\r\n", replace: "\n", subject: $bytes);
-        if (preg_match('/[\p{C}\p{Zl}\p{Zp}]/u', str_replace("\n", replace: '', subject: $text)) !== 0 || !str_ends_with($text, "\n")) { return 'UNKNOWN'; }
-        // Exactly one optional separator is admitted only at the buffer start.
-        if (str_starts_with($text, "\n")) { $text = substr($text, offset: 1); }
-        $records = explode("\n", substr($text, offset: 0, length: -1));
-        if (count($records) > 8) { return 'UNKNOWN'; }
-        $kind = 'UNKNOWN';
-        foreach ($records as $record) {
-            $next = server_cell_capability_stderr_record($record);
-            if ($next === 'UNKNOWN' || ($kind !== 'UNKNOWN' && $kind !== $next)) { return 'UNKNOWN'; }
-            $kind = $next;
-        }
-        return $kind;
-    } catch (Throwable $discarded) { unset($discarded); return 'UNKNOWN'; }
+        if (preg_match('/[\p{C}\p{Zl}\p{Zp}]/u', str_replace("\n", replace: '', subject: $text)) !== 0) { return ['stderrKind' => 'UNKNOWN', 'stderrReason' => 'CONTROL_CHECK_FAILED']; }
+        if (!str_ends_with($text, "\n")) { return ['stderrKind' => 'UNKNOWN', 'stderrReason' => 'TERMINATOR_MISSING']; }
+        return server_cell_capability_stderr_records($text);
+    } catch (Throwable $discarded) { unset($discarded); return ['stderrKind' => 'UNKNOWN', 'stderrReason' => 'CLASSIFIER_EXCEPTION']; }
+}
+
+/** Called only after the existing whole-buffer checks; preserves record order.
+ * @return array{stderrKind: string, stderrReason: string} */
+function server_cell_capability_stderr_records(#[\SensitiveParameter] string $text): array
+{
+    // Exactly one optional separator is admitted only at the buffer start.
+    if (str_starts_with($text, "\n")) { $text = substr($text, offset: 1); }
+    $records = explode("\n", substr($text, offset: 0, length: -1));
+    if (count($records) > 8) { return ['stderrKind' => 'UNKNOWN', 'stderrReason' => 'RECORD_COUNT_LIMIT']; }
+    $kind = 'UNKNOWN';
+    foreach ($records as $record) {
+        if (strlen($record) > 1_024) { return ['stderrKind' => 'UNKNOWN', 'stderrReason' => 'RECORD_BYTES_LIMIT']; }
+        if ($record === '') { return ['stderrKind' => 'UNKNOWN', 'stderrReason' => 'EMPTY_RECORD']; }
+        $next = server_cell_capability_stderr_record($record);
+        if ($next === 'UNKNOWN') { return ['stderrKind' => 'UNKNOWN', 'stderrReason' => 'UNCLASSIFIED_RECORD']; }
+        if ($kind !== 'UNKNOWN' && $kind !== $next) { return ['stderrKind' => 'UNKNOWN', 'stderrReason' => 'MIXED_KINDS']; }
+        $kind = $next;
+    }
+    return ['stderrKind' => $kind, 'stderrReason' => 'RECOGNIZED'];
 }
 
 /** One complete printable record, called only after the whole-buffer UTF-8/control check. */
@@ -987,7 +1006,7 @@ function server_cell_capability_stderr_record(#[\SensitiveParameter] string $rec
     return 'PHP_WARNING';
 }
 
-/** @return array{schema: string, reportedExit: int|null|string, stdout: string, stderr: string, category: string, missingExtension: ?string, stderrKind: string} */
+/** @return array{schema: string, reportedExit: int|null|string, stdout: string, stderr: string, category: string, missingExtension: ?string, stderrKind: string, stderrReason: string} */
 function server_cell_capability_observation(#[\SensitiveParameter] array $result): array
 {
     /** @var mixed $exit The PHP result is a reported observation, never native proof. */
@@ -997,10 +1016,10 @@ function server_cell_capability_observation(#[\SensitiveParameter] array $result
     /** @var mixed $stderr Only a bounded unauthenticated message shape is projected. */
     $stderr = $result['stderr'] ?? null;
     $marker = is_string($stdout) ? server_cell_capability_marker($stdout) : ['category' => 'UNKNOWN', 'missingExtension' => null];
-    return ['schema' => 'tablo/php-capability-observation/v2', 'reportedExit' => array_key_exists('exit_code', $result) ? server_cell_capability_exit($exit) : 'UNKNOWN',
+    return ['schema' => 'tablo/php-capability-observation/v3', 'reportedExit' => array_key_exists('exit_code', $result) ? server_cell_capability_exit($exit) : 'UNKNOWN',
         'stdout' => match (true) { !is_string($stdout) => 'UNKNOWN', $stdout === "PRIVATE_PHP_READY\n" => 'READY', $stdout === '' => 'EMPTY', default => 'OTHER' },
         'stderr' => match (true) { !is_string($stderr) => 'UNKNOWN', $stderr === '' => 'EMPTY', default => 'NONEMPTY' }, ...$marker,
-        'stderrKind' => server_cell_capability_stderr_kind($stderr)];
+        ...server_cell_capability_stderr_shape($stderr)];
 }
 
 function server_cell_capability_exit(#[\SensitiveParameter] mixed $value): int|null|string
@@ -1011,20 +1030,35 @@ function server_cell_capability_exit(#[\SensitiveParameter] mixed $value): int|n
 /** Exact versioned shape before any projection or serialization. */
 function server_cell_capability_shape(array $value): bool
 {
-    $v2 = ($value['schema'] ?? null) === 'tablo/php-capability-observation/v2';
-    if (array_keys($value) !== ['schema', 'reportedExit', 'stdout', 'stderr', 'category', 'missingExtension', ...($v2 ? ['stderrKind'] : [])]
-        || !in_array($value['schema'] ?? null, ['tablo/php-capability-observation/v1', 'tablo/php-capability-observation/v2'], strict: true)
+    $extra = match ($value['schema'] ?? null) {
+        'tablo/php-capability-observation/v1' => [], 'tablo/php-capability-observation/v2' => ['stderrKind'],
+        'tablo/php-capability-observation/v3' => ['stderrKind', 'stderrReason'], default => null,
+    };
+    if ($extra === null || array_keys($value) !== ['schema', 'reportedExit', 'stdout', 'stderr', 'category', 'missingExtension', ...$extra]
         || !in_array($value['stdout'] ?? null, ['READY', 'EMPTY', 'OTHER', 'UNKNOWN'], strict: true)
         || !in_array($value['stderr'] ?? null, ['EMPTY', 'NONEMPTY', 'UNKNOWN'], strict: true)) { return false; }
     $kinds = ['EMPTY' => ['NONE'], 'UNKNOWN' => ['UNKNOWN'], 'NONEMPTY' => ['MODULE_LOAD_MESSAGE', 'ZEND_LOADER_MESSAGE', 'DUPLICATE_MODULE_MESSAGE', 'PHP_STARTUP_WARNING', 'PHP_WARNING', 'PHP_DEPRECATION', 'PHP_ERROR', 'UNKNOWN']];
-    return !$v2 || in_array($value['stderrKind'] ?? null, $kinds[$value['stderr']] ?? [], strict: true);
+    if ($extra !== [] && !in_array($value['stderrKind'] ?? null, $kinds[$value['stderr']] ?? [], strict: true)) { return false; }
+    return !array_key_exists('stderrReason', $value) || server_cell_capability_stderr_reason_shape($value);
 }
 
-/** @return ?array{schema: string, reportedExit: int|null|string, stdout: string, stderr: string, category: string, missingExtension: ?string, stderrKind?: string} */
+/** Exact keys and stderr/kind domains were checked before this coupling rule. */
+function server_cell_capability_stderr_reason_shape(array $value): bool
+{
+    /** @var array{stderr: string, stderrKind: string, stderrReason: mixed} $value */
+    $reasons = match ($value['stderr']) {
+        'EMPTY' => ['NONE'], 'UNKNOWN' => ['UNAVAILABLE'],
+        default => $value['stderrKind'] !== 'UNKNOWN' ? ['RECOGNIZED'] : ['BUFFER_LIMIT', 'UTF8_CHECK_FAILED', 'CONTROL_CHECK_FAILED', 'TERMINATOR_MISSING',
+            'RECORD_COUNT_LIMIT', 'RECORD_BYTES_LIMIT', 'EMPTY_RECORD', 'UNCLASSIFIED_RECORD', 'MIXED_KINDS', 'CLASSIFIER_EXCEPTION'],
+    };
+    return in_array($value['stderrReason'] ?? null, $reasons, strict: true);
+}
+
+/** @return ?array{schema: string, reportedExit: int|null|string, stdout: string, stderr: string, category: string, missingExtension: ?string, stderrKind?: string, stderrReason?: string} */
 function server_cell_capability_projection(array $value): ?array
 {
     if (!server_cell_capability_shape($value)) { return null; }
-    /** @var array{schema: mixed, reportedExit: mixed, stdout: mixed, stderr: mixed, category: mixed, missingExtension: mixed, stderrKind?: mixed} $value */
+    /** @var array{schema: mixed, reportedExit: mixed, stdout: mixed, stderr: mixed, category: mixed, missingExtension: mixed, stderrKind?: mixed, stderrReason?: mixed} $value */
     /** @var mixed $exit Every admitted exit must equal its bounded finite projection. */
     $exit = $value['reportedExit'];
     if ($exit !== server_cell_capability_exit($exit)) { return null; }
@@ -1034,7 +1068,7 @@ function server_cell_capability_projection(array $value): ?array
         : in_array($value['category'], ['MISSING_SOURCE', 'MISSING_INI', 'MISSING_LOADED_INI', 'INI_MISMATCH', 'TEMP_MISMATCH', 'READY_WRITE_FAILED', 'UNKNOWN'], strict: true) && $value['missingExtension'] === null;
     if (!$extensionValid || ($value['category'] !== 'UNKNOWN' && $value['stdout'] !== 'OTHER')
         || [$exit, $value['stdout'], $value['stderr']] === [0, 'READY', 'EMPTY']) { return null; }
-    /** @var array{schema: string, reportedExit: int|null|string, stdout: string, stderr: string, category: string, missingExtension: ?string, stderrKind?: string} $value */
+    /** @var array{schema: string, reportedExit: int|null|string, stdout: string, stderr: string, category: string, missingExtension: ?string, stderrKind?: string, stderrReason?: string} $value */
     return $value;
 }
 

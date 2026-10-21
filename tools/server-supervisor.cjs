@@ -49,9 +49,10 @@ const PREPARE_SOURCES = Object.freeze(['tools/server-cell.php', 'tools/ServerFix
   'app/DatabaseInteger.php', 'app/DatabaseFailure.php', 'app/bootstrap.php', 'tests/Support/TemporaryDirectory.php', 'tests/Support/Subprocess.php',
   'tests/Support/SubprocessReceipt.php', 'tests/Server/EngineVerificationTest.php']);
 function capabilityDiagnostic(value, schema = 'tablo/php-capability-observation/v1') {
-  const v2 = schema === 'tablo/php-capability-observation/v2';
-  const keys = ['schema','reportedExit','stdout','stderr','category','missingExtension',...(v2 ? ['stderrKind'] : [])];
-  if (!['tablo/php-capability-observation/v1','tablo/php-capability-observation/v2'].includes(schema)
+  const v3 = schema === 'tablo/php-capability-observation/v3';
+  const kind = v3 || schema === 'tablo/php-capability-observation/v2';
+  const keys = ['schema','reportedExit','stdout','stderr','category','missingExtension',...(kind ? ['stderrKind'] : []),...(v3 ? ['stderrReason'] : [])];
+  if (!['tablo/php-capability-observation/v1','tablo/php-capability-observation/v2','tablo/php-capability-observation/v3'].includes(schema)
       || !exactKeys(value, keys) || Object.keys(value).join(',') !== keys.join(',') || value.schema !== schema
       || !(value.reportedExit === null || value.reportedExit === 'UNKNOWN' || integer(value.reportedExit,-2147483648,2147483647))
       || !['READY','EMPTY','OTHER','UNKNOWN'].includes(value.stdout) || !['EMPTY','NONEMPTY','UNKNOWN'].includes(value.stderr)
@@ -59,23 +60,27 @@ function capabilityDiagnostic(value, schema = 'tablo/php-capability-observation/
       || (value.category === 'MISSING_EXTENSION' ? !['curl','openssl','pdo','pdo_mysql','pdo_sqlite','mbstring','dom','xml','xmlwriter'].includes(value.missingExtension) : value.missingExtension !== null)
       || (value.category !== 'UNKNOWN' && value.stdout !== 'OTHER')
       || (value.reportedExit === 0 && value.stdout === 'READY' && value.stderr === 'EMPTY')
-      || (v2 && (!['NONE','MODULE_LOAD_MESSAGE','ZEND_LOADER_MESSAGE','DUPLICATE_MODULE_MESSAGE','PHP_STARTUP_WARNING','PHP_WARNING','PHP_DEPRECATION','PHP_ERROR','UNKNOWN'].includes(value.stderrKind)
+      || (kind && (!['NONE','MODULE_LOAD_MESSAGE','ZEND_LOADER_MESSAGE','DUPLICATE_MODULE_MESSAGE','PHP_STARTUP_WARNING','PHP_WARNING','PHP_DEPRECATION','PHP_ERROR','UNKNOWN'].includes(value.stderrKind)
         || ((value.stderr === 'EMPTY') !== (value.stderrKind === 'NONE')) || (value.stderr === 'UNKNOWN' && value.stderrKind !== 'UNKNOWN')))) fail('CAPABILITY_DIAGNOSTIC');
+  const reasons = value.stderr === 'EMPTY' ? ['NONE'] : value.stderr === 'UNKNOWN' ? ['UNAVAILABLE'] : value.stderrKind !== 'UNKNOWN' ? ['RECOGNIZED']
+    : ['BUFFER_LIMIT','UTF8_CHECK_FAILED','CONTROL_CHECK_FAILED','TERMINATOR_MISSING','RECORD_COUNT_LIMIT','RECORD_BYTES_LIMIT','EMPTY_RECORD','UNCLASSIFIED_RECORD','MIXED_KINDS','CLASSIFIER_EXCEPTION'];
+  if (v3 && !reasons.includes(value.stderrReason)) fail('CAPABILITY_DIAGNOSTIC');
   return Object.freeze({schema:value.schema,reportedExit:value.reportedExit,stdout:value.stdout,stderr:value.stderr,category:value.category,missingExtension:value.missingExtension,
-    ...(v2 ? {stderrKind:value.stderrKind} : {})});
+    ...(kind ? {stderrKind:value.stderrKind} : {}),...(v3 ? {stderrReason:value.stderrReason} : {})});
 }
 function prepareDiagnostic(value) {
+  const v4 = value?.schema === 'tablo/server-prepare-failure/v4';
   const v3 = value?.schema === 'tablo/server-prepare-failure/v3';
-  const nested = v3 || value?.schema === 'tablo/server-prepare-failure/v2';
+  const nested = v4 || v3 || value?.schema === 'tablo/server-prepare-failure/v2';
   const keys = ['schema', 'status', 'phase', 'rootCause', 'issueAccepted', 'stage', 'errorClass', 'source', 'line', ...(nested ? ['capability'] : [])];
   if (!exactKeys(value, keys) || Object.keys(value).join(',') !== keys.join(',')
-      || !['tablo/server-prepare-failure/v1','tablo/server-prepare-failure/v2','tablo/server-prepare-failure/v3'].includes(value.schema) || value.status !== 'failed' || value.phase !== 'prepare'
+      || !['tablo/server-prepare-failure/v1','tablo/server-prepare-failure/v2','tablo/server-prepare-failure/v3','tablo/server-prepare-failure/v4'].includes(value.schema) || value.status !== 'failed' || value.phase !== 'prepare'
       || value.rootCause !== 'UNKNOWN' || value.issueAccepted !== false || !PREPARE_STAGES.includes(value.stage)
       || !PREPARE_CLASSES.includes(value.errorClass) || !(value.source === null && value.line === null
         || PREPARE_SOURCES.includes(value.source) && integer(value.line, 1, 1000000))) fail('PREPARE_DIAGNOSTIC');
   const result = { schema: value.schema, status: value.status, phase: value.phase, rootCause: value.rootCause,
     issueAccepted: value.issueAccepted, stage: value.stage, errorClass: value.errorClass, source: value.source, line: value.line,
-    ...(nested ? {capability:value.capability === null ? null : capabilityDiagnostic(value.capability, v3 ? 'tablo/php-capability-observation/v2' : 'tablo/php-capability-observation/v1')} : {}) };
+    ...(nested ? {capability:value.capability === null ? null : capabilityDiagnostic(value.capability, v4 ? 'tablo/php-capability-observation/v3' : v3 ? 'tablo/php-capability-observation/v2' : 'tablo/php-capability-observation/v1')} : {}) };
   if (Buffer.byteLength(JSON.stringify(result)) > 2048) fail('PREPARE_DIAGNOSTIC');
   return Object.freeze(result);
 }
