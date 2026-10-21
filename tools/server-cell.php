@@ -735,7 +735,7 @@ function server_cell_prepare_sources(): array
 
 /** Pure first-failure projection: no message, trace, private bytes or origin metadata.
  * @param list<string> $roots
- * @return array{schema: 'tablo/server-prepare-failure/v4', status: 'failed', phase: 'prepare', rootCause: 'UNKNOWN', issueAccepted: false, stage: string, errorClass: string, source: ?string, line: ?int, capability: ?array} */
+ * @return array{schema: 'tablo/server-prepare-failure/v5', status: 'failed', phase: 'prepare', rootCause: 'UNKNOWN', issueAccepted: false, stage: string, errorClass: string, source: ?string, line: ?int, capability: ?array} */
 function server_cell_prepare_failure(#[\SensitiveParameter] Throwable $error, string $checkpoint, array $roots, ?array $capability = null): array
 {
     $stages = ['ARGUMENTS', 'DEPENDENCY_GUARD', 'LOAD', 'PLAN_BINDING', 'OBSERVER_BINDING', 'MATERIALIZE', 'AUTOLOAD', 'ENVIRONMENT', 'CONTROLLER_DIRECTORY', 'EXECUTE'];
@@ -749,10 +749,10 @@ function server_cell_prepare_failure(#[\SensitiveParameter] Throwable $error, st
             }
         }
     }
-    return ['schema' => 'tablo/server-prepare-failure/v4', 'status' => 'failed', 'phase' => 'prepare', 'rootCause' => 'UNKNOWN', 'issueAccepted' => false,
+    return ['schema' => 'tablo/server-prepare-failure/v5', 'status' => 'failed', 'phase' => 'prepare', 'rootCause' => 'UNKNOWN', 'issueAccepted' => false,
         'stage' => in_array($checkpoint, $stages, strict: true) ? $checkpoint : 'UNKNOWN',
         'errorClass' => in_array($class, $classes, strict: true) ? $class : 'UNKNOWN', 'source' => $source, 'line' => $line,
-        'capability' => $capability === null || ($capability['schema'] ?? null) !== 'tablo/php-capability-observation/v3' ? null : server_cell_capability_projection($capability)];
+        'capability' => $capability === null || ($capability['schema'] ?? null) !== 'tablo/php-capability-observation/v4' ? null : server_cell_capability_projection($capability)];
 }
 
 /** Earlier failures stay MISSING: obtaining helpers or observer authority here is forbidden. */
@@ -948,7 +948,7 @@ function server_cell_capability_stderr_shape(#[\SensitiveParameter] mixed $bytes
 {
     if (!is_string($bytes)) { return ['stderrKind' => 'UNKNOWN', 'stderrReason' => 'UNAVAILABLE']; }
     if ($bytes === '') { return ['stderrKind' => 'NONE', 'stderrReason' => 'NONE']; }
-    if (strlen($bytes) > 4_096) { return ['stderrKind' => 'UNKNOWN', 'stderrReason' => 'BUFFER_LIMIT']; }
+    if (strlen($bytes) > 4_096) { return ['stderrKind' => 'UNKNOWN', 'stderrReason' => server_cell_capability_stderr_prefix($bytes)]; }
     try {
         if (preg_match('//u', $bytes) !== 1) { return ['stderrKind' => 'UNKNOWN', 'stderrReason' => 'UTF8_CHECK_FAILED']; }
         $text = str_replace("\r\n", replace: "\n", subject: $bytes);
@@ -956,6 +956,25 @@ function server_cell_capability_stderr_shape(#[\SensitiveParameter] mixed $bytes
         if (!str_ends_with($text, "\n")) { return ['stderrKind' => 'UNKNOWN', 'stderrReason' => 'TERMINATOR_MISSING']; }
         return server_cell_capability_stderr_records($text);
     } catch (Throwable $discarded) { unset($discarded); return ['stderrKind' => 'UNKNOWN', 'stderrReason' => 'CLASSIFIER_EXCEPTION']; }
+}
+
+/** Oversized buffers remain UNKNOWN. At most 1028 prefix bytes are inspected for
+ * one complete first record, with the original optional separator and byte bound.
+ * This unauthenticated prefix shape never describes the rest of the buffer. */
+function server_cell_capability_stderr_prefix(#[\SensitiveParameter] string $bytes): string
+{
+    try {
+        $head = substr($bytes, offset: 0, length: 1_028);
+        $skip = match (true) { str_starts_with($head, "\r\n") => 2, str_starts_with($head, "\n") => 1, default => 0 };
+        $head = substr($head, offset: $skip); $end = strpos($head, needle: "\n");
+        if ($end === false) { return 'BUFFER_LIMIT'; }
+        $record = substr($head, offset: 0, length: $end);
+        if (str_ends_with($record, "\r")) { $record = substr($record, offset: 0, length: -1); }
+        if (strlen($record) > 1_024 || preg_match('//u', $record) !== 1 || preg_match('/[\p{C}\p{Zl}\p{Zp}]/u', $record) !== 0) { return 'BUFFER_LIMIT'; }
+        $kind = server_cell_capability_stderr_record($record);
+        return in_array($kind, ['MODULE_LOAD_MESSAGE', 'ZEND_LOADER_MESSAGE', 'DUPLICATE_MODULE_MESSAGE', 'PHP_STARTUP_WARNING', 'PHP_WARNING', 'PHP_DEPRECATION', 'PHP_ERROR'], strict: true)
+            ? 'BUFFER_LIMIT_FIRST_RECORD_' . $kind : 'BUFFER_LIMIT';
+    } catch (Throwable $discarded) { unset($discarded); return 'BUFFER_LIMIT'; }
 }
 
 /** Called only after the existing whole-buffer checks; preserves record order.
@@ -1016,7 +1035,7 @@ function server_cell_capability_observation(#[\SensitiveParameter] array $result
     /** @var mixed $stderr Only a bounded unauthenticated message shape is projected. */
     $stderr = $result['stderr'] ?? null;
     $marker = is_string($stdout) ? server_cell_capability_marker($stdout) : ['category' => 'UNKNOWN', 'missingExtension' => null];
-    return ['schema' => 'tablo/php-capability-observation/v3', 'reportedExit' => array_key_exists('exit_code', $result) ? server_cell_capability_exit($exit) : 'UNKNOWN',
+    return ['schema' => 'tablo/php-capability-observation/v4', 'reportedExit' => array_key_exists('exit_code', $result) ? server_cell_capability_exit($exit) : 'UNKNOWN',
         'stdout' => match (true) { !is_string($stdout) => 'UNKNOWN', $stdout === "PRIVATE_PHP_READY\n" => 'READY', $stdout === '' => 'EMPTY', default => 'OTHER' },
         'stderr' => match (true) { !is_string($stderr) => 'UNKNOWN', $stderr === '' => 'EMPTY', default => 'NONEMPTY' }, ...$marker,
         ...server_cell_capability_stderr_shape($stderr)];
@@ -1032,7 +1051,7 @@ function server_cell_capability_shape(array $value): bool
 {
     $extra = match ($value['schema'] ?? null) {
         'tablo/php-capability-observation/v1' => [], 'tablo/php-capability-observation/v2' => ['stderrKind'],
-        'tablo/php-capability-observation/v3' => ['stderrKind', 'stderrReason'], default => null,
+        'tablo/php-capability-observation/v3', 'tablo/php-capability-observation/v4' => ['stderrKind', 'stderrReason'], default => null,
     };
     if ($extra === null || array_keys($value) !== ['schema', 'reportedExit', 'stdout', 'stderr', 'category', 'missingExtension', ...$extra]
         || !in_array($value['stdout'] ?? null, ['READY', 'EMPTY', 'OTHER', 'UNKNOWN'], strict: true)
@@ -1045,12 +1064,17 @@ function server_cell_capability_shape(array $value): bool
 /** Exact keys and stderr/kind domains were checked before this coupling rule. */
 function server_cell_capability_stderr_reason_shape(array $value): bool
 {
-    /** @var array{stderr: string, stderrKind: string, stderrReason: mixed} $value */
+    /** @var array{schema: string, stderr: string, stderrKind: string, stderrReason: mixed} $value */
     $reasons = match ($value['stderr']) {
         'EMPTY' => ['NONE'], 'UNKNOWN' => ['UNAVAILABLE'],
         default => $value['stderrKind'] !== 'UNKNOWN' ? ['RECOGNIZED'] : ['BUFFER_LIMIT', 'UTF8_CHECK_FAILED', 'CONTROL_CHECK_FAILED', 'TERMINATOR_MISSING',
             'RECORD_COUNT_LIMIT', 'RECORD_BYTES_LIMIT', 'EMPTY_RECORD', 'UNCLASSIFIED_RECORD', 'MIXED_KINDS', 'CLASSIFIER_EXCEPTION'],
     };
+    if ($value['schema'] === 'tablo/php-capability-observation/v4' && $value['stderr'] === 'NONEMPTY' && $value['stderrKind'] === 'UNKNOWN') {
+        foreach (['MODULE_LOAD_MESSAGE', 'ZEND_LOADER_MESSAGE', 'DUPLICATE_MODULE_MESSAGE', 'PHP_STARTUP_WARNING', 'PHP_WARNING', 'PHP_DEPRECATION', 'PHP_ERROR'] as $kind) {
+            $reasons[] = 'BUFFER_LIMIT_FIRST_RECORD_' . $kind;
+        }
+    }
     return in_array($value['stderrReason'] ?? null, $reasons, strict: true);
 }
 

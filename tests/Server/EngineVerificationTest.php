@@ -344,7 +344,7 @@ function engine_verification_prepare_failure(): void
     $secret = \Tablo\Tests\Support\FixtureCredentials::value(label: 'prepare-diagnostic');
     $error = new \RuntimeException($secret);
     $record = \server_cell_prepare_failure($error, checkpoint: 'EXECUTE', roots: [$root]);
-    Assert::same($record['schema'], 'tablo/server-prepare-failure/v4'); Assert::null($record['capability']);
+    Assert::same($record['schema'], 'tablo/server-prepare-failure/v5'); Assert::null($record['capability']);
     Assert::same([$record['phase'], $record['rootCause'], $record['issueAccepted'], $record['errorClass']], ['prepare', 'UNKNOWN', false, 'RuntimeException']);
     Assert::same($record['source'], 'tests/Server/EngineVerificationTest.php');
     Assert::true(is_int($record['line']) && $record['line'] > 0);
@@ -356,7 +356,7 @@ function engine_verification_prepare_failure(): void
     Assert::same($caught, $error); Assert::true($retained);
     $observation = \server_cell_capability_observation(['exit_code' => null, 'stdout' => '', 'stderr' => $secret]);
     Assert::same([$observation['reportedExit'], $observation['stdout'], $observation['stderr'], $observation['category']], [null, 'EMPTY', 'NONEMPTY', 'UNKNOWN']);
-    Assert::same([$observation['schema'], $observation['stderrKind'], $observation['stderrReason']], ['tablo/php-capability-observation/v3', 'UNKNOWN', 'TERMINATOR_MISSING']);
+    Assert::same([$observation['schema'], $observation['stderrKind'], $observation['stderrReason']], ['tablo/php-capability-observation/v4', 'UNKNOWN', 'TERMINATOR_MISSING']);
     Assert::false(str_contains(\Tablo\JsonEncoding::encode($observation), $secret));
 }
 

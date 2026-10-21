@@ -728,7 +728,7 @@ test('prepare consumers explicitly preserve all three version pairings and null 
 for(const [label,diagnostic] of [
   ['outer1 nested1',prepareRecord({capability:capabilityRecord()})],['outer1 nested2',prepareRecord({capability:capabilityV2()})],
   ['outer2 nested2',prepareV2(capabilityV2())],['outer3 nested1',prepareV3(capabilityRecord())],
-  ['unknown outer',prepareRecord({schema:'tablo/server-prepare-failure/v5',capability:capabilityV2()})],
+  ['unknown outer',prepareRecord({schema:'tablo/server-prepare-failure/v6',capability:capabilityV2()})],
   ['unknown nested',prepareV3(capabilityV2({schema:'tablo/php-capability-observation/v3'}))],
   ['missing kind',prepareV3(capabilityRecord({schema:'tablo/php-capability-observation/v2'}))],
   ['old extra kind',prepareV2({...capabilityRecord(),stderrKind:'NONE'})],['extra nested',prepareV3(capabilityV2({extra:'PRIVATE'}))],
@@ -818,6 +818,22 @@ test('prepare v4 authenticates canonical raw records and preserves primary failu
     const o=observerHarness({at:'custody',retentionFails:true,outputFails,prepareDiagnostic:diagnostic});await assert.rejects(o.run(),error=>error===o.original);observerClosed(o);
     if(!outputFails){const record=JSON.parse(o.output[0]);assert.deepEqual(record.prepareDiagnostic,diagnostic);assert.equal(record.completedPhases,0);assert.equal(record.rootCause,'UNKNOWN');assert(Buffer.byteLength(o.output[0])<=4096);}
   }
+});
+
+const capabilityV4 = (changes={}) => ({...capabilityV3(),schema:'tablo/php-capability-observation/v4',...changes});
+const prepareV5 = capability => prepareRecord({schema:'tablo/server-prepare-failure/v5',capability});
+for(const kind of stderrKinds.slice(1,-1))test('prepare v5 carries a finite first-record shape without promoting oversized stderr '+kind,async()=>{
+  const capability=capabilityV4({reportedExit:0,stdout:'READY',stderr:'NONEMPTY',category:'UNKNOWN',missingExtension:null,stderrKind:'UNKNOWN',stderrReason:'BUFFER_LIMIT_FIRST_RECORD_'+kind});
+  const diagnostic=prepareV5(capability),h=await prepareChannel();h.send(h.payload({diagnostic}));h.closed();assert.deepEqual(h.cancellations,[]);assert.deepEqual(JSON.parse(JSON.stringify(h.phase.prepareDiagnostic)),diagnostic);assert.equal(h.owner.phaseResults.length,0);
+  const check=await prepareChannel();
+  for(const bad of [prepareV4({...capability,schema:'tablo/php-capability-observation/v3'}),prepareV5({...capability,stderr:'EMPTY'}),prepareV5({...capability,stderr:'UNKNOWN'}),prepareV5({...capability,stderrKind:kind}),prepareV5({...capability,stderrReason:'BUFFER_LIMIT_FIRST_RECORD_PRIVATE'})])assert.throws(()=>check.api.prepareDiagnostic(bad));
+  assert.equal(diagnostic.rootCause,'UNKNOWN');assert.equal(diagnostic.issueAccepted,false);check.closed();
+});
+test('prepare consumers preserve all five explicit versions and reject crossed latest pairings',async()=>{
+  for(const diagnostic of [prepareRecord(),prepareV2(capabilityRecord()),prepareV3(capabilityV2()),prepareV4(capabilityV3()),prepareV5(capabilityV4()),prepareV5(null)]){
+    const h=await prepareChannel();h.send(h.payload({diagnostic}));h.closed();assert.deepEqual(JSON.parse(JSON.stringify(h.phase.prepareDiagnostic)),diagnostic);assert.deepEqual(h.cancellations,[]);
+  }
+  const h=await prepareChannel();for(const value of [capabilityRecord(),capabilityV2(),capabilityV3()])assert.throws(()=>h.api.prepareDiagnostic(prepareV5(value)));assert.throws(()=>h.api.prepareDiagnostic(prepareV4(capabilityV4())));h.closed();
 });
 
 test('qualification v3 distinguishes uninitialized and admitted absent events and latches first cancellation snapshot',()=>{

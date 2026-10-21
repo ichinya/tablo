@@ -403,14 +403,14 @@ namespace {
         $bytes = file_get_contents(__DIR__ . '/server-cell.php', length: 262_145);
         if (!is_string($bytes)) { throw new RuntimeException('Required public producer source absent.'); }
         $selected = grammar_prepare_functions($bytes);
-        grammar_expect(count($selected) === 17);
+        grammar_expect(count($selected) === 18);
         // Only these inspected public helper bodies enter an isolated namespace;
         // no include, autoload, cell entry or source transformation is executed.
         // @mago-expect lint:no-eval
         eval('namespace Tablo\\Tests\\CapabilityGrammar; use Tablo\\RequiredFile; use Tablo\\JsonRecord; use Tablo\\SqlColumn; use Throwable; use RuntimeException; use Closure; use function Tablo\\Tools\\file_get_contents, Tablo\\Tools\\is_file, Tablo\\Tools\\is_link, Tablo\\Tools\\realpath, Tablo\\Tools\\hash_file, Tablo\\Tools\\exec, Tablo\\Tools\\proc_open;' . implode("\n", $selected));
         grammar_expect(!function_exists('Tablo\\Tests\\CapabilityGrammar\\server_cell_prepare_client'));
         grammar_prepare_extraction($bytes);
-        grammar_prepare_projection(); grammar_prepare_origins(); grammar_prepare_transport(); grammar_capability(); grammar_stderr(); grammar_bare_duplicate(); grammar_stderr_reasons();
+        grammar_prepare_projection(); grammar_prepare_origins(); grammar_prepare_transport(); grammar_capability(); grammar_stderr(); grammar_bare_duplicate(); grammar_stderr_reasons(); grammar_stderr_prefixes();
     }
 
     /** The inspected top-level helpers have column-zero closing braces.
@@ -422,7 +422,7 @@ namespace {
         if (strlen($bytes) > 262_144) { throw new RuntimeException('Public producer source exceeds extraction bound.'); }
         $selected = [];
         foreach (['server_cell_prepare_roots', 'server_cell_prepare_sources', 'server_cell_prepare_failure', 'server_cell_prepare_report', 'server_cell_prepare_rethrow',
-            'server_cell_capability', 'server_cell_capability_marker', 'server_cell_capability_stderr_kind', 'server_cell_capability_stderr_shape', 'server_cell_capability_stderr_records', 'server_cell_capability_stderr_record', 'server_cell_capability_observation', 'server_cell_capability_exit', 'server_cell_capability_shape', 'server_cell_capability_stderr_reason_shape', 'server_cell_capability_projection', 'server_cell_capability_check'] as $name) {
+            'server_cell_capability', 'server_cell_capability_marker', 'server_cell_capability_stderr_kind', 'server_cell_capability_stderr_shape', 'server_cell_capability_stderr_prefix', 'server_cell_capability_stderr_records', 'server_cell_capability_stderr_record', 'server_cell_capability_observation', 'server_cell_capability_exit', 'server_cell_capability_shape', 'server_cell_capability_stderr_reason_shape', 'server_cell_capability_projection', 'server_cell_capability_check'] as $name) {
             $marker = "\nfunction " . $name . '('; $position = strpos($bytes, $marker);
             if ($position === false || strpos($bytes, $marker, offset: $position + strlen($marker)) !== false) { throw new RuntimeException('Exact unique pure helper declaration required.'); }
             $start = $position + 1; $close = strpos($bytes, needle: "\n}", offset: $start);
@@ -840,12 +840,14 @@ namespace {
         $prepare = grammar_prepare_callable('Tablo\\Tests\\CapabilityGrammar\\server_cell_prepare_failure');
         $value = $observe(['exit_code' => 1, 'stdout' => '', 'stderr' => '']);
         $v2 = $value; unset($v2['stderrReason']); $v2['schema'] = 'tablo/php-capability-observation/v2';
+        $v3 = $value; $v3['schema'] = 'tablo/php-capability-observation/v3'; grammar_expect($project($v3) === $v3);
         $legacy = $v2; unset($legacy['stderrKind']); $legacy['schema'] = 'tablo/php-capability-observation/v1';
         grammar_expect($project($legacy) === $legacy); grammar_expect($project($v2) === $v2); grammar_expect($project($value) === $value);
         $error = new RuntimeException('PRIVATE original');
         grammar_expect($prepare($error, checkpoint: 'EXECUTE', roots: [], capability: $legacy)['capability'] === null);
         grammar_expect($prepare($error, checkpoint: 'EXECUTE', roots: [], capability: $v2)['capability'] === null);
-        $outer = $prepare($error, checkpoint: 'EXECUTE', roots: [], capability: $value); grammar_expect($outer['schema'] === 'tablo/server-prepare-failure/v4' && $outer['capability'] === $value);
+        grammar_expect($prepare($error, checkpoint: 'EXECUTE', roots: [], capability: $v3)['capability'] === null);
+        $outer = $prepare($error, checkpoint: 'EXECUTE', roots: [], capability: $value); grammar_expect($outer['schema'] === 'tablo/server-prepare-failure/v5' && $outer['capability'] === $value);
         $hostile = new class implements JsonSerializable { public function jsonSerialize(): mixed { \Tablo\Tools\grammar_tripwire('Arbitrary finite domain serialization.'); } };
         foreach ([$legacy, $v2, $value] as $record) { foreach (['category', 'missingExtension'] as $field) {
             grammar_expect($project(array_replace($record, [$field => $hostile])) === null); grammar_expect(\Tablo\Tools\grammar_state()['effects'] === []);
@@ -928,6 +930,49 @@ namespace {
         foreach (['PRIVATE', 0, null, [], $hostile] as $reason) { grammar_expect($project(array_replace($value, ['stderrReason' => $reason])) === null); }
         grammar_expect($project(array_diff_key($value, ['stderrReason' => true])) === null);
         foreach (['tablo/php-capability-observation/v1', 'tablo/php-capability-observation/v2'] as $schema) { grammar_expect($project(array_replace($value, ['schema' => $schema])) === null); }
+    }
+
+    function grammar_stderr_prefixes(): void
+    {
+        /** @var Closure(array): array{schema: string, stderrKind: string, stderrReason: string} $observe */
+        $observe = grammar_prepare_callable('Tablo\\Tests\\CapabilityGrammar\\server_cell_capability_observation');
+        $project = grammar_prepare_callable('Tablo\\Tests\\CapabilityGrammar\\server_cell_capability_projection');
+        foreach (grammar_stderr_fixtures() as $kind => $record) {
+            foreach ([$record, "\n" . $record, "\r\n" . str_replace("\n", replace: "\r\n", subject: $record)] as $head) {
+                $bytes = $head . str_repeat('PRIVATE', times: 700) . "\0\xff";
+                $value = $observe(['exit_code' => 0, 'stdout' => "PRIVATE_PHP_READY\n", 'stderr' => $bytes]);
+                grammar_expect([$value['stderrKind'], $value['stderrReason']] === ['UNKNOWN', 'BUFFER_LIMIT_FIRST_RECORD_' . $kind]);
+                grammar_expect($project($value) === $value); grammar_expect(!str_contains(json_encode($value, JSON_THROW_ON_ERROR), 'PRIVATE'));
+                $old = $value; $old['schema'] = 'tablo/php-capability-observation/v3'; grammar_expect($project($old) === null);
+                grammar_stderr_failed($value, $bytes);
+            }
+        }
+        grammar_stderr_prefix_boundaries($observe);
+        $state = &\Tablo\Tools\grammar_state(); $warning = grammar_stderr_fixtures()['PHP_WARNING'];
+        foreach ([false, new TypeError('PRIVATE parser')] as $fault) {
+            $state['capability']['regexFault'] = $fault;
+            grammar_expect($observe(['stderr' => $warning . str_repeat('x', times: 4_097)])['stderrReason'] === 'BUFFER_LIMIT');
+        }
+        unset($state['capability']['regexFault']); grammar_expect($state['effects'] === []);
+        grammar_stderr_compatibility($observe(['exit_code' => 0, 'stdout' => "PRIVATE_PHP_READY\n", 'stderr' => $warning . str_repeat('x', times: 4_097)]));
+    }
+
+    /** @param Closure(array): array{schema: string, stderrKind: string, stderrReason: string} $observe */
+    function grammar_stderr_prefix_boundaries(Closure $observe): void
+    {
+        $warning = grammar_stderr_fixtures()['PHP_WARNING'];
+        foreach (["\n\n" . $warning, "PRIVATE\n", "\xff\n" . $warning, "x\0\n" . $warning, "Warning: PRIVATE in SOURCE on line 1\rX\n",
+            str_repeat('x', times: 1_028) . "\n" . $warning] as $head) {
+            grammar_expect($observe(['stderr' => $head . str_repeat('x', times: 4_097)])['stderrReason'] === 'BUFFER_LIMIT');
+        }
+        foreach ([1_023, 1_024, 1_025] as $length) {
+            $record = 'Cannot load ' . str_repeat('x', times: $length - strlen('Cannot load  - it was already loaded')) . ' - it was already loaded';
+            $value = $observe(['stderr' => "\r\n" . $record . "\r\n" . str_repeat('x', times: 4_097)]);
+            grammar_expect($value['stderrKind'] === 'UNKNOWN');
+            grammar_expect($value['stderrReason'] === ($length <= 1_024 ? 'BUFFER_LIMIT_FIRST_RECORD_DUPLICATE_MODULE_MESSAGE' : 'BUFFER_LIMIT'));
+        }
+        grammar_expect($observe(['stderr' => str_pad($warning, length: 4_096, pad_string: 'x')])['stderrReason'] === 'TERMINATOR_MISSING');
+        grammar_expect($observe(['stderr' => str_pad($warning, length: 4_097, pad_string: 'x')])['stderrReason'] === 'BUFFER_LIMIT_FIRST_RECORD_PHP_WARNING');
     }
 
     /** @param Closure(mixed): string $classify */

@@ -5721,7 +5721,7 @@
                 "tests/Network/PasswordHelperRetentionTest.php",
                 "Native dashboard.setup/login/change_admin_password attachment"
             ],
-            "fingerprint": "sha256:364900353e21acc3969eb6d441f762a17b383b4205f6d2ca6c6d201b64ab62ef"
+            "fingerprint": "sha256:43936f4ffe0dbef463a6027f7b1f33bf5630bb06af4a8a065018ef87dc014e14"
         },
         {
             "path": "tests/fixtures/password-login.php",
@@ -7432,7 +7432,7 @@
                 "tests/Network/PasswordHelperDiagnosticsTest.php",
                 "tests/Network/PasswordHelperRetentionTest.php"
             ],
-            "fingerprint": "sha256:4daae26c64c731d93fdcb5468754777963f6bf2ddf17e98b07d80cc7b28291bf"
+            "fingerprint": "sha256:511c6be9d4ee12c8d5224b18a44a12c3bc1eebe0f6730bbd5dc23a4f960510c7"
         },
         {
             "path": "tests/Network/PasswordHelperDiagnosticsTest.php",
@@ -7460,7 +7460,7 @@
                 "tests/Network/PasswordHelperRetentionTest.php",
                 "Native dashboard.setup/login/change_admin_password attachment"
             ],
-            "fingerprint": "sha256:e678988f32134b3322410bc25af5c9413ee8a1d1347f0c1a88ff60c98da93f29"
+            "fingerprint": "sha256:cd52a02551b6245b23171460ff67f6d3d7d0174bd36261bbd95eab98f24cd5b0"
         },
         {
             "path": "tests/Network/PasswordHelperTest.php",
@@ -8134,7 +8134,7 @@
                 "Composer analyze",
                 "Composer verify:server"
             ],
-            "fingerprint": "sha256:4f78aa95a7fc9815824277bda0b26eda8d109e3e8f27572c34a4d6f06e9d9daf"
+            "fingerprint": "sha256:7b4157c44b4f655eb2bcad8a545f2f1610d63e89bfd40ed9baccd4e1b7425c41"
         },
         {
             "path": "tests/Server/EngineWatermarkTest.php",
@@ -9069,7 +9069,7 @@
                 "Composer verify",
                 "Composer analyze"
             ],
-            "fingerprint": "sha256:1c6d4d64113548586d9bbafba5984685a9336e3f0a927698fb2aefc15392a8fa"
+            "fingerprint": "sha256:ee649b923921099aeed79ddeaf1b167bca0d1ee3d827810147597d86769005a7"
         },
         {
             "path": "tests/Support/SubprocessInput.php",
@@ -11199,7 +11199,7 @@
                 "tests/Server/EngineVerificationTest.php",
                 "tools/server-io-uring-php-grammar.test.php"
             ],
-            "fingerprint": "sha256:efce1e3890dc297cbc0ce2c043c22b6010ec11c122de62acf04a33f56758fdeb"
+            "fingerprint": "sha256:e3cab72e5ae44b8d566f28fca44d6027ee8771fa44927a6c43800d9f682585ae"
         },
         {
             "path": "tests/ServerCross/EngineServerCrashTest.php",
@@ -11236,7 +11236,7 @@
                 "tools/server-native-denial.test.cjs",
                 "tools/server-io-uring-fallback.test.cjs"
             ],
-            "fingerprint": "sha256:17411e2a4b7e4cf5aecc54e33dd469951340e4081dbe3429fa5df633d4e70853"
+            "fingerprint": "sha256:895340bc9030255569120f54da2836d8e434fa2deef29b71b1214f0958730ae8"
         },
         {
             "path": "tools/server-supervisor-windows.ps1",
@@ -11487,7 +11487,7 @@
                 "tools/server-native-tests.json",
                 "node --test tools/server-io-uring-fallback.test.cjs"
             ],
-            "fingerprint": "sha256:833ff29732fc94ebb282328a1ca9dfe1547b38e3f78b89a11db52a71536db9d8"
+            "fingerprint": "sha256:3c60766b9c809aa45bdf11b9828b556b9eaad3b1a35cc04d660193f017fafb0d"
         },
         {
             "path": "tools/server-io-uring-php-grammar.test.php",
@@ -11497,7 +11497,7 @@
                 "tools/server-native-tests.json",
                 "php -n tools/server-io-uring-php-grammar.test.php"
             ],
-            "fingerprint": "sha256:cc6cfa044b01bb6dd35968b2cbe74a19709049f00f300dceb472ca2a4d70661f"
+            "fingerprint": "sha256:9281ea5ccaacf935e961e40d9a80a3c7de750754f2d78fa7483242ed0041a955"
         },
         {
             "path": "tools/server-supervisor-linux-fallback-unit.c",

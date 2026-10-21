@@ -11,10 +11,29 @@ param(
 )
 
 $ErrorActionPreference = 'Stop'
+$fixtureObserver = $null
+if ($ObservationPath -ne '') {
+    $fixtureObserverPath = $ObservationPath
+    $fixtureObserver = {
+        param([hashtable] $Record)
+        $fixtureLine = ($Record | ConvertTo-Json -Depth 5 -Compress) + [Environment]::NewLine
+        [IO.File]::AppendAllText($fixtureObserverPath, $fixtureLine, (New-Object Text.UTF8Encoding($false, $true)))
+    }.GetNewClosure()
+}
+function Write-FixtureObservation {
+    param([string] $Stage)
+    if ($null -eq $fixtureObserver) { return }
+    try {
+        & $fixtureObserver @{ stage = $Stage; utc = [DateTime]::UtcNow.ToString('o'); wrapperPid = $PID
+            monotonicTicks = [Diagnostics.Stopwatch]::GetTimestamp(); monotonicFrequency = [Diagnostics.Stopwatch]::Frequency }
+    } catch { [Console]::Error.WriteLine('HELPER_OBSERVER_FAILURE=' + $_.Exception.GetType().FullName) }
+}
+Write-FixtureObservation 'fixture-entry'
 if ($HostEncoding -eq 'bom') { [Console]::InputEncoding = New-Object System.Text.UTF8Encoding($true, $true) }
 if ($HostEncoding -eq 'bomless') { [Console]::InputEncoding = New-Object System.Text.UTF8Encoding($false, $true) }
 if ($HostEncoding -eq 'cp866') { [Console]::InputEncoding = [Text.Encoding]::GetEncoding(866) }
 $fixtureBefore = [Console]::InputEncoding
+Write-FixtureObservation 'fixture-encoding-ready'
 $fixtureState = @{ prompts = 0 }
 
 # Only the protected prompt is substituted; the shipped helper and PHP CLI run.
@@ -52,13 +71,8 @@ if ($Scenario -eq 'startFailure') {
     }
 }
 
+Write-FixtureObservation 'fixture-before-helper'
 if ($ObservationPath -ne '') {
-    $fixtureObserverPath = $ObservationPath
-    $fixtureObserver = {
-        param([hashtable] $Record)
-        $fixtureLine = ($Record | ConvertTo-Json -Depth 5 -Compress) + [Environment]::NewLine
-        [IO.File]::AppendAllText($fixtureObserverPath, $fixtureLine, (New-Object Text.UTF8Encoding($false, $true)))
-    }.GetNewClosure()
     & $Helper -Mode $Mode -Observation $fixtureObserver
 } else { & $Helper -Mode $Mode }
 $fixtureExit = $LASTEXITCODE

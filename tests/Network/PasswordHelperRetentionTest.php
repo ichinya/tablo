@@ -54,6 +54,9 @@ final class PasswordHelperRetentionTest
                 }
                 Assert::true(in_array('termination-request-returned', array_column($receipt['events'], 'stage'), strict: true));
                 Assert::true(in_array('after-termination-wait', array_column($receipt['events'], 'stage'), strict: true));
+                $failures = array_values(array_filter($receipt['events'], static fn (array $event): bool => $event['stage'] === 'failure'));
+                Assert::same(count($failures), 1, 'failure event identity survives its phase detail');
+                Assert::same($failures[0]['failure_stage'] ?? null, 'timeout');
                 $stdout = \Tablo\RequiredFile::bytes(file_get_contents($evidence->path . '/final.stdout'));
                 $stderr = \Tablo\RequiredFile::bytes(file_get_contents($evidence->path . '/final.stderr'));
                 Assert::same($stderr, '');
