@@ -710,6 +710,66 @@ test('prepare v2 rejects missing duplicate extra and oversized data without repl
     if(!outputFails){const record=JSON.parse(h.output[0]);assert.equal(record.prepareDiagnostic.capability.reportedExit,1);assert.equal(record.completedPhases,0);assert(Buffer.byteLength(h.output[0])<=4096);}
   }
 });
+const stderrKinds = ['NONE','MODULE_LOAD_MESSAGE','ZEND_LOADER_MESSAGE','DUPLICATE_MODULE_MESSAGE','PHP_STARTUP_WARNING','PHP_WARNING','PHP_DEPRECATION','PHP_ERROR','UNKNOWN'];
+const capabilityV2 = (changes={}) => ({...capabilityRecord(),schema:'tablo/php-capability-observation/v2',stderrKind:'NONE',...changes});
+const prepareV3 = capability => prepareRecord({schema:'tablo/server-prepare-failure/v3',capability});
+for(const stderrKind of stderrKinds)test('actual prepare v3 carries only the finite stderr shape '+stderrKind,async()=>{
+  const diagnostic=prepareV3(capabilityV2({reportedExit:stderrKind==='NONE'?1:0,stdout:'READY',stderr:stderrKind==='NONE'?'EMPTY':'NONEMPTY',category:'UNKNOWN',missingExtension:null,stderrKind}));
+  const h=await prepareChannel();h.send(h.payload({diagnostic}));h.closed();assert.deepEqual(h.cancellations,[]);
+  assert.deepEqual(JSON.parse(JSON.stringify(h.phase.prepareDiagnostic)),diagnostic);assert.equal(h.owner.phaseResults.length,0);
+  assert.equal(diagnostic.rootCause,'UNKNOWN');assert.equal(diagnostic.issueAccepted,false);assert(Buffer.byteLength(JSON.stringify(diagnostic))<=2048);
+});
+test('prepare consumers explicitly preserve all three version pairings and null cases',async()=>{
+  for(const diagnostic of [prepareRecord(),prepareV2(null),prepareV2(capabilityRecord()),prepareV3(null),prepareV3(capabilityV2()),prepareV3(capabilityV2({stderr:'UNKNOWN',stderrKind:'UNKNOWN'}))]) {
+    const h=await prepareChannel();h.send(h.payload({diagnostic}));h.closed();assert.deepEqual(h.cancellations,[]);
+    assert.deepEqual(JSON.parse(JSON.stringify(h.phase.prepareDiagnostic)),diagnostic);
+  }
+});
+for(const [label,diagnostic] of [
+  ['outer1 nested1',prepareRecord({capability:capabilityRecord()})],['outer1 nested2',prepareRecord({capability:capabilityV2()})],
+  ['outer2 nested2',prepareV2(capabilityV2())],['outer3 nested1',prepareV3(capabilityRecord())],
+  ['unknown outer',prepareRecord({schema:'tablo/server-prepare-failure/v4',capability:capabilityV2()})],
+  ['unknown nested',prepareV3(capabilityV2({schema:'tablo/php-capability-observation/v3'}))],
+  ['missing kind',prepareV3(capabilityRecord({schema:'tablo/php-capability-observation/v2'}))],
+  ['old extra kind',prepareV2({...capabilityRecord(),stderrKind:'NONE'})],['extra nested',prepareV3(capabilityV2({extra:'PRIVATE'}))],
+  ['empty unknown',prepareV3(capabilityV2({stderrKind:'UNKNOWN'}))],['empty warning',prepareV3(capabilityV2({stderrKind:'PHP_WARNING'}))],
+  ['unknown none',prepareV3(capabilityV2({stderr:'UNKNOWN'}))],['unknown warning',prepareV3(capabilityV2({stderr:'UNKNOWN',stderrKind:'PHP_WARNING'}))],
+  ['nonempty none',prepareV3(capabilityV2({stderr:'NONEMPTY'}))],['private kind',prepareV3(capabilityV2({stderrKind:'PRIVATE'}))],
+  ['numeric kind',prepareV3(capabilityV2({stderrKind:0}))],['null kind',prepareV3(capabilityV2({stderrKind:null}))],
+  ['ready success',prepareV3(capabilityV2({reportedExit:0,stdout:'READY',category:'UNKNOWN',missingExtension:null}))],
+  ['reordered nested',prepareV3(Object.fromEntries(Object.entries(capabilityV2()).reverse()))],
+])test('actual prepare v3 refuses '+label,async()=>{
+  const h=await prepareChannel();h.send(h.payload({diagnostic}));h.closed();assert.equal(h.phase.prepareDiagnostic,undefined);assert.deepEqual(h.cancellations,['protocol']);
+});
+test('prepare v3 raw duplicate canonical and authentication checks remain closed',async()=>{
+  for(const mutate of [raw=>raw.replace('"stderrKind":','"stderrKind":"NONE","stderrKind":'),raw=>raw.replace('"stderrKind":','"stderrK\\u0069nd":"NONE","stderrKind":'),raw=>' '+raw]) {
+    const h=await prepareChannel();h.send(mutate(h.canonical(h.payload({diagnostic:prepareV3(capabilityV2())}))));h.closed();assert.equal(h.phase.prepareDiagnostic,undefined);
+  }
+  const bad=await prepareChannel();bad.send(bad.payload({diagnostic:prepareV3(capabilityV2())}),{mac:'0'.repeat(64)});bad.closed();assert.equal(bad.phase.prepareDiagnostic,undefined);
+  const callbacks=[],h=await prepareChannel();
+  assert.throws(()=>h.api.prepareDiagnostic(prepareV3(capabilityV2({stderrKind:{toString(){callbacks.push('convert');return 'NONE';},toJSON(){callbacks.push('serialize');return 'NONE';}}}))));
+  assert.deepEqual(callbacks,[]);h.closed();
+});
+test('prepare v3 preserves first authenticated failure and secondary ACK failures',async()=>{
+  const diagnostic=prepareV3(capabilityV2({reportedExit:0,stdout:'READY',stderr:'NONEMPTY',category:'UNKNOWN',missingExtension:null,stderrKind:'PHP_WARNING'}));
+  const h=await prepareChannel();h.send(h.payload({diagnostic}));const first=h.phase.prepareDiagnostic;
+  h.send(h.payload({diagnostic:prepareV3(capabilityV2())}));h.closed();assert.equal(h.phase.prepareDiagnostic,first);assert.deepEqual(h.cancellations,['protocol']);
+  for(const option of [{ackError:true},{outputThrows:true}]) {
+    const broken=await prepareChannel(option);broken.send(broken.payload({diagnostic}));broken.closed();assert.equal(broken.phase.prepareDiagnostic.status,'failed');assert.equal(broken.owner.phaseResults.length,0);
+  }
+});
+test('prepare v3 console and retention revalidate shape without promoting success or masking first error',async()=>{
+  const diagnostic=prepareV3(capabilityV2({reportedExit:0,stdout:'READY',stderr:'NONEMPTY',category:'UNKNOWN',missingExtension:null,stderrKind:'ZEND_LOADER_MESSAGE'}));
+  for(const outputFails of [false,true]) {
+    const h=observerHarness({at:'custody',retentionFails:true,outputFails,prepareDiagnostic:diagnostic});
+    await assert.rejects(h.run(),error=>error===h.original);observerClosed(h);
+    if(!outputFails) {const record=JSON.parse(h.output[0]);assert.deepEqual(record.prepareDiagnostic,diagnostic);assert.equal(record.completedPhases,0);assert.equal(record.rootCause,'UNKNOWN');assert(Buffer.byteLength(h.output[0])<=4096);}
+  }
+  const invalid=observerHarness({at:'custody',prepareDiagnostic:prepareV3(capabilityRecord({extra:'PRIVATE'}))});
+  await assert.rejects(invalid.run(),error=>error===invalid.original);observerClosed(invalid);
+  assert.equal(JSON.parse(invalid.output[0]).prepareDiagnostic,'MISSING');assert(!invalid.output[0].includes('PRIVATE'));
+});
+
 test('qualification v3 distinguishes uninitialized and admitted absent events and latches first cancellation snapshot',()=>{
   const unknown={ready:'UNKNOWN',started:'UNKNOWN',input:'UNKNOWN',exited:'UNKNOWN',closed:'UNKNOWN'};
   assert.deepEqual(eventPresence(),unknown);assert.deepEqual(eventPresence({}),unknown);

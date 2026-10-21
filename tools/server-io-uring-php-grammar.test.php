@@ -86,6 +86,17 @@ namespace Tablo\Tests\CapabilityGrammar {
         $value = grammar_state()['capability']['loaded'] ?? null; return is_string($value) ? $value : false;
     }
     function sys_get_temp_dir(): string { return '/synthetic/' . ((grammar_state()['capability']['tempMismatch'] ?? false) === true ? 'different' : 'tmp'); }
+    /** @param-out array<array-key, mixed> $matches */
+    function preg_match(string $pattern, string $subject, ?array &$matches = null, int $flags = 0, int $offset = 0): int|false
+    {
+        /** @var mixed $fault Only the UTF-8 classifier check has an injected parser failure. */
+        $fault = grammar_state()['capability']['regexFault'] ?? null;
+        if ($pattern === '//u') {
+            if ($fault instanceof \Throwable) { throw $fault; }
+            if ($fault === false) { $matches = []; return false; }
+        }
+        return \preg_match($pattern, $subject, $matches, $flags, $offset);
+    }
     function fwrite(mixed $stream, string $data, ?int $length = null): int|false
     {
         $state = &grammar_state();
@@ -227,14 +238,14 @@ namespace {
         $bytes = file_get_contents(__DIR__ . '/server-cell.php', length: 262_145);
         if (!is_string($bytes)) { throw new RuntimeException('Required public producer source absent.'); }
         $selected = grammar_prepare_functions($bytes);
-        grammar_expect(count($selected) === 11);
+        grammar_expect(count($selected) === 14);
         // Only these inspected public helper bodies enter an isolated namespace;
         // no include, autoload, cell entry or source transformation is executed.
         // @mago-expect lint:no-eval
         eval('namespace Tablo\\Tests\\CapabilityGrammar; use Tablo\\RequiredFile; use Tablo\\JsonRecord; use Tablo\\SqlColumn; use Throwable; use RuntimeException; use Closure; use function Tablo\\Tools\\file_get_contents, Tablo\\Tools\\is_file, Tablo\\Tools\\is_link, Tablo\\Tools\\realpath, Tablo\\Tools\\hash_file, Tablo\\Tools\\exec, Tablo\\Tools\\proc_open;' . implode("\n", $selected));
         grammar_expect(!function_exists('Tablo\\Tests\\CapabilityGrammar\\server_cell_prepare_client'));
         grammar_prepare_extraction($bytes);
-        grammar_prepare_projection(); grammar_prepare_origins(); grammar_prepare_transport(); grammar_capability();
+        grammar_prepare_projection(); grammar_prepare_origins(); grammar_prepare_transport(); grammar_capability(); grammar_stderr();
     }
 
     /** The inspected top-level helpers have column-zero closing braces.
@@ -246,7 +257,7 @@ namespace {
         if (strlen($bytes) > 262_144) { throw new RuntimeException('Public producer source exceeds extraction bound.'); }
         $selected = [];
         foreach (['server_cell_prepare_roots', 'server_cell_prepare_sources', 'server_cell_prepare_failure', 'server_cell_prepare_report', 'server_cell_prepare_rethrow',
-            'server_cell_capability', 'server_cell_capability_marker', 'server_cell_capability_observation', 'server_cell_capability_exit', 'server_cell_capability_projection', 'server_cell_capability_check'] as $name) {
+            'server_cell_capability', 'server_cell_capability_marker', 'server_cell_capability_stderr_kind', 'server_cell_capability_stderr_record', 'server_cell_capability_observation', 'server_cell_capability_exit', 'server_cell_capability_shape', 'server_cell_capability_projection', 'server_cell_capability_check'] as $name) {
             $marker = "\nfunction " . $name . '('; $position = strpos($bytes, $marker);
             if ($position === false || strpos($bytes, $marker, offset: $position + strlen($marker)) !== false) { throw new RuntimeException('Exact unique pure helper declaration required.'); }
             $start = $position + 1; $close = strpos($bytes, needle: "\n}", offset: $start);
@@ -454,6 +465,8 @@ namespace {
         }
         $hostile = new class implements JsonSerializable { public function jsonSerialize(): mixed { \Tablo\Tools\grammar_tripwire('Arbitrary diagnostic serialization.'); } };
         grammar_expect($project(array_replace($value, ['category' => $hostile])) === null);
+        grammar_expect($project(array_replace($value, ['missingExtension' => $hostile])) === null);
+        grammar_expect(\Tablo\Tools\grammar_state()['effects'] === []);
         grammar_capability_transport($observe);
         grammar_expect(\Tablo\Tools\grammar_state()['effects'] === []);
     }
@@ -494,4 +507,150 @@ namespace {
     function grammar_capability_observed(?array $actual, ?array $expected): void { grammar_expect($actual === $expected); }
     function grammar_capability_request_matches(array $expected): void
     { grammar_expect((\Tablo\Tools\grammar_state()['requests'][0]['diagnostic'] ?? null) === $expected); }
+
+    /** @return array{MODULE_LOAD_MESSAGE: string, ZEND_LOADER_MESSAGE: string, DUPLICATE_MODULE_MESSAGE: string, PHP_STARTUP_WARNING: string, PHP_WARNING: string, PHP_DEPRECATION: string, PHP_ERROR: string} */
+    function grammar_stderr_fixtures(): array
+    {
+        return ['MODULE_LOAD_MESSAGE' => "PHP Warning: PHP Startup: Unable to load dynamic library 'PRIVATE_MODULE.so' (tried: PRIVATE_PATH) in Unknown on line 0\n",
+            'ZEND_LOADER_MESSAGE' => "PHP Warning: PRIVATE_MODULE MUST be loaded as a Zend extension in Unknown on line 0\n",
+            'DUPLICATE_MODULE_MESSAGE' => "PHP Warning: Module \"PRIVATE_MODULE\" is already loaded in Unknown on line 0\n",
+            'PHP_STARTUP_WARNING' => "PHP Warning: PHP Startup: PRIVATE_WARNING in Unknown on line 0\n",
+            'PHP_WARNING' => "PHP Warning: PRIVATE_WARNING in PRIVATE_SOURCE on line 7\n",
+            'PHP_DEPRECATION' => "PHP Deprecated: PRIVATE_DEPRECATION in PRIVATE_SOURCE on line 7\n",
+            'PHP_ERROR' => "PHP Fatal error: PRIVATE_ERROR in PRIVATE_SOURCE on line 7\n"];
+    }
+
+    function grammar_stderr(): void
+    {
+        /** @var Closure(mixed): string $classify */
+        $classify = grammar_prepare_callable('Tablo\\Tests\\CapabilityGrammar\\server_cell_capability_stderr_kind');
+        /** @var Closure(array): array{schema: string, reportedExit: int|null|string, stdout: string, stderr: string, category: string, missingExtension: ?string, stderrKind: string} $observe */
+        $observe = grammar_prepare_callable('Tablo\\Tests\\CapabilityGrammar\\server_cell_capability_observation');
+        $fixtures = grammar_stderr_fixtures();
+        foreach ($fixtures as $kind => $record) {
+            $spaced = preg_replace('/\A(PHP [^:]+): /', replacement: '$1:  ', subject: $record);
+            if (!is_string($spaced)) { throw new RuntimeException('Synthetic spacing fixture failed.'); }
+            foreach ([$record, substr($record, offset: 4), str_replace("\n", replace: "\r\n", subject: $record), "\n" . $record, str_repeat($record, times: 8),
+                $spaced, str_replace("\n", replace: "\r\n", subject: $spaced), $record . $spaced, "\r\n" . str_replace("\n", replace: "\r\n", subject: $record)] as $bytes) {
+                grammar_expect($classify($bytes) === $kind); grammar_expect(\Tablo\Tools\grammar_state()['effects'] === []);
+            }
+            $value = $observe(['exit_code' => 0, 'stdout' => "PRIVATE_PHP_READY\n", 'stderr' => $record]);
+            grammar_expect([$value['stderrKind'], $value['category'], $value['stderr']] === [$kind, 'UNKNOWN', 'NONEMPTY']);
+            grammar_expect(!str_contains(json_encode($value, JSON_THROW_ON_ERROR), 'PRIVATE_'));
+            grammar_stderr_failed($value, $record);
+            if ($kind === 'PHP_WARNING') { grammar_stderr_compatibility($value); }
+        }
+        grammar_expect($classify('') === 'NONE');
+        grammar_expect($classify("Parse error: PRIVATE in SOURCE on line 1\n") === 'PHP_ERROR');
+        grammar_expect($classify("Warning: PRIVATE_юникод in SOURCE on line 1\n") === 'PHP_WARNING');
+        grammar_stderr_unknown($classify);
+        $warning = $fixtures['PHP_WARNING'];
+        $frame = "Warning:  in SOURCE on line 1";
+        foreach ([1_023, 1_024, 1_025] as $length) {
+            $record = 'Warning: ' . str_repeat('x', times: $length - strlen($frame)) . " in SOURCE on line 1\n";
+            grammar_expect($classify($record) === ($length <= 1_024 ? 'PHP_WARNING' : 'UNKNOWN'));
+            if ($length === 1_023) { grammar_expect(strlen(str_repeat($record, times: 4)) === 4_096); grammar_expect($classify(str_repeat($record, times: 4)) === 'PHP_WARNING'); grammar_expect($classify("\n" . str_repeat($record, times: 4)) === 'UNKNOWN'); }
+        }
+        grammar_expect($classify(str_replace('PRIVATE_WARNING', replace: 'TABLO_CAPABILITY_FAILURE {"schema":"forged"} PRIVATE_PHP_READY', subject: $warning)) === 'PHP_WARNING');
+        grammar_stderr_versions($observe); grammar_stderr_parser_failure($classify, $warning);
+        grammar_expect(\Tablo\Tools\grammar_state()['effects'] === []);
+    }
+
+    /** @param Closure(mixed): string $classify */
+    function grammar_stderr_unknown(Closure $classify): void
+    {
+        $fixtures = grammar_stderr_fixtures(); $warning = $fixtures['PHP_WARNING'];
+        $hostile = new class implements JsonSerializable {
+            public function __toString(): string { \Tablo\Tools\grammar_tripwire('Arbitrary stderr conversion.'); }
+            public function jsonSerialize(): mixed { \Tablo\Tools\grammar_tripwire('Arbitrary stderr serialization.'); }
+        };
+        foreach ([null, false, 1, [], $hostile, "\n", "\n\n" . $warning, $warning . "\n", $warning . "\n" . $warning,
+            $warning . $fixtures['PHP_DEPRECATION'], $fixtures['MODULE_LOAD_MESSAGE'] . $warning, $warning . 'BANNER', 'BANNER' . $warning,
+            $warning . "PRIVATE_PHP_READY\n", $warning . "TABLO_CAPABILITY_FAILURE {}\n", $warning . "Stack trace:\n",
+            substr($warning, offset: 0, length: -1), $warning . 'x', "\xff\n", str_repeat($warning, times: 9), str_repeat('x', times: 4_097),
+            str_replace('PRIVATE_WARNING', replace: "PRIVATE\0", subject: $warning), str_replace('PRIVATE_WARNING', replace: "PRIVATE\x1b", subject: $warning),
+            str_replace('PRIVATE_WARNING', replace: "PRIVATE\t", subject: $warning), str_replace('PRIVATE_WARNING', replace: "PRIVATE\r", subject: $warning),
+            str_replace('Warning:', replace: 'warning:', subject: $warning), 'PHP ' . $warning, '[time] ' . $warning, '<b>' . $warning,
+            str_replace('Warning:', replace: 'Notice:', subject: $warning), str_replace('line 7', replace: 'line -1', subject: $warning),
+            str_replace('line 7', replace: 'line 07', subject: $warning), str_replace('(tried:', replace: '(private:', subject: $fixtures['MODULE_LOAD_MESSAGE']),
+            str_replace('Zend extension', replace: 'ordinary extension', subject: $fixtures['ZEND_LOADER_MESSAGE']),
+            str_replace('already loaded', replace: 'already loaded PRIVATE', subject: $fixtures['DUPLICATE_MODULE_MESSAGE']),
+            str_replace('Warning: ', replace: 'Warning:   ', subject: $warning), "Warning:   in SOURCE on line 1\n",
+            str_replace('PRIVATE_WARNING', replace: "PRIVATE\u{0085}", subject: $warning), str_replace('PRIVATE_WARNING', replace: "PRIVATE\u{2028}", subject: $warning)] as $bytes) {
+            grammar_expect($classify($bytes) === 'UNKNOWN'); grammar_expect(\Tablo\Tools\grammar_state()['effects'] === []);
+        }
+    }
+
+    function grammar_stderr_failed(array $value, string $record): void
+    {
+        $project = grammar_prepare_callable('Tablo\\Tests\\CapabilityGrammar\\server_cell_capability_projection'); grammar_expect($project($value) === $value);
+        $check = grammar_prepare_callable('Tablo\\Tests\\CapabilityGrammar\\server_cell_capability_check');
+        $failure = null; $caught = null;
+        try { $check(['exit_code' => 0, 'stdout' => "PRIVATE_PHP_READY\n", 'stderr' => $record], $failure); } catch (RuntimeException $error) { $caught = $error; }
+        grammar_expect(\Tablo\Tools\grammar_state()['effects'] === []); grammar_expect($caught instanceof RuntimeException); grammar_capability_observed($failure, $value);
+    }
+
+    function grammar_stderr_compatibility(array $value): void
+    {
+        /** @var Closure(Throwable $error, string $checkpoint, array $roots, ?array $capability): array $prepare */
+        $prepare = grammar_prepare_callable('Tablo\\Tests\\CapabilityGrammar\\server_cell_prepare_failure');
+        $wire = json_encode($prepare(new RuntimeException('PRIVATE original'), checkpoint: 'EXECUTE', roots: [], capability: $value), JSON_THROW_ON_ERROR);
+        grammar_expect(strlen($wire) <= 2_048 && !str_contains($wire, 'PRIVATE_'));
+        grammar_expect(\Tablo\Tools\grammar_state()['effects'] === []);
+        echo 'STDERR_COMPATIBILITY ' . $wire . "\n";
+    }
+
+    /** @param Closure(array): array $observe */
+    function grammar_stderr_versions(Closure $observe): void
+    {
+        $project = grammar_prepare_callable('Tablo\\Tests\\CapabilityGrammar\\server_cell_capability_projection');
+        /** @var Closure(Throwable $error, string $checkpoint, array $roots, ?array $capability): array{schema: string, capability: ?array} $prepare */
+        $prepare = grammar_prepare_callable('Tablo\\Tests\\CapabilityGrammar\\server_cell_prepare_failure');
+        $value = $observe(['exit_code' => 1, 'stdout' => '', 'stderr' => '']);
+        $legacy = $value; unset($legacy['stderrKind']); $legacy['schema'] = 'tablo/php-capability-observation/v1';
+        grammar_expect($project($legacy) === $legacy); grammar_expect($project($value) === $value);
+        $error = new RuntimeException('PRIVATE original');
+        grammar_expect($prepare($error, checkpoint: 'EXECUTE', roots: [], capability: $legacy)['capability'] === null);
+        $outer = $prepare($error, checkpoint: 'EXECUTE', roots: [], capability: $value); grammar_expect($outer['schema'] === 'tablo/server-prepare-failure/v3' && $outer['capability'] === $value);
+        $hostile = new class implements JsonSerializable { public function jsonSerialize(): mixed { \Tablo\Tools\grammar_tripwire('Arbitrary finite domain serialization.'); } };
+        foreach ([$legacy, $value] as $record) { foreach (['category', 'missingExtension'] as $field) {
+            grammar_expect($project(array_replace($record, [$field => $hostile])) === null); grammar_expect(\Tablo\Tools\grammar_state()['effects'] === []);
+        } }
+        foreach ([array_replace($legacy, ['stderrKind' => 'NONE']), array_diff_key($value, ['stderrKind' => true]),
+            array_replace($value, ['stderrKind' => 'UNKNOWN']), array_replace($value, ['stderrKind' => 'PRIVATE']),
+            array_replace($value, ['stderr' => 'NONEMPTY']), array_replace($value, ['stderr' => 'UNKNOWN', 'stderrKind' => 'PHP_WARNING']),
+            array_reverse($value, preserve_keys: true)] as $invalid) { grammar_expect($project($invalid) === null); }
+        grammar_expect(\Tablo\Tools\grammar_state()['effects'] === []);
+    }
+
+    /** @param Closure(mixed): string $classify */
+    function grammar_stderr_parser_failure(Closure $classify, string $warning): void
+    {
+        $state = &\Tablo\Tools\grammar_state(); $secondary = new TypeError('PRIVATE parser');
+        foreach ([$secondary, false] as $fault) {
+            $state['capability']['regexFault'] = $fault;
+            grammar_expect($classify($warning) === 'UNKNOWN'); grammar_expect($state['effects'] === []);
+        }
+        grammar_stderr_parser_rethrow($warning);
+        unset($state['capability']['regexFault']);
+    }
+
+    function grammar_stderr_parser_rethrow(string $warning): void
+    {
+        $state = &\Tablo\Tools\grammar_state(); $state['capability']['regexFault'] = new TypeError('PRIVATE parser');
+        $check = grammar_prepare_callable('Tablo\\Tests\\CapabilityGrammar\\server_cell_capability_check');
+        $failure = null; $caught = null;
+        try { $check(['exit_code' => 0, 'stdout' => "PRIVATE_PHP_READY\n", 'stderr' => $warning], $failure); } catch (Throwable $error) { $caught = $error; }
+        grammar_expect($state['effects'] === []); grammar_expect($caught instanceof RuntimeException);
+        /** @var Closure(array): array $observe */
+        $observe = grammar_prepare_callable('Tablo\\Tests\\CapabilityGrammar\\server_cell_capability_observation');
+        grammar_capability_observed($failure, $observe(['exit_code' => 0, 'stdout' => "PRIVATE_PHP_READY\n", 'stderr' => $warning]));
+        if (!$caught instanceof RuntimeException) { throw new RuntimeException('Original capability failure absent.'); }
+        $state['helpers'] = true; $state['sendMode'] = 'broken'; $state['requests'] = [];
+        /** @var Closure(Throwable $error, array $failure, bool $ready, ?Closure $retain): never $rethrow */
+        $rethrow = grammar_prepare_callable('Tablo\\Tests\\CapabilityGrammar\\server_cell_prepare_rethrow'); $original = null;
+        try { $rethrow($caught, failure: ['checkpoint' => 'EXECUTE', 'roots' => [], 'capability' => $failure], ready: true, retain: static function (): never { throw new TypeError('PRIVATE retain'); }); }
+        catch (Throwable $error) { $original = $error; }
+        grammar_expect($state['effects'] === []); grammar_expect($original === $caught && count($state['requests']) === 1);
+    }
 }
