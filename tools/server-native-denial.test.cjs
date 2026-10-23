@@ -43,7 +43,8 @@ const sites = ['UNKNOWN','INTERRUPT','RESERVE','HARD_END','COMMAND_CHANNEL','COM
   'EARLY_STOP_DUPLICATE','EARLY_STOP_CAPACITY','EARLY_STOP_EVENT_FORK','EARLY_STOP_EVENT_VFORK','EARLY_STOP_EVENT_CLONE',
   'EARLY_STOP_EVENT_EXIT','EARLY_STOP_EVENT_SECCOMP','EARLY_STOP_EVENT_STOP','EARLY_STOP_EVENT_OTHER',
   'EARLY_STOP_SIGNAL_SYSCALL_TRAP','EARLY_STOP_SIGNAL_TRAP','EARLY_STOP_SIGNAL_JOB_CONTROL',
-  'EARLY_STOP_SIGNAL_WAKEUP_OR_PROFILE','EARLY_STOP_SIGNAL_TERMINATION','EARLY_STOP_SIGNAL_OTHER'];
+  'EARLY_STOP_SIGNAL_WAKEUP_OR_PROFILE','EARLY_STOP_SIGNAL_TERMINATION','EARLY_STOP_SIGNAL_OTHER',
+  'OWNER_CANCEL_QUEUED_STOP','OWNER_CANCEL_QUEUED_EXIT','OWNER_CANCEL_QUEUED_MIXED'];
 test('native first-failure IDs remain finite and EXITED authority receives exactly the original four values', () => {
   assert.deepEqual(NATIVE_FIRST_FAILURE_SITES, sites);
   for (let id = 0; id < sites.length; id++) for (const fragmented of [false, true]) {
@@ -51,7 +52,7 @@ test('native first-failure IDs remain finite and EXITED authority receives exact
     assert.equal(parser.nativeFirstFailureSite, sites[id]);
     assert.deepEqual(seen.find(row => row.kind === 'EXITED').values, [8, 0, 0, 0]);
     assert.equal(failure(parser, 0).nativeFirstFailureSite, sites[id]);
-    assert.equal(failure(parser, 0).schema, 'tablo/linux-safe-qualification-failure/v5');
+    assert.equal(failure(parser, 0).schema, 'tablo/linux-safe-qualification-failure/v6');
     assert.equal(failure(parser, 0).qualified, false); assert.equal(failure(parser, 0).rootCause, 'UNKNOWN');
   }
   for (const bytes of [before, before + closed(0)]) assert.equal(parse(bytes, true).parser.nativeFirstFailureSite, 'UNKNOWN');
@@ -68,7 +69,7 @@ test('accepted EXITED publishes only after the callback and retains its site wit
   assert.equal(rejected.nativeFirstFailureSite, 'UNKNOWN');
 });
 test('native first-failure parser rejects arity, spelling and IDs and protocol UNKNOWN stays sticky', () => {
-  const invalid = ['',' 1 2',' -1',' 54',' 2147483647',' 2147483648',' 00',' 01',' -0',' +1',' 1.0',' 1e0',' 053',' +53',' 53.0',' 5e1',' -53',' NaN',' UNKNOWN',' PRIVATE', ' 1\r', ' 1\u0080'];
+  const invalid = ['',' 1 2',' -1',' 57',' 2147483647',' 2147483648',' 00',' 01',' -0',' +1',' 1.0',' 1e0',' 053',' +53',' 53.0',' 056',' +56',' 56.0',' -56',' 5e1',' -53',' NaN',' UNKNOWN',' PRIVATE', ' 1\r', ' 1\u0080'];
   for (const tail of invalid.filter(value => value !== '')) {
     const parser = new LinuxRecords();
     assert.throws(() => parser.push(Buffer.from('EXITED 8 0 0 0' + tail + '\n'), () => {}), /LINUX_/);
@@ -130,7 +131,11 @@ async function nativeOwner(text, options = {}) {
       if (name === 'node:net') return closedObject({});
       if (name === 'node:child_process') return closedObject({ spawn: () => {
         setImmediate(() => {
-          for (const bytes of options.fragmented ? [...Buffer.from(text)].map(byte => Buffer.from([byte])) : [Buffer.from(text)]) child.stdout.emit('data', bytes);
+          const emit = value => { for (const bytes of options.fragmented ? [...Buffer.from(value)].map(byte => Buffer.from([byte])) : [Buffer.from(value)]) child.stdout.emit('data', bytes); };
+          if (options.cancelBeforeExit) {
+            const offset = text.indexOf('EXITED '); assert(offset >= 0);
+            emit(text.slice(0, offset)); owner.cancel('deadline'); emit(text.slice(offset));
+          } else emit(text);
           if (options.stderrOverflow) child.stderr.emit('data', Buffer.alloc(65537));
           if (options.stdinError) child.stdin.emit('error', Error('PRIVATE'));
           if (options.spawnError) child.emit('error', Error('PRIVATE'));
@@ -153,7 +158,7 @@ async function nativeOwner(text, options = {}) {
       input: { mode: 'none', path: null, sha256: null, bytes: 0 }, stdout: root + '/evidence/controller.stdout', stderr: root + '/evidence/controller.stderr' } };
   const owner = { phase: { root, kind: 'engine', adapterAuthority: Buffer.alloc(32), diagnostic: { state: null, close: null, nativeFirstFailureSite: 'POLICY_DENIAL' } },
     nativeFirstFailureSite: 'POLICY_DENIAL', cancelReason: null,
-    cancel(reason) { if (!this.cancelReason) this.cancelReason = reason; } };
+    cancel(reason) { if (options.cancelBeforeExit) api.observerCancel(this, reason); else if (!this.cancelReason) this.cancelReason = reason; } };
   const state = await api.runLinuxAdapter(owner, plan);
   const failure = api.observerFailure(); failure.stage = 'custody'; failure.phase = 'engine';
   api.latchObserverFailure(failure, new Error('PRIVATE'), owner);
@@ -167,7 +172,7 @@ test('actual native owner retains accepted EXITED site after missing CLOSED or o
   for (const expire of [false, true]) {
     const h = await nativeOwner(ready + input + 'EXITED 8 0 0 0 34\n', { expire, fragmented: true });
     assert.equal(h.owner.nativeFirstFailureSite, 'INPUT_READ'); assert.equal(h.failure.nativeFirstFailureSite, 'INPUT_READ');
-    assert.equal(h.failure.schema, 'tablo/server-safe-observer-failure/v6'); assert.equal(h.state.closed, null);
+    assert.equal(h.failure.schema, 'tablo/server-safe-observer-failure/v7'); assert.equal(h.state.closed, null);
     assert.equal(h.owner.nativeDenialDiagnostic, 'UNKNOWN'); assert.equal(h.owner.adapterClose.closeObserved, !expire);
     assert.equal(h.owner.adapterClose.nativeProtocol, 'private-inherited-pipes/v4');
     assert.equal(projectFailure({owner:h.owner}).nativeFirstFailureSite, 'INPUT_READ');
@@ -182,6 +187,7 @@ test('actual native owner retains accepted EXITED site after missing CLOSED or o
 });
 test('actual native owner refuses rejected EXITED and any protocol fault, and fresh adapters inherit no site', async () => {
   for (const [text, options] of [[ready + input + 'EXITED 9 0 0 0 34\n', {}],
+    ...[54,55,56].map(id => [ready + input + `EXITED 9 0 0 0 ${id}\n`, {}]),
     [ready + input + 'EXITED 8 256 0 0 34\n', {}], [ready + input + 'EXITED 8 0 0 2 34\n', {}],
     [ready + input + 'EXITED 8 0 0 0 34\nBOGUS 1\n', {}], [ready + input + 'EXITED 8 0 0 0 34\nPARTIAL', {}],
     [ready + input + 'EXITED 8 0 0 0 34\nEXITED 8 0 0 0 38\n', {}],
@@ -192,10 +198,12 @@ test('actual native owner refuses rejected EXITED and any protocol fault, and fr
     assert.equal(projectFailure({owner:h.owner}).nativeFirstFailureSite, 'UNKNOWN'); assert.equal(h.state.closed, null);
   }
 });
-test('refined early-stop sites remain diagnostic-only through the production owner and late revocation', async () => {
+test('refined early-stop and owner-cancel sites remain diagnostic-only through the production owner and late revocation', async () => {
   assert.equal(sites[11], 'EARLY_STOP'); assert.equal(sites[38], 'CANCEL_SIGNAL');
   assert.equal(sites[39], 'EARLY_STOP_DUPLICATE'); assert.equal(sites[53], 'EARLY_STOP_SIGNAL_OTHER');
-  for (let id = 39; id <= 53; id++) {
+  assert.deepEqual(sites.slice(54), ['OWNER_CANCEL_QUEUED_STOP','OWNER_CANCEL_QUEUED_EXIT','OWNER_CANCEL_QUEUED_MIXED']);
+  assert.equal(sites.length, 57);
+  for (let id = 39; id <= 56; id++) {
     const h = await nativeOwner(ready + input + `EXITED 8 -1 9 1 ${id}\n`, {expire:true,fragmented:true});
     assert.equal(h.owner.nativeFirstFailureSite, sites[id]); assert.equal(h.failure.nativeFirstFailureSite, sites[id]);
     assert.equal(projectFailure({owner:h.owner}).nativeFirstFailureSite, sites[id]);
@@ -204,6 +212,30 @@ test('refined early-stop sites remain diagnostic-only through the production own
     assert(h.authenticated.every(value => !Object.hasOwn(value, 'nativeFirstFailureSite')));
     h.injectStdout('BOGUS 1\n');
     assert.equal(h.owner.nativeFirstFailureSite, 'UNKNOWN'); assert.equal(emittedFailure(h).nativeFirstFailureSite, 'UNKNOWN');
+  }
+});
+test('OWNER_CANCEL records its mark-time queue and later accepted EXITED does not rewrite the first cancellation snapshot or prove CLOSED', async () => {
+  for (const id of [8,54,55,56]) {
+    const h = await nativeOwner(ready + input + `EXITED 8 -1 9 1 ${id}\n`, {cancelBeforeExit:true,fragmented:true});
+    assert.equal(h.owner.firstCancellation.exitedAccepted, false); assert.equal(h.failure.firstCancellation.exitedAccepted, false);
+    assert.equal(h.owner.firstCancellation.closedAccepted, false); assert.equal(h.failure.firstCancellation.closedAccepted, false);
+    assert(h.state.exited); assert.equal(h.state.closed, null); assert.equal(h.owner.cancelReason, 'deadline');
+    assert.equal(h.owner.nativeFirstFailureSite, sites[id]); assert.equal(h.failure.nativeFirstFailureSite, sites[id]);
+    assert.equal(projectFailure({owner:h.owner}).nativeFirstFailureSite, sites[id]);
+    assert.equal(h.state.exited.posixSignal, 9); assert.equal(h.state.exited.terminationRequested, true);
+    assert.equal(h.failure.scopeObservedEmpty, 'MISSING'); assert.equal(h.failure.rootCause, 'UNKNOWN'); assert.equal(h.failure.issueAccepted, false);
+    assert(h.authenticated.every(value => !Object.hasOwn(value, 'nativeFirstFailureSite')));
+    assert.deepEqual(Object.keys(h.state.exited), ['planId','controllerPid','rootExitObserved','exitCode','posixSignal','terminationRequested']);
+    assert(h.commands.includes('CANCEL\n')); assert(Buffer.byteLength(JSON.stringify(h.failure, null, 2)) <= 4096);
+    const snapshot = JSON.parse(JSON.stringify(h.failure)), firstCancellation = h.owner.firstCancellation, sent = [...h.commands];
+    const close = JSON.stringify(h.owner.adapterClose);
+    h.owner.cancel('protocol');
+    assert.equal(h.owner.cancelReason, 'deadline'); assert.equal(h.owner.firstCancellation, firstCancellation);
+    assert.deepEqual(h.commands, sent); assert.equal(JSON.stringify(h.owner.adapterClose), close);
+    assert.equal(h.owner.adapterClose.protocolFailed, false); assert.equal(h.failure.nativeFirstFailureSite, sites[id]);
+    const emitted = emittedFailure(h);
+    assert.equal(emitted.nativeFirstFailureSite, 'UNKNOWN');
+    assert.deepEqual({...emitted,nativeFirstFailureSite:sites[id]}, snapshot);
   }
 });
 test('observer independently validates every finite site and cannot inherit an older phase or serialize hostile values', async () => {

@@ -283,7 +283,7 @@ jobs:
           printf 'RUN\n' > /out/unit.stage
           /out/unit > /out/unit.stdout 2> /out/unit.stderr
           printf 'MARKER\n' > /out/unit.stage
-          test "$(cat /out/unit.stdout)" = 'IO_URING_FALLBACK_UNIT_OK 149'
+          test "$(cat /out/unit.stdout)" = 'IO_URING_FALLBACK_UNIT_OK 155'
           test ! -s /out/unit.stderr
           printf 'PROVENANCE\n' > /out/unit.stage
           sha256sum /out/unit > /out/unit-SHA256SUMS
@@ -298,7 +298,7 @@ jobs:
             $null = Invoke-UnitTool 'unit-start' $selected.docker @('start','--attach',$id) 180
             $closed = @(Invoke-UnitTool 'unit-exit' $selected.docker @('container','inspect',$id) 8 | ConvertFrom-Json)
             if ($closed.Count -ne 1 -or $closed[0].Id -cne $id -or $closed[0].Name -cne "/$name" -or $closed[0].Config.Labels.'tablo.issue39.unit.nonce' -cne $nonce -or $closed[0].Image -cne $image[0].Id -or $closed[0].State.Running -or $closed[0].State.Pid -ne 0 -or $closed[0].State.Error -cne '' -or $closed[0].State.OOMKilled -or $closed[0].State.Dead -or $closed[0].State.Status -cne 'exited' -or $closed[0].State.ExitCode -ne 0) { throw 'Unit native exit or daemon closure failed' }
-            if ((Get-Content -LiteralPath (Join-Path $output 'unit.stdout') -Raw) -cne "IO_URING_FALLBACK_UNIT_OK 149`n" -or (Get-Item -LiteralPath (Join-Path $output 'unit.stderr')).Length -ne 0) { throw 'Unit success marker differs' }
+            if ((Get-Content -LiteralPath (Join-Path $output 'unit.stdout') -Raw) -cne "IO_URING_FALLBACK_UNIT_OK 155`n" -or (Get-Item -LiteralPath (Join-Path $output 'unit.stderr')).Length -ne 0) { throw 'Unit success marker differs' }
             $hashes = @(Get-Content -LiteralPath (Join-Path $output 'input-SHA256SUMS'))
             $binaryHash = (Get-Content -LiteralPath (Join-Path $output 'unit-SHA256SUMS') -Raw).Trim()
             if ($hashes.Count -ne 5 -or @($hashes | Where-Object { $_ -cnotmatch '^[0-9a-f]{64}  [^\r\n]+$' }).Count -ne 0 -or $binaryHash -cnotmatch '^[0-9a-f]{64}  /out/unit$' -or $hashes[0].Substring(0,64) -cne $sourcePins['server-supervisor-linux.c'] -or $hashes[1].Substring(0,64) -cne $sourcePins['server-supervisor-linux-fallback-unit.c']) { throw 'Unit provenance hashes differ' }
@@ -333,8 +333,8 @@ jobs:
                 } finally { $stageStream.Dispose() }
               }
             } catch { <# Absent or malformed diagnostic stays UNKNOWN. #> }
-            $passedCases = if ($passed) { 149 } else { 'UNKNOWN' }
-            [IO.File]::WriteAllText((Join-Path $unitRoot 'safe-fallback-unit.json'), (@{ schema='tablo/linux-io-uring-fallback-unit/v2'; phase=$unitPhase; head=$head; tree=$tree; passed=$passed; ownedCleanupClosed=$cleanupClosed; requiredCases=149; passedCases=$passedCases; sourceSha256=$sourcePins['server-supervisor-linux.c']; harnessSha256=$sourcePins['server-supervisor-linux-fallback-unit.c']; compilerImageDigest='sha256:6114a2bd4956c50e4db20f08b9377e4fc7e08417b2aa34a44ec7ff52a07996b5'; provenance=$provenance; issueAccepted=$false } | ConvertTo-Json -Depth 5), [Text.UTF8Encoding]::new($false))
+            $passedCases = if ($passed) { 155 } else { 'UNKNOWN' }
+            [IO.File]::WriteAllText((Join-Path $unitRoot 'safe-fallback-unit.json'), (@{ schema='tablo/linux-io-uring-fallback-unit/v2'; phase=$unitPhase; head=$head; tree=$tree; passed=$passed; ownedCleanupClosed=$cleanupClosed; requiredCases=155; passedCases=$passedCases; sourceSha256=$sourcePins['server-supervisor-linux.c']; harnessSha256=$sourcePins['server-supervisor-linux-fallback-unit.c']; compilerImageDigest='sha256:6114a2bd4956c50e4db20f08b9377e4fc7e08417b2aa34a44ec7ff52a07996b5'; provenance=$provenance; issueAccepted=$false } | ConvertTo-Json -Depth 5), [Text.UTF8Encoding]::new($false))
           }
           if ($null -ne $primary -or $null -ne $cleanupFailure -or !$passed -or !$cleanupClosed) { throw 'Unit failed or custody unknown; dependent native/product work remains NOTRUN' }
       - name: Retain safe isolated unit outcome

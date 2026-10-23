@@ -195,7 +195,7 @@ function latchObserverFailure(failure, error, owner) {
   if (failure.first) return;
   const stage = OBSERVER_STAGES.includes(failure.stage) ? failure.stage : 'UNKNOWN';
   const phase = ['prepare', 'baseline', 'engine', 'control', 'MISSING'].includes(failure.phase) ? failure.phase : 'UNKNOWN';
-  const base = { schema: 'tablo/server-safe-observer-failure/v6', status: 'failed', rootCause: 'UNKNOWN', issueAccepted: false, stage, phase };
+  const base = { schema: 'tablo/server-safe-observer-failure/v7', status: 'failed', rootCause: 'UNKNOWN', issueAccepted: false, stage, phase };
   try {
     const nativePhase = owner?.phase;
     if (object(nativePhase)) observerFailureNativePhases.set(failure, nativePhase);
@@ -830,6 +830,10 @@ const DENIAL_FIELDS = Object.freeze(['ptrace', 'seccomp', 'prctlSetSeccomp', 'pr
   'unshare', 'setns', 'ioUringSetup', 'cloneFlags', 'cloneLimit', 'forkLimit', 'vforkLimit', 'unknown',
   'epermRegisterWrites', 'eagainRegisterWrites']);
 // Positional native diagnostic IDs. These never enter Frames or admission fields.
+// OWNER_CANCEL variants describe only the queue recorded at the first native mark;
+// OWNER_CANCEL alone does not exclude pending kernel waits or a later queued stop.
+// Publication requires a later accepted EXITED. An earlier firstCancellation with
+// exitedAccepted=false is a snapshot; neither observation establishes CLOSED.
 const NATIVE_FIRST_FAILURE_SITES = Object.freeze(['UNKNOWN', 'INTERRUPT', 'RESERVE', 'HARD_END', 'COMMAND_CHANNEL',
   'COMMAND_LIMIT', 'COMMAND_LAUNCH', 'COMMAND_PARSE', 'OWNER_CANCEL', 'WAIT_RESULT', 'WAIT_REGISTRY', 'EARLY_STOP',
   'WAIT_EVENT', 'SIGNAL_INFO', 'RESUME', 'SUPPRESS_REGS', 'GATE_METADATA', 'GATE_NOT_LAUNCHED', 'COUNTER_BOUND',
@@ -839,7 +843,8 @@ const NATIVE_FIRST_FAILURE_SITES = Object.freeze(['UNKNOWN', 'INTERRUPT', 'RESER
   'EARLY_STOP_DUPLICATE', 'EARLY_STOP_CAPACITY', 'EARLY_STOP_EVENT_FORK', 'EARLY_STOP_EVENT_VFORK', 'EARLY_STOP_EVENT_CLONE',
   'EARLY_STOP_EVENT_EXIT', 'EARLY_STOP_EVENT_SECCOMP', 'EARLY_STOP_EVENT_STOP', 'EARLY_STOP_EVENT_OTHER',
   'EARLY_STOP_SIGNAL_SYSCALL_TRAP', 'EARLY_STOP_SIGNAL_TRAP', 'EARLY_STOP_SIGNAL_JOB_CONTROL',
-  'EARLY_STOP_SIGNAL_WAKEUP_OR_PROFILE', 'EARLY_STOP_SIGNAL_TERMINATION', 'EARLY_STOP_SIGNAL_OTHER']);
+  'EARLY_STOP_SIGNAL_WAKEUP_OR_PROFILE', 'EARLY_STOP_SIGNAL_TERMINATION', 'EARLY_STOP_SIGNAL_OTHER',
+  'OWNER_CANCEL_QUEUED_STOP', 'OWNER_CANCEL_QUEUED_EXIT', 'OWNER_CANCEL_QUEUED_MIXED']);
 function nativeFirstFailureSite(value) { return NATIVE_FIRST_FAILURE_SITES.includes(value) ? value : 'UNKNOWN'; }
 function linuxDenialDiagnostic(values, deniedCount) {
   if (!Array.isArray(values) || values.length !== DENIAL_FIELDS.length
@@ -886,7 +891,7 @@ class LinuxRecords {
         const numbers = values.map(Number);
         let site = 'UNKNOWN';
         if (kind === 'EXITED' && numbers.length === 5) {
-          if (!integer(numbers[4], 0, 53)) fail('LINUX_FIRST_FAILURE_SITE');
+          if (!integer(numbers[4], 0, 56)) fail('LINUX_FIRST_FAILURE_SITE');
           site = NATIVE_FIRST_FAILURE_SITES[numbers.pop()]; // Strip before the original authority callback.
         }
         if (kind === 'DENIALS') {

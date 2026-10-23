@@ -273,7 +273,7 @@ test('actual custody refusal variants retain their exact owner classification wi
 test('safe projection v3 preserves both new counters without minting success or raising bounds',()=>{
   const result=projectFailure({stage:'FALLBACK_CONTROL',subject:'uring-mixed-quota',index:6,check:'Q146',completed:38,
     owner:{adapterState:{closed:{admission:admission(6,5,4,true)}}}});
-  assert.equal(result.schema,'tablo/linux-safe-qualification-failure/v5');assert.equal(result.admission.ioUringSetupAttempts,5);
+  assert.equal(result.schema,'tablo/linux-safe-qualification-failure/v6');assert.equal(result.admission.ioUringSetupAttempts,5);
   assert.equal(result.admission.ioUringSetupEpermWrites,4);assert.equal(result.completed,38);assert.equal(result.checkId,'Q146');
   assert.equal(result.qualified,false);assert.equal(result.rootCause,'UNKNOWN');assert(Buffer.byteLength(JSON.stringify(result,null,2)+'\n')<=4096);
 });
@@ -342,7 +342,8 @@ test('actual qualifier executes all eight supplemental checks and unchanged five
   assert.deepEqual(Object.keys(q).slice(-3),['neutralControls','fallbackControlsSha256','fallbackControls']);
 });
 test('native first-failure observations cannot change any actual qualification decision', async () => {
-  for (const site of ['UNKNOWN','POLICY_DENIAL','INPUT_READ','TERMINAL_SIGSYS','EARLY_STOP_DUPLICATE','EARLY_STOP_EVENT_EXIT','EARLY_STOP_SIGNAL_OTHER']) {
+  for (const site of ['UNKNOWN','POLICY_DENIAL','INPUT_READ','TERMINAL_SIGSYS','EARLY_STOP_DUPLICATE','EARLY_STOP_EVENT_EXIT','EARLY_STOP_SIGNAL_OTHER',
+    'OWNER_CANCEL_QUEUED_STOP','OWNER_CANCEL_QUEUED_EXIT','OWNER_CANCEL_QUEUED_MIXED']) {
     const f = qualifierModule(({owner}) => { owner.nativeFirstFailureSite = site; });
     await f.api.qualifyFallback(f.spec,f.base,f.observer,f.spec.controls,process.hrtime.bigint()+1800_000_000_000n);
     await f.api.qualifyRemaining(f.spec,f.base,f.observer,f.spec.controls,[],process.hrtime.bigint()+1800_000_000_000n);
@@ -473,7 +474,7 @@ test('actual observer projects only finite active Docker lease families and free
     assert.deepEqual(Array.from(h.api.observerDockerLeases({ leases })), [operation]);
     const failure = h.api.observerFailure(); failure.stage = 'custody'; failure.phase = 'prepare';
     h.api.latchObserverFailure(failure, new Error('PRIVATE'), { leases, adapterState: { exited: { exitCode: 1 } } });
-    assert.equal(failure.first.schema, 'tablo/server-safe-observer-failure/v6');
+    assert.equal(failure.first.schema, 'tablo/server-safe-observer-failure/v7');
     assert.deepEqual(Array.from(failure.first.activeDockerLeases), [operation]); assert.equal(failure.first.controllerExit, 1);
     leases.active.clear(); h.api.latchObserverFailure(failure, new Error('PRIVATE later'), { leases });
     assert.deepEqual(Array.from(failure.first.activeDockerLeases), [operation]);
@@ -503,7 +504,7 @@ test('actual observer retains the first lease deadline before closure and later 
   } });
   await assert.rejects(h.run(), error => error === h.original); observerClosed(h);
   const failure = JSON.parse(h.output[0]);
-  assert.equal(failure.schema, 'tablo/server-safe-observer-failure/v6');
+  assert.equal(failure.schema, 'tablo/server-safe-observer-failure/v7');
   assert.deepEqual(failure.firstCancellation, JSON.parse(JSON.stringify(captured)));
   assert.deepEqual(failure.activeDockerLeases, ['volume-create']);
   assert.equal(failure.adapterCloseObserved, true); assert.equal(failure.adapterSignal, 'SIGKILL');
@@ -1107,7 +1108,7 @@ test('qualification v3 distinguishes uninitialized and admitted absent events an
   state.started={};state.input={};state.exited={};state.closed={};cancelOwner(owner,'protocol');
   assert.equal(owner.eventsAtCancellation,first);assert.equal(owner.cancelReason,'deadline');assert.equal(sent.length,1);
   const value=projectFailure({stage:'CLIENT_RUNTIME',subject:'docker',check:'Q100',owner});
-  assert.equal(value.schema,'tablo/linux-safe-qualification-failure/v5');assert.deepEqual(value.eventsAtCancellation,{ready:true,started:false,input:false,exited:false,closed:false});
+  assert.equal(value.schema,'tablo/linux-safe-qualification-failure/v6');assert.deepEqual(value.eventsAtCancellation,{ready:true,started:false,input:false,exited:false,closed:false});
   assert.deepEqual(value.eventsAtFailure,{ready:true,started:true,input:true,exited:true,closed:true});assert(!JSON.stringify(value).includes('PRIVATE'));assert(Buffer.byteLength(JSON.stringify(value,null,2))<=4096);
   const primary=Error('PRIVATE send'),broken={cancelReason:null,send(){throw primary;},adapterState:state};
   assert.throws(()=>cancelOwner(broken,'deadline'),error=>error===primary);const snapshot=broken.eventsAtCancellation;cancelOwner(broken,'protocol');assert.equal(broken.eventsAtCancellation,snapshot);

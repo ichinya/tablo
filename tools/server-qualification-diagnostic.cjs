@@ -12,6 +12,8 @@ const SIGNALS = ['SIGABRT', 'SIGALRM', 'SIGBUS', 'SIGCHLD', 'SIGCONT', 'SIGFPE',
   'SIGTTOU', 'SIGURG', 'SIGUSR1', 'SIGUSR2', 'SIGXCPU', 'SIGXFSZ'];
 const UNKNOWN = 'UNKNOWN';
 // Independent public enum validation; never copy native bytes, IDs or exception data.
+// OWNER_CANCEL context is the queue recorded at its first native mark, not kernel
+// pending waits or final closure; publication requires a later accepted EXITED.
 const NATIVE_FIRST_FAILURE_SITES = Object.freeze(['UNKNOWN', 'INTERRUPT', 'RESERVE', 'HARD_END', 'COMMAND_CHANNEL',
   'COMMAND_LIMIT', 'COMMAND_LAUNCH', 'COMMAND_PARSE', 'OWNER_CANCEL', 'WAIT_RESULT', 'WAIT_REGISTRY', 'EARLY_STOP',
   'WAIT_EVENT', 'SIGNAL_INFO', 'RESUME', 'SUPPRESS_REGS', 'GATE_METADATA', 'GATE_NOT_LAUNCHED', 'COUNTER_BOUND',
@@ -21,7 +23,8 @@ const NATIVE_FIRST_FAILURE_SITES = Object.freeze(['UNKNOWN', 'INTERRUPT', 'RESER
   'EARLY_STOP_DUPLICATE', 'EARLY_STOP_CAPACITY', 'EARLY_STOP_EVENT_FORK', 'EARLY_STOP_EVENT_VFORK', 'EARLY_STOP_EVENT_CLONE',
   'EARLY_STOP_EVENT_EXIT', 'EARLY_STOP_EVENT_SECCOMP', 'EARLY_STOP_EVENT_STOP', 'EARLY_STOP_EVENT_OTHER',
   'EARLY_STOP_SIGNAL_SYSCALL_TRAP', 'EARLY_STOP_SIGNAL_TRAP', 'EARLY_STOP_SIGNAL_JOB_CONTROL',
-  'EARLY_STOP_SIGNAL_WAKEUP_OR_PROFILE', 'EARLY_STOP_SIGNAL_TERMINATION', 'EARLY_STOP_SIGNAL_OTHER']);
+  'EARLY_STOP_SIGNAL_WAKEUP_OR_PROFILE', 'EARLY_STOP_SIGNAL_TERMINATION', 'EARLY_STOP_SIGNAL_OTHER',
+  'OWNER_CANCEL_QUEUED_STOP', 'OWNER_CANCEL_QUEUED_EXIT', 'OWNER_CANCEL_QUEUED_MIXED']);
 const CHECK_IDS = Object.freeze(Array.from({ length: 149 }, (_, index) => 'Q' + String(index + 1).padStart(3, '0')));
 const enumeration = (value, values) => values.includes(value) ? value : UNKNOWN;
 const number = (value, min = 0, max = 2147483647) => Number.isSafeInteger(value) && value >= min && value <= max ? value : UNKNOWN;
@@ -59,7 +62,7 @@ function projectFailure(input) {
   const close = owner?.adapterClose ?? (input?.stage === 'INPUT_BOUNDARY' ? invocation : undefined);
   const root = events?.exited, closed = events?.closed, admission = closed?.admission;
   return {
-    schema: 'tablo/linux-safe-qualification-failure/v5', status: 'failed', qualified: false, rootCause: UNKNOWN,
+    schema: 'tablo/linux-safe-qualification-failure/v6', status: 'failed', qualified: false, rootCause: UNKNOWN,
     stage: enumeration(input?.stage, STAGES), subject: enumeration(input?.subject, SUBJECTS),
     index: number(input?.index, 0, 31), checkId: enumeration(input?.check, CHECK_IDS), completed: number(input?.completed, 0, 38),
     adapter: { exitCode: nullable(close?.code, value => number(value, -1, 255)),

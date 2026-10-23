@@ -562,6 +562,59 @@ static void unit_input_contract(void) {
     unit_input_io = (struct unit_io){ .result = -1, .error = EIO };
     input(); unit_site(N_INPUT_WRITE); assert(failed && cancelled && unit_kills == 1 && input_settled && !written_bytes && errno == EIO);
 }
+static void unit_owner_cancel_context(void) {
+    const int sites[] = { N_OWNER_CANCEL, N_OWNER_CANCEL_QUEUED_STOP, N_OWNER_CANCEL_QUEUED_EXIT, N_OWNER_CANCEL_QUEUED_MIXED };
+    _Static_assert(N_OWNER_CANCEL == 8 && N_OWNER_CANCEL_QUEUED_STOP == 54 && N_OWNER_CANCEL_QUEUED_MIXED == 56, "stable owner-cancel diagnostics");
+    for (unsigned kind = 0; kind < 4; kind++) {
+        struct task *parent = unit_begin(); parent->pending = PROCESS; pending = reservations = 1; peak = 2;
+        early_exit_seen[0] = early_exit_seen[TASKS / 2] = 1; // Free-slot bits are not recorded queue entries.
+        if (kind) { early_stops[TASKS - 1] = 102; early_exit_seen[TASKS - 1] = kind == 2; }
+        if (kind == 3) { early_stops[1] = 103; early_exit_seen[1] = 1; }
+        struct task before_tasks[TASKS]; struct group before_groups[GROUPS]; struct user_regs_struct regs = unit_regs;
+        pid_t before_early[TASKS]; unsigned char before_exit_seen[TASKS];
+        memcpy(before_tasks, tasks, sizeof(tasks)); memcpy(before_groups, groups, sizeof(groups));
+        memcpy(before_early, early_stops, sizeof(early_stops)); memcpy(before_exit_seen, early_exit_seen, sizeof(early_exit_seen));
+        errno = EDOM; assert(owner_cancel_site() == sites[kind] && errno == EDOM && !first_seen && !failed && !cancelled);
+        assert(!unit_ptraces && !unit_waits && !unit_kills && !unit_clocks && !unit_opens && !unit_closes && !unit_sends && !unit_event_io.calls);
+        unit_command_io = (struct unit_io){ .bytes = "CANCEL\n", .length = 7, .result = 7 };
+        assert(commands() == 0 && errno == EDOM && failed && cancelled && command_count == 1 && unit_command_io.calls == 1 && unit_kills == 1); unit_site(sites[kind]);
+        assert(!memcmp(tasks, before_tasks, sizeof(tasks)) && !memcmp(groups, before_groups, sizeof(groups)) && !memcmp(&unit_regs, &regs, sizeof(regs)));
+        assert(!memcmp(early_stops, before_early, sizeof(early_stops)) && !memcmp(early_exit_seen, before_exit_seen, sizeof(early_exit_seen)));
+        assert(live == 1 && births == 1 && pending == 1 && reservations == 1 && peak == 2 && !waits && !failed_creations && !thread_births && !exec_retired);
+        if (!kind) {
+            // NONE records the mark point only: a kernel wait may be reaped later.
+            unit_wait_vector[0] = (struct unit_wait){ .tid = 102, .status = (PTRACE_EVENT_EXIT << 16) | (SIGTRAP << 8) | 0x7f };
+            unit_wait_vector[1] = (struct unit_wait){ .tid = 0 }; unit_wait_length = 2;
+            assert(reap() == 0 && errno == EDOM && early_stops[0] == 102 && early_exit_seen[0] == 1 && !task(102));
+            assert(owner_cancel_site() == N_OWNER_CANCEL_QUEUED_EXIT && first_site == N_OWNER_CANCEL);
+            assert(commands() == 0 && errno == EDOM && command_count == 2 && unit_command_io.calls == 2 && unit_kills == 2); unit_site(N_OWNER_CANCEL);
+        }
+        memcpy(before_early, early_stops, sizeof(early_stops)); memcpy(before_exit_seen, early_exit_seen, sizeof(early_exit_seen));
+        unit_wait_vector[0] = (struct unit_wait){ .tid = root, .status = SIGKILL };
+        unit_wait_vector[1] = (struct unit_wait){ .tid = -1, .error = ECHILD }; unit_wait_length = 2; unit_wait_index = 0;
+        assert(reap() == -1 && errno == ECHILD && !closure_echild && root_terminal && failed && cancelled); unit_site(sites[kind]);
+        char expected[80]; snprintf(expected, sizeof(expected), "EXITED 101 -1 9 1 %d\n", sites[kind]);
+        assert(!strcmp(unit_events, expected) && !strstr(unit_events, "CLOSED") && unit_event_io.calls == 1);
+        assert(!memcmp(early_stops, before_early, sizeof(early_stops)) && !memcmp(early_exit_seen, before_exit_seen, sizeof(early_exit_seen)));
+        assert(!live && !pending && births == 1 && reservations == 1 && peak == 2 && waits == 1 && failed_creations == 1 && !thread_births && !exec_retired);
+        assert(!task(root) && !task(102) && !task(103) && !group(root) && unit_closes == 1 && unit_waits == (kind ? 2U : 4U));
+        assert(!unit_ptraces && !unit_resumes && !unit_sets && !unit_clocks && !unit_opens && !unit_sends && !denied && !clone3_fallbacks);
+        assert(unit_kills == (kind ? 1U : 2U) && !io_uring_setup_attempts && !io_uring_setup_eperm_writes && !eperm_register_writes && !eagain_register_writes);
+    }
+    for (unsigned prior = 0; prior < 2; prior++) {
+        struct task *parent = unit_begin(); struct task before = *parent; struct group held = groups[0]; struct user_regs_struct regs = unit_regs;
+        early_stops[0] = 102; early_stops[TASKS - 1] = 103; early_exit_seen[TASKS - 1] = 1; early_exit_seen[1] = 1;
+        int site = prior ? N_POLICY_DENIAL : N_UNKNOWN; assert(failure_mark(site) == -1);
+        errno = EDOM; assert(owner_cancel_site() == N_OWNER_CANCEL_QUEUED_MIXED && errno == EDOM);
+        unit_command_io = (struct unit_io){ .bytes = "CANCEL\n", .length = 7, .result = 7 };
+        assert(commands() == 0 && errno == EDOM && failed && cancelled && command_count == 1 && unit_command_io.calls == 1 && unit_kills == 1); unit_site(site);
+        assert(!memcmp(parent, &before, sizeof(before)) && !memcmp(&groups[0], &held, sizeof(held)) && !memcmp(&unit_regs, &regs, sizeof(regs)));
+        assert(early_stops[0] == 102 && !early_exit_seen[0] && early_stops[TASKS - 1] == 103 && early_exit_seen[TASKS - 1] == 1 && !early_stops[1] && early_exit_seen[1] == 1);
+        assert(live == 1 && births == 1 && peak == 1 && !pending && !reservations && !waits && !failed_creations && !thread_births && !exec_retired);
+        assert(!unit_ptraces && !unit_resumes && !unit_sets && !unit_waits && !unit_clocks && !unit_opens && !unit_closes && !unit_sends && !unit_event_io.calls && !denied);
+        assert(!clone3_fallbacks && !io_uring_setup_attempts && !io_uring_setup_eperm_writes && !eperm_register_writes && !eagain_register_writes);
+    }
+}
 static void unit_commands_contract(void) {
     for (unsigned i = 0; i < 2; i++) {
         unit_begin(); unit_command_io = (struct unit_io){ .result = -1, .error = i ? EINTR : EAGAIN };
@@ -688,7 +741,7 @@ int main(void) {
     assert(reap() == -1 && !io_uring_setup_eperm_writes); failed = 1; cancel();
     assert(failed && cancelled && unit_kills == 1);
     unit_site(N_EXIT_SETREGS);
-    unit_wait_and_group_contract(); unit_birth_wait_vectors(); unit_early_rejection_vectors(); unit_held_exit_success(); unit_held_exit_rejections(); unit_stale_early_slots(); unit_input_contract(); unit_commands_contract();
+    unit_wait_and_group_contract(); unit_birth_wait_vectors(); unit_early_rejection_vectors(); unit_held_exit_success(); unit_held_exit_rejections(); unit_stale_early_slots(); unit_input_contract(); unit_owner_cancel_context(); unit_commands_contract();
     printf("IO_URING_FALLBACK_UNIT_OK %u\n", unit_cases);
     return 0;
 }

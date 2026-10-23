@@ -74,7 +74,8 @@ enum { N_UNKNOWN, N_INTERRUPT, N_RESERVE, N_HARD_END, N_COMMAND_CHANNEL,
     N_EARLY_STOP_EVENT_VFORK, N_EARLY_STOP_EVENT_CLONE, N_EARLY_STOP_EVENT_EXIT,
     N_EARLY_STOP_EVENT_SECCOMP, N_EARLY_STOP_EVENT_STOP, N_EARLY_STOP_EVENT_OTHER,
     N_EARLY_STOP_SIGNAL_SYSCALL_TRAP, N_EARLY_STOP_SIGNAL_TRAP, N_EARLY_STOP_SIGNAL_JOB_CONTROL,
-    N_EARLY_STOP_SIGNAL_WAKEUP_OR_PROFILE, N_EARLY_STOP_SIGNAL_TERMINATION, N_EARLY_STOP_SIGNAL_OTHER };
+    N_EARLY_STOP_SIGNAL_WAKEUP_OR_PROFILE, N_EARLY_STOP_SIGNAL_TERMINATION, N_EARLY_STOP_SIGNAL_OTHER,
+    N_OWNER_CANCEL_QUEUED_STOP, N_OWNER_CANCEL_QUEUED_EXIT, N_OWNER_CANCEL_QUEUED_MIXED };
 static int first_seen, first_site;
 static int failure_mark(int site) {
     if (!first_seen) { first_seen = 1; first_site = site; }
@@ -97,6 +98,14 @@ static int early_stop_site(unsigned ev, int sig) {
     if (sig == SIGURG || sig == SIGPROF) return N_EARLY_STOP_SIGNAL_WAKEUP_OR_PROFILE;
     if (sig == SIGHUP || sig == SIGINT || sig == SIGQUIT || sig == SIGTERM) return N_EARLY_STOP_SIGNAL_TERMINATION;
     return N_EARLY_STOP_SIGNAL_OTHER;
+}
+// Recorded queue at the first OWNER_CANCEL mark only. No occupied slot does not
+// exclude pending kernel waits or later queue population: commands precede reap.
+static int owner_cancel_site(void) {
+    unsigned kinds = 0;
+    for (unsigned i = 0; i < TASKS; i++) if (early_stops[i]) kinds |= early_exit_seen[i] ? 2U : 1U;
+    return kinds == 3 ? N_OWNER_CANCEL_QUEUED_MIXED : kinds == 2 ? N_OWNER_CANCEL_QUEUED_EXIT
+        : kinds == 1 ? N_OWNER_CANCEL_QUEUED_STOP : N_OWNER_CANCEL;
 }
 
 static void diagnostic_increment(unsigned *counter) {
@@ -454,7 +463,7 @@ static int commands(void) {
         if (++command_count > 64) return failure_mark(N_COMMAND_LIMIT);
         if (bytes == 7 && !memcmp(buffer, "LAUNCH\n", 7) && ready && !launched && !cancelled) {
             launched = 1; struct task *t = task(root); if (!t || resume(t, 0)) return failure_mark(N_COMMAND_LAUNCH);
-        } else if (bytes == 7 && !memcmp(buffer, "CANCEL\n", 7)) { failure_mark(N_OWNER_CANCEL); failed = 1; cancel(); }
+        } else if (bytes == 7 && !memcmp(buffer, "CANCEL\n", 7)) { failure_mark(owner_cancel_site()); failed = 1; cancel(); }
         else if (bytes == 9 && !memcmp(buffer, "SHUTDOWN\n", 9) && closure_echild) shutting_down = 1;
         else return failure_mark(N_COMMAND_PARSE);
         used -= bytes; memmove(buffer, buffer + bytes, used);
