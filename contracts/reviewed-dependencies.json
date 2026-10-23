@@ -3726,7 +3726,7 @@
                 "Composer verify",
                 "Composer analyze"
             ],
-            "fingerprint": "sha256:2275f1247e817f584e77e888aa4c51d82e2cad13f996b4b438519d41389f2ebb"
+            "fingerprint": "sha256:b14ce6968138702d15d8b7778d19443226d5ce476d52b64e64d98e00f55c0352"
         },
         {
             "path": "app/SiteCredentialAccess.php",
@@ -8154,7 +8154,7 @@
                 "Composer analyze",
                 "Composer verify:server"
             ],
-            "fingerprint": "sha256:dbbd402bbb47e2e4a44fb6e5c3dc93247da663cbf87c545cf4baa9d4983e4164"
+            "fingerprint": "sha256:9760aa84eeb3917daa1884577faa3b1a949de7d1cfd4816fdf43d371f7053976"
         },
         {
             "path": "tests/ServerCross/EngineCrossTransferTest.php",

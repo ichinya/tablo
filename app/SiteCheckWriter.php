@@ -48,8 +48,8 @@ final class SiteCheckWriter
             latest_release = 0, latest_commit = 0, open_issues = 0, open_prs = 0
             WHERE worker_progress.config_revision <> excluded.config_revision';
         $server = 'INSERT INTO worker_progress (site_id, config_revision) SELECT id, config_revision FROM sites WHERE id = ? AND config_revision = ? AND enabled = 1
-            ON DUPLICATE KEY UPDATE latest_release = IF(config_revision <> ?, 0, latest_release), latest_commit = IF(config_revision <> ?, 0, latest_commit),
-            open_issues = IF(config_revision <> ?, 0, open_issues), open_prs = IF(config_revision <> ?, 0, open_prs), config_revision = ?';
+            ON DUPLICATE KEY UPDATE latest_release = IF(worker_progress.config_revision <> ?, 0, worker_progress.latest_release), latest_commit = IF(worker_progress.config_revision <> ?, 0, worker_progress.latest_commit),
+            open_issues = IF(worker_progress.config_revision <> ?, 0, worker_progress.open_issues), open_prs = IF(worker_progress.config_revision <> ?, 0, worker_progress.open_prs), config_revision = ?';
         $statement = \Tablo\SqlStatement::checked($this->db->prepare(ServerDialect::choose($this->db, $sqlite, $server)));
         try { $statement->execute(DatabaseSession::server($this->db) ? [$id, $revision, $revision, $revision, $revision, $revision, $revision] : [$id, $revision]); }
         finally { $statement->closeCursor(); }
