@@ -18,6 +18,7 @@ final class ServerExpressionAtom
         }
         if (in_array($lower, ['not', '-'], strict: true)) { return [$lower, $operator->parse($lexemes, $position, minimum: 60)]; }
         if ($lower === 'case') { return self::conditional($lexemes, $position, $operator); }
+        if (in_array($lower, ['char', 'charset'], strict: true)) { throw new DatabaseFailure('schema'); }
         if (($lexemes[$position] ?? '') === '(') {
             // Both supported server printers use SUBSTR for the standard SUBSTRING call.
             return self::call($lower === 'substr' ? 'substring' : $lower, $lexemes, $position, $operator);
@@ -44,7 +45,13 @@ final class ServerExpressionAtom
         $position++; $arguments = [];
         if ($name === 'cast') {
             $arguments[] = $operator->parse($lexemes, $position); ServerExpressionTokens::consume($lexemes, $position, 'as');
-            $arguments[] = strtolower($lexemes[$position++] ?? '');
+            $target = strtolower($lexemes[$position++] ?? '');
+            if ($target === 'char') {
+                ServerExpressionTokens::consume($lexemes, $position, 'charset');
+                ServerExpressionTokens::consume($lexemes, $position, 'binary');
+                $target = 'binary';
+            }
+            $arguments[] = $target;
             ServerExpressionTokens::consume($lexemes, $position, ')');
             return ['call', $name, $arguments];
         }
@@ -94,6 +101,11 @@ function server_expression_literal(string $lexeme): array
     }
     $value = str_replace("''", replace: "'", subject: substr($lexeme, offset: $start + 1, length: -1));
     $prefix = strtolower(trim(substr($lexeme, offset: 0, length: $start)));
+    if ($prefix === '_utf8mb4') {
+        // No collation conversion or connection escape mode is inferred for metadata literals.
+        if (preg_match('/\A[\x20-\x5b\x5d-\x7e]*\z/D', $value) !== 1) { throw new DatabaseFailure('schema'); }
+        return ['mysql-utf8mb4', bin2hex($value)];
+    }
     if ($prefix === '' || $prefix === '_binary') { return ['literal', bin2hex($value)]; }
     $decoded = hex2bin($value);
     if ($decoded === false) { throw new DatabaseFailure('schema'); }

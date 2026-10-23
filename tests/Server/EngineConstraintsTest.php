@@ -25,6 +25,8 @@ final class EngineConstraintsTest
         engine_constraints_replace_hex();
         engine_constraints_mysql_metadata_bytes();
         engine_constraints_locate_hex();
+        engine_constraints_mysql_check_literals();
+        engine_constraints_binary_cast_alias();
     }
 
     #[Test]
@@ -103,6 +105,120 @@ final class EngineConstraintsTest
     public function directSqlRejectsMalformedDomainRowsAcrossEveryCurrentTable(): void
     { engine_constraints_domain_rows(); }
 
+}
+
+/** Public producer fixtures exercise every CHECK, with binary provenance from the admitted column shape. */
+function engine_constraints_mysql_check_literals(): void
+{
+    /** @var \Tablo\ServerSchema::Layout $layout */
+    $layout = json_decode(\Tablo\RequiredFile::bytes(file_get_contents(dirname(__DIR__, levels: 2) . '/database/mysql84-layout.json')),
+        associative: true, flags: JSON_THROW_ON_ERROR);
+    foreach ($layout['tables'] as $table) {
+        foreach ($table['checks'] as $check) {
+            $sql = engine_constraints_mysql_print($check['expression']);
+            Assert::same(ServerExpression::canonicalMysqlCheck(ServerExpression::decodeMysqlMetadata(engine_constraints_mysql_encode($sql)), $table),
+                ServerExpression::canonical($check['expression']), $check['name']);
+        }
+    }
+    $journal = $layout['tables'][0] ?? throw new \RuntimeException('Missing public journal descriptor.');
+    engine_constraints_mysql_check_contexts($journal);
+}
+
+function engine_constraints_mysql_print(string $sql): string
+{
+    $printed = [];
+    foreach (\Tablo\ServerExpressionTokens::tokenize($sql) as $token) {
+        $match = [];
+        if (preg_match('/\A[xX]\x27([0-9a-fA-F]*)\x27\z/D', $token, $match) === 1) {
+            $hex = \Tablo\RegexCapture::text($match, 1);
+            $printed[] = $hex === '' ? "_utf8mb4''" : '0x' . $hex;
+            continue;
+        }
+        if (str_starts_with($token, "'") || str_starts_with(strtolower($token), '_binary')) {
+            $quote = strpos($token, needle: "'");
+            if ($quote === false) { throw new \RuntimeException('Missing public literal quote.'); }
+            $printed[] = '_utf8mb4' . substr($token, $quote);
+            continue;
+        }
+        $printed[] = $token;
+    }
+    return implode(' ', $printed);
+}
+
+/** @param \Tablo\ServerSchema::Table $journal */
+function engine_constraints_mysql_check_contexts(array $journal): void
+{
+    $plain = "phase IN ('intent','done','failed')";
+    foreach (["phase IN (_utf8mb4'intent',_utf8mb4'done',_utf8mb4'failed')" => $plain,
+        "phase = _UTF8MB4 'intent'" => "phase = 'intent'",
+        "_utf8mb4'intent' <=> phase" => "'intent' <=> phase",
+        "SUBSTRING(phase,1,1) = _utf8mb4'i'" => "SUBSTRING(phase,1,1) = 'i'",
+        "REPLACE(REPLACE(phase,_utf8mb4'i',_utf8mb4''),_utf8mb4'n',_utf8mb4'') = _utf8mb4'tent'"
+            => "REPLACE(REPLACE(phase,'i',''),'n','') = 'tent'",
+        "CAST(name AS BINARY) = _utf8mb4'A''B'" => "CAST(name AS BINARY) = 'A''B'"] as $sql => $expected) {
+        Assert::same(ServerExpression::canonicalMysqlCheck($sql, $journal), ServerExpression::canonical($expected));
+    }
+    foreach (["phase = _utf8mb4'intent '", "phase = _utf8mb4'Intent'", "phase = _utf8mb4'done'"] as $changed) {
+        Assert::false(ServerExpression::canonicalMysqlCheck($changed, $journal) === ServerExpression::canonical("phase = 'intent'"));
+    }
+    $text = $journal;
+    foreach ($text['columns'] as &$column) {
+        if ($column['name'] !== 'phase') { continue; }
+        $column['type'] = 'varchar(16)';
+    }
+    unset($column);
+    engine_constraints_mysql_check_refuses("phase = _utf8mb4'intent'", $text);
+    foreach (["name = _utf8mb4'A'", "name IN (_utf8mb4'A')", "_utf8mb4'A' = 'A'", "'A' = _utf8mb4'A'",
+        "'A' IN (_utf8mb4'A')", "CAST(_utf8mb4'A' AS BINARY) = X'41'",
+        "REPLACE(_utf8mb4'intent','i','') = _utf8mb4'ntent'",
+        "REPLACE(name,_utf8mb4'A',_utf8mb4'') = ''", "ASCII(_utf8mb4'A') = 65",
+        "phase > _utf8mb4'A'", "phase = _latin1'intent'", "phase = _utf8mb4 X'41'",
+        "phase = _utf8mb4'іntent'", "phase = _utf8mb4'a\\b'", "phase = _utf8mb4'a\n'",
+        "phase = _utf8mb4'intent' COLLATE utf8mb4_0900_bin", "phase = _utf8mb4'intent' PRIVATE",
+        "CAST(REPLACE(name,_utf8mb4'A',_utf8mb4'') AS BINARY) = X'41'"] as $invalid) {
+        engine_constraints_mysql_check_refuses($invalid, $journal);
+    }
+    $caught = null;
+    try { ServerExpression::canonical("phase = _utf8mb4'intent'"); } catch (DatabaseFailure $error) { $caught = $error; }
+    Assert::same($caught?->category, 'schema', 'default SQL and generated-expression paths remain strict');
+}
+
+/** @param \Tablo\ServerSchema::Table $table */
+function engine_constraints_mysql_check_refuses(string $sql, array $table): void
+{
+    $caught = null;
+    try { ServerExpression::canonicalMysqlCheck($sql, $table); } catch (DatabaseFailure $error) { $caught = $error; }
+    Assert::same($caught?->category, 'schema');
+    Assert::same($caught?->getMessage(), 'Database schema incompatible or in progress.');
+    Assert::same($caught?->getPrevious(), null);
+}
+
+function engine_constraints_binary_cast_alias(): void
+{
+    foreach (['mysql84', 'mariadb114'] as $engine) {
+        /** @var \Tablo\ServerSchema::Layout $layout */
+        $layout = json_decode(\Tablo\RequiredFile::bytes(file_get_contents(dirname(__DIR__, levels: 2) . '/database/' . $engine . '-layout.json')),
+            associative: true, flags: JSON_THROW_ON_ERROR);
+        foreach ($layout['tables'] as $table) {
+            foreach ($table['columns'] as $column) {
+                if (!array_key_exists('generated', $column)) { continue; }
+                Assert::same(ServerExpression::canonical(str_replace(' AS BINARY)', replace: ' AS CHAR CHARSET binary)', subject: $column['generated'])),
+                    ServerExpression::canonical($column['generated']));
+            }
+            foreach ($table['checks'] as $check) {
+                Assert::same(ServerExpression::canonical(str_replace(' AS BINARY)', replace: ' AS CHAR CHARSET binary)', subject: $check['expression'])),
+                    ServerExpression::canonical($check['expression']));
+            }
+        }
+    }
+    Assert::false(ServerExpression::canonical('CAST(name AS CHAR CHARSET BINARY)') === ServerExpression::canonical('CAST(provider AS BINARY)'));
+    foreach (['CAST(name AS CHAR)', 'CAST(name AS CHAR(80) CHARSET BINARY)', 'CAST(name AS BINARY(80))',
+        'CAST(name AS CHAR BINARY)', 'CAST(name AS CHAR CHARSET utf8mb4)', 'CAST(name AS CHAR CHARACTER SET BINARY)',
+        'CAST(name AS CHAR CHARSET BINARY COLLATE binary)', 'char', 'charset', 'char(name)', 'charset(name)'] as $invalid) {
+        $caught = null;
+        try { ServerExpression::canonical($invalid); } catch (DatabaseFailure $error) { $caught = $error; }
+        Assert::same($caught?->category, 'schema');
+    }
 }
 
 /** Server printers use SUBSTR for the standard SUBSTRING call; never rewrite literal bytes or argument trees. */

@@ -50,7 +50,7 @@ function server_check_admission_clauses(PDO $db, array $table): array
         if (!is_string($check['name'] ?? null) || !is_string($check['clause'] ?? null)) { throw new DatabaseFailure('schema'); }
         if ($mysql && ($check['enforced'] ?? null) !== 'YES') { throw new DatabaseFailure('schema'); }
         $clause = $mysql ? ServerExpression::decodeMysqlMetadata($check['clause']) : $check['clause'];
-        $clauses[$check['name']] = ServerExpression::canonical($clause);
+        $clauses[$check['name']] = $mysql ? ServerExpression::canonicalMysqlCheck($clause, $table) : ServerExpression::canonical($clause);
     }
     return $clauses;
 }

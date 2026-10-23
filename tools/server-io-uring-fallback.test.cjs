@@ -460,7 +460,7 @@ test('actual observer projects only finite active Docker lease families and free
     assert.deepEqual(Array.from(h.api.observerDockerLeases({ leases })), [operation]);
     const failure = h.api.observerFailure(); failure.stage = 'custody'; failure.phase = 'prepare';
     h.api.latchObserverFailure(failure, new Error('PRIVATE'), { leases, adapterState: { exited: { exitCode: 1 } } });
-    assert.equal(failure.first.schema, 'tablo/server-safe-observer-failure/v3');
+    assert.equal(failure.first.schema, 'tablo/server-safe-observer-failure/v4');
     assert.deepEqual(Array.from(failure.first.activeDockerLeases), [operation]); assert.equal(failure.first.controllerExit, 1);
     leases.active.clear(); h.api.latchObserverFailure(failure, new Error('PRIVATE later'), { leases });
     assert.deepEqual(Array.from(failure.first.activeDockerLeases), [operation]);
@@ -490,7 +490,7 @@ test('actual observer retains the first lease deadline before closure and later 
   } });
   await assert.rejects(h.run(), error => error === h.original); observerClosed(h);
   const failure = JSON.parse(h.output[0]);
-  assert.equal(failure.schema, 'tablo/server-safe-observer-failure/v3');
+  assert.equal(failure.schema, 'tablo/server-safe-observer-failure/v4');
   assert.deepEqual(failure.firstCancellation, JSON.parse(JSON.stringify(captured)));
   assert.deepEqual(failure.activeDockerLeases, ['volume-create']);
   assert.equal(failure.adapterCloseObserved, true); assert.equal(failure.adapterSignal, 'SIGKILL');
@@ -512,6 +512,65 @@ test('first cancellation reports all limiting ties without reading a new clock',
   assert.deepEqual(Array.from(parent.firstCancellation.limitingLeaseKinds), []);
   const protocol = { leases, cancelReason: null };
   h.api.observerCancel(protocol, 'protocol'); assert.equal(protocol.firstCancellation.boundary, 'NOT_DEADLINE');
+  assert.deepEqual(h.effects, []);
+});
+
+test('first cancellation freezes the accepted POSIX terminal status before delivery and phase replacement', async () => {
+  let captured;
+  const h = observerHarness({ at: 'custody', onRun(owner, tick) {
+    const state = { ready: {}, started: { controllerPid: 5 }, input: {}, exited: null, closed: null };
+    const event = { planId: 'synthetic', controllerPid: 5, rootExitObserved: true, exitCode: null, posixSignal: 9, terminationRequested: false };
+    acceptEvent(state, 'exited', event, { schema: 'tablo/server-observer-linux-plan/v1', planId: 'synthetic' }, {}, 'unused');
+    owner.phase.diagnostic.state = state;
+    owner.leases.admit(8, 'native/context-admission');
+    owner.send = () => { event.posixSignal = 15; event.terminationRequested = true; owner.phase = { kind: 'engine' }; };
+    tick(7_000_000_001n); captured = owner.firstCancellation;
+    assert.equal(captured.phase, 'prepare'); assert.equal(captured.exitedAccepted, true);
+    assert.equal(captured.controllerExitCode, null); assert.equal(captured.controllerPosixSignal, 9);
+    assert.equal(captured.controllerTerminationRequested, false);
+    assert.equal(state.exited.posixSignal, 15); assert(Object.isFrozen(captured));
+  } });
+  await assert.rejects(h.run(), error => error === h.original); observerClosed(h);
+  assert.deepEqual(JSON.parse(h.output[0]).firstCancellation, JSON.parse(JSON.stringify(captured)));
+});
+
+test('terminal observations after cancellation cannot backfill the frozen snapshot', () => {
+  const h = ownerModule(new Map()), state = { exited: null };
+  const owner = { leases: new h.api.Leases(30n), phase: { kind: 'baseline', diagnostic: { state } } };
+  h.api.observerCancel(owner, 'protocol');
+  state.exited = { exitCode: 23, posixSignal: null, terminationRequested: true };
+  const projected = h.api.observerFirstCancellation(owner.firstCancellation);
+  assert.equal(projected.phase, 'baseline'); assert.equal(projected.exitedAccepted, false);
+  for (const key of ['controllerExitCode', 'controllerPosixSignal', 'controllerTerminationRequested']) assert.equal(projected[key], 'MISSING');
+  assert.deepEqual(h.effects, []);
+});
+
+test('POSIX cancellation status is finite atomic and never reinterprets Windows statuses', () => {
+  const h = ownerModule(new Map());
+  const inspect = event => {
+    const owner = { leases: new h.api.Leases(30n), phase: { kind: 'control', diagnostic: { state: { exited: event } } } };
+    h.api.observerCancel(owner, 'protocol');
+    const value = h.api.observerFirstCancellation(owner.firstCancellation);
+    assert.equal(value.phase, 'control'); assert(!JSON.stringify(value).includes('PRIVATE')); return value;
+  };
+  for (const [code, signal] of [[0, null], [255, null], [null, 1], [null, 64]]) for (const requested of [false, true]) {
+    const value = inspect({ exitCode: code, posixSignal: signal, terminationRequested: requested, get private() { throw Error('PRIVATE'); } });
+    assert.equal(value.controllerExitCode, code); assert.equal(value.controllerPosixSignal, signal);
+    assert.equal(value.controllerTerminationRequested, requested);
+  }
+  for (const [code, signal] of [[null, null], [0, 9], [-1, null], [256, null], [null, 0], [null, 65], ['PRIVATE', null], [null, '9'], [true, null]]) {
+    const value = inspect({ exitCode: code, posixSignal: signal, terminationRequested: 'PRIVATE' });
+    assert.equal(value.controllerExitCode, 'UNKNOWN'); assert.equal(value.controllerPosixSignal, 'UNKNOWN');
+    assert.equal(value.controllerTerminationRequested, 'UNKNOWN');
+  }
+  for (const event of [null, undefined, {}, { posixSignal: null, windowsExitUnsigned: 0xffffffff, windowsExitSigned: -1 }]) {
+    const value = inspect(event); assert.equal(value.controllerExitCode, 'MISSING'); assert.equal(value.controllerPosixSignal, 'MISSING');
+  }
+  const valid = inspect({ exitCode: 0, posixSignal: null, terminationRequested: false });
+  for (const mutation of [{ controllerExitCode: 256 }, { controllerPosixSignal: 9 }, { phase: 'PRIVATE' },
+    { controllerTerminationRequested: 'PRIVATE' }, { controllerExitCode: 'MISSING' }, { extra: 'PRIVATE' }]) {
+    assert.equal(h.api.observerFirstCancellation({ ...valid, ...mutation }), 'UNKNOWN');
+  }
   assert.deepEqual(h.effects, []);
 });
 
@@ -570,6 +629,8 @@ test('a cancellation between phases cannot inherit the previous adapter events o
   await assert.rejects(h.run()); observerClosed(h);
   const failure = JSON.parse(h.output[0]);
   assert.equal(failure.firstCancellation.boundary, 'NOT_DEADLINE');
+  assert.equal(failure.firstCancellation.phase, 'baseline');
+  for (const key of ['controllerExitCode', 'controllerPosixSignal', 'controllerTerminationRequested']) assert.equal(failure.firstCancellation[key], 'MISSING');
   for (const event of ['readyAccepted', 'startedAccepted', 'inputAccepted', 'exitedAccepted', 'closedAccepted']) {
     assert.equal(failure.firstCancellation[event], 'MISSING');
   }
@@ -581,6 +642,7 @@ test('the largest finite cancellation snapshot and prepare projection fit the or
     missingExtension: null, stderrKind: 'UNKNOWN', stderrReason: 'BUFFER_LIMIT_FIRST_RECORD_MODULE_LOAD_MESSAGE' }));
   const h = observerHarness({ at: 'custody', prepareDiagnostic: diagnostic, onRun(owner) {
     for (let i = 0; i < 8; i++) owner.leases.admit(8, 'native/docker/container-inspect');
+    owner.phase.diagnostic.state = { exited: { exitCode: 255, posixSignal: null, terminationRequested: true } };
     owner.cancel('deadline');
   } });
   await assert.rejects(h.run(), error => error === h.original); observerClosed(h);

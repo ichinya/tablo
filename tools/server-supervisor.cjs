@@ -83,11 +83,25 @@ function observerAcceptedEvent(owner, kind) {
   if (state[kind] === null) return false;
   return object(state[kind]) ? true : state[kind] === undefined ? 'MISSING' : 'UNKNOWN';
 }
+function observerControllerStatus(exited) {
+  const missing = { controllerExitCode: 'MISSING', controllerPosixSignal: 'MISSING', controllerTerminationRequested: 'MISSING' };
+  if (exited === undefined || exited === null) return missing;
+  if (!object(exited)) return { controllerExitCode: 'UNKNOWN', controllerPosixSignal: 'UNKNOWN', controllerTerminationRequested: 'UNKNOWN' };
+  const requested = exited.terminationRequested;
+  const controllerTerminationRequested = typeof requested === 'boolean' ? requested : requested === undefined ? 'MISSING' : 'UNKNOWN';
+  if (!Object.hasOwn(exited, 'exitCode') || !Object.hasOwn(exited, 'posixSignal')) return { ...missing, controllerTerminationRequested };
+  const code = exited.exitCode, signal = exited.posixSignal;
+  const valid = integer(code, 0, 255) && signal === null || code === null && integer(signal, 1, 64);
+  return { controllerExitCode: valid ? code : 'UNKNOWN', controllerPosixSignal: valid ? signal : 'UNKNOWN', controllerTerminationRequested };
+}
 function observerCancel(owner, reason) {
   if (owner.cancelReason) return;
   owner.cancelReason = reason;
   try {
+    const phase = owner.phase, state = phase?.diagnostic?.state;
     owner.firstCancellation = Object.freeze({ ...observerCancellationLeases(owner, reason),
+      phase: phase === undefined || phase === null ? 'MISSING' : ['prepare', 'baseline', 'engine', 'control'].includes(phase.kind) ? phase.kind : 'UNKNOWN',
+      ...observerControllerStatus(state?.exited),
       readyAccepted: observerAcceptedEvent(owner, 'ready'), startedAccepted: observerAcceptedEvent(owner, 'started'),
       inputAccepted: observerAcceptedEvent(owner, 'input'), exitedAccepted: observerAcceptedEvent(owner, 'exited'),
       closedAccepted: observerAcceptedEvent(owner, 'closed') });
@@ -103,10 +117,15 @@ function observerCloseDiagnostic(owner) {
 function observerFirstCancellation(value) {
   if (value === null || value === 'MISSING' || value === 'UNKNOWN') return value;
   const events = ['readyAccepted', 'startedAccepted', 'inputAccepted', 'exitedAccepted', 'closedAccepted'];
-  if (!exactKeys(value, ['boundary', 'activeLeaseCount', 'limitingLeaseKinds', ...events])
+  if (!exactKeys(value, ['boundary', 'activeLeaseCount', 'limitingLeaseKinds', 'phase', 'controllerExitCode', 'controllerPosixSignal', 'controllerTerminationRequested', ...events])
       || !['PARENT', 'LEASE', 'PARENT_AND_LEASE', 'NOT_DEADLINE', 'UNKNOWN'].includes(value.boundary)
       || !(value.activeLeaseCount === 'UNKNOWN' || integer(value.activeLeaseCount, 0, 8))
-      || events.some(name => ![true, false, 'MISSING', 'UNKNOWN'].includes(value[name]))) return 'UNKNOWN';
+      || events.some(name => ![true, false, 'MISSING', 'UNKNOWN'].includes(value[name]))
+      || !['prepare', 'baseline', 'engine', 'control', 'MISSING', 'UNKNOWN'].includes(value.phase)
+      || ![true, false, 'MISSING', 'UNKNOWN'].includes(value.controllerTerminationRequested)) return 'UNKNOWN';
+  const code = value.controllerExitCode, signal = value.controllerPosixSignal;
+  if (!(integer(code, 0, 255) && signal === null || code === null && integer(signal, 1, 64)
+      || code === 'MISSING' && signal === 'MISSING' || code === 'UNKNOWN' && signal === 'UNKNOWN')) return 'UNKNOWN';
   const kinds = value.limitingLeaseKinds;
   if (kinds !== 'UNKNOWN' && (!Array.isArray(kinds) || kinds.length > 8
       || kinds.some(kind => kind !== 'UNKNOWN' && observerLeaseKind(kind) !== kind))) return 'UNKNOWN';
@@ -169,7 +188,7 @@ function latchObserverFailure(failure, error, owner) {
   if (failure.first) return;
   const stage = OBSERVER_STAGES.includes(failure.stage) ? failure.stage : 'UNKNOWN';
   const phase = ['prepare', 'baseline', 'engine', 'control', 'MISSING'].includes(failure.phase) ? failure.phase : 'UNKNOWN';
-  const base = { schema: 'tablo/server-safe-observer-failure/v3', status: 'failed', rootCause: 'UNKNOWN', issueAccepted: false, stage, phase };
+  const base = { schema: 'tablo/server-safe-observer-failure/v4', status: 'failed', rootCause: 'UNKNOWN', issueAccepted: false, stage, phase };
   try {
     const scalar = (value, valid) => value === undefined ? 'MISSING' : value === null ? null : valid(value) ? value : 'UNKNOWN';
     const prototype = object(error) ? Object.getPrototypeOf(error) : null;

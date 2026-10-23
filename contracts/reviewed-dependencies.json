@@ -3072,7 +3072,7 @@
                 "tests/Server/EngineMigrationAdmissionTest.php",
                 "tests/Server/EngineCheckAdmissionTest.php"
             ],
-            "fingerprint": "sha256:96ab229e3ca46aee071f66d7cb30e07edbfe4a8f62a17bd761528691e03691b9"
+            "fingerprint": "sha256:c4724f9cb226a39cf15632714aa33c5e2f674d87d4fa9b087323a0bce83442df"
         },
         {
             "path": "app/ServerColumnAdmission.php",
@@ -3134,7 +3134,7 @@
                 "tests/Server/EngineConstraintsTest.php",
                 "tests/Server/EngineConfigurationTest.php"
             ],
-            "fingerprint": "sha256:2d1b6eb876634405b480aa62c69b3a0e52bb5b4a46529e19985dfd72ee9dcb66"
+            "fingerprint": "sha256:65465be3df5be3cdb15f38fef357c3f9f39a487a75a93f179661a7f7c434dadc"
         },
         {
             "path": "app/ServerExpressionAtom.php",
@@ -3145,7 +3145,7 @@
                 "Composer verify",
                 "app/ServerExpressionOperator.php"
             ],
-            "fingerprint": "sha256:1337777c85b6b4f82104a69e4a266d76d49b9bafe198de2a49dca8b9f9335159"
+            "fingerprint": "sha256:47948eee8471a4096218e83260ad3dfcdb6840b4d30b0b48ed221954811986db"
         },
         {
             "path": "app/ServerExpressionOperator.php",
@@ -3170,7 +3170,7 @@
                 "app/ServerExpressionAtom.php",
                 "app/ServerExpressionOperator.php"
             ],
-            "fingerprint": "sha256:8bb65b31129a454e642fd38001967b649da8a0feb6c8068b1bdc91ac4b0791dd"
+            "fingerprint": "sha256:c71055e52a067bfe1a6248c9a5d6b90da8e2660589522ebeb4dc52d43183d766"
         },
         {
             "path": "app/ServerForeignAdmission.php",
@@ -7908,7 +7908,7 @@
                 "Composer analyze",
                 "Composer verify:server"
             ],
-            "fingerprint": "sha256:750718fad3533898f32f7856f2cfaf86e4ababb8ded352f31a64ed8e15f509c8"
+            "fingerprint": "sha256:20ce94a92b0a0d0b42594294d360fe1f9584001ce20626184e61c07cb19cea4e"
         },
         {
             "path": "tests/Server/EngineFixtureSafetyTest.php",
@@ -11266,7 +11266,7 @@
                 "tools/server-native-denial.test.cjs",
                 "tools/server-io-uring-fallback.test.cjs"
             ],
-            "fingerprint": "sha256:93bf17ed7f898a2c2307f03d57c623c0de7f4f79b850a5bf5db9ffc24c5ab80c"
+            "fingerprint": "sha256:c5626293e858818c46d21d5590d49af78bd50c1adc3fc809d38e624ce8429254"
         },
         {
             "path": "tools/server-supervisor-windows.ps1",
@@ -11517,7 +11517,7 @@
                 "tools/server-native-tests.json",
                 "node --test tools/server-io-uring-fallback.test.cjs"
             ],
-            "fingerprint": "sha256:c13990ca18a6de54fd70fa1149037a77640171ffa48289e2bf2e1ce8768eb8a5"
+            "fingerprint": "sha256:0144d72d3ed50efeb47d07d5064f7d90726b63e9d3297747a54b5363a7e883a7"
         },
         {
             "path": "tools/server-io-uring-php-grammar.test.php",

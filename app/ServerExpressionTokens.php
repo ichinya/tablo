@@ -9,19 +9,30 @@ final class ServerExpressionTokens
     /** @return list<string> */
     public static function tokenize(string $sql): array
     {
+        return self::scan($sql, '/\G(?:`[a-zA-Z0-9_]+`|(?:(?i:_binary)\s*)?\x27(?:\x27\x27|[^\x27])*\x27|(?:(?i:_binary)\s+)?[xX]\x27(?:[0-9a-fA-F]{2})*\x27|(?i:_binary)\s+0x[0-9a-fA-F]+|[a-zA-Z_][a-zA-Z0-9_]*|0x[0-9a-fA-F]+|[0-9]+|<=>|<>|!=|<=|>=|[(),=<>+*%\/-])/A');
+    }
+    /** MySQL CHECK metadata only; introduced literals retain a distinct AST tag.
+     * @return list<string> */
+    public static function mysqlCheckTokens(string $sql): array
+    {
+        return self::scan($sql, '/\G(?:`[a-zA-Z0-9_]+`|(?i:_utf8mb4)\s*\x27(?:\x27\x27|[^\x27])*\x27|(?:(?i:_binary)\s*)?\x27(?:\x27\x27|[^\x27])*\x27|(?:(?i:_binary)\s+)?[xX]\x27(?:[0-9a-fA-F]{2})*\x27|(?i:_binary)\s+0x[0-9a-fA-F]+|[a-zA-Z_][a-zA-Z0-9_]*|0x[0-9a-fA-F]+|[0-9]+|<=>|<>|!=|<=|>=|[(),=<>+*%\/-])/A');
+    }
+    /** @return list<string> */
+    private static function scan(string $sql, string $pattern): array
+    {
         if (strlen($sql) > 16_384) { throw new DatabaseFailure('schema'); }
         $tokens = [];
         $offset = 0;
         while ($offset < strlen($sql)) {
             $match = [];
             if (preg_match('/\G\s+/A', $sql, $match, flags: 0, offset: $offset) === 1) { $offset += strlen(RegexCapture::text($match, 0)); continue; }
-            if (preg_match('/\G(?:`[a-zA-Z0-9_]+`|(?:(?i:_binary)\s*)?\x27(?:\x27\x27|[^\x27])*\x27|(?:(?i:_binary)\s+)?[xX]\x27(?:[0-9a-fA-F]{2})*\x27|(?i:_binary)\s+0x[0-9a-fA-F]+|[a-zA-Z_][a-zA-Z0-9_]*|0x[0-9a-fA-F]+|[0-9]+|<=>|<>|!=|<=|>=|[(),=<>+*%\/-])/A', $sql, $match, flags: 0, offset: $offset) !== 1) { throw new DatabaseFailure('schema'); }
+            if (preg_match($pattern, $sql, $match, flags: 0, offset: $offset) !== 1) { throw new DatabaseFailure('schema'); }
             $tokens[] = RegexCapture::text($match, 0); $offset += strlen(RegexCapture::text($match, 0));
         }
         if (count($tokens) > 2048) { throw new DatabaseFailure('schema'); }
         foreach ($tokens as $index => $lexeme) {
             if (preg_match('/\A[a-zA-Z_][a-zA-Z0-9_]*\z/D', $lexeme) !== 1) { continue; }
-            if (in_array(strtolower($lexeme), [...self::IDENTIFIERS, 'as', 'substr'], strict: true)) { continue; }
+            if (in_array(strtolower($lexeme), [...self::IDENTIFIERS, 'as', 'substr', 'char', 'charset'], strict: true)) { continue; }
             // Distinct fixed origins classify unsupported printer forms without retaining their text.
             if (strtolower($lexeme) === '_utf8mb4' && str_starts_with($tokens[$index + 1] ?? '', "'")) { throw new DatabaseFailure('schema'); }
             if (str_starts_with($lexeme, '_')) { throw new DatabaseFailure('schema'); }
