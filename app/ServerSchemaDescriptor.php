@@ -46,6 +46,34 @@ final class ServerSchemaDescriptor
         }
         return $actual === $expected;
     }
+    /** @param Column $expected */
+    public static function sameMysqlDefault(mixed $actual, array $expected, string $extra): bool
+    {
+        return self::sameDefault($actual, $expected['default']) || server_schema_mysql_default($actual, $expected, $extra);
+    }
     private static function refuse(): never { throw new DatabaseFailure('schema'); }
 
+}
+
+/** Compare only source-proven MySQL printers for the descriptor's printable ASCII string literals.
+ * @param \Tablo\ServerSchema::Column $expected */
+function server_schema_mysql_default(mixed $actual, array $expected, string $extra): bool
+{
+    $literal = $expected['default'];
+    if (!is_string($actual) || strlen($actual) > 32_768 || $literal === null || strlen($literal) > 16_384
+        || !str_starts_with($literal, "'") || !str_ends_with($literal, "'")) { return false; }
+    $body = substr($literal, offset: 1, length: -1);
+    if (str_contains(str_replace("''", replace: '', subject: $body), "'") || preg_match('/[^\x20-\x5b\x5d-\x7e]/', $body) === 1) { return false; }
+    $value = str_replace("''", replace: "'", subject: $body);
+    if (preg_match('/\Avarbinary\([1-9][0-9]*\)\z/D', $expected['type']) === 1 && $extra === '') {
+        return $value !== '' && preg_match('/\A0x(?:[0-9a-fA-F]{2})+\z/D', $actual) === 1 && strtolower($actual) === '0x' . bin2hex($value);
+    }
+    if ($expected['type'] !== 'longtext' || $extra !== 'DEFAULT_GENERATED') { return false; }
+    // Item_string first escapes its payload; dd_table then adds one outer String::print layer.
+    return $actual === server_schema_mysql_default_escape("_utf8mb4'" . server_schema_mysql_default_escape($value) . "'");
+}
+
+function server_schema_mysql_default_escape(string $value): string
+{
+    return strtr($value, ['\\' => '\\\\', "'" => "\\'", "\0" => '\\0', "\n" => '\\n', "\r" => '\\r', chr(26) => '\\Z']);
 }

@@ -145,7 +145,7 @@ function engine_verification_failed_report(): void
         'message' => $private, 'file' => $root . '/vendor/testo/assert/Assert.php', 'line' => 57,
         'trace' => ['#0 ' . $root . '/tests/Server/EngineConstraintsTest.php:549: Testo\\Assert::same()'], 'output' => [['content' => $private]]];
     $report = ['status' => 'failed', 'failures' => [$failure]];
-    $project = static fn (array $value): array => \Tablo\Tools\server_native_failure($root, \Tablo\JsonEncoding::encode($value), $identity);
+    $project = static fn (array $value): array => \Tablo\Tools\server_native_failure($root, \Tablo\JsonEncoding::encode($value), $identity, engine_verification_public_sources());
     $actual = $project($report);
     Assert::same($actual, ['schema' => 'tablo/server-native-failure/v1', 'rootCause' => 'UNKNOWN', 'reportStatus' => 'failed',
         'type' => 'assertion', 'origin' => 'trace', 'source' => 'tests/Server/EngineConstraintsTest.php', 'line' => 549]);
@@ -160,9 +160,9 @@ function engine_verification_failed_report(): void
 
 function engine_verification_failed_report_invalid(string $root, string $identity, array $failure, string $private): void
 {
-    $project = static fn (array $value): array => \Tablo\Tools\server_native_failure($root, \Tablo\JsonEncoding::encode($value), $identity);
+    $project = static fn (array $value): array => \Tablo\Tools\server_native_failure($root, \Tablo\JsonEncoding::encode($value), $identity, engine_verification_public_sources());
     foreach (['', '{', str_repeat(' ', times: 1_048_577)] as $invalid) {
-        Assert::same(\Tablo\Tools\server_native_failure($root, $invalid, $identity)['reportStatus'], 'UNKNOWN');
+        Assert::same(\Tablo\Tools\server_native_failure($root, $invalid, $identity, engine_verification_public_sources())['reportStatus'], 'UNKNOWN');
     }
     foreach ([['status' => 'passed', 'failures' => [$failure]], ['status' => 'failed', 'failures' => []],
         ['status' => 'failed', 'failures' => [$failure, $failure]], ['status' => 'failed', 'failures' => ['foreign' => $failure]],
@@ -171,12 +171,33 @@ function engine_verification_failed_report_invalid(string $root, string $identit
         Assert::same($project($invalid)['reportStatus'], 'UNKNOWN');
     }
     foreach ([['/foreign/app/Private.php', 1], [$root . '/storage/Private.php', 1], [$root . '/app/../Private.php', 1],
-        [$root . '/app/File.php', '1'], [$root . '/app/File.php', 0], [$root . '/app/File.php', 100_001], [$private, null]] as [$file, $line]) {
+        [$root . '/app/DatabaseTransferTarget.php', '1'], [$root . '/app/DatabaseTransferTarget.php', 0], [$root . '/app/DatabaseTransferTarget.php', 100_001], [$private, null]] as [$file, $line]) {
         $bad = array_replace($failure, ['file' => $file, 'line' => $line, 'trace' => [$private]]);
         $actual = $project(['status' => 'failed', 'failures' => [$bad]]);
         Assert::same([$actual['origin'], $actual['source'], $actual['line']], ['UNKNOWN', null, null]);
     }
+    engine_verification_failed_report_membership($root, $identity, $failure, $private, $project);
     engine_verification_failed_report_bounds($failure, $private, $project);
+}
+
+/** @return list<string> */
+function engine_verification_public_sources(): array { return ['app/DatabaseTransferTarget.php', 'tests/Server/EngineConstraintsTest.php']; }
+
+/** @param \Closure(array): array $project */
+function engine_verification_failed_report_membership(string $root, string $identity, array $failure, string $private, \Closure $project): void
+{
+    foreach (['app/' . $private . '.php', 'tests/Server/' . $private . '.php'] as $candidate) {
+        foreach (['exception', 'trace'] as $kind) {
+            $bad = array_replace($failure, ['file' => $root . '/' . $candidate, 'line' => 1, 'trace' => []]);
+            if ($kind === 'trace') { $bad['file'] = $root . '/vendor/testo/assert/Assert.php'; $bad['trace'] = ['#0 ' . $root . '/' . $candidate . ':1: private()']; }
+            $actual = $project(['status' => 'failed', 'failures' => [$bad]]);
+            Assert::null(\Tablo\SqlColumn::nullableString($actual, 'source'));
+            Assert::false(str_contains(\Tablo\JsonEncoding::encode($actual), $private));
+        }
+    }
+    $wire = \Tablo\JsonEncoding::encode(['status' => 'failed', 'failures' => [$failure], 'publicSources' => ['app/' . $private . '.php']]);
+    Assert::null(\Tablo\Tools\server_native_failure($root, $wire, $identity, [])['source']);
+    Assert::same(\Tablo\Tools\server_native_failure($root, $wire, $identity, array_fill(0, count: 2049, value: 'app/DatabaseTransferTarget.php'))['reportStatus'], 'UNKNOWN');
 }
 
 /** @param \Closure(array): array $project */

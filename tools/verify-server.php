@@ -178,7 +178,7 @@ function server_verify_child(array $command, TemporaryDirectory $directory, arra
 
 /**
  * @param array<string, array{identity: string, path: string, minimumAssertions: int, deadlineSeconds: ?int}> $cases
- * @param array{context: array{plan: array, directory: TemporaryDirectory, environment: array<string, string>}, catalogs: array<string, \Tablo\Tools\ServerFixtureCatalog>} $owner
+ * @param array{context: array{plan: array, directory: TemporaryDirectory, environment: array<string, string>}, catalogs: array<string, \Tablo\Tools\ServerFixtureCatalog>, publicSources: list<string>} $owner
  */
 function server_verify_lane(string $root, TemporaryDirectory $directory, array $cases, array $owner, array $selection): array
 {
@@ -191,14 +191,14 @@ function server_verify_lane(string $root, TemporaryDirectory $directory, array $
         $prepared = server_cell_prepare($context, $catalogs, $declaration, ['engine' => $engine, 'lane' => $lane, 'index' => $index]);
         if ($readiness === []) { $readiness = server_verify_prepared_readiness($prepared, $engine, JsonRecord::checked($context['plan']['services'] ?? null)); }
         $results[$identity] = server_verify_one_case($root, $directory, $spec,
-            ['lane' => $lane, 'index' => $index++, 'identity' => $identity, 'catalogs' => $catalogs], $prepared);
+            ['lane' => $lane, 'index' => $index++, 'identity' => $identity, 'catalogs' => $catalogs, 'publicSources' => $owner['publicSources']], $prepared);
     }
     if ($readiness === []) { throw new RuntimeException('Actual selected-engine readiness evidence absent.'); }
     return ['cases' => $results, 'readiness' => $readiness];
 }
 
 /** @param array{identity: string, path: string, minimumAssertions: int, deadlineSeconds: ?int} $spec
- * @param array{lane: string, index: int, identity: string, catalogs: array<string, \Tablo\Tools\ServerFixtureCatalog>} $selection
+ * @param array{lane: string, index: int, identity: string, catalogs: array<string, \Tablo\Tools\ServerFixtureCatalog>, publicSources: list<string>} $selection
  * @param array{environment: array<string, string>, closureDirectory: string, fixtures: list<\Tablo\Tools\ServerFixturePlan::Fixture>} $prepared */
 function server_verify_one_case(string $root, TemporaryDirectory $directory, array $spec, array $selection, array $prepared): array
 {
@@ -208,13 +208,7 @@ function server_verify_one_case(string $root, TemporaryDirectory $directory, arr
     $report = $directory->path . '/native-' . $lane . '-' . $index . '.xml';
     $command = server_verify_command($spec['path'], $identity, $lane, $report);
     server_verify_progress($root, $lane, $index + 1, ['identity' => $identity, 'source' => $spec['path'], 'status' => 'started', 'deadlineSeconds' => $maximum]);
-    $child = server_verify_child($command, $directory, $prepared['environment'], $maximum,
-        static function (array $failed) use ($root, $lane, $index, $identity, $spec): void {
-            $exit = $failed['exit_code'] ?? null;
-            server_verify_progress($root, $lane, $index + 1, ['identity' => $identity, 'source' => $spec['path'], 'status' => 'failed',
-                'childExit' => is_int($exit) && $exit >= 1 && $exit <= 255 ? $exit : 'UNKNOWN',
-                'diagnostic' => \Tablo\Tools\server_native_failure($root, SqlColumn::string($failed, 'stdout'), $identity)]);
-        });
+    $child = server_verify_child($command, $directory, $prepared['environment'], $maximum, server_verify_failure_callback($root, $selection, $spec));
     $native = \Tablo\Tools\server_native_junit($root, $report, [$identity => $spec]);
     \Tablo\Tools\server_native_summary(JsonRecord::decode($child['stdout'], 32), required: 1, assertions: $native['assertions']);
     foreach ($selection['catalogs'] as $catalog) { $catalog->complete($child, $native, $prepared['closureDirectory']); }
@@ -225,6 +219,20 @@ function server_verify_one_case(string $root, TemporaryDirectory $directory, arr
     return $result;
 }
 
+/** @param array{lane: string, index: int, identity: string, publicSources: list<string>, ...} $selection
+ * @param array{path: string, ...} $spec
+ * @return \Closure(array): void */
+function server_verify_failure_callback(string $root, array $selection, array $spec): \Closure
+{
+    return static function (array $failed) use ($root, $selection, $spec): void {
+        /** @var mixed $exit Only the bounded native nonzero integer is retained below. */
+        $exit = $failed['exit_code'] ?? null;
+        server_verify_progress($root, $selection['lane'], $selection['index'] + 1, ['identity' => $selection['identity'], 'source' => $spec['path'], 'status' => 'failed',
+            'childExit' => is_int($exit) && $exit >= 1 && $exit <= 255 ? $exit : 'UNKNOWN',
+            'diagnostic' => \Tablo\Tools\server_native_failure($root, SqlColumn::string($failed, 'stdout'), $selection['identity'], $selection['publicSources'])]);
+    };
+}
+
 function server_verify_progress(string $root, string $lane, int $index, array $record): void
 {
     $status = SqlColumn::string($record, 'status');
@@ -233,7 +241,7 @@ function server_verify_progress(string $root, string $lane, int $index, array $r
 }
 
 /** Every lane shares the same once-created accounts and slot state; a failed lane cannot be retried as fresh.
- * @param array{context: array{plan: array, directory: TemporaryDirectory, environment: array<string, string>}, catalogs: array<string, \Tablo\Tools\ServerFixtureCatalog>} $owner
+ * @param array{context: array{plan: array, directory: TemporaryDirectory, environment: array<string, string>}, catalogs: array<string, \Tablo\Tools\ServerFixtureCatalog>, publicSources: list<string>} $owner
  * @param array{engine: string, lanes: list<string>} $selection */
 function server_verify_lanes(string $root, TemporaryDirectory $directory, array $map, array $owner, array $selection): array
 {
@@ -439,8 +447,7 @@ function server_verify_run(array $arguments): array
     $directory = null;
     try {
     $root = str_replace('\\', replace: '/', subject: dirname(__DIR__)); chdir($root);
-    require_once __DIR__ . '/reviewed-dependencies.php';
-    verify_worker_dependencies($root); // FIRST: no native subprocess or product autoload before source refusal.
+    $publicSources = server_verify_source_admission($root); // FIRST: no native subprocess or product autoload before source refusal.
     foreach (['JsonRecord', 'SqlColumn', 'DatabaseInteger', 'DatabaseFailure'] as $utility) { require_once $root . '/app/' . $utility . '.php'; }
     require_once __DIR__ . '/ServerTestEvidence.php';
     $options = server_verify_options($arguments);
@@ -458,7 +465,7 @@ function server_verify_run(array $arguments): array
     $context = server_cell_context($root, $serverEnvironment); $catalogs = server_cell_catalogs($context);
     $availability = server_cell_availability($context);
     $baseline = server_verify_baseline($root, $map, $context['plan']);
-    $results = server_verify_lanes($root, $directory, $map, ['context' => $context, 'catalogs' => $catalogs], $options);
+    $results = server_verify_lanes($root, $directory, $map, ['context' => $context, 'catalogs' => $catalogs, 'publicSources' => $publicSources], $options);
     $output = $main . '/server-' . $options['engine'] . '-' . bin2hex(random_bytes(8)) . '.json';
     $record = ['schema' => 'tablo/server-native-evidence/v1', 'status' => 'passed', 'engine' => $options['engine'], 'requiredLanes' => $options['lanes'],
         'availability' => $availability, 'baseline' => $baseline, 'actual' => $results,
@@ -467,6 +474,15 @@ function server_verify_run(array $arguments): array
     server_verify_retain($output, $record);
     return ['status' => 'passed', 'engine' => $options['engine'], 'lanes' => $options['lanes'], 'evidence' => $output, 'issueAccepted' => false];
     } catch (Throwable $error) { $directory?->retainFailure($error); throw $error; }
+}
+
+/** Captured before children under the frozen, quiescent source lifecycle; not a defense against concurrent catalog mutation.
+ * @return list<string> */
+function server_verify_source_admission(string $root): array
+{
+    require_once __DIR__ . '/reviewed-dependencies.php';
+    verify_worker_dependencies($root);
+    return array_keys(worker_dependencies());
 }
 
 /** @param list<string> $lanes */

@@ -3083,7 +3083,7 @@
                 "Composer verify",
                 "app/ServerTableAdmission.php"
             ],
-            "fingerprint": "sha256:ae39670020db8f645b9676eba62c4a8f9d1f8109445d79a9e6f48c9839424c9a"
+            "fingerprint": "sha256:a1d85c7bb27c859f12fdb3c2bbdcb26d669844c59a53fe610ccb4b3a6a308b1a"
         },
         {
             "path": "app/ServerCredentials.php",
@@ -3386,7 +3386,7 @@
                 "app/ServerColumnAdmission.php",
                 "app/ServerSchema.php"
             ],
-            "fingerprint": "sha256:739ae2da0158301e30189cf2de8b1bc7592f0dc58ec27ea061bfaa5592cc4cf5"
+            "fingerprint": "sha256:c4668d4e9d5c56b2871c9a68e726c0654d797b266fce93865dc6041e281ca5fa"
         },
         {
             "path": "app/ServerSchemaState.php",
@@ -7908,7 +7908,7 @@
                 "Composer analyze",
                 "Composer verify:server"
             ],
-            "fingerprint": "sha256:9ddb8cca2d95d64a709b5134ad0437888469da07f43bdb78c3356ebc2c34c043"
+            "fingerprint": "sha256:3ef285e7f383bd39db658ea704e66b801cd9f8c5721b3f012a595dcb80f9791c"
         },
         {
             "path": "tests/Server/EngineFixtureSafetyTest.php",
@@ -8134,7 +8134,7 @@
                 "Composer analyze",
                 "Composer verify:server"
             ],
-            "fingerprint": "sha256:53565b69ea0d83544e048469a066d21ab230aa79883f343966c9d8758ad99868"
+            "fingerprint": "sha256:63fc8e77e667d1467599cb3563a84b43000333163999130facc74bd3a9664172"
         },
         {
             "path": "tests/Server/EngineWatermarkTest.php",
@@ -11062,7 +11062,7 @@
                 "Composer lint",
                 "Composer analyze"
             ],
-            "fingerprint": "sha256:c5a5338c74fd2e4b001eccda32d88c5c3d0987327f6a30db1af3202fe4dacc3f"
+            "fingerprint": "sha256:5afa0de823740f03eef05d964821128edb39dc8ec4931ed2169167d75448d161"
         },
         {
             "path": "tools/verify-server.php",
@@ -11074,7 +11074,7 @@
                 "Composer analyze",
                 "tools/server-supervisor.cjs"
             ],
-            "fingerprint": "sha256:4586f28c77bb19cc169fcc857f497a58e671a9530d5a90ef9cc5be9e5a4cc610"
+            "fingerprint": "sha256:c3663e737d10a31e629aa2a24d8b407813a7ef810f587021fbaaf3ab5f8d082e"
         },
         {
             "path": "tools/verify.php",

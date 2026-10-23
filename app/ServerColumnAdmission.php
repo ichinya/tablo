@@ -27,10 +27,17 @@ final class ServerColumnAdmission
             if ($expectedShape !== $actualShape) { self::refuse(); }
             if ($mysql) { $actual['generation'] = ServerExpression::decodeMysqlMetadata(SqlColumn::string($actual, 'generation')); }
             ServerCheckAdmission::generated($expected, $actual);
-            if (!array_key_exists('generated', $expected) && !ServerSchemaDescriptor::sameDefault($actual['default_value'] ?? null, $expected['default'])) { self::refuse(); }
+            if (!array_key_exists('generated', $expected) && !server_column_default_matches($db, $actual, $expected)) { self::refuse(); }
             if (in_array($expected['type'], ['longtext', 'varchar(80)'], strict: true) && ($actual['collation'] ?? null) !== DatabaseSession::collation($db)) { self::refuse(); }
         }
     }
     private static function refuse(): never { throw new DatabaseFailure('schema'); }
 
+}
+
+/** @param \Tablo\ServerSchema::Column $expected */
+function server_column_default_matches(PDO $db, array $actual, array $expected): bool
+{
+    return DatabaseSession::get($db)?->configuration->engine === 'mysql' ? ServerSchemaDescriptor::sameMysqlDefault($actual['default_value'] ?? null, $expected, SqlColumn::string($actual, 'extra'))
+        : ServerSchemaDescriptor::sameDefault($actual['default_value'] ?? null, $expected['default']);
 }

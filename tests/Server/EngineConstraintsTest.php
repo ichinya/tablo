@@ -29,6 +29,7 @@ final class EngineConstraintsTest
         engine_constraints_binary_cast_alias();
         engine_constraints_singleton_membership();
         engine_constraints_length_alias();
+        engine_constraints_mysql_defaults();
     }
 
     #[Test]
@@ -107,6 +108,63 @@ final class EngineConstraintsTest
     public function directSqlRejectsMalformedDomainRowsAcrossEveryCurrentTable(): void
     { engine_constraints_domain_rows(); }
 
+}
+
+/** Independent golden COLUMN_DEFAULT strings from the MySQL 8.4 metadata producer. */
+function engine_constraints_mysql_defaults(): void
+{
+    $golden = ["varbinary(16)/'github'" => '0x676974687562', "varbinary(16)/'http'" => '0x68747470',
+        "varbinary(16)/'=='" => '0x3d3d', "varbinary(16)/'release'" => '0x72656c65617365',
+        "longtext/'main'" => "_utf8mb4\\'main\\'", "longtext/'/up'" => "_utf8mb4\\'/up\\'", "longtext/''" => "_utf8mb4\\'\\'"];
+    /** @var \Tablo\ServerSchema::Layout $layout Public finite source descriptor. */
+    $layout = json_decode(\Tablo\RequiredFile::bytes(file_get_contents(dirname(__DIR__, levels: 2) . '/database/mysql84-layout.json')),
+        associative: true, flags: JSON_THROW_ON_ERROR);
+    $seen = [];
+    foreach ($layout['tables'] as $table) {
+        foreach ($table['columns'] as $column) {
+            if ($column['default'] === null) { continue; }
+            $key = $column['type'] . '/' . $column['default'];
+            $actual = str_starts_with($column['default'], "'") ? $golden[$key] ?? throw new \RuntimeException('Missing reviewed default fixture.') : $column['default'];
+            $extra = $column['type'] === 'longtext' ? 'DEFAULT_GENERATED' : '';
+            Assert::true(\Tablo\ServerSchemaDescriptor::sameMysqlDefault($actual, $column, $extra), $column['name']);
+            Assert::false(\Tablo\ServerSchemaDescriptor::sameMysqlDefault($actual . 'x', $column, $extra));
+            if (array_key_exists($key, $golden)) { $seen[$key] = true; }
+        }
+    }
+    Assert::same(count($seen), count($golden));
+    engine_constraints_mysql_default_boundaries();
+}
+
+function engine_constraints_mysql_default_boundaries(): void
+{
+    $text = engine_constraints_default_column(type: 'longtext', default: "'main'");
+    $binary = engine_constraints_default_column(type: 'varbinary(16)', default: "'github'");
+    foreach (["_utf8mb4'main'", "(_utf8mb4\\'main\\')", "_latin1\\'main\\'", "_utf8mb4\\'Main\\'", "_utf8mb4\\'main \\'",
+        "_utf8mb4\\'main\\' + 0", '0x6d61696e', str_repeat('x', times: 32_769)] as $invalid) {
+        Assert::false(\Tablo\ServerSchemaDescriptor::sameMysqlDefault($invalid, $text, 'DEFAULT_GENERATED'));
+    }
+    foreach (['', 'default_generated', 'DEFAULT_GENERATED on update CURRENT_TIMESTAMP'] as $wrong) {
+        Assert::false(\Tablo\ServerSchemaDescriptor::sameMysqlDefault("_utf8mb4\\'main\\'", $text, $wrong));
+    }
+    foreach (['0x67697468756', '0x67697468756200', '0X676974687562', '0x676974687563', '0x', '0x676974687562 + 0'] as $invalid) {
+        Assert::false(\Tablo\ServerSchemaDescriptor::sameMysqlDefault($invalid, $binary, ''));
+    }
+    Assert::false(\Tablo\ServerSchemaDescriptor::sameMysqlDefault('0x676974687562', $binary, 'DEFAULT_GENERATED'));
+    Assert::false(\Tablo\ServerSchemaDescriptor::sameMysqlDefault("_utf8mb4\\'main\\'", engine_constraints_default_column(type: 'varbinary(16)', default: "'main'"), 'DEFAULT_GENERATED'));
+    Assert::true(\Tablo\ServerSchemaDescriptor::sameMysqlDefault('0x666F6F', engine_constraints_default_column(type: 'varbinary(16)', default: "'foo'"), ''));
+    $quoted = <<<'DEFAULT'
+_utf8mb4\'a\\\'b\'
+DEFAULT;
+    Assert::true(\Tablo\ServerSchemaDescriptor::sameMysqlDefault($quoted, engine_constraints_default_column(type: 'longtext', default: "'a''b'"), 'DEFAULT_GENERATED'));
+    foreach ([null, 'NULL'] as $value) { Assert::true(\Tablo\ServerSchemaDescriptor::sameMysqlDefault($value, engine_constraints_default_column(type: 'longtext', default: null), '')); }
+    Assert::false(\Tablo\ServerSchemaDescriptor::sameMysqlDefault("_utf8mb4\\'\\'", engine_constraints_default_column(type: 'longtext', default: null), 'DEFAULT_GENERATED'));
+    Assert::true(\Tablo\ServerSchemaDescriptor::sameDefault("('main')", "'main'"));
+}
+
+/** @return \Tablo\ServerSchema::Column */
+function engine_constraints_default_column(string $type, ?string $default): array
+{
+    return ['name' => 'branch', 'type' => $type, 'nullable' => false, 'default' => $default];
 }
 
 /** MySQL LENGTH and OCTET_LENGTH share one byte-counting implementation, unlike CHAR_LENGTH. */
