@@ -28,6 +28,7 @@ final class EngineConstraintsTest
         engine_constraints_mysql_check_literals();
         engine_constraints_binary_cast_alias();
         engine_constraints_singleton_membership();
+        engine_constraints_length_alias();
     }
 
     #[Test]
@@ -108,6 +109,26 @@ final class EngineConstraintsTest
 
 }
 
+/** MySQL LENGTH and OCTET_LENGTH share one byte-counting implementation, unlike CHAR_LENGTH. */
+function engine_constraints_length_alias(): void
+{
+    foreach (['LENGTH(name)', 'LeNgTh ( name )', 'OCTET_LENGTH(name)'] as $call) {
+        Assert::same(ServerExpression::canonical($call . ' = 20'), ServerExpression::canonical('OCTET_LENGTH(name) = 20'));
+    }
+    foreach (["LENGTH('é') = 2" => "OCTET_LENGTH('é') = 2", "LENGTH(X'00ff')" => "OCTET_LENGTH(X'00ff')"] as $alias => $expected) {
+        Assert::same(ServerExpression::canonical($alias), ServerExpression::canonical($expected));
+    }
+    foreach (['LENGTH(id) = 20', 'LENGTH(name) = 21', "LENGTH('name ') = 20"] as $changed) {
+        Assert::false(ServerExpression::canonical($changed) === ServerExpression::canonical('OCTET_LENGTH(name) = 20'));
+    }
+    foreach (['LENGTH', '`length`', 'CAST(name AS LENGTH)', 'schema.LENGTH(name)', 'CHAR_LENGTH(name)', 'LENGTHS(name)',
+        'LENGTH()', 'LENGTH(name, id)', 'OCTET_LENGTH()', 'OCTET_LENGTH(name, id)'] as $invalid) {
+        $caught = null;
+        try { ServerExpression::canonical($invalid); } catch (DatabaseFailure $error) { $caught = $error; }
+        Assert::same($caught?->category, 'schema');
+    }
+}
+
 /** Both server parsers lower a scalar singleton IN to equality before CHECK metadata printing. */
 function engine_constraints_singleton_membership(): void
 {
@@ -163,7 +184,7 @@ function engine_constraints_mysql_print(string $sql): string
             $printed[] = '_utf8mb4' . substr($token, $quote);
             continue;
         }
-        $printed[] = $token;
+        $printed[] = strtolower($token) === 'octet_length' ? 'length' : $token;
     }
     return implode(' ', $printed);
 }

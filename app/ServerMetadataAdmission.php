@@ -7,7 +7,7 @@ use PDO;
 
 /** Transient, explicitly privileged observation under the documented quiescent DDL lifecycle.
  * @phpstan-import-type Objects from ServerMetadataInventory
- * @phpstan-type Observation array{server: array<string, int|string>, account: string, objects: Objects, installation: list<array>}
+ * @phpstan-type Observation array{server: array<string, int|string>, account: string, objects: Objects, installation: list<array>, checks: array<string, array<string, string>>}
  */
 final class ServerMetadataAdmission
 {
@@ -22,7 +22,7 @@ final class ServerMetadataAdmission
             $names = ServerMetadataInventory::tables($objects);
             if ($version !== null) { self::expected($db, $names, $version); }
             return ['server' => ServerMetadataIdentity::server($db), 'account' => ServerMetadataIdentity::grantee($db, $metadata), 'objects' => $objects,
-                'installation' => ServerMetadataIdentity::installation($db, $names)];
+                'installation' => ServerMetadataIdentity::installation($db, $names), 'checks' => server_metadata_check_observation($db, $configuration, $version)];
         } catch (\PDOException $error) { throw DatabaseFailure::fromNative($error); }
         finally { $db = null; }
     }
@@ -48,6 +48,17 @@ final class ServerMetadataAdmission
         return $names;
     }
 
+    /** Fresh outside factory admission; the factory's one-shot observation is cleared before returning its PDO.
+     * @return array<string, string> */
+    public static function checks(PDO $db, string $table): array
+    {
+        $session = DatabaseSession::get($db) ?? throw new DatabaseFailure('schema');
+        if ($session->configuration->engine !== 'mariadb' || $session->configuration->role !== 'writer') { throw new DatabaseFailure('schema'); }
+        $observation = $session->metadataObservation ?? self::observe($session->configuration, 10);
+        self::bind($db, $observation);
+        return $observation['checks'][$table] ?? throw new DatabaseFailure('schema');
+    }
+
     /** @param list<string> $names */
     private static function expected(PDO $db, array $names, int $version): void
     {
@@ -55,4 +66,14 @@ final class ServerMetadataAdmission
         $expected = array_column($tables, 'name'); sort($expected, SORT_STRING);
         if (!in_array($version, [9, 10], strict: true) || implode("\0", $names) !== implode("\0", $expected)) { throw new DatabaseFailure('schema'); }
     }
+}
+
+/** Only the complete writer admission needs privileged CHECK visibility. Migrators read their own post-DDL metadata.
+ * @return array<string, array<string, string>> */
+function server_metadata_check_observation(PDO $db, DatabaseConfiguration $configuration, ?int $version): array
+{
+    if ($configuration->engine !== 'mariadb' || $configuration->role !== 'writer' || $version !== 10) { return []; }
+    $checks = [];
+    foreach (ServerSchema::layout($db)['tables'] as $table) { $checks[$table['name']] = ServerCheckAdmission::clauses($db, $table); }
+    return $checks;
 }

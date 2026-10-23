@@ -149,10 +149,11 @@ function engine_metadata_journal_checks(EngineFixture $fixture, \PDO $writer, Da
 {
     if ($configuration->engine !== 'mariadb') { return; }
     $journal = ServerSchema::layout($writer)['tables'][0] ?? throw new \RuntimeException('Missing journal descriptor.');
-    foreach ([$writer, $fixture->maintenance()] as $connection) {
+    foreach (['writer' => $writer, 'migrator' => $fixture->maintenance()] as $role => $connection) {
         \Tablo\ServerCheckAdmission::verify($connection, $journal);
-        Assert::same($fixture->scalar("SELECT COUNT(*) FROM information_schema.CHECK_CONSTRAINTS WHERE CONSTRAINT_SCHEMA = DATABASE() AND TABLE_NAME = 'tablo_migration_journal'", $connection), count($journal['checks']));
+        Assert::same($fixture->scalar("SELECT COUNT(*) FROM information_schema.CHECK_CONSTRAINTS WHERE CONSTRAINT_SCHEMA = DATABASE() AND TABLE_NAME = 'tablo_migration_journal'", $connection), $role === 'writer' ? 0 : count($journal['checks']));
     }
+    Assert::same(\Tablo\DatabaseSession::get($writer)?->metadataObservation, null, 'factory CHECK snapshots never escape admission');
 }
 
 /** @param array<string, string> $environment */

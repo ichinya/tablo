@@ -26,10 +26,11 @@ final class MetadataPrivilegesPdo extends PDO
         return new MetadataPrivilegesStatement($this, $query);
     }
 
-    /** @return list<array> */
-    public function rows(string $query): array
+    /** @param array<int|string, mixed> $bindings
+     * @return list<array> */
+    public function rows(string $query, array $bindings = []): array
     {
-        if (str_starts_with($this->fault, 'checks/') && str_contains($query, 'FROM information_schema.CHECK_CONSTRAINTS')) { return metadata_checks_rows($this, $query); }
+        if (str_starts_with($this->fault, 'checks/')) { return metadata_checks_query($this, $query, $bindings); }
         return match ($query) {
             'SELECT CURRENT_USER() AS identity' => [['identity' => $this->fault === 'identity' ? 'foreign@%' : 'meta@%']],
             'SELECT 1 AS unsupported FROM information_schema.APPLICABLE_ROLES LIMIT 1' => $this->applicable === [] ? [] : [['unsupported' => 1]],

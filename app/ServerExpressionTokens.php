@@ -32,7 +32,7 @@ final class ServerExpressionTokens
         if (count($tokens) > 2048) { throw new DatabaseFailure('schema'); }
         foreach ($tokens as $index => $lexeme) {
             if (preg_match('/\A[a-zA-Z_][a-zA-Z0-9_]*\z/D', $lexeme) !== 1) { continue; }
-            if (in_array(strtolower($lexeme), [...self::IDENTIFIERS, 'as', 'substr', 'char', 'charset'], strict: true)) { continue; }
+            if (in_array(strtolower($lexeme), [...self::IDENTIFIERS, 'as', 'substr', 'length', 'char', 'charset'], strict: true)) { continue; }
             // Distinct fixed origins classify unsupported printer forms without retaining their text.
             if (strtolower($lexeme) === '_utf8mb4' && str_starts_with($tokens[$index + 1] ?? '', "'")) { throw new DatabaseFailure('schema'); }
             if (str_starts_with($lexeme, '_')) { throw new DatabaseFailure('schema'); }

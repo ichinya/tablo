@@ -11,7 +11,7 @@ final class ServerExpressionAtom
      */
     public static function parse(array $lexemes, int &$position, ServerExpressionOperator $operator): array
     {
-        $lexeme = $lexemes[$position++] ?? ''; $lower = strtolower($lexeme);
+        $lexeme = $lexemes[$position++] ?? ''; $lower = server_expression_token_name(strtolower($lexeme), $lexemes[$position] ?? '');
         if ($lexeme === '(') {
             $left = $operator->parse($lexemes, $position); ServerExpressionTokens::consume($lexemes, $position, ')');
             return $left;
@@ -20,8 +20,7 @@ final class ServerExpressionAtom
         if ($lower === 'case') { return self::conditional($lexemes, $position, $operator); }
         if (in_array($lower, ['char', 'charset'], strict: true)) { throw new DatabaseFailure('schema'); }
         if (($lexemes[$position] ?? '') === '(') {
-            // Both supported server printers use SUBSTR for the standard SUBSTRING call.
-            return self::call($lower === 'substr' ? 'substring' : $lower, $lexemes, $position, $operator);
+            return self::call($lower, $lexemes, $position, $operator);
         }
         if (str_starts_with($lower, '0x')) { throw new DatabaseFailure('schema'); }
         if (str_contains($lexeme, "'") || str_starts_with($lower, '_binary')) { return server_expression_literal($lexeme); }
@@ -61,6 +60,14 @@ final class ServerExpressionAtom
 
 }
 
+/** Server printer aliases apply only in function position; LENGTH never becomes a new column or CAST target. */
+function server_expression_token_name(string $name, string $next): string
+{
+    if ($next === '(') { return match ($name) { 'substr' => 'substring', 'length' => 'octet_length', default => $name }; }
+    if (trim($name, characters: '`') === 'length') { throw new DatabaseFailure('schema'); }
+    return $name;
+}
+
 /** @param list<string> $lexemes */
 function server_expression_arguments(string $name, array $lexemes, int &$position, ServerExpressionOperator $operator): array
 {
@@ -72,6 +79,7 @@ function server_expression_arguments(string $name, array $lexemes, int &$positio
     } while (true);
     ServerExpressionTokens::consume($lexemes, $position, ')');
     if ($name === 'replace' && count($arguments) !== 3) { throw new DatabaseFailure('schema'); }
+    if ($name === 'octet_length' && count($arguments) !== 1) { throw new DatabaseFailure('schema'); }
     if ($name === 'locate' && !in_array(count($arguments), [2, 3], strict: true)) { throw new DatabaseFailure('schema'); }
     return $arguments;
 }

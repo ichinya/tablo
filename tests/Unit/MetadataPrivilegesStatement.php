@@ -19,7 +19,7 @@ final class MetadataPrivilegesStatement extends PDOStatement
     public function __construct(private readonly MetadataPrivilegesPdo $owner, private readonly string $sql) {}
     public function bindValue(string|int $param, mixed $value, int $type = PDO::PARAM_STR): bool
     {
-        $expected = metadata_statement_bindings($this->sql);
+        $expected = metadata_statement_bindings($this->sql, $value);
         if ($this->executed || $this->closed || $type !== PDO::PARAM_STR || $param !== count($this->bindings) + 1
             || !array_key_exists($param, $expected) || $value !== $expected[$param]) {
             throw new RuntimeException('Unexpected metadata binding.');
@@ -28,14 +28,14 @@ final class MetadataPrivilegesStatement extends PDOStatement
     }
     public function execute(?array $params = null): bool
     {
-        $expected = metadata_statement_bindings($this->sql);
+        $expected = metadata_statement_bindings($this->sql, $this->bindings[1] ?? null);
         if ([$params, $this->executed, $this->closed, $this->bindings] !== [null, false, false, $expected]) { throw new RuntimeException('Unexpected metadata execution.'); }
         $this->executed = true; return true;
     }
     public function fetchAll(int $mode = PDO::FETCH_DEFAULT, mixed ...$args): array
     {
         if ([$mode, $args, $this->executed, $this->fetched, $this->closed] !== [PDO::FETCH_ASSOC, [], true, false, false]) { throw new RuntimeException('Unexpected metadata fetch.'); }
-        $this->fetched = true; return $this->owner->rows($this->sql);
+        $this->fetched = true; return $this->owner->rows($this->sql, $this->bindings);
     }
     public function closeCursor(): bool
     {
@@ -45,10 +45,12 @@ final class MetadataPrivilegesStatement extends PDOStatement
 }
 
 /** @return array<int, string> */
-function metadata_statement_bindings(string $query): array
+function metadata_statement_bindings(string $query, mixed $candidate = null): array
 {
     if (str_contains($query, 'FROM information_schema.CHECK_CONSTRAINTS')) {
-        return str_contains($query, 'TABLE_CONSTRAINTS') ? [1 => 'tablo_migration_journal', 2 => 'CHECK'] : [1 => 'tablo_migration_journal'];
+        $table = is_string($candidate) && $candidate !== 'CHECK' ? $candidate : 'tablo_migration_journal';
+        metadata_checks_table('mariadb', $table);
+        return str_contains($query, 'TABLE_CONSTRAINTS') ? [1 => $table, 2 => 'CHECK'] : [1 => $table];
     }
     return str_contains($query, 'CAST(GRANTEE AS BINARY) = ?') ? [1 => "'meta'@'%'"] : [];
 }
