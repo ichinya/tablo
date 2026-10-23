@@ -228,6 +228,14 @@ namespace Tablo\Tests\InitializeReportGrammar {
     }
 }
 
+namespace Tablo\Tests\DiagnosticEffects {
+    /** Any unqualified effect API imported into an extracted helper must latch before it can be caught. */
+    function deny(mixed ...$arguments): never
+    {
+        unset($arguments); \Tablo\Tools\grammar_tripwire('Diagnostic effect attempted.');
+    }
+}
+
 namespace {
     require __DIR__ . '/../app/JsonRecord.php';
     require __DIR__ . '/../app/SqlColumn.php';
@@ -394,12 +402,13 @@ namespace {
             'server_cell_availability_record', 'server_cell_availability_details', 'server_cell_availability_location', 'server_cell_availability_sources', 'server_cell_report_availability_failure', 'server_cell_capability_exit', 'server_cell_prepare_sources']);
         // Only exact helpers are evaluated; publication is a closed, exclusive in-memory seam.
         // @mago-expect lint:no-eval
-        eval('namespace Tablo\\Tests\\AvailabilityReportGrammar; use RuntimeException, Throwable;' . implode("\n", $bodies));
+        eval('namespace Tablo\\Tests\\AvailabilityReportGrammar; use RuntimeException, Throwable;' . grammar_diagnostic_imports() . implode("\n", $bodies));
         /** @var Closure(array): ?array $parse */
         $parse = grammar_prepare_callable('Tablo\\Tests\\AvailabilityReportGrammar\\server_cell_availability_marker');
         $base = ['schema' => 'tablo/server-availability-failure/v1', 'engine' => 'mariadb', 'stage' => 'connection', 'type' => 'database',
             'category' => 'unavailable', 'sqlState' => 'HY000', 'nativeCode' => 2002, 'nativeReason' => 'connection-refused', 'source' => 'app/DatabaseFailure.php', 'line' => 17];
         $child = grammar_availability_child($base); grammar_expect($parse($child) === $base);
+        grammar_diagnostic_effect_control($bodies, $child, kind: 'availability');
         $crlf = $child; $crlf['stderr'] = str_replace("\n", replace: "\r\n", subject: $child['stderr']); grammar_expect($parse($crlf) === $base);
         grammar_availability_invalid($parse, $base, $child); grammar_availability_valid($parse, $base);
         grammar_availability_reports($child); grammar_expect(\Tablo\Tools\grammar_state()['effects'] === []);
@@ -413,13 +422,14 @@ namespace {
             'server_cell_availability_record', 'server_cell_availability_details', 'server_cell_availability_location', 'server_cell_availability_sources', 'server_cell_capability_exit', 'server_cell_prepare_sources']);
         // The same exact envelope parser runs in both namespaces; all publication effects are closed.
         // @mago-expect lint:no-eval
-        eval('namespace Tablo\\Tests\\InitializeReportGrammar; use RuntimeException, Throwable;' . implode("\n", $bodies));
+        eval('namespace Tablo\\Tests\\InitializeReportGrammar; use RuntimeException, Throwable;' . grammar_diagnostic_imports() . implode("\n", $bodies));
         /** @var Closure(array): ?array $parse */
         $parse = grammar_prepare_callable('Tablo\\Tests\\InitializeReportGrammar\\server_cell_initialize_marker');
         $base = ['schema' => 'tablo/server-initialize-failure/v1', 'engine' => 'mariadb', 'stage' => 'migration', 'type' => 'database',
             'category' => 'unavailable', 'sqlState' => 'HY000', 'nativeCode' => 2002, 'nativeReason' => 'connection-refused', 'source' => 'app/ServerMigrationStep.php', 'line' => 17,
             'point' => 'before-ddl', 'step' => 0];
         $child = grammar_availability_child($base); grammar_expect($parse($child) === $base);
+        grammar_diagnostic_effect_control($bodies, $child, kind: 'initialize');
         $crlf = $child; $crlf['stderr'] = str_replace("\n", replace: "\r\n", subject: $child['stderr']); grammar_expect($parse($crlf) === $base);
         grammar_availability_invalid($parse, $base, $child); grammar_availability_valid($parse, $base);
         grammar_initialize_progress($parse, $base); grammar_initialize_reports($child);
@@ -466,6 +476,7 @@ namespace {
         $state = &\Tablo\Tests\InitializeReportGrammar\state(); $state = [];
         $success = ['exit_code' => 0, 'stdout' => 'PRIVATE arbitrary success output', 'stderr' => ''];
         $guard($success, $root); grammar_expect($observe($success) === null); grammar_expect(\Tablo\Tests\InitializeReportGrammar\state() === []);
+        grammar_initialize_exit_values($observe);
         foreach ([$child, [], ['exit_code' => 0, 'stdout' => 'PRIVATE', 'stderr' => 'PRIVATE'], ['exit_code' => 2, 'stdout' => '', 'stderr' => '']] as $failure) {
             grammar_expect(!str_contains(json_encode($observe($failure), JSON_THROW_ON_ERROR), 'PRIVATE'));
             foreach ([[], ['writeFails' => true]] as $fault) {
@@ -482,6 +493,49 @@ namespace {
         foreach (['/foreign', '/synthetic/cell/source', '/synthetic/tablo-server-invalid/source'] as $foreign) {
             $state = []; $report($child, $foreign); grammar_expect(\Tablo\Tests\InitializeReportGrammar\state() === []);
         }
+    }
+
+    /** @param Closure(array): ?array $observe */
+    function grammar_initialize_exit_values(Closure $observe): void
+    {
+        foreach ([[null, null], ['1', 'UNKNOWN'], [true, 'UNKNOWN'], [[], 'UNKNOWN'], [0, 0], [1, 1], [-2_147_483_648, -2_147_483_648],
+            [2_147_483_647, 2_147_483_647], [-2_147_483_649, 'UNKNOWN'], [2_147_483_648, 'UNKNOWN']] as [$value, $expected]) {
+            $observation = $observe(['exit_code' => $value, 'stdout' => '', 'stderr' => 'PRIVATE']) ?? throw new RuntimeException('Expected rejected child observation.');
+            grammar_expect(array_key_exists('reportedExit', $observation)); grammar_expect(($observation['reportedExit'] ?? null) === $expected);
+        }
+        $missing = $observe([]) ?? throw new RuntimeException('Expected absent-exit observation.'); grammar_expect(array_key_exists('reportedExit', $missing));
+        grammar_expect(($missing['reportedExit'] ?? null) === 'UNKNOWN');
+    }
+
+    /** Fixed aliases close the known unqualified filesystem, process, environment and runtime-query effect APIs. */
+    function grammar_diagnostic_imports(): string
+    {
+        return implode('', array_map(static fn (string $name): string => 'use function Tablo\\Tests\\DiagnosticEffects\\deny as ' . $name . ';',
+            ['file_get_contents', 'file_put_contents', 'file_exists', 'is_file', 'is_dir', 'is_link', 'realpath', 'hash_file', 'readlink', 'fopen', 'mkdir',
+                'scandir', 'glob', 'unlink', 'rename', 'copy', 'exec', 'proc_open', 'getenv', 'extension_loaded', 'php_ini_loaded_file', 'php_ini_scanned_files', 'sys_get_temp_dir']));
+    }
+
+    /** Mutate only the extracted parser: an ignored metadata attempt is swallowed by its real catch but remains latched.
+     * @param list<string> $bodies */
+    function grammar_diagnostic_effect_control(array $bodies, array $child, string $kind): void
+    {
+        $mutated = []; $changed = 0;
+        foreach ($bodies as $body) {
+            if (str_starts_with($body, 'function server_cell_failure_marker(')) {
+                grammar_expect(substr_count($body, needle: "    try {\n") === 1);
+                $body = str_replace("    try {\n", replace: "    try {\n        is_file('/synthetic/unopened');\n", subject: $body); $changed++;
+            }
+            $mutated[] = $body;
+        }
+        grammar_expect($changed === 1); grammar_expect(in_array($kind, ['availability', 'initialize'], strict: true));
+        $namespace = $kind === 'availability' ? 'AvailabilityEffectControl' : 'InitializeEffectControl';
+        // Fixed namespace choice, exact bodies and one authored ignored-call mutation; all effect aliases are denial seams.
+        // @mago-expect lint:no-eval
+        eval('namespace Tablo\\Tests\\' . $namespace . '; use RuntimeException, Throwable;' . grammar_diagnostic_imports() . implode("\n", $mutated));
+        /** @var Closure(array, string): ?array $parse */
+        $parse = grammar_prepare_callable('Tablo\\Tests\\' . $namespace . '\\server_cell_failure_marker');
+        grammar_expect($parse($child, $kind) === null);
+        $state = &\Tablo\Tools\grammar_state(); grammar_expect($state['effects'] === ['Diagnostic effect attempted.']); $state['effects'] = [];
     }
 
     /** @param Closure(array): ?array $parse

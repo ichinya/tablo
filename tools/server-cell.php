@@ -1841,7 +1841,7 @@ function server_cell_initialize_observation(#[\SensitiveParameter] array $child)
 {
     if ([($child['exit_code'] ?? null), ($child['stderr'] ?? null)] === [0, '']) { return null; }
     return ['schema' => 'tablo/server-initialize-observation/v1', 'status' => 'failed', 'rootCause' => 'UNKNOWN', 'issueAccepted' => false,
-        'reportedExit' => server_cell_capability_exit($child['exit_code'] ?? 'UNKNOWN'),
+        'reportedExit' => server_cell_capability_exit(array_key_exists('exit_code', $child) ? $child['exit_code'] : 'UNKNOWN'),
         'stdout' => match (true) { !is_string($child['stdout'] ?? null) => 'UNKNOWN', $child['stdout'] === '' => 'EMPTY', default => 'NONEMPTY' },
         'stderr' => match (true) { !is_string($child['stderr'] ?? null) => 'UNKNOWN', $child['stderr'] === '' => 'EMPTY', default => 'NONEMPTY' },
         'diagnostic' => server_cell_initialize_marker($child)];
