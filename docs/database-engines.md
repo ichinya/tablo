@@ -435,7 +435,7 @@ Connections and active leases remain limited to eight. Every prior controller,
 adapter and scope must positively close before the next phase starts; phases
 share the original parent end. Windows creates its private kill-on-close Job before work and
 assigns a suspended controller atomically at creation, with no breakaway. Linux
-x86_64 uses the separately pinned native `tgid-seccomp-ptrace-x64-v2` adapter.
+x86_64 uses the separately pinned native `tgid-seccomp-ptrace-x64-v3` adapter.
 It admits process/TGID units before execution, including descendants that change
 process groups, and binds its monotonic READY event to the owner interval.
 Owner loss cancels only the adapter-created scope. Missing native closure or
@@ -445,6 +445,14 @@ selected host before an engine run is admitted. No global process scan or adopti
 by a supplied PID is used. The private raw32-byte protocol keys are
 distinct from installation keys and never appear in command arguments or reports.
 The default SQLite lanes and production PHP/Docker image do not use this observer.
+
+Policy v3 traces `exit_group` and holds one elected caller until every known
+creation pending in its TGID has either a registered birth or a proven failure.
+Later valid creations in that TGID stay stopped without reservations, including
+after the elected exit is released. Existing flag/quota refusals remain counted.
+A validated exec identity exchange clears obsolete group exit intent; it does
+not resume old held siblings or clear unknown-child quarantine. External fatal
+signals and the separate exec/birth race retain the existing fail-closed rules.
 
 The Linux adapter always suppresses `io_uring_setup` before kernel entry and writes
 EPERM at the suppressed syscall exit. Its total `deniedAdmissions` includes these
@@ -458,7 +466,7 @@ Overflow and incomplete writes cannot qualify. The optional `DENIALS` diagnostic
 never supplies acceptance authority. This policy prevents new setup calls in the
 owned traced tree; it is not a whole-host inherited-capability isolation claim.
 
-Fresh qualification uses `tablo/linux-adapter-qualification/v3` and the v2 private
+Fresh qualification uses `tablo/linux-adapter-qualification/v3` and the v4 private
 pipe protocol. The original30 controls remain mandatory in their original order;
 eight additional owned scopes cover handled/repeated/argument/thread/fork-exec
 refusals, mixed security/quota failures and a deliberately nonzero root. Their

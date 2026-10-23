@@ -345,7 +345,7 @@ function server_fixture_plan_linux_receipt(array $file, string $schema, array $k
     if (strlen($bytes) > 16_384) { throw new RuntimeException('Linux adapter receipt envelope exceeded.'); }
     server_fixture_plan_linux_unique_names($bytes);
     $record = JsonRecord::decode($bytes);
-    if (array_keys($record) !== $keys || [$record['schema'] ?? null, $record['policy'] ?? null] !== [$schema, 'tgid-seccomp-ptrace-x64-v2']) { throw new RuntimeException('Linux adapter receipt shape refused.'); }
+    if (array_keys($record) !== $keys || [$record['schema'] ?? null, $record['policy'] ?? null] !== [$schema, 'tgid-seccomp-ptrace-x64-v3']) { throw new RuntimeException('Linux adapter receipt shape refused.'); }
     foreach ($keys as $key) {
         if (!str_ends_with($key, 'Sha256')) { continue; }
         if (preg_match('/\A[0-9a-f]{64}\z/D', SqlColumn::string($record, $key)) !== 1) { throw new RuntimeException('Linux adapter receipt hash refused.'); }

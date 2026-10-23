@@ -193,7 +193,7 @@ async function main() {
       const owner = { phase: { root, adapterAuthority: randomBytes(32) }, cancelReason: null };
       owner.cancel = reason => cancelOwner(owner, reason);
       const plan = { schema: 'tablo/server-observer-linux-plan/v1', nonce, planId: nonce + '/linux-controller/' + index, root,
-        adapter: observer.linuxAdapter, linux: { policy: 'tgid-seccomp-ptrace-x64-v2', unit: 'process/TGID',
+        adapter: observer.linuxAdapter, linux: { policy: 'tgid-seccomp-ptrace-x64-v3', unit: 'process/TGID',
           source: observer.linuxAdapterSource, recipe: observer.linuxAdapterRecipe, build: observer.linuxAdapterBuild,
           ownerMonotonicNanoseconds: issued.toString(), deadlineNanoseconds: end.toString() }, job: { activeProcessLimit: limit },
         launch: { executable: controls, argv: [mode], cwd: root + '/cwd', environment: { PATH: '/usr/local/bin:/usr/bin:/bin' },
@@ -280,7 +280,7 @@ async function qualifyFallback(spec, base, observer, controls, parentEnd) {
     const owner = { phase: { root, adapterAuthority: randomBytes(32) }, cancelReason: null };
     owner.cancel = reason => cancelOwner(owner, reason);
     const plan = { schema: 'tablo/server-observer-linux-plan/v1', nonce: spec.nonce, planId: spec.nonce + '/fallback/' + index,
-      adapter: observer.linuxAdapter, linux: { policy: 'tgid-seccomp-ptrace-x64-v2', unit: 'process/TGID',
+      adapter: observer.linuxAdapter, linux: { policy: 'tgid-seccomp-ptrace-x64-v3', unit: 'process/TGID',
         source: observer.linuxAdapterSource, recipe: observer.linuxAdapterRecipe, build: observer.linuxAdapterBuild,
         deadlineNanoseconds: deadline.toString(), ownerMonotonicNanoseconds: issued.toString() }, job: { activeProcessLimit: 8 },
       launch: { executable: controls, argv: [name], cwd: root + '/cwd', environment: { PATH: '/usr/local/bin:/usr/bin:/bin' },
@@ -332,7 +332,7 @@ async function qualifyFallback(spec, base, observer, controls, parentEnd) {
     outcomes.push({ name, receipt: await pin(file) }); progress.completed = 30 + outcomes.length;
   }
   const b = await api.readPlan(observer.linuxAdapterBuild.path, observer.linuxAdapterBuild.sha256);
-  await api.retain(base + '/fallback-controls.json', { schema: 'tablo/linux-io-uring-fallback-controls/v1', policy: 'tgid-seccomp-ptrace-x64-v2',
+  await api.retain(base + '/fallback-controls.json', { schema: 'tablo/linux-io-uring-fallback-controls/v1', policy: 'tgid-seccomp-ptrace-x64-v3',
     status: 'passed', nonce: spec.nonce, sourceSha256: b.sourceSha256, recipeSha256: b.recipeSha256, binarySha256: b.binarySha256,
     buildSha256: observer.linuxAdapterBuild.sha256, controlsSourceSha256: spec.controlsSource.sha256, controlsBinarySha256: controls.sha256,
     owner: spec.owner, qualifier: spec.qualifier, platformReceipt: spec.platformReceipt, runtimes: spec.runtimes ?? null, count: outcomes.length, outcomes });
@@ -389,7 +389,7 @@ async function qualifyRemaining(spec, base, observer, controls, outcomes, parent
     const owner = { phase: { root: phaseRoot, adapterAuthority: randomBytes(32) }, cancelReason: null };
     owner.cancel = reason => cancelOwner(owner, reason);
     const plan = { schema: 'tablo/server-observer-linux-plan/v1', nonce: spec.nonce, planId: spec.nonce + '/client/' + label,
-      adapter: observer.linuxAdapter, linux: { policy: 'tgid-seccomp-ptrace-x64-v2', unit: 'process/TGID',
+      adapter: observer.linuxAdapter, linux: { policy: 'tgid-seccomp-ptrace-x64-v3', unit: 'process/TGID',
         source: observer.linuxAdapterSource, recipe: observer.linuxAdapterRecipe, build: observer.linuxAdapterBuild,
         deadlineNanoseconds: deadline.toString(), ownerMonotonicNanoseconds: issued.toString() }, job: { activeProcessLimit: 8 },
       launch: { executable, argv, cwd: phaseRoot + '/cwd', environment: { PATH: '/usr/local/bin:/usr/bin:/bin',
@@ -418,7 +418,7 @@ async function qualifyRemaining(spec, base, observer, controls, outcomes, parent
     context: await api.linuxContext(), runtimes: spec.runtimes, phpBootstrap: spec.phpBootstrap,
     preparedReceipt: spec.platformReceipt, admission: spec.admission });
   const b = await api.readPlan(observer.linuxAdapterBuild.path, observer.linuxAdapterBuild.sha256);
-  await api.retain(spec.outputQualification, { schema: 'tablo/linux-adapter-qualification/v3', policy: 'tgid-seccomp-ptrace-x64-v2', status: 'qualified',
+  await api.retain(spec.outputQualification, { schema: 'tablo/linux-adapter-qualification/v3', policy: 'tgid-seccomp-ptrace-x64-v3', status: 'qualified',
     binarySha256: b.binarySha256, sourceSha256: b.sourceSha256, recipeSha256: b.recipeSha256, buildSha256: observer.linuxAdapterBuild.sha256,
     controlsSourceSha256: spec.controlsSource.sha256, controlsBinarySha256: controls.sha256,
     runtimeControlsSha256: (await pin(base + '/runtime-controls.json')).sha256, platformReceiptSha256: (await pin(base + '/platform.json')).sha256,

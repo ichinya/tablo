@@ -33,7 +33,7 @@ gcc -std=c11 -O2 -Wall -Wextra -Werror -fno-strict-aliasing -fstack-protector-st
   -D_FORTIFY_SOURCE=2 -static -pthread -Wl,-z,noexecstack -Wl,--build-id=none \
   -o /out/server-supervisor-linux-controls tools/server-supervisor-linux-controls.c
 hash() { sha256sum "$1" | cut -d ' ' -f 1; }
-printf '{"schema":"tablo/linux-adapter-build/v1","policy":"tgid-seccomp-ptrace-x64-v2","target":"linux-x86_64","sourceSha256":"%s","recipeSha256":"%s","binarySha256":"%s","compilerImageDigest":"%s","compilerSha256":"%s","linkerSha256":"%s","libcArchiveSha256":"%s"}\n' \
+printf '{"schema":"tablo/linux-adapter-build/v1","policy":"tgid-seccomp-ptrace-x64-v3","target":"linux-x86_64","sourceSha256":"%s","recipeSha256":"%s","binarySha256":"%s","compilerImageDigest":"%s","compilerSha256":"%s","linkerSha256":"%s","libcArchiveSha256":"%s"}\n' \
   "$(hash tools/server-supervisor-linux.c)" "$(hash tools/server-supervisor-linux-build.sh)" \
   "$(hash /out/server-supervisor-linux)" "$COMPILER_IMAGE_DIGEST" "$(hash "$CC_PATH")" \
   "$(hash "$LD_PATH")" "$(hash "$LIBC_ARCHIVE")" > /out/build.json

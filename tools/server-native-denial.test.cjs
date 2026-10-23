@@ -3,7 +3,7 @@
 const test = require('node:test'), assert = require('node:assert/strict');
 const { LinuxRecords, DENIAL_FIELDS, NATIVE_FIRST_FAILURE_SITES, nativeFirstFailureSite } = require('./server-supervisor.cjs');
 const { projectFailure } = require('./server-qualification-diagnostic.cjs');
-const ready = 'READY 7 tgid-seccomp-ptrace-x64-v2 123\nSTARTED 8\n';
+const ready = 'READY 7 tgid-seccomp-ptrace-x64-v3 123\nSTARTED 8\n';
 const input = 'INPUT 0 0 0 1\n', exited = 'EXITED 8 0 0 0\n';
 const before = ready + input + exited;
 const record = values => 'DENIALS ' + values.join(' ') + '\n';
@@ -153,7 +153,7 @@ async function nativeOwner(text, options = {}) {
   const api = module.exports; api.testSeams();
   const pin = { path: '/synthetic/native', sha256: hash };
   const plan = { schema: 'tablo/server-observer-linux-plan/v1', nonce: 'a'.repeat(32), planId: 'synthetic', adapter: pin,
-    linux: { policy: 'tgid-seccomp-ptrace-x64-v2', unit: 'process/TGID', deadlineNanoseconds: '8000000000', ownerMonotonicNanoseconds: '1', source: pin, recipe: pin, build: pin },
+    linux: { policy: 'tgid-seccomp-ptrace-x64-v3', unit: 'process/TGID', deadlineNanoseconds: '8000000000', ownerMonotonicNanoseconds: '1', source: pin, recipe: pin, build: pin },
     job: { activeProcessLimit: 8 }, launch: { executable: pin, argv: [], cwd: '/synthetic', environment: {},
       input: { mode: 'none', path: null, sha256: null, bytes: 0 }, stdout: root + '/evidence/controller.stdout', stderr: root + '/evidence/controller.stderr' } };
   const owner = { phase: { root, kind: 'engine', adapterAuthority: Buffer.alloc(32), diagnostic: { state: null, close: null, nativeFirstFailureSite: 'POLICY_DENIAL' } },

@@ -7,7 +7,7 @@ const { EventEmitter } = require('node:events');
 const { LinuxRecords, acceptEvent } = require('./server-supervisor.cjs');
 const { projectFailure, eventPresence, cancelOwner } = require('./server-qualification-diagnostic.cjs');
 const sha = value => createHash('sha256').update(value).digest('hex');
-const policy = 'tgid-seccomp-ptrace-x64-v2';
+const policy = 'tgid-seccomp-ptrace-x64-v3';
 const names = ['uring-handled','uring-repeat','uring-arguments','uring-threads','uring-forkexec','uring-mixed-security','uring-mixed-quota','uring-unhandled'];
 const source = fs.readFileSync(__dirname + '/server-supervisor.cjs', 'utf8');
 const qualifierSource = fs.readFileSync(__dirname + '/server-supervisor-linux-qualify.cjs', 'utf8');
@@ -164,7 +164,8 @@ test('v2 CLOSED retains authoritative zero, positive, mixed and incomplete facts
   }
 });
 test('old policy/arity, absent authority, impossible counts, overflow and hostile fragments fail actual parser', () => {
-  for (const text of [prefix.replace(policy,'tgid-seccomp-ptrace-x64-v1') + closed(0,0,0), prefix + closed(5,6,6), prefix + closed(5,5,6),
+  for (const text of [prefix.replace(policy,'tgid-seccomp-ptrace-x64-v1') + closed(0,0,0),
+    prefix.replace(policy,policy.replace(/3$/, '2')) + closed(0,0,0), prefix + closed(5,6,6), prefix + closed(5,5,6),
     prefix + closed(2147483648,0,0), prefix + closed(5,-1,0), prefix + closed(5,'01',0), prefix + closed(5,'1.5',0),
     prefix + closed(5,'1e0',0), prefix + closed(5,'PRIVATE\u0000',0), prefix + closed(0,0,0).replace(/ 0 0\n$/, '\n'),
     prefix + closed(0,0,0).replace(/\n$/, ' extra\n'), prefix + closed(0,0,0).replace(/\n$/, '\r\n')]) assert.throws(() => parse(text,true), /LINUX_/);
@@ -189,6 +190,7 @@ test('actual armed owner admits only complete qv3 with all30+8 and pinned positi
 for (const [label, mutate] of [
   ['qv2',f=>{f.q.schema='tablo/linux-adapter-qualification/v2';f.updateQ();}],
   ['policyv1',f=>{f.q.policy='tgid-seccomp-ptrace-x64-v1';f.updateQ();}],
+  ['previous policy',f=>{f.q.policy=policy.replace(/3$/, '2');f.updateQ();}],
   ['relabelled old binary',f=>{f.q.binarySha256=sha('old-binary');f.updateQ();}],
   ['old actual binary bytes',f=>f.files.set(f.observer.linuxAdapter.path,Buffer.from('old-binary'))],
   ['q order',f=>{const entries=Object.entries(f.q);[entries[0],entries[1]]=[entries[1],entries[0]];f.observer.linuxAdapterQualification=f.put(f.root+'/qualification.json',Object.fromEntries(entries));}],

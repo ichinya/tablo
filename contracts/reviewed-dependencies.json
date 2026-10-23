@@ -54,7 +54,7 @@
                 "tools/server-io-uring-php-grammar.test.php",
                 "tools/server-supervisor-linux-fallback-unit.c"
             ],
-            "fingerprint": "sha256:c35dbc252db0f559d5755fe1734af873609eb0ae62bea6a55868548b18d75b83"
+            "fingerprint": "sha256:f3739d04e3262931e4a11e736692b70693a2edf5ee6d20578ad4bab21dc1bf37"
         },
         {
             "path": "app/AddressRange.php",
@@ -5236,7 +5236,7 @@
                 "tools/server-supervisor-linux-qualify.cjs",
                 "tools/server-linux-prepare.cjs"
             ],
-            "fingerprint": "sha256:caf05704ebb1ac804515ed12d9766e597ba13fe393045b12571fe38b7a311d25"
+            "fingerprint": "sha256:ff38c94cbd88d40b875d6c3b03875977e1f351c2a05c8fe11ccd6f32537103b4"
         },
         {
             "path": "docs/read-api.md",
@@ -11051,7 +11051,7 @@
                 "tools/server-supervisor-linux-qualify.cjs",
                 "tools/server-linux-prepare.cjs"
             ],
-            "fingerprint": "sha256:77febdf6c447cde5738a2eb491a253471ab798b6db4dcd3d6467ff846d9f3621"
+            "fingerprint": "sha256:cf64729e781b483a5813e0b8b59e5970d4c6bcfe8dd4537191f77207ebe91f19"
         },
         {
             "path": "tools/ServerTestEvidence.php",
@@ -11193,7 +11193,7 @@
                 "tools/server-linux-prepare.cjs",
                 "tools/server-io-uring-php-grammar.test.php"
             ],
-            "fingerprint": "sha256:849b5fc170379917354aba3b260d457ff41981d7c10eda94fb71ff5c023aaf55"
+            "fingerprint": "sha256:45c2ebdf02aaf491b30078793a3268ba3f85611fed3bdcc7530307a8db5f77df"
         },
         {
             "path": "tools/ServerFixtureCatalog.php",
@@ -11266,7 +11266,7 @@
                 "tools/server-native-denial.test.cjs",
                 "tools/server-io-uring-fallback.test.cjs"
             ],
-            "fingerprint": "sha256:4e9f9eac05dd161d80b368951f07d1a36835f170f5e687f11842763638a02651"
+            "fingerprint": "sha256:2e4f5679ad564b957c8679b65009e9548fd1dfc4d64c6379b9a05b4cf2c697f7"
         },
         {
             "path": "tools/server-supervisor-windows.ps1",
@@ -11419,7 +11419,7 @@
                 "tools/server-io-uring-fallback.test.cjs",
                 "tools/server-supervisor-linux-fallback-unit.c"
             ],
-            "fingerprint": "sha256:b1f8d181fe2059f364220cc593d0d5c4ed6ba73954919b6239f0333796a4b93e"
+            "fingerprint": "sha256:b2342e377104a3f08139a125be3a29141a5a0936b76e8d0c1fdef27d56e5d1c5"
         },
         {
             "path": "tools/server-supervisor-linux-controls.c",
@@ -11447,7 +11447,7 @@
                 "tools/server-linux-prepare.cjs",
                 "tools/server-io-uring-fallback.test.cjs"
             ],
-            "fingerprint": "sha256:2b6bc378d354f2a565d2120a30af4ebf992d9c2718866ae13ed9efbc51a8619a"
+            "fingerprint": "sha256:3a4571d62e17bf9a722b0b218b807680be69d07d92b4f0fba474f790c699939a"
         },
         {
             "path": "tools/server-supervisor-linux-qualify.cjs",
@@ -11461,7 +11461,7 @@
                 "docs/database-engines.md",
                 "tools/server-io-uring-fallback.test.cjs"
             ],
-            "fingerprint": "sha256:327080dedff26b1b72679e199eab6347a9bd045ce5957ea707a901bf6792b861"
+            "fingerprint": "sha256:40ddd8af72c2088666c11bf6bba670233d04195463b48d9847bbe1c13376f0f9"
         },
         {
             "path": "tools/server-linux-prepare.cjs",
@@ -11507,7 +11507,7 @@
                 "tools/server-native-tests.json",
                 "node --test tools/server-native-denial.test.cjs"
             ],
-            "fingerprint": "sha256:3cf4ed57e544d38d213f513d62ef58c860e09daf2de3576ced6c29cdd37708bb"
+            "fingerprint": "sha256:bcba133508eac3206776f1e048a6cf5d9bd05cb7d22445fa5c0a1b17d2a2d713"
         },
         {
             "path": "tools/server-io-uring-fallback.test.cjs",
@@ -11517,7 +11517,7 @@
                 "tools/server-native-tests.json",
                 "node --test tools/server-io-uring-fallback.test.cjs"
             ],
-            "fingerprint": "sha256:a2ff39ac007e6d548c7da952d6103d4bc0d6b5c2fef39088496e615415042a83"
+            "fingerprint": "sha256:2c4645a8a7c8735487896366858ffbb12c064e52c6393e1012a6c5ff244a7637"
         },
         {
             "path": "tools/server-io-uring-php-grammar.test.php",
@@ -11527,7 +11527,7 @@
                 "tools/server-native-tests.json",
                 "php -n tools/server-io-uring-php-grammar.test.php"
             ],
-            "fingerprint": "sha256:08530e37d547c00c6baf89de9080e3796a7a88b10b705f93d5f985ca91d1a300"
+            "fingerprint": "sha256:ecd0e317f8781faa80d6fba28b92e9335b15959cacb504b62b3b80c19682e43a"
         },
         {
             "path": "tools/server-supervisor-linux-fallback-unit.c",
@@ -11538,7 +11538,7 @@
                 "docs/database-engines.md",
                 "Separate one-resource-per-workflow native stub checkpoint"
             ],
-            "fingerprint": "sha256:fb206b1e551b6ae21bdd09f2a1fbaa8057de00d8ce2531b5992816d8493f263d"
+            "fingerprint": "sha256:644eb8c9851de969d164fc963b59db1fe1dfbb454719fc1e4ec7b89181289d48"
         }
     ]
 }

@@ -31,13 +31,14 @@
 #error Only the reviewed native Linux x86-64 ABI is supported
 #endif
 
-#define POLICY "tgid-seccomp-ptrace-x64-v2"
+#define POLICY "tgid-seccomp-ptrace-x64-v3"
 #define TASKS 512
 #define GROUPS 9
 #define NS UINT64_C(1000000000)
 enum { NONE, PROCESS, THREAD, REJECT, CLONE3, URING_EPERM };
-struct task { pid_t tid, tgid; int pending, born, reject_errno, newborn; };
-struct group { pid_t tgid; int fd; };
+enum { RUNNABLE, HELD_GROUP_EXIT, HELD_CREATION };
+struct task { pid_t tid, tgid; int pending, born, reject_errno, newborn, held; };
+struct group { pid_t tgid; int fd; pid_t exit_tid; int exit_released; };
 static struct task tasks[TASKS];
 static struct group groups[GROUPS];
 static pid_t early_stops[TASKS];
@@ -193,8 +194,28 @@ static void cancel(void) {
     }
 }
 static int resume(struct task *t, int signal) {
+    if (t->held) return failure_mark(N_RESUME);
     enum __ptrace_request request = t->pending ? PTRACE_SYSCALL : PTRACE_CONT;
     if (ptrace(request, t->tid, NULL, (void *)(intptr_t)signal)) return failure_mark(N_RESUME);
+    return 0;
+}
+static int release_group_exits(void) {
+    // Do not let exit_group kill a sibling before its child's birth is owned.
+    // A policy-denied but uncancelled controller must still be able to settle.
+    if (cancelled) return 0;
+    for (unsigned i = 0; i < GROUPS; i++) {
+        struct group *g = &groups[i];
+        if (!g->tgid || !g->exit_tid || g->exit_released) continue;
+        struct task *t = task(g->exit_tid);
+        if (!t || t->tgid != g->tgid || t->held != HELD_GROUP_EXIT) continue;
+        unsigned j;
+        for (j = 0; j < TASKS; j++) if (tasks[j].tid && tasks[j].tgid == g->tgid
+            && (tasks[j].pending == PROCESS || tasks[j].pending == THREAD) && !tasks[j].born) break;
+        if (j != TASKS) continue;
+        // The intent stays fenced after this one original-argument kernel entry.
+        g->exit_released = 1; t->held = RUNNABLE;
+        if (resume(t, 0)) return -1;
+    }
     return 0;
 }
 static int suppress(struct task *t, struct user_regs_struct *regs, int error, int kind) {
@@ -213,7 +234,7 @@ static int install_filter(void) {
         BPF_JUMP(BPF_JMP | BPF_JGE | BPF_K, 0x40000000U, 0, 1),
         BPF_STMT(BPF_RET | BPF_K, SECCOMP_RET_KILL_PROCESS),
         TRACE(SYS_fork), TRACE(SYS_vfork), TRACE(SYS_clone), TRACE(SYS_clone3),
-        TRACE(SYS_execve), TRACE(SYS_execveat), TRACE(SYS_ptrace), TRACE(SYS_seccomp),
+        TRACE(SYS_execve), TRACE(SYS_execveat), TRACE(SYS_exit_group), TRACE(SYS_ptrace), TRACE(SYS_seccomp),
         TRACE(SYS_prctl), TRACE(SYS_unshare), TRACE(SYS_setns), TRACE(SYS_io_uring_setup),
         BPF_STMT(BPF_RET | BPF_K, SECCOMP_RET_ALLOW)
     };
@@ -227,7 +248,7 @@ static int gate(struct task *t) {
     long size = ptrace(PTRACE_GET_SYSCALL_INFO, t->tid, sizeof(info), &info);
     if (size < (long)(offsetof(struct ptrace_syscall_info, seccomp.ret_data) + sizeof(info.seccomp.ret_data))
         || info.op != PTRACE_SYSCALL_INFO_SECCOMP || info.arch != AUDIT_ARCH_X86_64
-        || ptrace(PTRACE_GETREGS, t->tid, NULL, &regs) || info.seccomp.nr != regs.orig_rax || t->pending) return failure_mark(N_GATE_METADATA);
+        || ptrace(PTRACE_GETREGS, t->tid, NULL, &regs) || info.seccomp.nr != regs.orig_rax || t->pending || t->held) return failure_mark(N_GATE_METADATA);
     uint64_t nr = info.seccomp.nr, flags = regs.rdi;
     if (nr == SYS_execve || nr == SYS_execveat) {
         if (!ready) {
@@ -238,6 +259,13 @@ static int gate(struct task *t) {
         return resume(t, 0);
     }
     if (!launched) return failure_mark(N_GATE_NOT_LAUNCHED);
+    if (nr == SYS_exit_group) {
+        struct group *g = group(t->tgid);
+        if (!g) return failure_mark(N_GATE_METADATA);
+        if (!g->exit_tid) g->exit_tid = t->tid;
+        t->held = HELD_GROUP_EXIT;
+        return 0;
+    }
     if (nr == SYS_io_uring_setup) {
         // Refusal is always before kernel entry, independent of caller/arguments.
         if (denied >= INT32_MAX || io_uring_setup_attempts >= INT32_MAX) { failure_mark(N_COUNTER_BOUND); failed = 1; return -1; }
@@ -262,14 +290,15 @@ static int gate(struct task *t) {
         return suppress(t, &regs, EPERM, REJECT);
     }
     int thread = nr == SYS_clone && (flags & CLONE_THREAD);
-    if (!thread) {
-        if (live + pending >= (unsigned)limit) {
-            diagnostic_increment(&denial_buckets[nr == SYS_clone ? D_CLONE_LIMIT : nr == SYS_fork ? D_FORK_LIMIT : D_VFORK_LIMIT]);
-            failure_mark(N_POLICY_DENIAL); failed = 1; if (admission_increment(&denied)) return -1;
-            return suppress(t, &regs, EAGAIN, REJECT);
-        }
-        pending++; reservations++; if (live + pending > peak) peak = live + pending;
+    if (!thread && live + pending >= (unsigned)limit) {
+        diagnostic_increment(&denial_buckets[nr == SYS_clone ? D_CLONE_LIMIT : nr == SYS_fork ? D_FORK_LIMIT : D_VFORK_LIMIT]);
+        failure_mark(N_POLICY_DENIAL); failed = 1; if (admission_increment(&denied)) return -1;
+        return suppress(t, &regs, EAGAIN, REJECT);
     }
+    struct group *g = group(t->tgid);
+    if (!g) return failure_mark(N_GATE_METADATA);
+    if (g->exit_tid) { t->held = HELD_CREATION; return 0; } // No reservation or kernel entry after exit intent.
+    if (!thread) { pending++; reservations++; if (live + pending > peak) peak = live + pending; }
     t->pending = thread ? THREAD : PROCESS; t->born = 0;
     return resume(t, 0);
 }
@@ -325,7 +354,7 @@ static int exec_event(pid_t tid) {
     unsigned long old;
     if (ptrace(PTRACE_GETEVENTMSG, tid, NULL, &old) || old > INT32_MAX) return failure_mark(N_EXEC_METADATA);
     struct task *t = task((pid_t)old);
-    if (!t || t->pending || !group(t->tgid) || t->tgid != tid) return failure_mark(N_EXEC_ACCOUNTING);
+    if (!t || t->pending || t->held || !group(t->tgid) || t->tgid != tid) return failure_mark(N_EXEC_ACCOUNTING);
     // The kernel's exec event replaces the former leader identity. Keep its TGID
     // and pidfd; never decrement the process count for this identity exchange.
     struct task *leader = task(tid);
@@ -343,6 +372,7 @@ static int exec_event(pid_t tid) {
         started = 1;
         char line[64]; snprintf(line, sizeof(line), "STARTED %ld\n", (long)root); event(line);
     }
+    struct group *g = group(t->tgid); g->exit_tid = 0; g->exit_released = 0;
     return resume(t, 0);
 }
 static int terminal(struct task *t, int status) {
@@ -379,7 +409,7 @@ static int reap(void) {
             }
             return failure_mark(N_WAIT_RESULT);
         }
-        if (!tid) return 0;
+        if (!tid) return release_group_exits();
         struct task *t = task(tid);
         if (WIFEXITED(status) || WIFSIGNALED(status)) {
             if (!t) return failure_mark(N_WAIT_REGISTRY);
@@ -410,7 +440,7 @@ static int reap(void) {
         }
         else if (ev == PTRACE_EVENT_SECCOMP) { if (gate(t)) return failure_mark(N_UNKNOWN); }
         else if (ev == PTRACE_EVENT_FORK || ev == PTRACE_EVENT_VFORK || ev == PTRACE_EVENT_CLONE) { if (birth(t)) return failure_mark(N_UNKNOWN); }
-        else if (ev == PTRACE_EVENT_EXIT) { if (resume(t, 0)) return failure_mark(N_UNKNOWN); }
+        else if (ev == PTRACE_EVENT_EXIT) { t->held = RUNNABLE; if (resume(t, 0)) return failure_mark(N_UNKNOWN); }
         else if (ev) return failure_mark(N_WAIT_EVENT);
         else if (t->newborn && sig == SIGSTOP) { t->newborn = 0; if (resume(t, 0)) return failure_mark(N_UNKNOWN); }
         else if (sig == (SIGTRAP | 0x80)) { if (syscall_exit(t)) return failure_mark(N_UNKNOWN); }
@@ -420,7 +450,7 @@ static int reap(void) {
             if (resume(t, sig)) return failure_mark(N_UNKNOWN);
         }
     }
-    return 0;
+    return release_group_exits();
 }
 static void input(void) {
     static unsigned char buffer[16384];

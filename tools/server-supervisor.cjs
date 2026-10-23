@@ -14,7 +14,7 @@ const SECOND = 1_000_000_000n;
 const RESERVE = SECOND;
 const HEX = /^[0-9a-f]{64}$/;
 const NONCE = /^[0-9a-f]{32}$/;
-const LINUX_POLICY = 'tgid-seccomp-ptrace-x64-v2';
+const LINUX_POLICY = 'tgid-seccomp-ptrace-x64-v3';
 const QUALIFICATION_KEYS = Object.freeze(['schema', 'policy', 'status', 'binarySha256', 'sourceSha256', 'recipeSha256', 'buildSha256',
   'controlsSourceSha256', 'controlsBinarySha256', 'runtimeControlsSha256', 'platformReceiptSha256', 'nonce', 'runtimes',
   'runtimeControls', 'platformReceipt', 'neutralControls', 'fallbackControlsSha256', 'fallbackControls']);

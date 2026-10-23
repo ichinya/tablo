@@ -264,10 +264,10 @@ namespace {
     $inputs = ['linuxAdapter' => $reference('binary'), 'linuxAdapterSource' => $reference('source'),
         'linuxAdapterRecipe' => $reference('recipe'), 'linuxAdapterBuild' => $reference('build.json'),
         'linuxAdapterQualification' => $reference('qualification.json')];
-    $build = ['schema' => 'tablo/linux-adapter-build/v1', 'policy' => 'tgid-seccomp-ptrace-x64-v2', 'target' => 'linux-x86_64',
+    $build = ['schema' => 'tablo/linux-adapter-build/v1', 'policy' => 'tgid-seccomp-ptrace-x64-v3', 'target' => 'linux-x86_64',
         'sourceSha256' => $hash, 'recipeSha256' => $hash, 'binarySha256' => $hash, 'compilerImageDigest' => 'sha256:' . $hash,
         'compilerSha256' => $hash, 'linkerSha256' => $hash, 'libcArchiveSha256' => $hash];
-    $qualified = ['schema' => 'tablo/linux-adapter-qualification/v3', 'policy' => 'tgid-seccomp-ptrace-x64-v2', 'status' => 'qualified',
+    $qualified = ['schema' => 'tablo/linux-adapter-qualification/v3', 'policy' => 'tgid-seccomp-ptrace-x64-v3', 'status' => 'qualified',
         'binarySha256' => $hash, 'sourceSha256' => $hash, 'recipeSha256' => $hash, 'buildSha256' => $hash,
         'controlsSourceSha256' => $hash, 'controlsBinarySha256' => $hash, 'runtimeControlsSha256' => $hash, 'platformReceiptSha256' => $hash,
         'nonce' => $nonce, 'runtimes' => $runtimes, 'runtimeControls' => $reference('runtime-controls.json'),
@@ -292,7 +292,7 @@ namespace {
         '"sch\\u0065ma":"old",', '"\\u0073chema":"old",'] as $duplicate) {
         grammar_refused(static fn () => $run($rawBuild, '{' . $duplicate . substr($rawQualified, offset: 1)));
     }
-    foreach (['"policy":"old",', '"pol\\u0069cy":"tgid-seccomp-ptrace-x64-v2",'] as $duplicate) {
+    foreach (['"policy":"old",', '"pol\\u0069cy":"tgid-seccomp-ptrace-x64-v3",'] as $duplicate) {
         grammar_refused(static fn () => $run($rawBuild, str_replace('"policy":', $duplicate . '"policy":', $rawQualified)));
     }
     foreach (['"path":"foreign",', '"pa\\u0074h":"foreign",',
@@ -325,6 +325,9 @@ namespace {
         'sourceSha256' => str_repeat('d', times: 64), 'compilerImageDigest' => 'latest'] as $key => $value) {
         grammar_refused(static fn () => $run(array_replace($build, [$key => $value]), $qualified));
     }
+    $previousPolicy = substr($build['policy'], offset: 0, length: -1) . '2';
+    grammar_refused(static fn () => $run(array_replace($build, ['policy' => $previousPolicy]), $qualified));
+    grammar_refused(static fn () => $run($build, array_replace($qualified, ['policy' => $previousPolicy])));
     grammar_refused(static fn () => $run($build, array_reverse($qualified, preserve_keys: true)));
     grammar_refused(static fn () => $run($build, $qualified + ['extra' => 0]));
     foreach (array_keys($qualified) as $key) {
