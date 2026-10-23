@@ -25,14 +25,7 @@ final class ReviewedDependenciesTest
         foreach (array_keys(\required_reviewed_dependencies()) as $path) {
             $destination = $directory->path . '/' . $path;
             if (!is_dir(dirname($destination))) { mkdir(dirname($destination), permissions: 0o700, recursive: true); }
-            copy($root . '/' . $path, $destination);
-            if (!is_dir(dirname($directory->path . '/' . $path))) {
-                mkdir(dirname($directory->path . '/' . $path), permissions: 0o700, recursive: true);
-            }
-            copy($root . '/' . $path, $directory->path . '/' . $path);
-        }
-        foreach (['reviewed-dependencies.php', 'capture-reviewed-dependencies.php'] as $file) {
-            copy($root . '/tools/' . $file, $directory->path . '/tools/' . $file);
+            reviewed_dependencies_fixture_source($root, $path, $destination);
         }
     }
 
@@ -101,5 +94,21 @@ final class ReviewedDependenciesTest
             file_put_contents($path, $original);
             \check_reviewed_dependencies($directory->path);
         } finally { $directory->close(); }
+    }
+}
+
+/** These fixtures exercise every catalog path's integrity, ownership and coverage, without executing its application code.
+ * Only the actual capture/guard bootstrap needs executable project bytes. */
+function reviewed_dependencies_fixture_source(string $root, string $path, string $destination): void
+{
+    $bootstrap = ['tools/capture-reviewed-dependencies.php', 'tools/reviewed-dependencies.php', 'tools/reviewed-dependency-map.json',
+        'tools/ReviewedDependencyManifest.php', 'tools/ReviewedDependencyCatalog.php', 'tools/ReviewedDependencyEntry.php',
+        'tools/ReviewedDependencyCoverage.php', 'tools/MagoSource.php', 'app/RequiredFile.php'];
+    if (in_array($path, $bootstrap, strict: true)) {
+        if (!copy($root . '/' . $path, $destination)) { throw new RuntimeException('Cannot copy reviewed fixture bootstrap.'); }
+        return;
+    }
+    if (file_put_contents($destination, data: "<?php\n// Fixed public integrity fixture bytes.\n") === false) {
+        throw new RuntimeException('Cannot create reviewed integrity fixture.');
     }
 }

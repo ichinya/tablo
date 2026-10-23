@@ -10415,7 +10415,7 @@
                 "Composer verify",
                 "Composer analyze"
             ],
-            "fingerprint": "sha256:657e8ce06c6071fafde74c03a3e92feedced987f56ff55f14e9a3b71b2da1de4"
+            "fingerprint": "sha256:b19ad96d29da6604606bba24e4dbf2299addff0574d63779456e82c1da4f412c"
         },
         {
             "path": "tests/Unit/RuntimeIniTest.php",
