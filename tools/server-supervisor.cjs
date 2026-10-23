@@ -25,6 +25,8 @@ const normalize = value => value.replaceAll('\\', '/');
 const sha = bytes => createHash('sha256').update(bytes).digest('hex');
 // Refusal identity comes only from this owner, never from Error.message/stack.
 const observerRefusals = new WeakMap();
+// Private diagnostic custody: revocation is monotonic and belongs to one phase.
+const revokedNativeFirstFailurePhases = new WeakSet(), observerFailureNativePhases = new WeakMap();
 const fail = code => { const error = new Error(code); observerRefusals.set(error, code); throw error; };
 const object = value => value !== null && typeof value === 'object' && !Array.isArray(value);
 const integer = (value, minimum, maximum) => Number.isSafeInteger(value) && value >= minimum && value <= maximum;
@@ -94,7 +96,12 @@ function observerControllerStatus(exited) {
   const valid = integer(code, 0, 255) && signal === null || code === null && integer(signal, 1, 64);
   return { controllerExitCode: valid ? code : 'UNKNOWN', controllerPosixSignal: valid ? signal : 'UNKNOWN', controllerTerminationRequested };
 }
+function revokeNativeFirstFailure(phase) {
+  if (object(phase)) revokedNativeFirstFailurePhases.add(phase);
+}
 function observerCancel(owner, reason) {
+  // A later protocol attempt still revokes diagnostics after an earlier cancel.
+  if (reason === 'protocol') { try { revokeNativeFirstFailure(owner.phase); } catch { /* Diagnostic only. */ } }
   if (owner.cancelReason) return;
   owner.cancelReason = reason;
   try {
@@ -190,6 +197,8 @@ function latchObserverFailure(failure, error, owner) {
   const phase = ['prepare', 'baseline', 'engine', 'control', 'MISSING'].includes(failure.phase) ? failure.phase : 'UNKNOWN';
   const base = { schema: 'tablo/server-safe-observer-failure/v5', status: 'failed', rootCause: 'UNKNOWN', issueAccepted: false, stage, phase };
   try {
+    const nativePhase = owner?.phase;
+    if (object(nativePhase)) observerFailureNativePhases.set(failure, nativePhase);
     const scalar = (value, valid) => value === undefined ? 'MISSING' : value === null ? null : valid(value) ? value : 'UNKNOWN';
     const prototype = object(error) ? Object.getPrototypeOf(error) : null;
     const errorClass = [[Error, 'Error'], [TypeError, 'TypeError'], [RangeError, 'RangeError'], [SyntaxError, 'SyntaxError']]
@@ -205,14 +214,16 @@ function latchObserverFailure(failure, error, owner) {
       activeDockerLeases: observerDockerLeases(owner),
       firstCancellation: observerFirstCancellation(owner?.firstCancellation === undefined ? 'MISSING' : owner.firstCancellation),
       ...observerCloseDiagnostic(owner),
-      nativeFirstFailureSite: owner?.cancelReason === 'protocol' ? 'UNKNOWN' : nativeFirstFailureSite(owner?.phase?.diagnostic?.nativeFirstFailureSite),
+      nativeFirstFailureSite: owner?.cancelReason === 'protocol' || revokedNativeFirstFailurePhases.has(nativePhase)
+        ? 'UNKNOWN' : nativeFirstFailureSite(nativePhase?.diagnostic?.nativeFirstFailureSite),
       prepareDiagnostic: consolePrepareDiagnostic(owner?.phase?.kind === 'prepare' ? owner.phase.prepareDiagnostic : undefined) });
   } catch { failure.first = Object.freeze({ ...base, errorClass: 'UNKNOWN', refusal: 'UNKNOWN', activeDockerLeases: 'UNKNOWN',
     firstCancellation: 'UNKNOWN', adapterCloseObserved: 'UNKNOWN', adapterSignal: 'UNKNOWN', nativeFirstFailureSite: 'UNKNOWN', prepareDiagnostic: 'MISSING' }); }
 }
 function emitObserverFailure(failure) {
   try {
-    const bytes = JSON.stringify({ ...failure.first, nativeFirstFailureSite: nativeFirstFailureSite(failure.first?.nativeFirstFailureSite),
+    const bytes = JSON.stringify({ ...failure.first, nativeFirstFailureSite: revokedNativeFirstFailurePhases.has(observerFailureNativePhases.get(failure))
+      ? 'UNKNOWN' : nativeFirstFailureSite(failure.first?.nativeFirstFailureSite),
       prepareDiagnostic: consolePrepareDiagnostic(failure.first?.prepareDiagnostic) }) + '\n';
     if (!failure.first || Buffer.byteLength(bytes) > 4096) return false;
     process.stderr.write(bytes); return true;
@@ -895,6 +906,7 @@ class LinuxRecords {
 }
 
 async function runLinuxAdapter(owner, plan) {
+  const firstFailurePhase = owner.phase;
   owner.nativeFirstFailureSite = 'UNKNOWN';
   if (object(owner.phase?.diagnostic)) owner.phase.diagnostic.nativeFirstFailureSite = 'UNKNOWN';
   if (process.platform !== 'linux' || process.arch !== 'x64' || plan.linux.policy !== LINUX_POLICY
@@ -928,7 +940,8 @@ async function runLinuxAdapter(owner, plan) {
     let spawnError = false, stderrTruncated = false, protocolFailed = false, closedRecord = null, commands = 0;
     let firstFailureProtocolFailed = false; // Diagnostic only; original protocol authority remains unchanged.
     const publishFirstFailure = () => {
-      if (protocolFailed || owner.cancelReason === 'protocol') firstFailureProtocolFailed = true;
+      if (protocolFailed || owner.cancelReason === 'protocol' || revokedNativeFirstFailurePhases.has(firstFailurePhase)) firstFailureProtocolFailed = true;
+      if (firstFailureProtocolFailed) revokeNativeFirstFailure(firstFailurePhase);
       owner.nativeFirstFailureSite = firstFailureProtocolFailed ? 'UNKNOWN' : records.nativeFirstFailureSite;
       if (object(diagnostic)) diagnostic.nativeFirstFailureSite = owner.nativeFirstFailureSite;
     };

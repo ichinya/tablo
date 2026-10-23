@@ -54,7 +54,7 @@
                 "tools/server-io-uring-php-grammar.test.php",
                 "tools/server-supervisor-linux-fallback-unit.c"
             ],
-            "fingerprint": "sha256:fb34ac29ac242c04e5536bedb2f11a5a6e86b7fb115a8ca0da0f06fababba0ae"
+            "fingerprint": "sha256:6e181749ed8cb62b12d090f2b11333e4feeea537417683d694c0a4cb08fa879e"
         },
         {
             "path": "app/AddressRange.php",
@@ -11266,7 +11266,7 @@
                 "tools/server-native-denial.test.cjs",
                 "tools/server-io-uring-fallback.test.cjs"
             ],
-            "fingerprint": "sha256:d7287e1266a4975d124f3c756df3369dcc42ec27e9c638a412c601ec3e703eab"
+            "fingerprint": "sha256:c52a2a678b4a961f50b46b9dd3829f5591e79cf8baa768413fc92050b56d25e3"
         },
         {
             "path": "tools/server-supervisor-windows.ps1",
@@ -11507,7 +11507,7 @@
                 "tools/server-native-tests.json",
                 "node --test tools/server-native-denial.test.cjs"
             ],
-            "fingerprint": "sha256:78cb13a62d514f090f2b9d7a22f557eb70bb14e0bb8be29537292c7b5808dd76"
+            "fingerprint": "sha256:b0c8b235e66a2e42152903b4de921f7257b09cc45481952563059d1cd2fffaa7"
         },
         {
             "path": "tools/server-io-uring-fallback.test.cjs",

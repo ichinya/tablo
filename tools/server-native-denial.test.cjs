@@ -99,7 +99,7 @@ async function nativeOwner(text, options = {}) {
   const { EventEmitter } = require('node:events');
   const crypto = require('node:crypto'), source = fs.readFileSync(__dirname + '/server-supervisor.cjs', 'utf8');
   const effects = [], trip = name => { effects.push(name); throw Error('FORBIDDEN_' + name); };
-  const files = new Map(), root = '/synthetic/phase', hash = 'a'.repeat(64), commands = [], signals = [], captures = [];
+  const files = new Map(), root = '/synthetic/phase', hash = 'a'.repeat(64), commands = [], signals = [], captures = [], output = [];
   const closedObject = target => new Proxy(target, { get(object, key) { if (!Object.hasOwn(object, key)) return trip(String(key)); return object[key]; } });
   const child = new EventEmitter(); child.pid = 7;
   child.stdin = new EventEmitter(); child.stdout = new EventEmitter(); child.stderr = new EventEmitter();
@@ -115,7 +115,8 @@ async function nativeOwner(text, options = {}) {
     }, stat: async file => { assert(files.has(file)); return { size: files.get(file).length }; }
   });
   const module = { exports: {} }, sandbox = { module, exports: module.exports, Buffer, Error, TypeError, RangeError, SyntaxError,
-    __filename: '/synthetic/owner.cjs', process: closedObject({ platform: 'linux', arch: 'x64', hrtime: { bigint: () => 1000n } }),
+    __filename: '/synthetic/owner.cjs', process: closedObject({ platform: 'linux', arch: 'x64', hrtime: { bigint: () => 1000n },
+      stderr: { write: bytes => output.push(bytes) } }),
     require(name) {
       if (name === 'node:fs/promises') return filesystem;
       if (name === 'node:fs') return closedObject({ createReadStream: () => trip('STREAM') });
@@ -137,7 +138,7 @@ async function nativeOwner(text, options = {}) {
       return trip('IMPORT_' + name);
     } };
   sandbox.require.main = {};
-  vm.runInNewContext(source + `\nObject.assign(module.exports, { observerFailure, latchObserverFailure, emitObserverFailure,
+  vm.runInNewContext(source + `\nObject.assign(module.exports, { observerFailure, observerCancel, latchObserverFailure, emitObserverFailure,
     testSeams() { retain=async(file,value)=>{ if (!file.startsWith('${root}/')) throw Error('FOREIGN'); };
       digest=async()=> '${hash}'; pinned=async()=>{}; regular=async file=>file; } });`, sandbox, { filename: sandbox.__filename });
   const api = module.exports; api.testSeams();
@@ -155,7 +156,8 @@ async function nativeOwner(text, options = {}) {
   assert.deepEqual(effects, []);
   const authenticated = files.get(root + '/evidence/adapter-authenticated.ndjson').toString('utf8').trim().split('\n').filter(Boolean)
     .map(line => JSON.parse(Buffer.from(JSON.parse(line).payload, 'base64').toString('utf8')));
-  return { api, owner, plan, state, failure: failure.first, authenticated, commands, signals, captures };
+  return { api, owner, plan, state, failure: failure.first, failureState: failure, authenticated, commands, signals, captures, output,
+    injectStdout: bytes => child.stdout.emit('data', Buffer.from(bytes)) };
 }
 test('actual native owner retains accepted EXITED site after missing CLOSED or owner expiry and emits no extra authority', async () => {
   for (const expire of [false, true]) {
@@ -229,6 +231,65 @@ test('diagnostic protocol faults preserve original native authority flags, closu
     assert.equal(h.owner.nativeFirstFailureSite, 'UNKNOWN'); assert.equal(h.failure.nativeFirstFailureSite, 'UNKNOWN');
     await assert.rejects(h.api.verifyCustody(h.owner, h.state), /OBSERVER_CLOSURE_UNKNOWN/);
   }
+});
+function emittedFailure(h, failure = h.failureState) {
+  assert.equal(h.api.emitObserverFailure(failure), true);
+  const bytes = h.output.at(-1); assert(Buffer.byteLength(bytes) <= 4096); assert(!bytes.includes('PRIVATE'));
+  return JSON.parse(bytes);
+}
+test('late same-phase parser invalidation revokes final emitted site without changing the frozen first failure or authority', async () => {
+  const h = await nativeOwner(ready + input + 'EXITED 8 0 0 0 34\n');
+  const first = h.failureState.first, snapshot = JSON.parse(JSON.stringify(first)), close = JSON.stringify(h.owner.adapterClose);
+  assert.equal(first.nativeFirstFailureSite, 'INPUT_READ'); assert(Object.isFrozen(first));
+  assert.equal(emittedFailure(h).nativeFirstFailureSite, 'INPUT_READ');
+  h.injectStdout('BOGUS 1\n');
+  assert.equal(h.owner.nativeFirstFailureSite, 'UNKNOWN'); assert.equal(h.failureState.first, first);
+  assert.equal(first.nativeFirstFailureSite, 'INPUT_READ'); assert.equal(JSON.stringify(h.owner.adapterClose), close);
+  const emitted = emittedFailure(h);
+  assert.equal(emitted.nativeFirstFailureSite, 'UNKNOWN');
+  assert.deepEqual({...emitted,nativeFirstFailureSite:snapshot.nativeFirstFailureSite}, snapshot);
+  assert.equal(emittedFailure(h).nativeFirstFailureSite, 'UNKNOWN');
+});
+test('deadline then protocol revokes the phase after snapshot while preserving the first cancellation, error and control delivery', async () => {
+  const h = await nativeOwner(ready + input + 'EXITED 8 0 0 0 34\n');
+  h.owner.cancel = reason => h.api.observerCancel(h.owner, reason);
+  h.owner.cancel('deadline');
+  const firstCancellation = h.owner.firstCancellation, delivered = [...h.commands], close = JSON.stringify(h.owner.adapterClose);
+  const failure = h.api.observerFailure(); failure.stage = 'custody'; failure.phase = 'engine';
+  h.api.latchObserverFailure(failure, Error('PRIVATE first'), h.owner);
+  const first = failure.first, snapshot = JSON.parse(JSON.stringify(first));
+  assert.equal(first.nativeFirstFailureSite, 'INPUT_READ'); assert.equal(first.cancellation, 'deadline');
+  h.owner.cancel('protocol');
+  assert.equal(h.owner.cancelReason, 'deadline'); assert.equal(h.owner.firstCancellation, firstCancellation);
+  assert.deepEqual(h.commands, delivered); assert.equal(JSON.stringify(h.owner.adapterClose), close);
+  assert.equal(failure.first, first); assert.equal(first.nativeFirstFailureSite, 'INPUT_READ');
+  const emitted = emittedFailure(h, failure);
+  assert.equal(emitted.nativeFirstFailureSite, 'UNKNOWN');
+  assert.deepEqual({...emitted,nativeFirstFailureSite:snapshot.nativeFirstFailureSite}, snapshot);
+  // A subsequently accepted record cannot restore the revoked diagnostic.
+  h.injectStdout(closed(0));
+  assert.equal(h.owner.nativeFirstFailureSite, 'UNKNOWN'); assert.equal(emittedFailure(h, failure).nativeFirstFailureSite, 'UNKNOWN');
+  assert.equal(h.owner.adapterClose.protocolFailed, false);
+});
+test('native site revocation belongs to the captured phase and cannot revoke or contaminate another phase', async () => {
+  const h = await nativeOwner(ready + input + 'EXITED 8 0 0 0 34\n');
+  const originalPhase = h.owner.phase;
+  h.owner.phase = {kind:'baseline',diagnostic:{nativeFirstFailureSite:'RESUME'}};
+  h.api.observerCancel(h.owner, 'protocol');
+  assert.equal(emittedFailure(h).nativeFirstFailureSite, 'INPUT_READ');
+  const other = h.api.observerFailure(); h.api.latchObserverFailure(other, Error('PRIVATE'), h.owner);
+  assert.equal(emittedFailure(h, other).nativeFirstFailureSite, 'UNKNOWN');
+  h.owner.phase = originalPhase; h.api.observerCancel(h.owner, 'protocol');
+  assert.equal(emittedFailure(h).nativeFirstFailureSite, 'UNKNOWN');
+
+  const fresh = await nativeOwner(ready + input + 'EXITED 8 0 0 0 34\n');
+  fresh.api.observerCancel(fresh.owner, 'deadline'); fresh.api.observerCancel(fresh.owner, 'protocol');
+  assert.equal(emittedFailure(fresh).nativeFirstFailureSite, 'UNKNOWN');
+  fresh.owner.phase = {kind:'baseline',diagnostic:{nativeFirstFailureSite:'RESUME'}};
+  const next = fresh.api.observerFailure(); next.stage = 'custody'; next.phase = 'baseline';
+  fresh.api.latchObserverFailure(next, Error('PRIVATE'), fresh.owner);
+  assert.equal(next.first.nativeFirstFailureSite, 'RESUME'); assert.equal(emittedFailure(fresh, next).nativeFirstFailureSite, 'RESUME');
+  assert.equal(fresh.owner.cancelReason, 'deadline');
 });
 test('mixed decisions, fewer completed writes and either INPUT/EXITED order are valid', () => {
   const values = Array(13).fill(1).concat([7, 2]);
