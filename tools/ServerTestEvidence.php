@@ -10,6 +10,62 @@ use Tablo\DatabaseInteger;
 use Tablo\JsonRecord;
 use Tablo\SqlColumn;
 
+/** Diagnostic projection of one failed Testo report; never evidence of admission or a root cause.
+ * @return array{schema: string, rootCause: string, reportStatus: string, type: string, origin: string, source: ?string, line: ?int} */
+function server_native_failure(string $root, #[\SensitiveParameter] string $bytes, string $identity): array
+{
+    $unknown = ['schema' => 'tablo/server-native-failure/v1', 'rootCause' => 'UNKNOWN', 'reportStatus' => 'UNKNOWN',
+        'type' => 'UNKNOWN', 'origin' => 'UNKNOWN', 'source' => null, 'line' => null];
+    try {
+        if (strlen($bytes) > 1_048_576) { return $unknown; }
+        $report = JsonRecord::decode($bytes, 32); $failures = JsonRecord::checked($report['failures'] ?? null);
+        if (($report['status'] ?? null) !== 'failed' || !array_is_list($failures) || count($failures) !== 1) { return $unknown; }
+        $failure = JsonRecord::checked($failures[0]);
+        if (($failure['test'] ?? null) !== $identity || !in_array($failure['status'] ?? null, ['failed', 'error'], strict: true)) { return $unknown; }
+        $type = match ($failure['exception'] ?? null) {
+            'Testo\\Assert\\State\\Assertion\\ComparisonFailure' => 'assertion', 'Tablo\\DatabaseFailure' => 'database',
+            'PDOException' => 'native-database', 'RuntimeException' => 'runtime', 'LogicException' => 'logic',
+            'Error', 'TypeError', 'ValueError', 'ParseError' => 'php', default => 'UNKNOWN',
+        };
+        $location = server_native_failure_location($root, $failure);
+        return ['schema' => 'tablo/server-native-failure/v1', 'rootCause' => 'UNKNOWN', 'reportStatus' => SqlColumn::string($failure, 'status'),
+            'type' => $type, 'origin' => $location['origin'], 'source' => $location['source'], 'line' => $location['line']];
+    } catch (\Throwable) { return $unknown; }
+}
+
+/** Only a repository-relative PHP source and line survive; no message, frame text or origin is opened.
+ * @return array{origin: string, source: ?string, line: ?int} */
+function server_native_failure_location(string $root, #[\SensitiveParameter] array $failure): array
+{
+    $direct = server_native_failure_origin($root, $failure['file'] ?? null, $failure['line'] ?? null);
+    if ($direct['source'] !== null) { return ['origin' => 'exception'] + $direct; }
+    /** @var mixed $trace Untrusted report data is admitted only as a bounded list below. */
+    $trace = $failure['trace'] ?? null;
+    if (is_array($trace) && array_is_list($trace)) {
+        foreach (array_keys(array_slice($trace, offset: 0, length: 8)) as $index) {
+            /** @var mixed $frame No frame is retained before its type, length and prefix checks. */
+            $frame = $trace[$index] ?? null;
+            $match = [];
+            if (!is_string($frame) || strlen($frame) > 4096 || preg_match('/\A#[0-9]{1,3} (.+):([1-9][0-9]{0,5}): /D', $frame, $match) !== 1) { continue; }
+            $origin = server_native_failure_origin($root, \Tablo\RegexCapture::text($match, 1), (int) \Tablo\RegexCapture::text($match, 2));
+            if ($origin['source'] !== null) { return ['origin' => 'trace'] + $origin; }
+        }
+    }
+    return ['origin' => 'UNKNOWN', 'source' => null, 'line' => null];
+}
+
+/** @return array{source: ?string, line: ?int} */
+function server_native_failure_origin(string $root, #[\SensitiveParameter] mixed $file, mixed $line): array
+{
+    $prefix = str_replace('\\', replace: '/', subject: $root) . '/';
+    $path = is_string($file) && strlen($file) <= 4096 ? str_replace('\\', replace: '/', subject: $file) : '';
+    $relative = str_starts_with($path, $prefix) ? substr($path, offset: strlen($prefix)) : '';
+    if (!is_int($line) || $line < 1 || $line > 100_000 || preg_match('~\A(?:app|tools|tests/(?:Support|Server|ServerCross))/[A-Za-z0-9_-]{1,128}\.php\z~D', $relative) !== 1) {
+        return ['source' => null, 'line' => null];
+    }
+    return ['source' => $relative, 'line' => $line];
+}
+
 /**
  * Project-native evidence procedures, explicitly required by verify-server.php.
  * No procedure launches an engine, rewrites a declaration, or captures a fingerprint.

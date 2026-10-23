@@ -40,6 +40,8 @@ final class EngineVerificationTest
     public function nonPassedZeroMissingExtraAndDuplicateJunitCannotBecomeNativeSuccess(): void
     {
         require_once dirname(__DIR__, levels: 2) . '/tools/ServerTestEvidence.php';
+        engine_verification_failed_report();
+        engine_verification_failed_hook();
         $directory = new TemporaryDirectory('tablo-server-junit-');
         try {
             $root = dirname(__DIR__, levels: 2); $required = engine_verification_required();
@@ -134,6 +136,85 @@ final class EngineVerificationTest
     }
 
 
+}
+
+function engine_verification_failed_report(): void
+{
+    $root = dirname(__DIR__, levels: 2); $identity = __FUNCTION__; $private = 'PRIVATE_MESSAGE_SQL_SECRET_HISTORY';
+    $failure = ['test' => $identity, 'status' => 'failed', 'exception' => 'Testo\\Assert\\State\\Assertion\\ComparisonFailure',
+        'message' => $private, 'file' => $root . '/vendor/testo/assert/Assert.php', 'line' => 57,
+        'trace' => ['#0 ' . $root . '/tests/Server/EngineConstraintsTest.php:549: Testo\\Assert::same()'], 'output' => [['content' => $private]]];
+    $report = ['status' => 'failed', 'failures' => [$failure]];
+    $project = static fn (array $value): array => \Tablo\Tools\server_native_failure($root, \Tablo\JsonEncoding::encode($value), $identity);
+    $actual = $project($report);
+    Assert::same($actual, ['schema' => 'tablo/server-native-failure/v1', 'rootCause' => 'UNKNOWN', 'reportStatus' => 'failed',
+        'type' => 'assertion', 'origin' => 'trace', 'source' => 'tests/Server/EngineConstraintsTest.php', 'line' => 549]);
+    Assert::false(str_contains(\Tablo\JsonEncoding::encode($actual), $private));
+    Assert::false(str_contains(\Tablo\JsonEncoding::encode($actual), $root));
+    $direct = $failure; $direct['file'] = str_replace('/', replace: '\\', subject: $root . '/app/DatabaseTransferTarget.php');
+    $direct['line'] = 99; $direct['exception'] = 'Tablo\\DatabaseFailure'; $direct['status'] = 'error';
+    $actual = $project(['status' => 'failed', 'failures' => [$direct]]);
+    Assert::same([$actual['type'], $actual['origin'], $actual['source'], $actual['line']], ['database', 'exception', 'app/DatabaseTransferTarget.php', 99]);
+    engine_verification_failed_report_invalid($root, $identity, $failure, $private);
+}
+
+function engine_verification_failed_report_invalid(string $root, string $identity, array $failure, string $private): void
+{
+    $project = static fn (array $value): array => \Tablo\Tools\server_native_failure($root, \Tablo\JsonEncoding::encode($value), $identity);
+    foreach (['', '{', str_repeat(' ', times: 1_048_577)] as $invalid) {
+        Assert::same(\Tablo\Tools\server_native_failure($root, $invalid, $identity)['reportStatus'], 'UNKNOWN');
+    }
+    foreach ([['status' => 'passed', 'failures' => [$failure]], ['status' => 'failed', 'failures' => []],
+        ['status' => 'failed', 'failures' => [$failure, $failure]], ['status' => 'failed', 'failures' => ['foreign' => $failure]],
+        ['status' => 'failed', 'failures' => [array_replace($failure, ['test' => 'foreign'])]],
+        ['status' => 'failed', 'failures' => [array_replace($failure, ['status' => 'passed'])]]] as $invalid) {
+        Assert::same($project($invalid)['reportStatus'], 'UNKNOWN');
+    }
+    foreach ([['/foreign/app/Private.php', 1], [$root . '/storage/Private.php', 1], [$root . '/app/../Private.php', 1],
+        [$root . '/app/File.php', '1'], [$root . '/app/File.php', 0], [$root . '/app/File.php', 100_001], [$private, null]] as [$file, $line]) {
+        $bad = array_replace($failure, ['file' => $file, 'line' => $line, 'trace' => [$private]]);
+        $actual = $project(['status' => 'failed', 'failures' => [$bad]]);
+        Assert::same([$actual['origin'], $actual['source'], $actual['line']], ['UNKNOWN', null, null]);
+    }
+    engine_verification_failed_report_bounds($failure, $private, $project);
+}
+
+/** @param \Closure(array): array $project */
+function engine_verification_failed_report_bounds(array $failure, string $private, \Closure $project): void
+{
+    $bounded = $failure; $bounded['trace'] = [...array_fill(0, count: 8, value: $private), ...\Tablo\JsonRecord::checked($failure['trace'] ?? null)];
+    Assert::null(\Tablo\SqlColumn::nullableString($project(['status' => 'failed', 'failures' => [$bounded]]), 'source'));
+    $bounded['trace'] = [str_repeat(' ', times: 4097), [], 1, null];
+    Assert::null(\Tablo\SqlColumn::nullableString($project(['status' => 'failed', 'failures' => [$bounded]]), 'source'));
+    $bounded['exception'] = $private;
+    $actual = $project(['status' => 'failed', 'failures' => [$bounded]]);
+    Assert::same(\Tablo\SqlColumn::string($actual, 'type'), 'UNKNOWN'); Assert::false(str_contains(\Tablo\JsonEncoding::encode($actual), $private));
+    Assert::true(strlen(\Tablo\JsonEncoding::encode($actual)) < 1024);
+}
+
+/** A real failed child and a throwing diagnostic hook must retain the original nonzero failure and closed receipt. */
+function engine_verification_failed_hook(): void
+{
+    $directory = new TemporaryDirectory('tablo-server-failed-hook-');
+    $actor = <<<'PHP'
+require $argv[1] . '/vendor/autoload.php';
+require $argv[1] . '/tools/verify-server.php';
+$directory = new \Tablo\Tests\Support\TemporaryDirectory('tablo-native-failed-hook-');
+$observed = null; $caught = false;
+try {
+    try { server_verify_child([PHP_BINARY, '-n', '-r', 'exit(7);'], $directory, [], 8,
+        static function (array $child) use (&$observed): void { $observed = $child; throw new \RuntimeException('PRIVATE_DIAGNOSTIC_FAILURE'); }); }
+    catch (\RuntimeException $error) { $caught = $error->getMessage() === 'Required native child failed or its exit is unknown.'; }
+    $receipt = \Tablo\Tests\Support\SubprocessReceipt::read($observed['files']['receipt']);
+    echo json_encode(['primaryPreserved' => $caught, 'childExit' => $observed['exit_code'], 'closed' => $receipt['closed'],
+        'rootExitObserved' => $receipt['root_exit_observed'], 'receiptExit' => $receipt['exit_code']], JSON_THROW_ON_ERROR);
+} finally { $directory->close(); }
+PHP;
+    try {
+        $child = Subprocess::run([PHP_BINARY, '-r', $actor, dirname(__DIR__, levels: 2)], $directory, []);
+        Assert::same($child['exit_code'], 0); Assert::same($child['stderr'], '');
+        Assert::same(\Tablo\JsonRecord::decode($child['stdout']), ['primaryPreserved' => true, 'childExit' => 7, 'closed' => true, 'rootExitObserved' => true, 'receiptExit' => 7]);
+    } finally { $directory->close(); }
 }
 
 /** The aggregate fixture checks summary agreement without replacing real native platform metadata. */

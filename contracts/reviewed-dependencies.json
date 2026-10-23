@@ -8134,7 +8134,7 @@
                 "Composer analyze",
                 "Composer verify:server"
             ],
-            "fingerprint": "sha256:800de0152797503ae64a2a3826ed1617007f370c6305f2866c32945df904834d"
+            "fingerprint": "sha256:53565b69ea0d83544e048469a066d21ab230aa79883f343966c9d8758ad99868"
         },
         {
             "path": "tests/Server/EngineWatermarkTest.php",
@@ -11062,7 +11062,7 @@
                 "Composer lint",
                 "Composer analyze"
             ],
-            "fingerprint": "sha256:8add1e2611126c0a99fa14628003e96c3efff99503306c31ca173875994b4303"
+            "fingerprint": "sha256:c5a5338c74fd2e4b001eccda32d88c5c3d0987327f6a30db1af3202fe4dacc3f"
         },
         {
             "path": "tools/verify-server.php",
@@ -11074,7 +11074,7 @@
                 "Composer analyze",
                 "tools/server-supervisor.cjs"
             ],
-            "fingerprint": "sha256:26faa241e4cda0d559b57db4d27fd3a0027acf65c772464aa081d9a2e946d15d"
+            "fingerprint": "sha256:4586f28c77bb19cc169fcc857f497a58e671a9530d5a90ef9cc5be9e5a4cc610"
         },
         {
             "path": "tools/verify.php",

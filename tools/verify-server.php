@@ -164,11 +164,15 @@ function server_verify_readiness(EngineFixture $fixture, string $engine): array
 
 /** @param list<string> $command
  * @param array<string, string> $environment
+ * @param (\Closure(Subprocess::Result): void)|null $failed
  * @return \Tablo\Tests\Support\Subprocess::Result */
-function server_verify_child(array $command, TemporaryDirectory $directory, array $environment, float $timeout): array
+function server_verify_child(array $command, TemporaryDirectory $directory, array $environment, float $timeout, ?\Closure $failed = null): array
 {
     $result = Subprocess::run($command, $directory, $environment, new CommandOptions(timeout: $timeout, replacementEnvironment: $environment));
-    if ($result['exit_code'] !== 0) { throw new RuntimeException('Required native child failed or its exit is unknown.'); }
+    if ($result['exit_code'] !== 0) {
+        try { $failed?->__invoke($result); } catch (Throwable $discarded) { unset($discarded); }
+        throw new RuntimeException('Required native child failed or its exit is unknown.');
+    }
     return $result;
 }
 
@@ -204,7 +208,13 @@ function server_verify_one_case(string $root, TemporaryDirectory $directory, arr
     $report = $directory->path . '/native-' . $lane . '-' . $index . '.xml';
     $command = server_verify_command($spec['path'], $identity, $lane, $report);
     server_verify_progress($root, $lane, $index + 1, ['identity' => $identity, 'source' => $spec['path'], 'status' => 'started', 'deadlineSeconds' => $maximum]);
-    $child = server_verify_child($command, $directory, $prepared['environment'], $maximum);
+    $child = server_verify_child($command, $directory, $prepared['environment'], $maximum,
+        static function (array $failed) use ($root, $lane, $index, $identity, $spec): void {
+            $exit = $failed['exit_code'] ?? null;
+            server_verify_progress($root, $lane, $index + 1, ['identity' => $identity, 'source' => $spec['path'], 'status' => 'failed',
+                'childExit' => is_int($exit) && $exit >= 1 && $exit <= 255 ? $exit : 'UNKNOWN',
+                'diagnostic' => \Tablo\Tools\server_native_failure($root, SqlColumn::string($failed, 'stdout'), $identity)]);
+        });
     $native = \Tablo\Tools\server_native_junit($root, $report, [$identity => $spec]);
     \Tablo\Tools\server_native_summary(JsonRecord::decode($child['stdout'], 32), required: 1, assertions: $native['assertions']);
     foreach ($selection['catalogs'] as $catalog) { $catalog->complete($child, $native, $prepared['closureDirectory']); }
