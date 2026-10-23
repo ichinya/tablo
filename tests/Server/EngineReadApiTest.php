@@ -83,13 +83,15 @@ final class EngineReadApiTest
         ReadApiSchemaAdmission::authentication($reader); ReadApiSchemaAdmission::sites($reader);
         Assert::same(ServerSchema::rows($reader, 'SELECT id,password_hash FROM users'), []);
         Assert::same(ServerSchema::rows($reader, 'SELECT * FROM read_api_token'), []);
+        // Temporary-table creation uses a database privilege and may refuse with 1044.
+        $temporary = 'CREATE TEMPORARY TABLE forbidden_reader_temporary (id BIGINT)';
         foreach (['UPDATE users SET password_hash = \'synthetic\' WHERE id = 1', 'DELETE FROM sites',
-            'CREATE TABLE forbidden_reader_table (id BIGINT)', 'CREATE TEMPORARY TABLE forbidden_reader_temporary (id BIGINT)',
+            'CREATE TABLE forbidden_reader_table (id BIGINT)', $temporary,
             'SELECT github_token FROM sites', 'SELECT key_verifier FROM tablo_database_state'] as $sql) {
             $code = null;
             try { ServerSchema::rows($reader, $sql); } catch (\PDOException $error) { $code = \Tablo\Tests\Support\FixtureValue::integer($error->errorInfo[1] ?? null); }
             Assert::true(is_int($code), 'A real native privilege refusal is required.');
-            Assert::true(in_array($code, [1142, 1143], strict: true));
+            Assert::true(in_array($code, $sql === $temporary ? [1044, 1142, 1143] : [1142, 1143], strict: true));
         }
         Assert::same(count(ServerSchema::objects($fixture->database())), 18);
         Assert::same($fixture->scalar('SELECT COUNT(*) FROM users'), 0);

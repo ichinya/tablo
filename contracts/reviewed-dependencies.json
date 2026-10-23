@@ -8051,7 +8051,7 @@
                 "Composer analyze",
                 "Composer verify:server"
             ],
-            "fingerprint": "sha256:8322794fff508d9a6df01a0f1a2548fb01fdb08e7d25ba95e95193a0f0da12af"
+            "fingerprint": "sha256:66cfd5e3a659e7615dbe249a48cffed58ff2631573097cdc15251f5658400c79"
         },
         {
             "path": "tests/Server/EngineSettlementFailureTest.php",
