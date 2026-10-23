@@ -298,7 +298,7 @@ async function qualifyFallback(spec, base, observer, controls, parentEnd) {
     check('Q118', assert, events.ready && events.started && events.input && events.exited && events.closed);
     check('Q119', assert.equal, close.closeObserved, true); check('Q120', assert.equal, close.signal, null);
     check('Q121', assert.equal, close.stderrBytes, 0); check('Q122', assert.equal, close.protocolFailed, false);
-    check('Q123', assert.equal, close.nativeProtocol, 'private-inherited-pipes/v2');
+    check('Q123', assert.equal, close.nativeProtocol, 'private-inherited-pipes/v3');
     check('Q124', assert.equal, events.closed.scopeObservedEmpty, true); check('Q125', assert.equal, events.closed.custodySettled, true);
     check('Q126', assert, events.input.sourceEofObserved === true && events.input.settled === true && events.input.stdinClosed === true
       && events.input.errorCode === null && events.input.declaredBytes === 0 && events.input.writtenBytes === 0);

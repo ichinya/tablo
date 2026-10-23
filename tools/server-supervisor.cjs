@@ -188,7 +188,7 @@ function latchObserverFailure(failure, error, owner) {
   if (failure.first) return;
   const stage = OBSERVER_STAGES.includes(failure.stage) ? failure.stage : 'UNKNOWN';
   const phase = ['prepare', 'baseline', 'engine', 'control', 'MISSING'].includes(failure.phase) ? failure.phase : 'UNKNOWN';
-  const base = { schema: 'tablo/server-safe-observer-failure/v4', status: 'failed', rootCause: 'UNKNOWN', issueAccepted: false, stage, phase };
+  const base = { schema: 'tablo/server-safe-observer-failure/v5', status: 'failed', rootCause: 'UNKNOWN', issueAccepted: false, stage, phase };
   try {
     const scalar = (value, valid) => value === undefined ? 'MISSING' : value === null ? null : valid(value) ? value : 'UNKNOWN';
     const prototype = object(error) ? Object.getPrototypeOf(error) : null;
@@ -205,13 +205,15 @@ function latchObserverFailure(failure, error, owner) {
       activeDockerLeases: observerDockerLeases(owner),
       firstCancellation: observerFirstCancellation(owner?.firstCancellation === undefined ? 'MISSING' : owner.firstCancellation),
       ...observerCloseDiagnostic(owner),
+      nativeFirstFailureSite: owner?.cancelReason === 'protocol' ? 'UNKNOWN' : nativeFirstFailureSite(owner?.phase?.diagnostic?.nativeFirstFailureSite),
       prepareDiagnostic: consolePrepareDiagnostic(owner?.phase?.kind === 'prepare' ? owner.phase.prepareDiagnostic : undefined) });
   } catch { failure.first = Object.freeze({ ...base, errorClass: 'UNKNOWN', refusal: 'UNKNOWN', activeDockerLeases: 'UNKNOWN',
-    firstCancellation: 'UNKNOWN', adapterCloseObserved: 'UNKNOWN', adapterSignal: 'UNKNOWN', prepareDiagnostic: 'MISSING' }); }
+    firstCancellation: 'UNKNOWN', adapterCloseObserved: 'UNKNOWN', adapterSignal: 'UNKNOWN', nativeFirstFailureSite: 'UNKNOWN', prepareDiagnostic: 'MISSING' }); }
 }
 function emitObserverFailure(failure) {
   try {
-    const bytes = JSON.stringify({ ...failure.first, prepareDiagnostic: consolePrepareDiagnostic(failure.first?.prepareDiagnostic) }) + '\n';
+    const bytes = JSON.stringify({ ...failure.first, nativeFirstFailureSite: nativeFirstFailureSite(failure.first?.nativeFirstFailureSite),
+      prepareDiagnostic: consolePrepareDiagnostic(failure.first?.prepareDiagnostic) }) + '\n';
     if (!failure.first || Buffer.byteLength(bytes) > 4096) return false;
     process.stderr.write(bytes); return true;
   } catch { return false; }
@@ -699,7 +701,7 @@ function linuxClosedEvents(events, close) {
   const input = events?.input, closed = events?.closed;
   return close?.closeObserved === true && close.signal === null && close.spawnError === false
     && close.protocolFailed === false && close.stdoutTrailingBytes === 0 && close.stderrBytes === 0
-    && close.nativeProtocol === 'private-inherited-pipes/v2'
+    && close.nativeProtocol === 'private-inherited-pipes/v3'
     && events?.ready?.policy === LINUX_POLICY && events.started && events.exited?.rootExitObserved === true
     && events.exited.terminationRequested === false && input?.settled === true && input.stdinClosed === true
     && input.errorCode === null && input.sourceEofObserved === true
@@ -735,7 +737,7 @@ async function linuxControlEvidence(neutral, fallback, q, qroot, platform, runti
         || row.status !== 'passed' || !linuxAdmission(a, limit)
         || !linuxReceiptIdentity(row.events, q, limit, q.nonce + '/linux-controller/' + index, { path: controlsPath, sha256: q.controlsBinarySha256 })
         || row.adapterClose?.closeObserved !== true
-        || row.adapterClose.nativeProtocol !== 'private-inherited-pipes/v2' || row.adapterClose.protocolFailed !== false
+        || row.adapterClose.nativeProtocol !== 'private-inherited-pipes/v3' || row.adapterClose.protocolFailed !== false
         || row.adapterClose.signal !== null || row.adapterClose.stderrBytes !== 0
         || row.events.closed.scopeObservedEmpty !== true || row.events.closed.custodySettled !== true
         || (mode.startsWith('limit') || mode.startsWith('overflow')) && a.peakCommitted !== limit
@@ -816,6 +818,14 @@ async function linuxControlEvidence(neutral, fallback, q, qroot, platform, runti
 const DENIAL_FIELDS = Object.freeze(['ptrace', 'seccomp', 'prctlSetSeccomp', 'prctlSetPtracer', 'prctlSetDumpable',
   'unshare', 'setns', 'ioUringSetup', 'cloneFlags', 'cloneLimit', 'forkLimit', 'vforkLimit', 'unknown',
   'epermRegisterWrites', 'eagainRegisterWrites']);
+// Positional native diagnostic IDs. These never enter Frames or admission fields.
+const NATIVE_FIRST_FAILURE_SITES = Object.freeze(['UNKNOWN', 'INTERRUPT', 'RESERVE', 'HARD_END', 'COMMAND_CHANNEL',
+  'COMMAND_LIMIT', 'COMMAND_LAUNCH', 'COMMAND_PARSE', 'OWNER_CANCEL', 'WAIT_RESULT', 'WAIT_REGISTRY', 'EARLY_STOP',
+  'WAIT_EVENT', 'SIGNAL_INFO', 'RESUME', 'SUPPRESS_REGS', 'GATE_METADATA', 'GATE_NOT_LAUNCHED', 'COUNTER_BOUND',
+  'POLICY_DENIAL', 'EXIT_METADATA', 'EXIT_URING_ACCOUNTING', 'EXIT_GETREGS', 'EXIT_SETREGS', 'EXIT_BIRTH_ACCOUNTING',
+  'BIRTH_METADATA', 'BIRTH_TASK', 'BIRTH_RESERVATION', 'GROUP_ADMISSION', 'EXEC_METADATA', 'EXEC_ACCOUNTING',
+  'TERMINAL_ACCOUNTING', 'TERMINAL_SIGSYS', 'ROOT_DESCENDANTS', 'INPUT_READ', 'INPUT_WRITE', 'INPUT_EOF', 'EVENT_WRITE', 'CANCEL_SIGNAL']);
+function nativeFirstFailureSite(value) { return NATIVE_FIRST_FAILURE_SITES.includes(value) ? value : 'UNKNOWN'; }
 function linuxDenialDiagnostic(values, deniedCount) {
   if (!Array.isArray(values) || values.length !== DENIAL_FIELDS.length
       || !integer(deniedCount, 1, 2147483647) || values.some(value => !integer(value, 0, 2147483647))) fail('LINUX_DENIAL_DIAGNOSTIC');
@@ -830,10 +840,11 @@ class LinuxRecords {
   constructor() {
     this.pending = Buffer.alloc(0); this.count = 0; this.total = 0;
     this.seen = new Set(); this.denials = null; this.denialDiagnostic = 'UNKNOWN'; this.closed = false;
+    this.nativeFirstFailureSite = 'UNKNOWN'; this.protocolFailed = false;
   }
   push(bytes, receive) {
     try { this.read(bytes, receive); }
-    catch (error) { this.denialDiagnostic = 'UNKNOWN'; throw error; }
+    catch (error) { this.denialDiagnostic = this.nativeFirstFailureSite = 'UNKNOWN'; this.protocolFailed = true; throw error; }
   }
   read(bytes, receive) {
     this.total += bytes.length;
@@ -846,7 +857,7 @@ class LinuxRecords {
           || [...line].some(value => value > 127)) fail('LINUX_RECORD_ENCODING');
       const [kind, ...values] = line.toString('ascii').split(' ');
       const lengths = { READY: 3, STARTED: 1, INPUT: 4, EXITED: 4, DENIALS: 15, CLOSED: 15 };
-      if (values.length !== lengths[kind]) fail('LINUX_RECORD_FIELDS');
+      if (kind === 'EXITED' ? ![4, 5].includes(values.length) : values.length !== lengths[kind]) fail('LINUX_RECORD_FIELDS');
       if (this.denials && this.closed) fail('LINUX_DENIAL_ORDER');
       if (this.denials && !this.closed && kind !== 'CLOSED') fail('LINUX_DENIAL_ORDER');
       if (kind === 'DENIALS' && (this.denials || this.closed
@@ -858,6 +869,11 @@ class LinuxRecords {
       } else {
         if (values.some(value => !/^(0|[1-9][0-9]{0,9}|-1)$/.test(value) || !Number.isSafeInteger(Number(value)))) fail('LINUX_RECORD_INTEGER');
         const numbers = values.map(Number);
+        let site = 'UNKNOWN';
+        if (kind === 'EXITED' && numbers.length === 5) {
+          if (!integer(numbers[4], 0, 38)) fail('LINUX_FIRST_FAILURE_SITE');
+          site = NATIVE_FIRST_FAILURE_SITES[numbers.pop()]; // Strip before the original authority callback.
+        }
         if (kind === 'DENIALS') {
           const sum = numbers.slice(0, 13).reduce((total, value) => total + value, 0);
           linuxDenialDiagnostic(numbers, sum); this.denials = numbers;
@@ -869,6 +885,8 @@ class LinuxRecords {
           this.closed = true;
         }
         receive(kind, numbers);
+        // A rejecting EXITED authority callback cannot publish a diagnostic.
+        if (kind === 'EXITED') this.nativeFirstFailureSite = this.protocolFailed ? 'UNKNOWN' : site;
       }
       this.seen.add(kind);
     }
@@ -877,6 +895,8 @@ class LinuxRecords {
 }
 
 async function runLinuxAdapter(owner, plan) {
+  owner.nativeFirstFailureSite = 'UNKNOWN';
+  if (object(owner.phase?.diagnostic)) owner.phase.diagnostic.nativeFirstFailureSite = 'UNKNOWN';
   if (process.platform !== 'linux' || process.arch !== 'x64' || plan.linux.policy !== LINUX_POLICY
       || plan.linux.unit !== 'process/TGID' || ![8, 9].includes(plan.job.activeProcessLimit)
       || !/^[1-9][0-9]{0,19}$/.test(plan.linux.deadlineNanoseconds)) fail('LINUX_UNQUALIFIED');
@@ -906,6 +926,12 @@ async function runLinuxAdapter(owner, plan) {
     owner.nativeDenialDiagnostic = 'UNKNOWN'; // Never an admission/event field.
     let stdout = Buffer.alloc(0), stderr = Buffer.alloc(0), authenticated = Buffer.alloc(0);
     let spawnError = false, stderrTruncated = false, protocolFailed = false, closedRecord = null, commands = 0;
+    let firstFailureProtocolFailed = false; // Diagnostic only; original protocol authority remains unchanged.
+    const publishFirstFailure = () => {
+      if (protocolFailed || owner.cancelReason === 'protocol') firstFailureProtocolFailed = true;
+      owner.nativeFirstFailureSite = firstFailureProtocolFailed ? 'UNKNOWN' : records.nativeFirstFailureSite;
+      if (object(diagnostic)) diagnostic.nativeFirstFailureSite = owner.nativeFirstFailureSite;
+    };
     const send = (kind, value = {}) => {
       if (value.planId && value.planId !== plan.planId) fail('LINUX_COMMAND_ID');
       const command = { launch: 'LAUNCH\n', cancel: 'CANCEL\n', shutdown: 'SHUTDOWN\n' }[kind];
@@ -945,10 +971,10 @@ async function runLinuxAdapter(owner, plan) {
         send('shutdown');
       }
     };
-    child.stdin.on('error', () => owner.cancel('protocol'));
-    child.once('error', () => { spawnError = true; owner.cancel('protocol'); });
+    child.stdin.on('error', () => { firstFailureProtocolFailed = true; publishFirstFailure(); owner.cancel('protocol'); });
+    child.once('error', () => { spawnError = true; firstFailureProtocolFailed = true; publishFirstFailure(); owner.cancel('protocol'); });
     child.stderr.on('data', bytes => {
-      if (stderr.length + bytes.length > 65536) { stderrTruncated = true; owner.cancel('protocol'); }
+      if (stderr.length + bytes.length > 65536) { stderrTruncated = true; firstFailureProtocolFailed = true; publishFirstFailure(); owner.cancel('protocol'); }
       stderr = Buffer.concat([stderr, bytes.subarray(0, 65536 - stderr.length)]);
     });
     child.stdout.on('data', bytes => {
@@ -956,7 +982,8 @@ async function runLinuxAdapter(owner, plan) {
         if (stdout.length + bytes.length > 8192) fail('LINUX_OUTPUT_LIMIT');
         stdout = Buffer.concat([stdout, bytes]); records.push(bytes, receive);
         owner.nativeDenialDiagnostic = protocolFailed ? 'UNKNOWN' : records.denialDiagnostic;
-      } catch { owner.nativeDenialDiagnostic = 'UNKNOWN'; protocolFailed = true; owner.cancel('protocol'); child.stdin.end(); }
+        publishFirstFailure();
+      } catch { owner.nativeDenialDiagnostic = 'UNKNOWN'; protocolFailed = true; publishFirstFailure(); owner.cancel('protocol'); child.stdin.end(); }
     });
     const close = await new Promise(resolve => {
       child.once('close', (code, signal) => resolve({ code, signal, closeObserved: true }));
@@ -969,6 +996,7 @@ async function runLinuxAdapter(owner, plan) {
     if (object(diagnostic)) diagnostic.close = { closeObserved: close.closeObserved, signal: close.signal };
     owner.expire = null;
     if (!close.closeObserved || records.pending.length || protocolFailed) owner.nativeDenialDiagnostic = 'UNKNOWN';
+    if (records.pending.length || protocolFailed || owner.cancelReason === 'protocol') { firstFailureProtocolFailed = true; publishFirstFailure(); }
     for (let i = 0; i < handles.length; i++) if (i < 2) await handles[i].sync();
     for (const handle of handles) await handle.close();
     handles.length = 0;
@@ -981,7 +1009,7 @@ async function runLinuxAdapter(owner, plan) {
     }
     owner.adapterClose = { pid: child.pid ?? null, ...close, spawnError, stdoutTrailingBytes: records.pending.length,
       stdoutBytes: stdout.length, stdoutSha256: sha(stdout), stderrBytes: stderr.length, stderrSha256: sha(stderr), stderrTruncated,
-      nativeProtocol: 'private-inherited-pipes/v2', protocolFailed };
+      nativeProtocol: 'private-inherited-pipes/v3', protocolFailed };
     await fs.writeFile(owner.phase.root + '/evidence/adapter.stdout', stdout, { flag: 'wx', mode: 0o600 });
     await fs.writeFile(owner.phase.root + '/evidence/adapter.stderr', stderr, { flag: 'wx', mode: 0o600 });
     await fs.writeFile(owner.phase.root + '/evidence/adapter-authenticated.ndjson', authenticated, { flag: 'wx', mode: 0o600 });
@@ -1071,6 +1099,8 @@ function acceptEvent(state, kind, payload, plan, child, expectedPlanHash) {
 }
 
 async function runAdapter(owner, plan) {
+  owner.nativeFirstFailureSite = 'UNKNOWN';
+  if (object(owner.phase?.diagnostic)) owner.phase.diagnostic.nativeFirstFailureSite = 'UNKNOWN';
   if (process.platform === 'linux') return runLinuxAdapter(owner, plan);
   if (process.platform !== 'win32') fail('UNQUALIFIED_PLATFORM');
   const windows = true; const file = owner.phase.root + '/private/adapter.json';
@@ -1220,7 +1250,7 @@ async function supervise(file, hash, control = false, failure = observerFailure(
       failure.stage = 'phase-admission'; failure.phase = declaration.kind;
       if (owner.cancelReason || owner.connections !== 0 || leases.active.size !== 0) fail('PRIOR_PHASE_UNSETTLED');
       owner.phase = { ...declaration, authority: randomBytes(32), adapterAuthority: randomBytes(32), sequence: 0,
-        prepareDiagnosticOpen: declaration.kind === 'prepare' && !control, diagnostic: { state: null, close: null } };
+        prepareDiagnosticOpen: declaration.kind === 'prepare' && !control, diagnostic: { state: null, close: null, nativeFirstFailureSite: 'UNKNOWN' } };
       failure.stage = 'phase-layout';
       await fs.mkdir(owner.phase.root, { mode: 0o700 });
       for (const directory of ['private', 'evidence', 'cwd']) await fs.mkdir(owner.phase.root + '/' + directory, { mode: 0o700 });
@@ -1426,7 +1456,7 @@ async function main(arguments_) {
   } catch (error) { latchObserverFailure(failure, error); emitObserverFailure(failure); throw error; }
 }
 
-module.exports = { Frames, Leases, LinuxRecords, DENIAL_FIELDS, linuxDenialDiagnostic, declaration, environment, acceptEvent, runLinuxAdapter, linuxPins, linuxContext, readPlan, regular, pinned, retain, verifyCustody };
+module.exports = { Frames, Leases, LinuxRecords, DENIAL_FIELDS, NATIVE_FIRST_FAILURE_SITES, nativeFirstFailureSite, linuxDenialDiagnostic, declaration, environment, acceptEvent, runLinuxAdapter, linuxPins, linuxContext, readPlan, regular, pinned, retain, verifyCustody };
 if (require.main === module) main(process.argv.slice(2)).catch(() => {
   process.exitCode = 1;
   try { process.stderr.write('SERVER_OBSERVER_FAILED\n'); } catch { /* Original failure remains exit1. */ }

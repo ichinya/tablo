@@ -87,8 +87,11 @@ final class EngineFlowTest
             Assert::same([$cli['exit_code'], $cli['stderr']], [0, '']);
             Assert::same($fixture->scalar('SELECT COUNT(*) FROM check_history'), 2);
             $http = new \Tablo\Tests\Support\WorkerHttp($endpoint->base);
-            $worker = new \Tablo\PeriodicWorker($fixture->database(), $http, vault: $fixture->vault);
+            $messages = [];
+            $hooks = new \Tablo\WorkerHooks(output: static function (string $message) use (&$messages): void { $messages[] = $message; });
+            $worker = new \Tablo\PeriodicWorker($fixture->database(), $http, $hooks, vault: $fixture->vault);
             $worker->runPass();
+            Assert::same($messages, ['Worker site checked.']);
             Assert::same($fixture->scalar('SELECT COUNT(*) FROM check_history'), 3);
             Assert::same($fixture->scalar('SELECT committed_history_high_watermark FROM tablo_database_state'), 3);
             Assert::same($fixture->scalar('SELECT COUNT(*) FROM incident_checkpoints'), 1);

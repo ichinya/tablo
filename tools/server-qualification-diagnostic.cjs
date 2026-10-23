@@ -11,6 +11,13 @@ const SIGNALS = ['SIGABRT', 'SIGALRM', 'SIGBUS', 'SIGCHLD', 'SIGCONT', 'SIGFPE',
   'SIGKILL', 'SIGPIPE', 'SIGQUIT', 'SIGSEGV', 'SIGSTOP', 'SIGSYS', 'SIGTERM', 'SIGTRAP', 'SIGTSTP', 'SIGTTIN',
   'SIGTTOU', 'SIGURG', 'SIGUSR1', 'SIGUSR2', 'SIGXCPU', 'SIGXFSZ'];
 const UNKNOWN = 'UNKNOWN';
+// Independent public enum validation; never copy native bytes, IDs or exception data.
+const NATIVE_FIRST_FAILURE_SITES = Object.freeze(['UNKNOWN', 'INTERRUPT', 'RESERVE', 'HARD_END', 'COMMAND_CHANNEL',
+  'COMMAND_LIMIT', 'COMMAND_LAUNCH', 'COMMAND_PARSE', 'OWNER_CANCEL', 'WAIT_RESULT', 'WAIT_REGISTRY', 'EARLY_STOP',
+  'WAIT_EVENT', 'SIGNAL_INFO', 'RESUME', 'SUPPRESS_REGS', 'GATE_METADATA', 'GATE_NOT_LAUNCHED', 'COUNTER_BOUND',
+  'POLICY_DENIAL', 'EXIT_METADATA', 'EXIT_URING_ACCOUNTING', 'EXIT_GETREGS', 'EXIT_SETREGS', 'EXIT_BIRTH_ACCOUNTING',
+  'BIRTH_METADATA', 'BIRTH_TASK', 'BIRTH_RESERVATION', 'GROUP_ADMISSION', 'EXEC_METADATA', 'EXEC_ACCOUNTING',
+  'TERMINAL_ACCOUNTING', 'TERMINAL_SIGSYS', 'ROOT_DESCENDANTS', 'INPUT_READ', 'INPUT_WRITE', 'INPUT_EOF', 'EVENT_WRITE', 'CANCEL_SIGNAL']);
 const CHECK_IDS = Object.freeze(Array.from({ length: 149 }, (_, index) => 'Q' + String(index + 1).padStart(3, '0')));
 const enumeration = (value, values) => values.includes(value) ? value : UNKNOWN;
 const number = (value, min = 0, max = 2147483647) => Number.isSafeInteger(value) && value >= min && value <= max ? value : UNKNOWN;
@@ -48,7 +55,7 @@ function projectFailure(input) {
   const close = owner?.adapterClose ?? (input?.stage === 'INPUT_BOUNDARY' ? invocation : undefined);
   const root = events?.exited, closed = events?.closed, admission = closed?.admission;
   return {
-    schema: 'tablo/linux-safe-qualification-failure/v3', status: 'failed', qualified: false, rootCause: UNKNOWN,
+    schema: 'tablo/linux-safe-qualification-failure/v4', status: 'failed', qualified: false, rootCause: UNKNOWN,
     stage: enumeration(input?.stage, STAGES), subject: enumeration(input?.subject, SUBJECTS),
     index: number(input?.index, 0, 31), checkId: enumeration(input?.check, CHECK_IDS), completed: number(input?.completed, 0, 38),
     adapter: { exitCode: nullable(close?.code, value => number(value, -1, 255)),
@@ -65,6 +72,8 @@ function projectFailure(input) {
     cancellation: nullable(owner?.cancelReason, value => enumeration(value, ['deadline', 'protocol'])),
     eventsAtFailure: eventPresence(events), eventsAtCancellation: cancellationPresence(owner?.eventsAtCancellation),
     nativeDenialDiagnostic: projectDenials(owner?.nativeDenialDiagnostic, admission?.deniedAdmissions),
+    nativeFirstFailureSite: owner?.cancelReason === 'protocol' || close?.protocolFailed === true ? UNKNOWN
+      : enumeration(owner?.nativeFirstFailureSite, NATIVE_FIRST_FAILURE_SITES),
     closure: { scopeObservedEmpty: boolean(closed?.scopeObservedEmpty), custodySettled: boolean(closed?.custodySettled),
       inputSettled: boolean(closed?.inputSettled), stdinClosed: boolean(closed?.stdinClosed),
       stdoutClosed: boolean(closed?.stdout?.closed), stderrClosed: boolean(closed?.stderr?.closed) },

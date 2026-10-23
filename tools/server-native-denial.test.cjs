@@ -1,7 +1,7 @@
 'use strict';
 // Synthetic bytes through the production parser/projector; no native execution.
 const test = require('node:test'), assert = require('node:assert/strict');
-const { LinuxRecords, DENIAL_FIELDS } = require('./server-supervisor.cjs');
+const { LinuxRecords, DENIAL_FIELDS, NATIVE_FIRST_FAILURE_SITES, nativeFirstFailureSite } = require('./server-supervisor.cjs');
 const { projectFailure } = require('./server-qualification-diagnostic.cjs');
 const ready = 'READY 7 tgid-seccomp-ptrace-x64-v2 123\nSTARTED 8\n';
 const input = 'INPUT 0 0 0 1\n', exited = 'EXITED 8 0 0 0\n';
@@ -16,7 +16,7 @@ function parse(bytes, fragmented = false) {
 }
 function failure(parser, denied = 5) {
   return projectFailure({ stage: 'CLIENT_RUNTIME', subject: 'node', index: 0, check: 'Q101', completed: 30,
-    owner: { nativeDenialDiagnostic: parser.denialDiagnostic, cancelReason: null,
+    owner: { nativeDenialDiagnostic: parser.denialDiagnostic, nativeFirstFailureSite: parser.nativeFirstFailureSite, cancelReason: null,
       adapterClose: { code: 125, signal: null, closeObserved: true, spawnError: false, protocolFailed: false, stderrBytes: 0, stdoutTrailingBytes: 0 },
       adapterState: { exited: { exitCode: 0, posixSignal: null, rootExitObserved: true, terminationRequested: false },
         closed: { scopeObservedEmpty: true, custodySettled: true, inputSettled: true, stdinClosed: true,
@@ -33,6 +33,202 @@ for (let index = 0; index < 13; index++) test('native denial production parser/p
   assert.equal(projected.root.exitCode, 0); assert.equal(projected.adapter.exitCode, 125);
   assert.equal(projected.admission.failed, true); assert.equal(projected.closure.custodySettled, true);
   assert.equal(projected.qualified, false); assert.equal(projected.status, 'failed'); assert.equal(projected.rootCause, 'UNKNOWN');
+});
+
+const sites = ['UNKNOWN','INTERRUPT','RESERVE','HARD_END','COMMAND_CHANNEL','COMMAND_LIMIT','COMMAND_LAUNCH','COMMAND_PARSE',
+  'OWNER_CANCEL','WAIT_RESULT','WAIT_REGISTRY','EARLY_STOP','WAIT_EVENT','SIGNAL_INFO','RESUME','SUPPRESS_REGS','GATE_METADATA',
+  'GATE_NOT_LAUNCHED','COUNTER_BOUND','POLICY_DENIAL','EXIT_METADATA','EXIT_URING_ACCOUNTING','EXIT_GETREGS','EXIT_SETREGS',
+  'EXIT_BIRTH_ACCOUNTING','BIRTH_METADATA','BIRTH_TASK','BIRTH_RESERVATION','GROUP_ADMISSION','EXEC_METADATA','EXEC_ACCOUNTING',
+  'TERMINAL_ACCOUNTING','TERMINAL_SIGSYS','ROOT_DESCENDANTS','INPUT_READ','INPUT_WRITE','INPUT_EOF','EVENT_WRITE','CANCEL_SIGNAL'];
+test('native first-failure IDs remain finite and EXITED authority receives exactly the original four values', () => {
+  assert.deepEqual(NATIVE_FIRST_FAILURE_SITES, sites);
+  for (let id = 0; id < sites.length; id++) for (const fragmented of [false, true]) {
+    const { parser, seen } = parse(ready + `EXITED 8 0 0 0 ${id}\n` + input + closed(0), fragmented);
+    assert.equal(parser.nativeFirstFailureSite, sites[id]);
+    assert.deepEqual(seen.find(row => row.kind === 'EXITED').values, [8, 0, 0, 0]);
+    assert.equal(failure(parser, 0).nativeFirstFailureSite, sites[id]);
+    assert.equal(failure(parser, 0).schema, 'tablo/linux-safe-qualification-failure/v4');
+    assert.equal(failure(parser, 0).qualified, false); assert.equal(failure(parser, 0).rootCause, 'UNKNOWN');
+  }
+  for (const bytes of [before, before + closed(0)]) assert.equal(parse(bytes, true).parser.nativeFirstFailureSite, 'UNKNOWN');
+});
+test('accepted EXITED publishes only after the callback and retains its site without CLOSED', () => {
+  const parser = new LinuxRecords(); let callback = false;
+  parser.push(Buffer.from(ready + 'EXITED 8 -1 9 1 34\n'), (kind, values) => {
+    if (kind === 'EXITED') { callback = true; assert.equal(parser.nativeFirstFailureSite, 'UNKNOWN'); assert.deepEqual(values, [8,-1,9,1]); }
+  });
+  assert(callback); assert.equal(parser.nativeFirstFailureSite, 'INPUT_READ'); assert.equal(parser.closed, false);
+  assert.equal(failure(parser).nativeFirstFailureSite, 'INPUT_READ'); assert.equal(failure(parser).nativeDenialDiagnostic, 'UNKNOWN');
+  const rejected = new LinuxRecords(), primary = Error('PRIVATE');
+  assert.throws(() => rejected.push(Buffer.from('EXITED 8 0 0 0 34\n'), () => { throw primary; }), error => error === primary);
+  assert.equal(rejected.nativeFirstFailureSite, 'UNKNOWN');
+});
+test('native first-failure parser rejects arity, spelling and IDs and protocol UNKNOWN stays sticky', () => {
+  const invalid = ['',' 1 2',' -1',' 39',' 2147483647',' 2147483648',' 00',' 01',' -0',' +1',' 1.0',' 1e0',' NaN',' UNKNOWN',' PRIVATE', ' 1\r', ' 1\u0080'];
+  for (const tail of invalid.filter(value => value !== '')) {
+    const parser = new LinuxRecords();
+    assert.throws(() => parser.push(Buffer.from('EXITED 8 0 0 0' + tail + '\n'), () => {}), /LINUX_/);
+    assert.equal(parser.nativeFirstFailureSite, 'UNKNOWN');
+  }
+  for (const values of ['8 0 0','8 0','8','']) assert.throws(() => parse('EXITED ' + values + '\n'), /LINUX_/);
+  const parser = parse(ready + 'EXITED 8 0 0 0 34\n').parser;
+  assert.equal(parser.nativeFirstFailureSite, 'INPUT_READ');
+  assert.throws(() => parser.push(Buffer.from('BOGUS 1\n'), () => {}), /LINUX_/);
+  parser.push(Buffer.from('EXITED 8 0 0 0 38\n'), () => {});
+  assert.equal(parser.nativeFirstFailureSite, 'UNKNOWN');
+  for (const bytes of [Buffer.alloc(8193), Buffer.from('STARTED 8\n'.repeat(9)), Buffer.from('EXITED ' + '0'.repeat(513) + '\n')]) {
+    const bounded = new LinuxRecords(); assert.throws(() => bounded.push(bytes, () => {}), /LINUX_/); assert.equal(bounded.nativeFirstFailureSite, 'UNKNOWN');
+  }
+});
+test('native first-failure projection rejects hostile values without conversion or extra payload', () => {
+  const callbacks = [], hostile = { toString() { callbacks.push('convert'); return 'INPUT_READ'; }, toJSON() { callbacks.push('serialize'); return 'PRIVATE'; } };
+  for (const value of [null, undefined, 0, 34, -1, [], {}, hostile, new String('INPUT_READ'), 'PRIVATE', 'input_read', 'INPUT_READ\n']) {
+    assert.equal(nativeFirstFailureSite(value), 'UNKNOWN');
+    const result = failure({ nativeFirstFailureSite: value }, 0);
+    assert.equal(result.nativeFirstFailureSite, 'UNKNOWN'); assert(!JSON.stringify(result).includes('PRIVATE')); assert.equal(result.qualified, false);
+  }
+  assert.deepEqual(callbacks, []);
+  const result = failure({ nativeFirstFailureSite: 'EXIT_URING_ACCOUNTING' }, 0);
+  assert.equal(result.nativeFirstFailureSite, 'EXIT_URING_ACCOUNTING'); assert(Buffer.byteLength(JSON.stringify(result, null, 2) + '\n') <= 4096);
+});
+
+// The production owner runs only against these closed in-memory seams. No native
+// executable, filesystem mutation, socket, real timer or external process exists.
+async function nativeOwner(text, options = {}) {
+  const fs = require('node:fs'), vm = require('node:vm'), path = require('node:path');
+  const { EventEmitter } = require('node:events');
+  const crypto = require('node:crypto'), source = fs.readFileSync(__dirname + '/server-supervisor.cjs', 'utf8');
+  const effects = [], trip = name => { effects.push(name); throw Error('FORBIDDEN_' + name); };
+  const files = new Map(), root = '/synthetic/phase', hash = 'a'.repeat(64), commands = [], signals = [], captures = [];
+  const closedObject = target => new Proxy(target, { get(object, key) { if (!Object.hasOwn(object, key)) return trip(String(key)); return object[key]; } });
+  const child = new EventEmitter(); child.pid = 7;
+  child.stdin = new EventEmitter(); child.stdout = new EventEmitter(); child.stderr = new EventEmitter();
+  child.stdin.destroyed = false; child.stdin.write = bytes => commands.push(bytes); child.stdin.end = () => commands.push('END');
+  child.kill = signal => signals.push(signal); child.unref = () => captures.push('unref');
+  child.stdout.destroy = () => captures.push('stdout-destroy'); child.stderr.destroy = () => captures.push('stderr-destroy');
+  const filesystem = closedObject({
+    writeFile: async (file, bytes) => { assert(file.startsWith(root + '/')); assert(!files.has(file)); files.set(file, Buffer.from(bytes)); },
+    open: async (file, mode) => {
+      assert(file.startsWith(root + '/')); if (mode === 'wx') { assert(!files.has(file)); files.set(file, Buffer.alloc(0)); } else assert(files.has(file));
+      return closedObject({ then: undefined, fd: file.endsWith('stdout') ? 3 : file.endsWith('stderr') ? 4 : 5,
+        stat: async () => ({ isFile: () => true }), sync: async () => captures.push('sync'), close: async () => captures.push('close') });
+    }, stat: async file => { assert(files.has(file)); return { size: files.get(file).length }; }
+  });
+  const module = { exports: {} }, sandbox = { module, exports: module.exports, Buffer, Error, TypeError, RangeError, SyntaxError,
+    __filename: '/synthetic/owner.cjs', process: closedObject({ platform: 'linux', arch: 'x64', hrtime: { bigint: () => 1000n } }),
+    require(name) {
+      if (name === 'node:fs/promises') return filesystem;
+      if (name === 'node:fs') return closedObject({ createReadStream: () => trip('STREAM') });
+      if (name === 'node:crypto') return crypto;
+      if (name === 'node:path') return path.posix;
+      if (name === 'node:util') return require(name);
+      if (name === 'node:net') return closedObject({});
+      if (name === 'node:child_process') return closedObject({ spawn: () => {
+        setImmediate(() => {
+          for (const bytes of options.fragmented ? [...Buffer.from(text)].map(byte => Buffer.from([byte])) : [Buffer.from(text)]) child.stdout.emit('data', bytes);
+          if (options.stderrOverflow) child.stderr.emit('data', Buffer.alloc(65537));
+          if (options.stdinError) child.stdin.emit('error', Error('PRIVATE'));
+          if (options.spawnError) child.emit('error', Error('PRIVATE'));
+          if (options.externalProtocol) owner.cancel('protocol');
+          if (options.afterFaultText) child.stdout.emit('data', Buffer.from(options.afterFaultText));
+          if (options.expire) { owner.cancel('deadline'); owner.expire(); } else child.emit('close', options.closeCode ?? 125, null);
+        }); return child;
+      } });
+      return trip('IMPORT_' + name);
+    } };
+  sandbox.require.main = {};
+  vm.runInNewContext(source + `\nObject.assign(module.exports, { observerFailure, latchObserverFailure, emitObserverFailure,
+    testSeams() { retain=async(file,value)=>{ if (!file.startsWith('${root}/')) throw Error('FOREIGN'); };
+      digest=async()=> '${hash}'; pinned=async()=>{}; regular=async file=>file; } });`, sandbox, { filename: sandbox.__filename });
+  const api = module.exports; api.testSeams();
+  const pin = { path: '/synthetic/native', sha256: hash };
+  const plan = { schema: 'tablo/server-observer-linux-plan/v1', nonce: 'a'.repeat(32), planId: 'synthetic', adapter: pin,
+    linux: { policy: 'tgid-seccomp-ptrace-x64-v2', unit: 'process/TGID', deadlineNanoseconds: '8000000000', ownerMonotonicNanoseconds: '1', source: pin, recipe: pin, build: pin },
+    job: { activeProcessLimit: 8 }, launch: { executable: pin, argv: [], cwd: '/synthetic', environment: {},
+      input: { mode: 'none', path: null, sha256: null, bytes: 0 }, stdout: root + '/evidence/controller.stdout', stderr: root + '/evidence/controller.stderr' } };
+  const owner = { phase: { root, kind: 'engine', adapterAuthority: Buffer.alloc(32), diagnostic: { state: null, close: null, nativeFirstFailureSite: 'POLICY_DENIAL' } },
+    nativeFirstFailureSite: 'POLICY_DENIAL', cancelReason: null,
+    cancel(reason) { if (!this.cancelReason) this.cancelReason = reason; } };
+  const state = await api.runLinuxAdapter(owner, plan);
+  const failure = api.observerFailure(); failure.stage = 'custody'; failure.phase = 'engine';
+  api.latchObserverFailure(failure, new Error('PRIVATE'), owner);
+  assert.deepEqual(effects, []);
+  const authenticated = files.get(root + '/evidence/adapter-authenticated.ndjson').toString('utf8').trim().split('\n').filter(Boolean)
+    .map(line => JSON.parse(Buffer.from(JSON.parse(line).payload, 'base64').toString('utf8')));
+  return { api, owner, plan, state, failure: failure.first, authenticated, commands, signals, captures };
+}
+test('actual native owner retains accepted EXITED site after missing CLOSED or owner expiry and emits no extra authority', async () => {
+  for (const expire of [false, true]) {
+    const h = await nativeOwner(ready + input + 'EXITED 8 0 0 0 34\n', { expire, fragmented: true });
+    assert.equal(h.owner.nativeFirstFailureSite, 'INPUT_READ'); assert.equal(h.failure.nativeFirstFailureSite, 'INPUT_READ');
+    assert.equal(h.failure.schema, 'tablo/server-safe-observer-failure/v5'); assert.equal(h.state.closed, null);
+    assert.equal(h.owner.nativeDenialDiagnostic, 'UNKNOWN'); assert.equal(h.owner.adapterClose.closeObserved, !expire);
+    assert.equal(h.owner.adapterClose.nativeProtocol, 'private-inherited-pipes/v3');
+    assert.equal(projectFailure({owner:h.owner}).nativeFirstFailureSite, 'INPUT_READ');
+    assert.deepEqual(Object.keys(h.state.exited), ['planId','controllerPid','rootExitObserved','exitCode','posixSignal','terminationRequested']);
+    assert(h.authenticated.every(value => !Object.hasOwn(value, 'nativeFirstFailureSite')));
+    assert.equal(h.failure.rootCause, 'UNKNOWN'); assert.equal(h.failure.issueAccepted, false); assert(!JSON.stringify(h.failure).includes('PRIVATE'));
+    assert(Buffer.byteLength(JSON.stringify(h.failure, null, 2)) <= 4096);
+  }
+  const complete = await nativeOwner(ready + input + 'EXITED 8 0 0 0 34\n' + closed(0));
+  assert(complete.state.closed); assert.equal(complete.owner.nativeFirstFailureSite, 'INPUT_READ');
+  assert(!JSON.stringify(complete.state.closed.admission).includes('nativeFirstFailureSite'));
+});
+test('actual native owner refuses rejected EXITED and any protocol fault, and fresh adapters inherit no site', async () => {
+  for (const [text, options] of [[ready + input + 'EXITED 9 0 0 0 34\n', {}],
+    [ready + input + 'EXITED 8 256 0 0 34\n', {}], [ready + input + 'EXITED 8 0 0 2 34\n', {}],
+    [ready + input + 'EXITED 8 0 0 0 34\nBOGUS 1\n', {}], [ready + input + 'EXITED 8 0 0 0 34\nPARTIAL', {}],
+    [ready + input + 'EXITED 8 0 0 0 34\nEXITED 8 0 0 0 38\n', {}],
+    [ready + input + 'EXITED 8 0 0 0 34\n', {stdinError:true}], [ready + input + 'EXITED 8 0 0 0 34\n', {stderrOverflow:true}],
+    [ready + input + 'EXITED 8 0 0 0 34\n', {externalProtocol:true}], [ready, {}], [before, {}], ['', {}]]) {
+    const h = await nativeOwner(text, options);
+    assert.equal(h.owner.nativeFirstFailureSite, 'UNKNOWN'); assert.equal(h.failure.nativeFirstFailureSite, 'UNKNOWN');
+    assert.equal(projectFailure({owner:h.owner}).nativeFirstFailureSite, 'UNKNOWN'); assert.equal(h.state.closed, null);
+  }
+});
+test('observer independently validates every finite site and cannot inherit an older phase or serialize hostile values', async () => {
+  const h = await nativeOwner(ready + input + 'EXITED 8 0 0 0 34\n');
+  const callbacks = [], hostile = {toString(){callbacks.push('convert');return 'INPUT_READ';},toJSON(){callbacks.push('serialize');return 'PRIVATE';}};
+  for (const value of [...sites, null, undefined, 34, {}, [], hostile, new String('INPUT_READ'), 'PRIVATE']) {
+    h.owner.phase.diagnostic.nativeFirstFailureSite = value;
+    const first = h.api.observerFailure(); first.stage = 'custody'; first.phase = 'engine';
+    h.api.latchObserverFailure(first, Error('PRIVATE'), h.owner);
+    assert.equal(first.first.nativeFirstFailureSite, sites.includes(value) ? value : 'UNKNOWN');
+    assert(!JSON.stringify(first.first).includes('PRIVATE'));
+    h.owner.phase.diagnostic.nativeFirstFailureSite = 'CANCEL_SIGNAL';
+    h.api.latchObserverFailure(first, Error('PRIVATE later'), h.owner);
+    assert.equal(first.first.nativeFirstFailureSite, sites.includes(value) ? value : 'UNKNOWN');
+  }
+  assert.deepEqual(callbacks, []);
+  h.owner.phase = { kind:'baseline', diagnostic:{state:null,close:null} };
+  assert.equal(h.owner.nativeFirstFailureSite, 'INPUT_READ');
+  const fresh = h.api.observerFailure(); h.api.latchObserverFailure(fresh, Error('PRIVATE'), h.owner);
+  assert.equal(fresh.first.nativeFirstFailureSite, 'UNKNOWN');
+});
+test('diagnostic protocol faults preserve original native authority flags, closure behavior and custody refusals', async () => {
+  const prefix = ready + input + 'EXITED 8 0 0 0 34\n', complete = prefix + closed(0);
+  const nominal = await nativeOwner(complete, {closeCode:0});
+  Object.assign(nominal.owner, {plan:nominal.plan,control:true,leases:{active:new Set()}});
+  await nominal.api.verifyCustody(nominal.owner, nominal.state);
+  assert.equal(nominal.owner.adapterClose.protocolFailed, false); assert(nominal.state.closed);
+  for (const [text, options, expected] of [
+    [complete, {stdinError:true}, {closed:true,cancel:'protocol',stderr:0,spawn:false,trailing:0,protocol:false}],
+    [complete, {spawnError:true}, {closed:true,cancel:'protocol',stderr:0,spawn:true,trailing:0,protocol:false}],
+    [complete, {stderrOverflow:true}, {closed:true,cancel:'protocol',stderr:65536,spawn:false,trailing:0,protocol:false}],
+    [complete, {externalProtocol:true}, {closed:true,cancel:'protocol',stderr:0,spawn:false,trailing:0,protocol:false}],
+    [complete+'PARTIAL', {}, {closed:false,cancel:null,stderr:0,spawn:false,trailing:7,protocol:false}],
+    [complete+'BOGUS 1\n', {}, {closed:false,cancel:'protocol',stderr:0,spawn:false,trailing:0,protocol:true}],
+    [prefix, {stdinError:true,afterFaultText:closed(0)}, {closed:true,cancel:'protocol',stderr:0,spawn:false,trailing:0,protocol:false}],
+  ]) {
+    const h = await nativeOwner(text, {...options,closeCode:0});
+    Object.assign(h.owner, {plan:h.plan,control:true,leases:{active:new Set()}});
+    assert.equal(h.owner.adapterClose.protocolFailed, expected.protocol);
+    assert.equal(h.owner.adapterClose.spawnError, expected.spawn); assert.equal(h.owner.adapterClose.stderrBytes, expected.stderr);
+    assert.equal(h.owner.adapterClose.stdoutTrailingBytes, expected.trailing); assert.equal(h.owner.cancelReason, expected.cancel);
+    assert.equal(h.state.closed !== null, expected.closed); assert.equal(h.owner.adapterClose.closeObserved, true);
+    assert.equal(h.owner.nativeFirstFailureSite, 'UNKNOWN'); assert.equal(h.failure.nativeFirstFailureSite, 'UNKNOWN');
+    await assert.rejects(h.api.verifyCustody(h.owner, h.state), /OBSERVER_CLOSURE_UNKNOWN/);
+  }
 });
 test('mixed decisions, fewer completed writes and either INPUT/EXITED order are valid', () => {
   const values = Array(13).fill(1).concat([7, 2]);

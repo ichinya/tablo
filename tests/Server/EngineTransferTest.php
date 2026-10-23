@@ -136,6 +136,7 @@ function engine_transfer_committed_cursor(PDO $target, TokenVault $vault, string
         $receipt = $manifest['header']['tables'][0] ?? throw new \RuntimeException('Missing users transfer receipt.');
         Assert::same([$table['name'], $receipt['name'], $receipt['rows']], ['users', 'users', 1]);
         $plan = \Tablo\DatabaseTransferTarget::plan($digest);
+        Assert::true(class_exists(\Tablo\DatabaseTransferImport::class));
         \Tablo\database_transfer_cursor_table($target, $archive, $table, $receipt, ['plan' => $plan, 'step' => 0]);
         $rows = ServerSchema::rows($target, 'SELECT `cursor` FROM tablo_migration_journal WHERE plan = ? AND step = 0', [$plan]);
         $cursor = \Tablo\SqlColumn::string($rows[0] ?? [], 'cursor');

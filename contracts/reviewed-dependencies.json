@@ -7929,7 +7929,7 @@
                 "Composer analyze",
                 "Composer verify:server"
             ],
-            "fingerprint": "sha256:bb0ab85907a6087fa0b57ec4ec6bbf8e086e8c08cf4467e578d93c24d6f05484"
+            "fingerprint": "sha256:b705492842299efae89c0d88a5c4e4c04a3e2fd54c5992ce6dd4a5915e3d2921"
         },
         {
             "path": "tests/Server/EngineHistoryTest.php",
@@ -8124,7 +8124,7 @@
                 "Composer analyze",
                 "Composer verify:server"
             ],
-            "fingerprint": "sha256:7ea28f9c195b83e61639a35957b2afb35a666445539ea1d33b1199a3e297ee91"
+            "fingerprint": "sha256:1553af47c1179aebad7b44ecd6b073c1cb2354f9066b2a4cad0a02312ec5b956"
         },
         {
             "path": "tests/Server/EngineVerificationTest.php",
@@ -11051,7 +11051,7 @@
                 "tools/server-supervisor-linux-qualify.cjs",
                 "tools/server-linux-prepare.cjs"
             ],
-            "fingerprint": "sha256:4e5bc3382b2c5eb43e33b19d6ea0d296bb558febc00264273a64fb632387389b"
+            "fingerprint": "sha256:61f0c927ff75ccc7d1074b4534ad9eb7dc665be8033e64e16000acff78ea3382"
         },
         {
             "path": "tools/ServerTestEvidence.php",
@@ -11266,7 +11266,7 @@
                 "tools/server-native-denial.test.cjs",
                 "tools/server-io-uring-fallback.test.cjs"
             ],
-            "fingerprint": "sha256:c5626293e858818c46d21d5590d49af78bd50c1adc3fc809d38e624ce8429254"
+            "fingerprint": "sha256:d7287e1266a4975d124f3c756df3369dcc42ec27e9c638a412c601ec3e703eab"
         },
         {
             "path": "tools/server-supervisor-windows.ps1",
@@ -11419,7 +11419,7 @@
                 "tools/server-io-uring-fallback.test.cjs",
                 "tools/server-supervisor-linux-fallback-unit.c"
             ],
-            "fingerprint": "sha256:c58742e5b7e78a43836e1006d9230e7515d2f61cbe139d50bdfa8d851eac81f4"
+            "fingerprint": "sha256:eb85514e65012aa8b5f1bb864c465948e3eee68e27c10ddd9fd2a2a9c0848680"
         },
         {
             "path": "tools/server-supervisor-linux-controls.c",
@@ -11461,7 +11461,7 @@
                 "docs/database-engines.md",
                 "tools/server-io-uring-fallback.test.cjs"
             ],
-            "fingerprint": "sha256:dec2cd7d494f783baf0d3d98196ca00ea632846f2a15c440d6ea6fcd2b0d43d3"
+            "fingerprint": "sha256:ad48513accdd7409dd5f721bd21c66c043b0688a53cff10fa139782a3a074252"
         },
         {
             "path": "tools/server-linux-prepare.cjs",
@@ -11497,7 +11497,7 @@
                 "tools/server-native-denial.test.cjs",
                 "tools/server-io-uring-fallback.test.cjs"
             ],
-            "fingerprint": "sha256:ac5dcbd07c54249b7553b08b98a013fc8037446a0e500056bd7018464b1b1ed8"
+            "fingerprint": "sha256:47f09a27c838fa5a799412255f2d20b8bb37fb63f27a46170287813d9a6d6de6"
         },
         {
             "path": "tools/server-native-denial.test.cjs",
@@ -11507,7 +11507,7 @@
                 "tools/server-native-tests.json",
                 "node --test tools/server-native-denial.test.cjs"
             ],
-            "fingerprint": "sha256:fb08ad2afaffac53d78fa6812500b0f3e9529cdab397ad57e13efaf1fd6930ae"
+            "fingerprint": "sha256:78cb13a62d514f090f2b9d7a22f557eb70bb14e0bb8be29537292c7b5808dd76"
         },
         {
             "path": "tools/server-io-uring-fallback.test.cjs",
@@ -11517,7 +11517,7 @@
                 "tools/server-native-tests.json",
                 "node --test tools/server-io-uring-fallback.test.cjs"
             ],
-            "fingerprint": "sha256:0144d72d3ed50efeb47d07d5064f7d90726b63e9d3297747a54b5363a7e883a7"
+            "fingerprint": "sha256:bdbea92affac31037e00abe9c3456f3d65b3c5ff501148586a4cddda4ffcc708"
         },
         {
             "path": "tools/server-io-uring-php-grammar.test.php",
@@ -11538,7 +11538,7 @@
                 "docs/database-engines.md",
                 "Separate one-resource-per-workflow native stub checkpoint"
             ],
-            "fingerprint": "sha256:5ba68d98a460138a3a773706816f2154129b6bc6c7aa7b63a5ab3ef5e1c7f986"
+            "fingerprint": "sha256:08a40f67b51b261a2a36356a812e6e1dfb3c445478ed7932f470535ab2864a8d"
         }
     ]
 }
