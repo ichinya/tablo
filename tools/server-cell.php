@@ -70,7 +70,7 @@ function server_cell_service(array $context, string $engine): array
  * @return Subprocess::Result */
 function server_cell_docker(array $context, array $arguments, float $timeout, #[\SensitiveParameter] string $input = ''): array
 {
-    $lease = server_cell_observer_begin($timeout, label: 'native/docker');
+    $lease = server_cell_observer_begin($timeout, label: 'native/docker/' . server_cell_docker_operation($arguments));
     server_cell_tool($context['plan']); $environment = server_cell_docker_environment($context);
     $command = server_cell_docker_arguments($context, $arguments, PHP_OS_FAMILY);
     $result = Subprocess::run($command, $context['directory'], $environment,
@@ -81,6 +81,24 @@ function server_cell_docker(array $context, array $arguments, float $timeout, #[
     }
     server_cell_observer_finish($lease, server_cell_observer_closed($result, $receipt));
     return $result;
+}
+
+/** Fixed command families only; never include a generated argument, SQL or resource name. */
+function server_cell_docker_operation(array $arguments): string
+{
+    /** @var mixed $command Only exact literal command families are retained. */
+    $command = $arguments[0] ?? null;
+    /** @var mixed $action No resource argument is converted or serialized. */
+    $action = $arguments[1] ?? null;
+    return match ($command) {
+        'context' => $action === 'inspect' ? 'context-inspect' : 'unknown',
+        'image' => $action === 'inspect' ? 'image-inspect' : 'unknown',
+        'container' => $action === 'inspect' ? 'container-inspect' : 'unknown',
+        'volume' => match ($action) { 'inspect' => 'volume-inspect', 'create' => 'volume-create', 'rm' => 'volume-rm', default => 'unknown' },
+        'network' => match ($action) { 'inspect' => 'network-inspect', 'create' => 'network-create', 'rm' => 'network-rm', default => 'unknown' },
+        'inspect', 'create', 'start', 'exec', 'cp', 'stop', 'rm', 'pull', 'save', 'load', 'info', 'version' => $command,
+        default => 'unknown',
+    };
 }
 
 /** @param array{plan: array, directory: TemporaryDirectory, environment: array<string, string>} $context */
@@ -793,10 +811,37 @@ function server_cell_continue_entry(array $arguments): void
         throw new RuntimeException('Actual saved preparation window required.');
     }
     server_cell_observer_require($plan); server_cell_observer_phase('engine');
-    $environment = server_cell_start_environment($plan) + ['TABLO_TEST_CELL_PLAN' => $path, 'TABLO_TEST_CELL_PLAN_SHA256' => $digest];
-    $context = server_cell_context($root, $environment);
-    try { server_cell_verify_and_close($context); }
-    catch (Throwable $error) { $context['directory']->retainFailure($error); throw $error; }
+    $context = null;
+    try {
+        $environment = server_cell_start_environment($plan) + ['TABLO_TEST_CELL_PLAN' => $path, 'TABLO_TEST_CELL_PLAN_SHA256' => $digest];
+        $context = server_cell_context($root, $environment);
+        server_cell_verify_and_close($context);
+    } catch (Throwable $error) {
+        server_cell_report_engine_failure($error, $root);
+        try { if ($context !== null) { $context['directory']->retainFailure($error); } } catch (Throwable $discarded) { unset($discarded); }
+        throw $error;
+    }
+}
+
+/** Bounded source facts only; this record does not establish a host or product cause.
+ * @return array{schema: string, status: string, phase: string, rootCause: string, issueAccepted: bool, engine: ?string, stage: string,
+ * type: string, category: ?string, sqlState: ?string, nativeCode: ?int, nativeReason: string, source: ?string, line: ?int} */
+function server_cell_engine_failure(#[\SensitiveParameter] Throwable $error): array
+{
+    return ['schema' => 'tablo/server-engine-failure/v1', 'status' => 'failed', 'phase' => 'engine', 'rootCause' => 'UNKNOWN', 'issueAccepted' => false]
+        + server_cell_availability_failure($error, engine: null, stage: 'unknown');
+}
+
+/** Called only after frozen continuation/observer admission; secondary reporting failures never replace the primary. */
+function server_cell_report_engine_failure(#[\SensitiveParameter] Throwable $error, string $root): void
+{
+    try {
+        $runtime = dirname($root);
+        if (basename($root) !== 'source' || preg_match('/\Atablo-server-[0-9a-f]{32}\z/D', basename($runtime)) !== 1) { return; }
+        $bytes = json_encode(server_cell_engine_failure($error), JSON_THROW_ON_ERROR | JSON_UNESCAPED_SLASHES) . "\n";
+        if (strlen($bytes) > 1_024) { return; }
+        server_cell_private_write(dirname($runtime) . '/safe-engine-failure.json', $bytes);
+    } catch (Throwable $discarded) { unset($discarded); }
 }
 
 /** No installation directories are scanned or copied; every input is in the frozen finite inventory. */

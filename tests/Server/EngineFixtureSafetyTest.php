@@ -459,6 +459,7 @@ function engine_fixture_safe_native_failure_codes(): void
     $diagnostic = \server_cell_availability_failure($failure, engine: 'mysql', stage: 'connection');
     Assert::same([$diagnostic['type'], $diagnostic['category'], $diagnostic['sqlState'], $diagnostic['nativeCode']], ['database', 'constraint', '23000', 1062]);
     Assert::false(str_contains(\Tablo\JsonEncoding::encode($diagnostic), $secret));
+    engine_fixture_safe_engine_failure($failure, $secret);
     $invalid = [[[$secret, 2002, $secret], [null, 2002]], [['HY000', '2002', $secret], ['HY000', null]],
         [['HY000', 65_536, $secret], ['HY000', null]], [['HY000', -1, $secret], ['HY000', null]], [[null, null, $secret], [null, null]]];
     foreach ($invalid as [$information, $expected]) {
@@ -498,6 +499,19 @@ function engine_fixture_safe_reason_record(#[\SensitiveParameter] string $secret
     $diagnostic = \server_cell_availability_failure($failure, engine: 'mysql', stage: 'connection');
     Assert::same($diagnostic['nativeReason'], $expected);
     Assert::false(str_contains(\Tablo\JsonEncoding::encode(['failure' => $failure, 'trace' => $failure->getTrace(), 'diagnostic' => $diagnostic]), $secret));
+    engine_fixture_safe_engine_failure($failure, $secret);
+}
+
+function engine_fixture_safe_engine_failure(\Tablo\DatabaseFailure $failure, #[\SensitiveParameter] string $secret): void
+{
+    $record = \server_cell_engine_failure($failure);
+    Assert::same([$record['schema'], $record['status'], $record['phase'], $record['rootCause'], $record['issueAccepted']],
+        ['tablo/server-engine-failure/v1', 'failed', 'engine', 'UNKNOWN', false]);
+    Assert::same([$record['type'], $record['category'], $record['sqlState'], $record['nativeCode'], $record['nativeReason']],
+        ['database', $failure->category, $failure->sqlState, $failure->nativeCode, $failure->nativeReason]);
+    $bytes = \Tablo\JsonEncoding::encode($record);
+    Assert::true(strlen($bytes) < 1_024); Assert::false(str_contains($bytes, $secret));
+    Assert::false(array_key_exists('message', $record)); Assert::false(array_key_exists('trace', $record));
 }
 
 /** Authored inspect records exercise admission only; these controls never invoke Docker or prove availability. */

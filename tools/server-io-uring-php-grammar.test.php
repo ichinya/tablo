@@ -184,6 +184,26 @@ namespace Tablo\Tests\ScanEnvironmentGrammar {
     function file_get_contents(string $path): never { throw new \RuntimeException('SYNTHETIC_INVENTORY_STOP'); }
 }
 
+namespace Tablo\Tests\EngineReportGrammar {
+    /** @return array<string, mixed> */
+    function &state(): array { static $value = []; return $value; }
+    function server_cell_availability_failure(\Throwable $error, ?string $engine, string $stage): array
+    {
+        $value = &state(); $value['originCalls'] = true;
+        if (($value['originFails'] ?? false) === true) { throw new \RuntimeException('PRIVATE secondary origin'); }
+        if ($engine !== null || $stage !== 'unknown') { \Tablo\Tools\grammar_tripwire('Unexpected engine diagnostic classification.'); }
+        return ['schema' => 'tablo/server-availability-failure/v1', 'engine' => null, 'stage' => 'unknown', 'type' => 'runtime',
+            'category' => null, 'sqlState' => null, 'nativeCode' => null, 'nativeReason' => 'unknown', 'source' => 'tools/server-cell.php', 'line' => 17];
+    }
+    function server_cell_private_write(string $path, string $bytes): void
+    {
+        if ($path !== '/synthetic/cell/safe-engine-failure.json') { \Tablo\Tools\grammar_tripwire('Foreign engine report path.'); }
+        $value = &state();
+        if (($value['writeFails'] ?? false) === true || array_key_exists('written', $value)) { throw new \RuntimeException('PRIVATE secondary write'); }
+        $value['written'] = $bytes;
+    }
+}
+
 namespace {
     require __DIR__ . '/../app/JsonRecord.php';
     require __DIR__ . '/../app/SqlColumn.php';
@@ -299,7 +319,7 @@ namespace {
     }
     $changed = $qualified; $changed['runtimes'] = array_reverse($runtimes, preserve_keys: true);
     grammar_refused(static fn () => $run($build, $changed));
-    grammar_prepare_failures(); grammar_private_ini();
+    grammar_prepare_failures(); grammar_private_ini(); grammar_runtime_diagnostics();
     // The only reads above were the two explicit in-memory receipt strings;
     // none of their reference paths can be opened by this isolated harness.
     echo 'IO_URING_PHP_GRAMMAR_OK ' . \Tablo\Tools\grammar_state()['checks'] . "\n";
@@ -331,6 +351,60 @@ namespace {
         grammar_ini_setup($maximum); $run(grammar_ini_plan($maximum));
         grammar_expect(substr_count(grammar_ini_bytes(), needle: 'extension="') === 128); grammar_expect(\Tablo\Tools\grammar_state()['effects'] === []);
         grammar_ini_invalid($run, $pins); grammar_ini_physical($run, $pins); grammar_ini_windows();
+    }
+
+    function grammar_runtime_diagnostics(): void
+    {
+        $cell = \Tablo\RequiredFile::bytes(file_get_contents(__DIR__ . '/server-cell.php', length: 262_145));
+        $bodies = grammar_ini_functions($cell, ['server_cell_docker_operation', 'server_cell_engine_failure', 'server_cell_report_engine_failure']);
+        // Exact bodies only; every origin/public-file effect is closed in the namespace above.
+        // @mago-expect lint:no-eval
+        eval('namespace Tablo\\Tests\\EngineReportGrammar; use RuntimeException, Throwable;' . implode("\n", $bodies));
+        grammar_docker_operations(); grammar_engine_reports();
+    }
+
+    function grammar_docker_operations(): void
+    {
+        /** @var Closure(array): string $classify */
+        $classify = grammar_prepare_callable('Tablo\\Tests\\EngineReportGrammar\\server_cell_docker_operation');
+        $families = [];
+        foreach (['context' => ['inspect'], 'image' => ['inspect'], 'container' => ['inspect'], 'volume' => ['inspect', 'create', 'rm'], 'network' => ['inspect', 'create', 'rm']] as $command => $actions) {
+            foreach ($actions as $action) {
+                $expected = $command . '-' . $action; $families[] = $expected;
+                grammar_expect($classify([$command, $action, 'PRIVATE']) === $expected);
+            }
+            grammar_expect($classify([$command, 'PRIVATE']) === 'unknown');
+        }
+        foreach (['inspect', 'create', 'start', 'exec', 'cp', 'stop', 'rm', 'pull', 'save', 'load', 'info', 'version'] as $command) {
+            $families[] = $command; grammar_expect($classify([$command, 'PRIVATE']) === $command);
+        }
+        foreach ([[], ['PRIVATE'], [false], [null], [1], ['image', []]] as $arguments) { grammar_expect($classify($arguments) === 'unknown'); }
+        grammar_expect(\Tablo\Tools\grammar_state()['effects'] === []);
+        $families[] = 'unknown'; echo 'DOCKER_FAMILY_COMPATIBILITY ' . json_encode($families, JSON_THROW_ON_ERROR) . "\n";
+    }
+
+    function grammar_engine_reports(): void
+    {
+        /** @var Closure(Throwable): array $project */
+        $project = grammar_prepare_callable('Tablo\\Tests\\EngineReportGrammar\\server_cell_engine_failure');
+        $report = grammar_prepare_callable('Tablo\\Tests\\EngineReportGrammar\\server_cell_report_engine_failure');
+        $root = '/synthetic/cell/tablo-server-' . str_repeat('a', times: 32) . '/source';
+        $primary = new RuntimeException('PRIVATE message /private/filename ' . str_repeat('x', times: 8_192));
+        $state = &\Tablo\Tests\EngineReportGrammar\state(); $state = [];
+        $value = $project($primary);
+        grammar_expect($value === ['schema' => 'tablo/server-engine-failure/v1', 'status' => 'failed', 'phase' => 'engine', 'rootCause' => 'UNKNOWN',
+            'issueAccepted' => false, 'engine' => null, 'stage' => 'unknown', 'type' => 'runtime', 'category' => null, 'sqlState' => null,
+            'nativeCode' => null, 'nativeReason' => 'unknown', 'source' => 'tools/server-cell.php', 'line' => 17]);
+        $report($primary, $root);
+        /** @var mixed $first The closed reporter mutates its namespace state. */
+        $first = \Tablo\Tests\EngineReportGrammar\state()['written'] ?? null;
+        grammar_expect(is_string($first) && strlen($first) < 1_024 && !str_contains($first, 'PRIVATE') && !str_contains($first, '/private/'));
+        $report(new TypeError('PRIVATE later'), $root); grammar_expect((\Tablo\Tests\EngineReportGrammar\state()['written'] ?? null) === $first);
+        foreach ([['originFails' => true], ['writeFails' => true]] as $fault) { $state = $fault; $report($primary, $root); grammar_expect(!array_key_exists('written', \Tablo\Tests\EngineReportGrammar\state())); }
+        foreach (['/foreign', '/synthetic/cell/source', '/synthetic/tablo-server-invalid/source'] as $foreign) {
+            $state = []; $report($primary, $foreign); grammar_expect(\Tablo\Tests\EngineReportGrammar\state() === []);
+        }
+        grammar_expect(\Tablo\Tools\grammar_state()['effects'] === []);
     }
 
     function grammar_scan_environment(string $cell): void

@@ -69,7 +69,7 @@ function ownerModule(files, transport = null) {
       if (['node:crypto','node:util'].includes(name)) return require(name);
       tripwire('UNEXPECTED_IMPORT ' + name);
     } };
-  vm.runInNewContext(source + '\nObject.assign(module.exports, { observerFailure, latchObserverFailure, listen, controllerRequest, prepareDiagnostic, PREPARE_STAGES, PREPARE_CLASSES, PREPARE_SOURCES });', sandbox, { filename: sandbox.__filename });
+  vm.runInNewContext(source + '\nObject.assign(module.exports, { observerFailure, latchObserverFailure, observerDockerLeases, DOCKER_OPERATIONS, listen, controllerRequest, prepareDiagnostic, PREPARE_STAGES, PREPARE_CLASSES, PREPARE_SOURCES });', sandbox, { filename: sandbox.__filename });
   return { api: module.exports, context, effects };
 }
 function receiptFixture() {
@@ -449,6 +449,32 @@ function observerHarness(options = {}) {
 function observerClosed(harness) {
   assert.deepEqual(harness.effects, []); assert.equal(harness.listeners.size, 0); assert.equal(harness.timers.size, 0);
 }
+test('actual observer projects only finite active Docker lease families and freezes the first failure', () => {
+  const h = ownerModule(new Map());
+  for (const operation of h.api.DOCKER_OPERATIONS) {
+    const leases = new h.api.Leases(1800_000_000_000n, () => 1n);
+    leases.admit(8, 'case/main/0'); leases.admit(8, 'native/docker/' + operation);
+    assert.deepEqual(Array.from(h.api.observerDockerLeases({ leases })), [operation]);
+    const failure = h.api.observerFailure(); failure.stage = 'custody'; failure.phase = 'prepare';
+    h.api.latchObserverFailure(failure, new Error('PRIVATE'), { leases, adapterState: { exited: { exitCode: 1 } } });
+    assert.equal(failure.first.schema, 'tablo/server-safe-observer-failure/v2');
+    assert.deepEqual(Array.from(failure.first.activeDockerLeases), [operation]); assert.equal(failure.first.controllerExit, 1);
+    leases.active.clear(); h.api.latchObserverFailure(failure, new Error('PRIVATE later'), { leases });
+    assert.deepEqual(Array.from(failure.first.activeDockerLeases), [operation]);
+    assert(!JSON.stringify(failure.first).includes('PRIVATE')); assert.equal(failure.first.issueAccepted, false);
+  }
+  assert.deepEqual(h.effects, []);
+});
+test('active Docker lease projection rejects private labels malformed maps and overlarge inventories', () => {
+  const h = ownerModule(new Map()), leases = new h.api.Leases(1800_000_000_000n, () => 1n);
+  assert.equal(h.api.observerDockerLeases(), 'UNKNOWN'); assert.equal(h.api.observerDockerLeases({ leases: { active: {} } }), 'UNKNOWN');
+  assert.deepEqual(Array.from(h.api.observerDockerLeases({ leases })), []);
+  leases.admit(8, 'native/docker/private-canary'); leases.admit(8, 'case/private-canary');
+  assert.deepEqual(Array.from(h.api.observerDockerLeases({ leases })), ['unknown']);
+  for (let i = 0; i < 9; i++) leases.active.set(i, { label: 'native/docker/exec' });
+  assert.equal(h.api.observerDockerLeases({ leases }), 'UNKNOWN');
+  assert.deepEqual(h.effects, []);
+});
 for (const kind of ['prepare', 'baseline', 'engine']) {
   test('actual ' + kind + ' launch selects only its owned PHP scan directory', async () => {
     const h = observerHarness({ launchOnly: true }), runtime = '/synthetic/runtime';

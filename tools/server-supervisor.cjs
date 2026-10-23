@@ -39,6 +39,22 @@ const OBSERVER_REFUSALS = Object.freeze(['EXACT_ARGUMENTS', 'EXACT_MODE', 'NODE_
   'LINUX_FALLBACK_BINDING', 'LINUX_FALLBACK_COVERAGE', 'PRIOR_PHASE_UNSETTLED', 'OBSERVER_CLOSURE_UNKNOWN', 'CONTROLLER_INPUT_UNSETTLED',
   'CONTROLLER_NATIVE_FAILURE', 'CONTROLLER_CUSTODY', 'PREPARATION_PROOF', 'BASELINE_EXPORT', 'CELL_RESULT_MISSING', 'CUSTODY_LATE', 'CELL_FAILED']);
 function observerFailure() { return { stage: 'arguments', phase: 'MISSING', first: null }; }
+const DOCKER_OPERATIONS = Object.freeze(['context-inspect', 'image-inspect', 'container-inspect', 'volume-inspect', 'volume-create', 'volume-rm',
+  'network-inspect', 'network-create', 'network-rm', 'inspect', 'create', 'start', 'exec', 'cp', 'stop', 'rm', 'pull', 'save', 'load', 'info', 'version', 'unknown']);
+function observerDockerLeases(owner) {
+  const active = owner?.leases?.active;
+  if (!(active instanceof Map) || active.size > 8) return 'UNKNOWN';
+  const operations = [];
+  let seen = 0;
+  for (const lease of active.values()) {
+    if (++seen > 8) return 'UNKNOWN';
+    if (typeof lease?.label !== 'string' || !lease.label.startsWith('native/docker/')) continue;
+    const value = lease.label.slice('native/docker/'.length);
+    if (DOCKER_OPERATIONS.includes(value)) operations.push(value);
+    else operations.push('unknown');
+  }
+  return Object.freeze(operations);
+}
 const PREPARE_STAGES = Object.freeze(['ARGUMENTS', 'DEPENDENCY_GUARD', 'LOAD', 'PLAN_BINDING', 'OBSERVER_BINDING', 'MATERIALIZE', 'AUTOLOAD',
   'ENVIRONMENT', 'CONTROLLER_DIRECTORY', 'EXECUTE', 'UNKNOWN']);
 const PREPARE_CLASSES = Object.freeze(['RuntimeException', 'LogicException', 'InvalidArgumentException', 'JsonException', 'Error', 'TypeError',
@@ -96,7 +112,7 @@ function latchObserverFailure(failure, error, owner) {
   if (failure.first) return;
   const stage = OBSERVER_STAGES.includes(failure.stage) ? failure.stage : 'UNKNOWN';
   const phase = ['prepare', 'baseline', 'engine', 'control', 'MISSING'].includes(failure.phase) ? failure.phase : 'UNKNOWN';
-  const base = { schema: 'tablo/server-safe-observer-failure/v1', status: 'failed', rootCause: 'UNKNOWN', issueAccepted: false, stage, phase };
+  const base = { schema: 'tablo/server-safe-observer-failure/v2', status: 'failed', rootCause: 'UNKNOWN', issueAccepted: false, stage, phase };
   try {
     const scalar = (value, valid) => value === undefined ? 'MISSING' : value === null ? null : valid(value) ? value : 'UNKNOWN';
     const prototype = object(error) ? Object.getPrototypeOf(error) : null;
@@ -110,8 +126,9 @@ function latchObserverFailure(failure, error, owner) {
       controllerExit: scalar(owner?.adapterState?.exited?.exitCode, value => integer(value, 0, 2147483647)),
       inputSettled: scalar(owner?.adapterState?.input?.settled, value => typeof value === 'boolean'),
       scopeObservedEmpty: scalar(owner?.adapterState?.closed?.scopeObservedEmpty, value => typeof value === 'boolean'),
+      activeDockerLeases: observerDockerLeases(owner),
       prepareDiagnostic: consolePrepareDiagnostic(owner?.phase?.kind === 'prepare' ? owner.phase.prepareDiagnostic : undefined) });
-  } catch { failure.first = Object.freeze({ ...base, errorClass: 'UNKNOWN', refusal: 'UNKNOWN', prepareDiagnostic: 'MISSING' }); }
+  } catch { failure.first = Object.freeze({ ...base, errorClass: 'UNKNOWN', refusal: 'UNKNOWN', activeDockerLeases: 'UNKNOWN', prepareDiagnostic: 'MISSING' }); }
 }
 function emitObserverFailure(failure) {
   try {
