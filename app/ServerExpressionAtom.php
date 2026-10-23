@@ -22,6 +22,7 @@ final class ServerExpressionAtom
             // Both supported server printers use SUBSTR for the standard SUBSTRING call.
             return self::call($lower === 'substr' ? 'substring' : $lower, $lexemes, $position, $operator);
         }
+        if (str_starts_with($lower, '0x')) { throw new DatabaseFailure('schema'); }
         if (str_contains($lexeme, "'") || str_starts_with($lower, '_binary')) { return server_expression_literal($lexeme); }
         return ['atom', str_replace('`', replace: '', subject: $lower)];
     }
@@ -47,15 +48,35 @@ final class ServerExpressionAtom
             ServerExpressionTokens::consume($lexemes, $position, ')');
             return ['call', $name, $arguments];
         }
-        do {
-            $arguments[] = $operator->parse($lexemes, $position);
-            if (($lexemes[$position] ?? '') !== ',') { break; }
-            $position++;
-        } while (true);
-        ServerExpressionTokens::consume($lexemes, $position, ')');
-        return ['call', $name, $arguments];
+        return ['call', $name, server_expression_arguments($name, $lexemes, $position, $operator)];
     }
 
+}
+
+/** @param list<string> $lexemes */
+function server_expression_arguments(string $name, array $lexemes, int &$position, ServerExpressionOperator $operator): array
+{
+    $arguments = [];
+    do {
+        $arguments[] = server_expression_argument($name, $lexemes, $position, $operator);
+        if (($lexemes[$position] ?? '') !== ',') { break; }
+        $position++;
+    } while (true);
+    ServerExpressionTokens::consume($lexemes, $position, ')');
+    if ($name === 'replace' && count($arguments) !== 3) { throw new DatabaseFailure('schema'); }
+    return $arguments;
+}
+
+/** @param list<string> $lexemes */
+function server_expression_argument(string $name, array $lexemes, int &$position, ServerExpressionOperator $operator): array
+{
+    $candidate = $lexemes[$position] ?? '';
+    if ($name === 'replace' && str_starts_with($candidate, '0x') && in_array($lexemes[$position + 1] ?? '', [',', ')'], strict: true)) {
+        // REPLACE consumes this complete argument as a string, never as a numeric expression.
+        $position++;
+        return server_expression_literal('_binary ' . $candidate);
+    }
+    return $operator->parse($lexemes, $position);
 }
 
 /** Decode only a string-literal token already admitted by the finite lexer. */

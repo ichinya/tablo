@@ -15,7 +15,7 @@ final class ServerExpressionTokens
         while ($offset < strlen($sql)) {
             $match = [];
             if (preg_match('/\G\s+/A', $sql, $match, flags: 0, offset: $offset) === 1) { $offset += strlen(RegexCapture::text($match, 0)); continue; }
-            if (preg_match('/\G(?:`[a-zA-Z0-9_]+`|(?:(?i:_binary)\s*)?\x27(?:\x27\x27|[^\x27])*\x27|(?:(?i:_binary)\s+)?[xX]\x27(?:[0-9a-fA-F]{2})*\x27|(?i:_binary)\s+0x[0-9a-fA-F]+|[a-zA-Z_][a-zA-Z0-9_]*|[0-9]+|<=>|<>|!=|<=|>=|[(),=<>+*\/-])/A', $sql, $match, flags: 0, offset: $offset) !== 1) { throw new DatabaseFailure('schema'); }
+            if (preg_match('/\G(?:`[a-zA-Z0-9_]+`|(?:(?i:_binary)\s*)?\x27(?:\x27\x27|[^\x27])*\x27|(?:(?i:_binary)\s+)?[xX]\x27(?:[0-9a-fA-F]{2})*\x27|(?i:_binary)\s+0x[0-9a-fA-F]+|[a-zA-Z_][a-zA-Z0-9_]*|0x[0-9a-fA-F]+|[0-9]+|<=>|<>|!=|<=|>=|[(),=<>+*%\/-])/A', $sql, $match, flags: 0, offset: $offset) !== 1) { throw new DatabaseFailure('schema'); }
             $tokens[] = RegexCapture::text($match, 0); $offset += strlen(RegexCapture::text($match, 0));
         }
         if (count($tokens) > 2048) { throw new DatabaseFailure('schema'); }

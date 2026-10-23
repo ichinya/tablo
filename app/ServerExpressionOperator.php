@@ -17,7 +17,7 @@ final class ServerExpressionOperator
         $left = ServerExpressionAtom::parse($tokens, $position, $this);
         while (true) {
             $operator = strtolower($tokens[$position] ?? '');
-            $precedence = match ($operator) { 'or' => 10, 'and' => 20, '=', '<=>', '<>', '!=', '<', '>', '<=', '>=', 'is', 'in', 'between' => 30, '+', '-' => 40, '*', '/' => 50, default => -1 };
+            $precedence = match ($operator) { 'or' => 10, 'and' => 20, '=', '<=>', '<>', '!=', '<', '>', '<=', '>=', 'is', 'in', 'between' => 30, '+', '-' => 40, '*', '/', 'mod', '%' => 50, default => -1 };
             if ($precedence < $minimum) { break; }
             $position++;
             if ($operator === 'between') {
@@ -27,7 +27,8 @@ final class ServerExpressionOperator
             }
             if ($operator === 'in') { $left = $this->membership($tokens, $position, $left); continue; }
             if ($operator === 'is') { $left = self::nullComparison($tokens, $position, $left); continue; }
-            $left = [$operator === '!=' ? '<>' : $operator, $left, $this->parse($tokens, $position, $precedence + 1)];
+            $right = $this->parse($tokens, $position, $precedence + 1);
+            $left = in_array($operator, ['mod', '%'], strict: true) ? ['call', 'mod', [$left, $right]] : [$operator === '!=' ? '<>' : $operator, $left, $right];
         }
         return $left;
         } finally { $this->depth--; }
