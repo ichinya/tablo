@@ -41,6 +41,7 @@ struct group { pid_t tgid; int fd; };
 static struct task tasks[TASKS];
 static struct group groups[GROUPS];
 static pid_t early_stops[TASKS];
+static unsigned char early_exit_seen[TASKS];
 static unsigned live, pending, peak, births, reservations, failed_creations;
 static unsigned denied, clone3_fallbacks, waits, exec_retired, thread_births;
 static unsigned io_uring_setup_attempts, io_uring_setup_eperm_writes;
@@ -304,7 +305,7 @@ static int birth(struct task *parent) {
     }
     parent->born = 1;
     for (unsigned i = 0; i < TASKS; i++) if (early_stops[i] == (pid_t)child) {
-        early_stops[i] = 0;
+        early_stops[i] = 0; early_exit_seen[i] = 0;
         struct task *t = task((pid_t)child); t->newborn = 0;
         if (resume(t, 0)) return failure_mark(N_UNKNOWN);
     }
@@ -385,6 +386,13 @@ static int reap(void) {
             // Birth notification and the child's automatic SIGSTOP are separate
             // kernel waits. Hold an early stop until a known parent's event proves
             // its ownership. It cannot run, and an unmatched stop forbids closure.
+            // SIGKILL can advance that held stop to EXIT before the parent wait.
+            // Keep it held; only birth may register and resume it after admission.
+            if (ev == PTRACE_EVENT_EXIT && sig == SIGTRAP) {
+                unsigned i;
+                for (i = 0; i < TASKS && early_stops[i] != tid; i++) {}
+                if (i < TASKS && !early_exit_seen[i]) { early_exit_seen[i] = 1; continue; }
+            }
             if (ev || sig != SIGSTOP) return failure_mark(early_stop_site(ev, sig));
             unsigned i;
             for (i = 0; i < TASKS; i++) if (early_stops[i] == tid) return failure_mark(N_EARLY_STOP_DUPLICATE);

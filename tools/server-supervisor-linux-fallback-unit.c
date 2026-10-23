@@ -169,7 +169,7 @@ static void unit_resume_owned(enum __ptrace_request request, pid_t tid, int forw
     assert(t && group(t->tgid) && !t->newborn && unit_resume_length < 16);
     if (tid == 102 && (unit_resume_length == 0 || unit_resume_length == 1)) {
         assert(task(root) && task(root)->born && (task(root)->pending == PROCESS || task(root)->pending == THREAD));
-        assert(!pending && !early_stops[0]);
+        assert(!pending && !early_stops[0] && !early_exit_seen[0]);
     }
     unit_resume_vector[unit_resume_length++] = (struct unit_resume){ .tid = tid, .request = request, .forwarded = forwarded };
 }
@@ -178,6 +178,7 @@ static unsigned unit_cases;
 static struct task *unit_begin(void) {
     unit_cases++;
     memset(tasks, 0, sizeof(tasks)); memset(groups, 0, sizeof(groups)); memset(early_stops, 0, sizeof(early_stops));
+    memset(early_exit_seen, 0, sizeof(early_exit_seen));
     memset(denial_buckets, 0, sizeof(denial_buckets)); memset(&unit_info, 0, sizeof(unit_info)); memset(&unit_regs, 0, sizeof(unit_regs));
     memset(unit_events, 0, sizeof(unit_events));
     live = births = peak = 1; pending = reservations = failed_creations = denied = clone3_fallbacks = waits = exec_retired = thread_births = 0;
@@ -315,7 +316,7 @@ static void unit_birth_wait_vectors(void) {
         assert(unit_resume_vector[3].tid == 102 && unit_resume_vector[3].request == PTRACE_CONT);
         assert(unit_resume_vector[4].tid == root && unit_resume_vector[4].request == PTRACE_CONT);
         for (unsigned i = 0; i < unit_resume_length; i++) assert(!unit_resume_vector[i].forwarded);
-        for (unsigned i = 0; i < TASKS; i++) assert(!tasks[i].tid && !early_stops[i]);
+        for (unsigned i = 0; i < TASKS; i++) assert(!tasks[i].tid && !early_stops[i] && !early_exit_seen[i]);
         for (unsigned i = 0; i < GROUPS; i++) assert(!groups[i].tgid);
     }
 }
@@ -327,10 +328,13 @@ static void unit_rejected_wait(unsigned ev, int sig, int queued, int prior, int 
         assert(gate(t) == 0 && failed && denied == 1 && t->pending == REJECT);
     } else assert(prior == -1);
     if (queued == 1) early_stops[0] = 102;
-    else if (queued == 2) for (unsigned i = 0; i < TASKS; i++) early_stops[i] = (pid_t)(1000 + i);
+    else if (queued == 2) for (unsigned i = 0; i < TASKS; i++) { early_stops[i] = (pid_t)(1000 + i); early_exit_seen[i] = 1; }
+    else if (queued == 3) early_exit_seen[0] = 1; // A stale bit alone never proves a held PID.
     else assert(!queued);
     struct task before_tasks[TASKS]; struct group before_groups[GROUPS]; pid_t before_early[TASKS];
+    unsigned char before_exit_seen[TASKS];
     memcpy(before_tasks, tasks, sizeof(tasks)); memcpy(before_groups, groups, sizeof(groups)); memcpy(before_early, early_stops, sizeof(early_stops));
+    memcpy(before_exit_seen, early_exit_seen, sizeof(early_exit_seen));
     struct user_regs_struct regs = unit_regs;
     unsigned before_ptraces = unit_ptraces, before_resumes = unit_resumes, before_sets = unit_sets;
     unsigned before_denied = denied, before_attempts = io_uring_setup_attempts;
@@ -344,6 +348,7 @@ static void unit_rejected_wait(unsigned ev, int sig, int queued, int prior, int 
     assert(denied == before_denied && io_uring_setup_attempts == before_attempts && !io_uring_setup_eperm_writes && !eperm_register_writes && !eagain_register_writes);
     assert(!waits && !failed_creations && !thread_births && !exec_retired && !clone3_fallbacks && ready && launched && started && !root_terminal && !closure_echild);
     assert(!memcmp(tasks, before_tasks, sizeof(tasks)) && !memcmp(groups, before_groups, sizeof(groups)) && !memcmp(early_stops, before_early, sizeof(early_stops)));
+    assert(!memcmp(early_exit_seen, before_exit_seen, sizeof(early_exit_seen)));
     assert(!memcmp(&unit_regs, &regs, sizeof(regs)) && !task(102));
 }
 static void unit_early_rejection_vectors(void) {
@@ -353,6 +358,11 @@ static void unit_early_rejection_vectors(void) {
         { PTRACE_EVENT_VFORK, SIGTRAP, 0, N_EARLY_STOP_EVENT_VFORK },
         { PTRACE_EVENT_CLONE, SIGTRAP, 0, N_EARLY_STOP_EVENT_CLONE },
         { PTRACE_EVENT_EXIT, SIGTRAP, 0, N_EARLY_STOP_EVENT_EXIT },
+        { PTRACE_EVENT_EXIT, SIGSTOP, 1, N_EARLY_STOP_EVENT_EXIT },
+        { PTRACE_EVENT_EXIT, SIGTRAP | 0x80, 1, N_EARLY_STOP_EVENT_EXIT },
+        { PTRACE_EVENT_SECCOMP, SIGTRAP, 1, N_EARLY_STOP_EVENT_SECCOMP },
+        { PTRACE_EVENT_EXIT, SIGTRAP, 2, N_EARLY_STOP_EVENT_EXIT },
+        { PTRACE_EVENT_EXIT, SIGTRAP, 3, N_EARLY_STOP_EVENT_EXIT },
         { PTRACE_EVENT_SECCOMP, SIGTRAP, 0, N_EARLY_STOP_EVENT_SECCOMP },
         { PTRACE_EVENT_STOP, SIGTRAP, 0, N_EARLY_STOP_EVENT_STOP },
         { 123, SIGTRAP, 0, N_EARLY_STOP_EVENT_OTHER },
@@ -363,7 +373,7 @@ static void unit_early_rejection_vectors(void) {
         { 0, SIGTERM, 0, N_EARLY_STOP_SIGNAL_TERMINATION }
     };
     _Static_assert(N_CANCEL_SIGNAL == 38 && N_EARLY_STOP_DUPLICATE == 39 && N_EARLY_STOP_SIGNAL_OTHER == 53, "stable diagnostic IDs");
-    _Static_assert(sizeof(cases) / sizeof(cases[0]) == 14, "finite rejection fixtures");
+    _Static_assert(sizeof(cases) / sizeof(cases[0]) == 19, "finite rejection fixtures");
     for (unsigned i = 0; i < sizeof(cases) / sizeof(cases[0]); i++) unit_rejected_wait(cases[i].ev, cases[i].sig, cases[i].queued, -1, cases[i].site);
     unit_rejected_wait(0, SIGSTOP, 1, N_UNKNOWN, N_UNKNOWN);
     unit_rejected_wait(PTRACE_EVENT_EXIT, SIGTRAP, 0, N_POLICY_DENIAL, N_POLICY_DENIAL);
@@ -374,6 +384,110 @@ static void unit_early_rejection_vectors(void) {
     assert(early_stop_site(0, SIGHUP) == N_EARLY_STOP_SIGNAL_TERMINATION && early_stop_site(0, SIGINT) == N_EARLY_STOP_SIGNAL_TERMINATION);
     assert(early_stop_site(0, SIGQUIT) == N_EARLY_STOP_SIGNAL_TERMINATION && early_stop_site(0, SIGUSR2) == N_EARLY_STOP_SIGNAL_OTHER);
     assert(errno == EDOM && !unit_clocks);
+}
+static void unit_hold_wait(unsigned ev, int sig, unsigned exit_seen) {
+    struct task before_tasks[TASKS]; struct group before_groups[GROUPS]; struct user_regs_struct regs = unit_regs;
+    memcpy(before_tasks, tasks, sizeof(tasks)); memcpy(before_groups, groups, sizeof(groups));
+    int before_seen = first_seen, before_site = first_site;
+    unsigned before_waits = unit_waits;
+    unit_wait_vector[0] = (struct unit_wait){ .tid = 102, .status = (int)(ev << 16) | (sig << 8) | 0x7f };
+    unit_wait_vector[1] = (struct unit_wait){ .tid = 0 }; unit_wait_length = 2; unit_wait_index = 0; errno = EDOM;
+    assert(reap() == 0 && errno == EDOM && unit_wait_index == 2 && unit_waits == before_waits + 2);
+    assert(early_stops[0] == 102 && early_exit_seen[0] == exit_seen && !task(102) && !group(102));
+    for (unsigned i = 1; i < TASKS; i++) assert(!early_stops[i] && !early_exit_seen[i]);
+    assert(!memcmp(tasks, before_tasks, sizeof(tasks)) && !memcmp(groups, before_groups, sizeof(groups)) && !memcmp(&unit_regs, &regs, sizeof(regs)));
+    assert(live == 1 && births == 1 && peak == 2 && pending == 1 && reservations == 1 && task(root)->pending == PROCESS && !task(root)->born);
+    assert(!waits && !failed_creations && !thread_births && !exec_retired && !denied && !clone3_fallbacks && !failed && !cancelled && !closure_echild && !root_terminal);
+    assert(first_seen == before_seen && first_site == before_site && !io_uring_setup_attempts && !io_uring_setup_eperm_writes && !eperm_register_writes && !eagain_register_writes);
+    assert(!unit_ptraces && !unit_resumes && !unit_resume_length && !unit_sets && !unit_kills && !unit_opens && !unit_closes && !unit_sends && !unit_clocks && !unit_event_io.calls);
+}
+static struct task *unit_held_process(int prior) {
+    struct task *parent = unit_begin(); parent->pending = PROCESS; pending = reservations = 1; peak = 2;
+    unit_event_old = 102; unit_info.op = PTRACE_SYSCALL_INFO_EXIT; unit_info.exit.is_error = 0;
+    if (prior >= 0) assert(failure_mark(prior) == -1);
+    unit_hold_wait(0, SIGSTOP, 0); unit_hold_wait(PTRACE_EVENT_EXIT, SIGTRAP, 1);
+    return parent;
+}
+static void unit_held_exit_success(void) {
+    unit_held_process(-1);
+    struct user_regs_struct regs = unit_regs;
+    unit_wait_vector[0] = (struct unit_wait){ .tid = root, .status = (PTRACE_EVENT_FORK << 16) | (SIGTRAP << 8) | 0x7f };
+    unit_wait_vector[1] = (struct unit_wait){ .tid = root, .status = ((SIGTRAP | 0x80) << 8) | 0x7f };
+    unit_wait_vector[2] = (struct unit_wait){ .tid = 102, .status = SIGKILL };
+    unit_wait_vector[3] = (struct unit_wait){ .tid = root, .status = (PTRACE_EVENT_EXIT << 16) | (SIGTRAP << 8) | 0x7f };
+    unit_wait_vector[4] = (struct unit_wait){ .tid = root, .status = 0 };
+    unit_wait_vector[5] = (struct unit_wait){ .tid = -1, .error = ECHILD }; unit_wait_length = 6; unit_wait_index = 0;
+    assert(reap() == 0 && closure_echild && root_terminal && !failed && !cancelled && !first_seen);
+    assert(unit_waits == 10 && unit_wait_index == 6 && unit_ptraces == 6 && unit_resumes == 4 && unit_resume_length == 4);
+    assert(!live && !pending && reservations == 1 && births == 2 && peak == 2 && waits == 2 && !thread_births && !exec_retired && !failed_creations);
+    assert(unit_opens == 1 && unit_closes == 2 && !unit_kills && !unit_clocks && !unit_sends && !unit_sets && !denied && !clone3_fallbacks);
+    assert(!io_uring_setup_attempts && !io_uring_setup_eperm_writes && !eperm_register_writes && !eagain_register_writes && !memcmp(&unit_regs, &regs, sizeof(regs)));
+    assert(unit_event_io.calls == 1 && !strcmp(unit_events, "EXITED 101 0 0 0 0\n"));
+    assert(unit_resume_vector[0].tid == 102 && unit_resume_vector[0].request == PTRACE_CONT);
+    assert(unit_resume_vector[1].tid == root && unit_resume_vector[1].request == PTRACE_SYSCALL);
+    for (unsigned i = 2; i < 4; i++) assert(unit_resume_vector[i].tid == root && unit_resume_vector[i].request == PTRACE_CONT);
+    for (unsigned i = 0; i < 4; i++) assert(!unit_resume_vector[i].forwarded);
+    for (unsigned i = 0; i < TASKS; i++) assert(!tasks[i].tid && !early_stops[i] && !early_exit_seen[i]);
+    for (unsigned i = 0; i < GROUPS; i++) assert(!groups[i].tgid);
+}
+static void unit_held_exit_rejections(void) {
+    const int sites[] = { N_EARLY_STOP_EVENT_EXIT, N_BIRTH_METADATA, N_WAIT_REGISTRY, N_BIRTH_RESERVATION,
+        N_GROUP_ADMISSION, N_WAIT_REGISTRY, N_WAIT_REGISTRY, N_BIRTH_TASK, N_EARLY_STOP_DUPLICATE, N_EARLY_STOP_EVENT_FORK };
+    for (unsigned fault = 0; fault < sizeof(sites) / sizeof(sites[0]); fault++) {
+        struct task *parent = unit_held_process(-1); struct user_regs_struct regs = unit_regs;
+        unit_wait_vector[0] = (struct unit_wait){ .tid = root, .status = (PTRACE_EVENT_FORK << 16) | (SIGTRAP << 8) | 0x7f };
+        unit_wait_length = 1; unit_wait_index = 0;
+        if (fault == 0) unit_wait_vector[0].tid = 102, unit_wait_vector[0].status = (PTRACE_EVENT_EXIT << 16) | (SIGTRAP << 8) | 0x7f;
+        if (fault == 1) parent->pending = NONE;
+        if (fault == 2) {
+            unit_event_old = 103; unit_wait_vector[1] = (struct unit_wait){ .tid = 102, .status = SIGKILL }; unit_wait_length = 2;
+        }
+        if (fault == 3) pending = 0;
+        if (fault == 4) unit_open_failure = 1;
+        if (fault == 5) unit_wait_vector[0] = (struct unit_wait){ .tid = 102, .status = SIGKILL };
+        if (fault == 6) {
+            unit_wait_vector[0] = (struct unit_wait){ .tid = root, .status = SIGKILL };
+            unit_wait_vector[1] = (struct unit_wait){ .tid = -1, .error = ECHILD }; unit_wait_length = 2;
+        }
+        if (fault == 7) assert(add_task(102, 102, 1));
+        if (fault == 8) unit_wait_vector[0] = (struct unit_wait){ .tid = 102, .status = (SIGSTOP << 8) | 0x7f };
+        if (fault == 9) unit_wait_vector[0].tid = 103;
+        errno = EDOM; assert(reap() == -1 && errno == (fault == 4 ? EIO : fault == 6 ? ECHILD : EDOM)); unit_site(sites[fault]);
+        assert(early_stops[0] == 102 && early_exit_seen[0] == 1 && !group(102) && !closure_echild && !failed && !cancelled);
+        for (unsigned i = 1; i < TASKS; i++) assert(!early_stops[i] && !early_exit_seen[i]);
+        const unsigned ptraces[] = { 0, 0, 2, 1, 1, 0, 0, 1, 0, 0 };
+        assert(unit_ptraces == ptraces[fault] && unit_resumes == (fault == 2 ? 1U : 0U) && unit_resume_length == unit_resumes);
+        assert(unit_waits == 4 + unit_wait_length && unit_wait_index == unit_wait_length && unit_opens == (fault == 2 || fault == 4 ? 1U : 0U));
+        assert(unit_closes == (fault == 6 ? 1U : 0U) && unit_event_io.calls == (fault == 6 ? 1U : 0U));
+        assert(live == (fault == 2 ? 2U : fault == 6 ? 0U : 1U) && births == (fault == 2 ? 2U : 1U) && peak == 2 && reservations == 1);
+        assert(pending == (fault == 2 || fault == 3 || fault == 4 || fault == 6 ? 0U : 1U));
+        assert(waits == (fault == 6 ? 1U : 0U) && failed_creations == (fault == 6 ? 1U : 0U) && root_terminal == (fault == 6));
+        assert(!unit_sets && !unit_kills && !unit_clocks && !unit_sends && !thread_births && !exec_retired && !denied && !clone3_fallbacks);
+        assert(!io_uring_setup_attempts && !io_uring_setup_eperm_writes && !eperm_register_writes && !eagain_register_writes && !memcmp(&unit_regs, &regs, sizeof(regs)));
+        if (fault == 2) assert(!task(102) && task(103) && task(103)->newborn && group(103) && parent->born && unit_resume_vector[0].tid == root);
+        else if (fault == 3 || fault == 4 || fault == 7) assert(task(102) && task(102)->newborn && !parent->born);
+        else assert(!task(102));
+        if (fault == 6) assert(!task(root) && !strcmp(unit_events, "EXITED 101 -1 9 0 0\n"));
+    }
+    unit_begin();
+    for (unsigned i = 0; i < TASKS; i++) { early_stops[i] = (pid_t)(1000 + i); early_exit_seen[i] = 1; }
+    early_stops[TASKS - 1] = 102; early_exit_seen[TASKS - 1] = 0;
+    unit_wait_vector[0] = (struct unit_wait){ .tid = 102, .status = (PTRACE_EVENT_EXIT << 16) | (SIGTRAP << 8) | 0x7f };
+    unit_wait_vector[1] = (struct unit_wait){ .tid = 0 }; unit_wait_length = 2; errno = EDOM;
+    assert(reap() == 0 && errno == EDOM && !first_seen && early_exit_seen[TASKS - 1] == 1);
+    unit_wait_length = 1; unit_wait_index = 0;
+    assert(reap() == -1 && errno == EDOM); unit_site(N_EARLY_STOP_EVENT_EXIT);
+    for (unsigned i = 0; i < TASKS; i++) assert(early_stops[i] == (i == TASKS - 1 ? 102 : (pid_t)(1000 + i)) && early_exit_seen[i] == 1);
+    assert(!task(102) && !group(102) && live == 1 && births == 1 && peak == 1 && !pending && !reservations && !waits && !failed && !cancelled && !closure_echild);
+    assert(unit_waits == 3 && !unit_ptraces && !unit_resumes && !unit_resume_length && !unit_sets && !unit_kills && !unit_clocks && !unit_opens && !unit_closes && !unit_sends && !unit_event_io.calls);
+    for (unsigned prior = 0; prior < 2; prior++) {
+        int site = prior ? N_POLICY_DENIAL : N_UNKNOWN; unit_held_process(site);
+        unit_wait_vector[0] = (struct unit_wait){ .tid = 102, .status = (PTRACE_EVENT_EXIT << 16) | (SIGTRAP << 8) | 0x7f };
+        unit_wait_length = 1; unit_wait_index = 0; errno = EDOM;
+        assert(reap() == -1 && errno == EDOM && early_stops[0] == 102 && early_exit_seen[0] == 1); unit_site(site);
+        assert(!task(102) && !group(102) && pending == 1 && reservations == 1 && live == 1 && births == 1 && !failed && !cancelled && !waits);
+        assert(unit_waits == 5 && !unit_ptraces && !unit_resumes && !unit_resume_length && !unit_sets && !unit_kills && !unit_clocks && !unit_opens && !unit_closes && !unit_sends && !unit_event_io.calls);
+    }
 }
 static void unit_input_contract(void) {
     for (unsigned i = 0; i < 2; i++) {
@@ -521,7 +635,7 @@ int main(void) {
     assert(reap() == -1 && !io_uring_setup_eperm_writes); failed = 1; cancel();
     assert(failed && cancelled && unit_kills == 1);
     unit_site(N_EXIT_SETREGS);
-    unit_wait_and_group_contract(); unit_birth_wait_vectors(); unit_early_rejection_vectors(); unit_input_contract(); unit_commands_contract();
+    unit_wait_and_group_contract(); unit_birth_wait_vectors(); unit_early_rejection_vectors(); unit_held_exit_success(); unit_held_exit_rejections(); unit_input_contract(); unit_commands_contract();
     printf("IO_URING_FALLBACK_UNIT_OK %u\n", unit_cases);
     return 0;
 }
