@@ -43,7 +43,7 @@ final class ServerExpressionOperator
             $position++;
         } while (true);
         ServerExpressionTokens::consume($tokens, $position, ')');
-        return ['in', $left, $list];
+        return server_expression_membership($left, $list);
     }
 
     /** @param list<string> $tokens */
@@ -56,4 +56,11 @@ final class ServerExpressionOperator
     }
     private static function refuse(): never { throw new DatabaseFailure('schema'); }
 
+}
+
+/** @param list<array> $list */
+function server_expression_membership(array $left, array $list): array
+{
+    if (count($list) === 1) { return ['=', $left, $list[0]]; }
+    return ['in', $left, $list];
 }

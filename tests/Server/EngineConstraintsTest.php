@@ -27,6 +27,7 @@ final class EngineConstraintsTest
         engine_constraints_locate_hex();
         engine_constraints_mysql_check_literals();
         engine_constraints_binary_cast_alias();
+        engine_constraints_singleton_membership();
     }
 
     #[Test]
@@ -105,6 +106,28 @@ final class EngineConstraintsTest
     public function directSqlRejectsMalformedDomainRowsAcrossEveryCurrentTable(): void
     { engine_constraints_domain_rows(); }
 
+}
+
+/** Both server parsers lower a scalar singleton IN to equality before CHECK metadata printing. */
+function engine_constraints_singleton_membership(): void
+{
+    foreach (["`provider` IN ('github')" => "provider = 'github'", 'id IN (1)' => 'id = 1',
+        'online IN (NULL)' => 'online = NULL', 'NULL IN (id)' => 'NULL = id',
+        "name IN (X'4100')" => "name = _binary 0x4100", 'id IN (step + 1)' => 'id = step + 1',
+        '(id IN (1)) AND online = 0' => '(id = 1) AND online = 0'] as $input => $printed) {
+        Assert::same(ServerExpression::canonical($input), ServerExpression::canonical($printed));
+    }
+    foreach (["provider IN ('github ')" => "provider = 'github'", "provider IN ('Github')" => "provider = 'github'",
+        'id IN (1,2)' => 'id = 1', 'id IN (1,1)' => 'id = 1', 'id IN (1,NULL)' => 'id = 1',
+        'id IN (1)' => 'id <=> 1', 'id IN (1) OR online = 0' => 'id = 1 AND online = 0'] as $changed => $expected) {
+        Assert::false(ServerExpression::canonical($changed) === ServerExpression::canonical($expected));
+    }
+    foreach (['id IN ()', 'id NOT IN (1)', 'id IN (SELECT id)', 'id IN (1,)',
+        'CAST(name AS CHARSET)', 'CAST(name AS SUBSTRING)', 'CAST(name AS ID)'] as $invalid) {
+        $caught = null;
+        try { ServerExpression::canonical($invalid); } catch (DatabaseFailure $error) { $caught = $error; }
+        Assert::same($caught?->category, 'schema');
+    }
 }
 
 /** Public producer fixtures exercise every CHECK, with binary provenance from the admitted column shape. */

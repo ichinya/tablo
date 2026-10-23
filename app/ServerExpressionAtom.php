@@ -51,6 +51,7 @@ final class ServerExpressionAtom
                 ServerExpressionTokens::consume($lexemes, $position, 'binary');
                 $target = 'binary';
             }
+            if (!in_array($target, ['binary', 'unsigned'], strict: true)) { throw new DatabaseFailure('schema'); }
             $arguments[] = $target;
             ServerExpressionTokens::consume($lexemes, $position, ')');
             return ['call', $name, $arguments];
