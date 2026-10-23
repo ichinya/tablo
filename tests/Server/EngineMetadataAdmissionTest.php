@@ -132,6 +132,7 @@ function engine_metadata_positive(): void
         $db = $fixture->database();
         engine_metadata_writer_grants($db, $configuration);
         engine_metadata_journal_checks($fixture, $db, $configuration);
+        engine_metadata_scoped_layout($fixture, $db, $configuration, $observation);
         $sites = new \Tablo\SiteRepository($db, $fixture->vault);
         Assert::same($sites->save(\Tablo\Tests\Support\UnitFixtures::site()), 1);
         $watermark = $fixture->scalar('SELECT committed_history_high_watermark FROM tablo_database_state', $db);
@@ -143,6 +144,60 @@ function engine_metadata_positive(): void
         Assert::same($fixture->nativeFailure('CREATE TABLE forbidden_writer_table(id BIGINT)'), 1142);
         Assert::same(count(ServerSchema::objects($db)), 18);
     } finally { $fixture->close(); }
+}
+
+/** @param \Tablo\ServerMetadataAdmission::Observation $observation */
+function engine_metadata_scoped_layout(EngineFixture $fixture, \PDO $writer, DatabaseConfiguration $configuration, array $observation): void
+{
+    if ($configuration->engine !== 'mariadb') { return; }
+    foreach ([$writer, $fixture->independent('control')] as $connection) {
+        $session = \Tablo\DatabaseSession::get($connection) ?? throw new \RuntimeException('Missing admitted session.');
+        Assert::same($session->metadataObservation, null);
+        ServerSchema::validateLayout($connection);
+        Assert::same($session->metadataObservation, null, 'fresh layout observations stay scoped to one admission');
+        Assert::false($connection->inTransaction()); Assert::false(\Tablo\WriteTransaction::owns($connection));
+    }
+    engine_metadata_borrowed_layout($writer, $observation);
+    engine_metadata_owned_layout_failure($fixture, $writer, $configuration, $observation);
+}
+
+/** @param \Tablo\ServerMetadataAdmission::Observation $observation */
+function engine_metadata_borrowed_layout(\PDO $db, array $observation): void
+{
+    $session = \Tablo\DatabaseSession::get($db) ?? throw new \RuntimeException('Missing admitted session.');
+    $session->metadataObservation = $observation;
+    try {
+        ServerSchema::validateLayout($db); Assert::same($session->metadataObservation, $observation);
+        $foreign = $observation; $foreign['server']['catalog'] = 'foreign'; $session->metadataObservation = $foreign;
+        $caught = null;
+        try { ServerSchema::validateLayout($db); } catch (DatabaseFailure $error) { $caught = $error; }
+        Assert::same($caught?->category, 'schema'); Assert::same($caught?->getPrevious(), null);
+        Assert::same($session->metadataObservation, $foreign, 'a refused borrowed observation remains owned by its caller');
+    } finally { $session->metadataObservation = null; }
+}
+
+/** @param \Tablo\ServerMetadataAdmission::Observation $observation */
+function engine_metadata_owned_layout_failure(EngineFixture $fixture, \PDO $db, DatabaseConfiguration $configuration, array $observation): void
+{
+    $session = \Tablo\DatabaseSession::get($db) ?? throw new \RuntimeException('Missing admitted session.');
+    $maintenance = $fixture->maintenance(); $changed = false;
+    try {
+        $maintenance->exec('ALTER TABLE tablo_database_state DROP CONSTRAINT tablo_database_state_c3, ADD CONSTRAINT tablo_database_state_c3 CHECK (logical_version BETWEEN 0 AND 11)');
+        $changed = true;
+        $observed = ServerMetadataAdmission::observe($configuration, 10);
+        $before = $observation['checks']['tablo_database_state'] ?? throw new \RuntimeException('Missing admitted state CHECKs.');
+        $after = $observed['checks']['tablo_database_state'] ?? throw new \RuntimeException('Missing observed state CHECKs.');
+        Assert::same(count($after), count($before));
+        Assert::same($after['tablo_database_state_c3'] ?? null, \Tablo\ServerExpression::canonical('logical_version BETWEEN 0 AND 11'));
+        Assert::same($session->metadataObservation, null);
+        $caught = null;
+        try { ServerSchema::validateLayout($db); } catch (DatabaseFailure $error) { $caught = $error; }
+        Assert::same($caught?->category, 'schema'); Assert::same($caught?->getPrevious(), null);
+        Assert::same($session->metadataObservation, null, 'later CHECK admission failure clears the locally owned observation');
+        Assert::false($db->inTransaction()); Assert::false(\Tablo\WriteTransaction::owns($db));
+    } finally {
+        if ($changed) { $maintenance->exec('ALTER TABLE tablo_database_state DROP CONSTRAINT tablo_database_state_c3, ADD CONSTRAINT tablo_database_state_c3 CHECK (logical_version BETWEEN 0 AND 10)'); }
+    }
 }
 
 function engine_metadata_journal_checks(EngineFixture $fixture, \PDO $writer, DatabaseConfiguration $configuration): void

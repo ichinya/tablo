@@ -24,11 +24,19 @@ final class ServerTableAdmission
     }
     public static function layout(PDO $db, int $version = 10): void
     {
-        $layout = ServerSchema::layout($db);
-        $tables = array_values(array_filter($layout['tables'], static fn (array $table): bool => $version === 10 || $table['name'] !== 'read_api_token'));
-        $expected = array_column($tables, 'name'); sort($expected, SORT_STRING);
-        if (ServerMetadataAdmission::objects($db, $version) !== $expected) { self::refuse(); }
-        foreach ($tables as $table) { ServerTableAdmission::verify($db, $table); }
+        $session = DatabaseSession::get($db); $owned = false;
+        try {
+            $layout = ServerSchema::layout($db);
+            $tables = array_values(array_filter($layout['tables'], static fn (array $table): bool => $version === 10 || $table['name'] !== 'read_api_token'));
+            $expected = array_column($tables, 'name'); sort($expected, SORT_STRING);
+            if ($version === 10 && $session?->configuration->engine === 'mariadb'
+                && in_array($session->configuration->role, ['writer', 'control'], strict: true) && $session->metadataObservation === null) {
+                // One admission owns one fresh observation; a factory snapshot stays borrowed.
+                $session->metadataObservation = ServerMetadataAdmission::observe($session->configuration, $version); $owned = true;
+            }
+            if (ServerMetadataAdmission::objects($db, $version) !== $expected) { self::refuse(); }
+            foreach ($tables as $table) { ServerTableAdmission::verify($db, $table); }
+        } finally { if ($owned && $session !== null) { $session->metadataObservation = null; } }
     }
     private static function refuse(): never { throw new DatabaseFailure('schema'); }
 

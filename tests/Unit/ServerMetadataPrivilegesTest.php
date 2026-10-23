@@ -158,14 +158,39 @@ function metadata_checks_bound_snapshot(string $role): void
         if ($fault === 'count') { $candidate['checks'] = []; }
         if ($fault === 'server') { $session->metadataObservation['server']['catalog'] = 'foreign'; }
         if ($fault === 'missing') { unset($session->metadataObservation['checks'][$table['name']]); }
+        $borrowed = $session->metadataObservation;
         $caught = null;
         try { \Tablo\ServerCheckAdmission::verify($db, $candidate); } catch (DatabaseFailure $error) { $caught = $error; }
-        Assert::same($caught?->category, 'schema');
+        Assert::same($caught?->category, 'schema'); Assert::same($caught?->getPrevious(), null);
+        Assert::same($session->metadataObservation, $borrowed);
     }
+    metadata_layout_bound_snapshot($db, $original);
     $session->metadataObservation = null;
     $caught = null;
     try { \Tablo\ServerCheckAdmission::verify($db, $table); } catch (DatabaseFailure $error) { $caught = $error; }
     Assert::same($caught?->category, 'configuration', 'cleared snapshots must request a fresh admitted observation');
+    Assert::same($db->opened, $db->closed);
+}
+
+/** @param \Tablo\ServerMetadataAdmission::Observation $observation */
+function metadata_layout_bound_snapshot(MetadataPrivilegesPdo $db, array $observation): void
+{
+    $session = \Tablo\DatabaseSession::get($db) ?? throw new \RuntimeException('Missing admitted session.');
+    try {
+        foreach (['server', 'objects'] as $fault) {
+            $borrowed = $observation;
+            if ($fault === 'server') { $borrowed['server']['catalog'] = 'foreign'; }
+            if ($fault === 'objects') { $borrowed['objects'] = []; }
+            $session->metadataObservation = $borrowed; $caught = null;
+            try { \Tablo\ServerSchema::validateLayout($db); } catch (DatabaseFailure $error) { $caught = $error; }
+            Assert::same($caught?->category, 'schema'); Assert::same($caught?->getPrevious(), null);
+            Assert::same($session->metadataObservation, $borrowed);
+        }
+    } finally { $session->metadataObservation = null; }
+    $queries = $db->queries; $caught = null;
+    try { \Tablo\ServerSchema::validateLayout($db); } catch (DatabaseFailure $error) { $caught = $error; }
+    Assert::same($caught?->category, 'configuration'); Assert::same($caught?->getPrevious(), null);
+    Assert::same($session->metadataObservation, null); Assert::same($db->queries, $queries);
     Assert::same($db->opened, $db->closed);
 }
 

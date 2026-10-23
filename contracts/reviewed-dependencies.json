@@ -3459,7 +3459,7 @@
                 "Composer verify",
                 "app/ServerSchema.php"
             ],
-            "fingerprint": "sha256:b7b9e5eb361800b963ac6d58e048d2e9ef110b79f5de07d41fd2d3b7aba4246e"
+            "fingerprint": "sha256:7f40815dac0419535997b7a653ed84f4515b3f1df6074405164e5eea704d3562"
         },
         {
             "path": "app/ServerTls.php",
@@ -10629,7 +10629,7 @@
                 "Composer analyze",
                 "Composer verify"
             ],
-            "fingerprint": "sha256:d80e6670e98a5a56bc2499018d692ada790f705628f446aea814e41f00862bd5"
+            "fingerprint": "sha256:90878eaccc2aa431ad36a6bfbcccba35afbb7b2efd611ac308e1d9b94d491246"
         },
         {
             "path": "tests/Unit/SqlStatementTest.php",
@@ -11402,7 +11402,7 @@
                 "Composer verify:server",
                 "All native binding admission prerequisites"
             ],
-            "fingerprint": "sha256:550b124b715ff4f2c08ac66605e0d94f000ab812d3c5360acb95940746dd80f8"
+            "fingerprint": "sha256:e566ffbf445e8f857e1da24a846d3b457279e880c4b6e3205869fb684a1a6ce6"
         },
         {
             "path": "tools/server-supervisor-linux.c",
