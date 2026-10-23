@@ -19,6 +19,7 @@ final class EngineConstraintsTest
         Assert::false(ServerExpression::canonical("event = 'pending '") === ServerExpression::canonical("event = 'pending'"));
         Assert::same(ServerExpression::canonical("event = X'41'"), ServerExpression::canonical("event = 'A'"));
         engine_constraints_substring_aliases();
+        engine_constraints_expression_failure_origins();
     }
 
     #[Test]
@@ -125,6 +126,22 @@ function engine_constraints_substring_aliases(): void
             }
         }
     }
+}
+
+/** Fixed guard origins distinguish failures without retaining any predicate text in diagnostics. */
+function engine_constraints_expression_failure_origins(): void
+{
+    $lines = [];
+    foreach ([str_repeat(' ', times: 16_385), 'id @ 1', str_repeat('id ', times: 2_049), 'unknown_word = 1', '(', 'id(1)'] as $invalid) {
+        $caught = null;
+        try { ServerExpression::canonical($invalid); } catch (DatabaseFailure $error) { $caught = $error; }
+        Assert::same($caught?->category, 'schema');
+        Assert::same($caught?->getMessage(), 'Database schema incompatible or in progress.');
+        Assert::same($caught?->getPrevious(), null);
+        Assert::same(basename($caught->getFile()), 'ServerExpressionTokens.php');
+        $lines[] = $caught?->getLine();
+    }
+    Assert::same(count(array_unique($lines)), 6, 'each lexer guard must identify its own public source line');
 }
 
 function engine_constraints_foreign_keys(): void

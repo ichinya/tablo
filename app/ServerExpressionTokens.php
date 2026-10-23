@@ -9,32 +9,32 @@ final class ServerExpressionTokens
     /** @return list<string> */
     public static function tokenize(string $sql): array
     {
-        if (strlen($sql) > 16_384) { self::refuse(); }
+        if (strlen($sql) > 16_384) { throw new DatabaseFailure('schema'); }
         $tokens = [];
         $offset = 0;
         while ($offset < strlen($sql)) {
             $match = [];
             if (preg_match('/\G\s+/A', $sql, $match, flags: 0, offset: $offset) === 1) { $offset += strlen(RegexCapture::text($match, 0)); continue; }
-            if (preg_match('/\G(?:`[a-zA-Z0-9_]+`|(?:(?i:_binary)\s*)?\x27(?:\x27\x27|[^\x27])*\x27|(?:(?i:_binary)\s+)?[xX]\x27(?:[0-9a-fA-F]{2})*\x27|(?i:_binary)\s+0x[0-9a-fA-F]+|[a-zA-Z_][a-zA-Z0-9_]*|[0-9]+|<=>|<>|!=|<=|>=|[(),=<>+*\/-])/A', $sql, $match, flags: 0, offset: $offset) !== 1) { self::refuse(); }
+            if (preg_match('/\G(?:`[a-zA-Z0-9_]+`|(?:(?i:_binary)\s*)?\x27(?:\x27\x27|[^\x27])*\x27|(?:(?i:_binary)\s+)?[xX]\x27(?:[0-9a-fA-F]{2})*\x27|(?i:_binary)\s+0x[0-9a-fA-F]+|[a-zA-Z_][a-zA-Z0-9_]*|[0-9]+|<=>|<>|!=|<=|>=|[(),=<>+*\/-])/A', $sql, $match, flags: 0, offset: $offset) !== 1) { throw new DatabaseFailure('schema'); }
             $tokens[] = RegexCapture::text($match, 0); $offset += strlen(RegexCapture::text($match, 0));
         }
-        if (count($tokens) > 2048) { self::refuse(); }
+        if (count($tokens) > 2048) { throw new DatabaseFailure('schema'); }
         foreach ($tokens as $lexeme) {
             if (preg_match('/\A[a-zA-Z_][a-zA-Z0-9_]*\z/D', $lexeme) !== 1) { continue; }
             if (in_array(strtolower($lexeme), [...self::IDENTIFIERS, 'as', 'substr'], strict: true)) { continue; }
-            self::refuse();
+            throw new DatabaseFailure('schema');
         }
         return $tokens;
     }
     /** @param list<string> $tokens */
     public static function consume(array $tokens, int &$position, string $expected): void
     {
-        if (strtolower($tokens[$position++] ?? '') !== $expected) { self::refuse(); }
+        if (strtolower($tokens[$position++] ?? '') !== $expected) { throw new DatabaseFailure('schema'); }
     }
     public static function admitCall(string $name): void
     {
-        if (!in_array($name, ['ascii', 'substring', 'cast', 'replace', 'locate', 'octet_length', 'mod'], strict: true)) { self::refuse(); }
+        if (!in_array($name, ['ascii', 'substring', 'cast', 'replace', 'locate', 'octet_length', 'mod'], strict: true)) { throw new DatabaseFailure('schema'); }
     }
-    private static function refuse(): never { throw new DatabaseFailure('schema'); }
+
 
 }
