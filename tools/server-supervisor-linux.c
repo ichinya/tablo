@@ -383,22 +383,21 @@ static int reap(void) {
         int sig = WSTOPSIG(status);
         if (ev == PTRACE_EVENT_EXEC) { if (exec_event(tid)) return failure_mark(N_UNKNOWN); }
         else if (!t) {
-            // Birth notification and the child's automatic SIGSTOP are separate
-            // kernel waits. Hold an early stop until a known parent's event proves
-            // its ownership. It cannot run, and an unmatched stop forbids closure.
-            // SIGKILL can advance that held stop to EXIT before the parent wait.
-            // Keep it held; only birth may register and resume it after admission.
-            if (ev == PTRACE_EVENT_EXIT && sig == SIGTRAP) {
-                unsigned i;
-                for (i = 0; i < TASKS && early_stops[i] != tid; i++) {}
-                if (i < TASKS && !early_exit_seen[i]) { early_exit_seen[i] = 1; continue; }
-            }
-            if (ev || sig != SIGSTOP) return failure_mark(early_stop_site(ev, sig));
+            // A child's initial SIGSTOP or fatal EXIT can precede its birth wait.
+            // Keep either stopped and unregistered until a known parent's event
+            // proves ownership. An unmatched held PID still forbids closure.
+            int exit_stop = ev == PTRACE_EVENT_EXIT && sig == SIGTRAP;
+            if (!exit_stop && (ev || sig != SIGSTOP)) return failure_mark(early_stop_site(ev, sig));
             unsigned i;
-            for (i = 0; i < TASKS; i++) if (early_stops[i] == tid) return failure_mark(N_EARLY_STOP_DUPLICATE);
+            for (i = 0; i < TASKS; i++) if (early_stops[i] == tid) {
+                if (!exit_stop) return failure_mark(N_EARLY_STOP_DUPLICATE);
+                if (early_exit_seen[i]) return failure_mark(N_EARLY_STOP_EVENT_EXIT);
+                early_exit_seen[i] = 1; break;
+            }
+            if (i < TASKS) continue;
             for (i = 0; i < TASKS && early_stops[i]; i++) {}
             if (i == TASKS) return failure_mark(N_EARLY_STOP_CAPACITY);
-            early_stops[i] = tid;
+            early_stops[i] = tid; early_exit_seen[i] = (unsigned char)exit_stop;
         }
         else if (ev == PTRACE_EVENT_SECCOMP) { if (gate(t)) return failure_mark(N_UNKNOWN); }
         else if (ev == PTRACE_EVENT_FORK || ev == PTRACE_EVENT_VFORK || ev == PTRACE_EVENT_CLONE) { if (birth(t)) return failure_mark(N_UNKNOWN); }

@@ -54,7 +54,7 @@
                 "tools/server-io-uring-php-grammar.test.php",
                 "tools/server-supervisor-linux-fallback-unit.c"
             ],
-            "fingerprint": "sha256:d7cd4f7335c2799b7b4208e22caa52002290cb4f50e9b75082c0b1d4c0b6f1b5"
+            "fingerprint": "sha256:af0034a58ba68dcd99ab77c87cbb94a768975bd92b1302010e1d84bad36035ee"
         },
         {
             "path": "app/AddressRange.php",
@@ -11419,7 +11419,7 @@
                 "tools/server-io-uring-fallback.test.cjs",
                 "tools/server-supervisor-linux-fallback-unit.c"
             ],
-            "fingerprint": "sha256:79320c442daed4c0575351a31af76cfd15f259b53994602f05c2367fa4298147"
+            "fingerprint": "sha256:92adbedd0c0632684955bb07bca73bb3e33c8507979376d684fb144756761cbc"
         },
         {
             "path": "tools/server-supervisor-linux-controls.c",
@@ -11538,7 +11538,7 @@
                 "docs/database-engines.md",
                 "Separate one-resource-per-workflow native stub checkpoint"
             ],
-            "fingerprint": "sha256:f60a7f58a9c351e1134481c881344814a89c762ce21e293314c98c4709e9e8bc"
+            "fingerprint": "sha256:b419e1bcb5fd6f433d054729fa18a992721c79668b2d4163c09ca04f8182cb4a"
         }
     ]
 }

@@ -37,6 +37,7 @@ static unsigned unit_sets, unit_resumes, unit_set_failure, unit_resume_failure, 
 static unsigned unit_ptraces, unit_clocks, unit_opens, unit_sends, unit_closes;
 static int unit_get_failure, unit_event_old, unit_wait_status, unit_wait_tid, unit_wait_error;
 static int unit_open_failure, unit_kill_error, unit_send_failure, unit_event_failure, unit_siginfo_failure;
+static int unit_open_error, unit_resume_error;
 static int unit_last_signal;
 struct unit_wait { pid_t tid; int status, error; };
 static struct unit_wait unit_wait_vector[16];
@@ -64,7 +65,7 @@ static long unit_ptrace(enum __ptrace_request request, ...) {
     if (request == PTRACE_SYSCALL || request == PTRACE_CONT) {
         unit_last_signal = (int)(intptr_t)data;
         if (unit_wait_length) unit_resume_owned(request, tid, unit_last_signal);
-        if (++unit_resumes == unit_resume_failure) { errno = EIO; return -1; }
+        if (++unit_resumes == unit_resume_failure) { errno = unit_resume_error; return -1; }
         return 0;
     }
     if (request == PTRACE_GETEVENTMSG) { if (unit_event_failure) { errno = EIO; return -1; } *(unsigned long *)data = (unsigned long)unit_event_old; return 0; }
@@ -81,7 +82,7 @@ static long unit_syscall(long number, ...) {
     if (number == SYS_pidfd_open) {
         pid_t tid = va_arg(arguments, pid_t); int flags = va_arg(arguments, int);
         assert(tid > 0 && !flags); unit_opens++; va_end(arguments);
-        if (unit_open_failure) { errno = EIO; return -1; } return 10;
+        if (unit_open_failure) { errno = unit_open_error; return -1; } return 10;
     }
     va_end(arguments); unit_forbidden("syscall");
 }
@@ -170,6 +171,7 @@ static void unit_resume_owned(enum __ptrace_request request, pid_t tid, int forw
     if (tid == 102 && (unit_resume_length == 0 || unit_resume_length == 1)) {
         assert(task(root) && task(root)->born && (task(root)->pending == PROCESS || task(root)->pending == THREAD));
         assert(!pending && !early_stops[0] && !early_exit_seen[0]);
+        assert(t->tgid == (task(root)->pending == THREAD ? root : 102));
     }
     unit_resume_vector[unit_resume_length++] = (struct unit_resume){ .tid = tid, .request = request, .forwarded = forwarded };
 }
@@ -193,6 +195,7 @@ static struct task *unit_begin(void) {
     unit_wait_length = unit_wait_index = unit_resume_length = 0;
     memset(unit_wait_vector, 0, sizeof(unit_wait_vector)); memset(unit_resume_vector, 0, sizeof(unit_resume_vector));
     unit_open_failure = unit_kill_error = unit_send_failure = unit_event_failure = unit_siginfo_failure = unit_wait_error = unit_last_signal = 0;
+    unit_open_error = unit_resume_error = EIO;
     unit_command_io = unit_source_io = unit_input_io = (struct unit_io){ .result = -2 };
     unit_event_io = (struct unit_io){ .result = 1 }; errno = 0;
     unit_info.op = PTRACE_SYSCALL_INFO_SECCOMP; unit_info.arch = AUDIT_ARCH_X86_64; unit_info.seccomp.nr = SYS_io_uring_setup;
@@ -357,12 +360,12 @@ static void unit_early_rejection_vectors(void) {
         { PTRACE_EVENT_FORK, SIGTRAP, 0, N_EARLY_STOP_EVENT_FORK },
         { PTRACE_EVENT_VFORK, SIGTRAP, 0, N_EARLY_STOP_EVENT_VFORK },
         { PTRACE_EVENT_CLONE, SIGTRAP, 0, N_EARLY_STOP_EVENT_CLONE },
-        { PTRACE_EVENT_EXIT, SIGTRAP, 0, N_EARLY_STOP_EVENT_EXIT },
+        { PTRACE_EVENT_EXIT, SIGUSR1, 0, N_EARLY_STOP_EVENT_EXIT },
         { PTRACE_EVENT_EXIT, SIGSTOP, 1, N_EARLY_STOP_EVENT_EXIT },
         { PTRACE_EVENT_EXIT, SIGTRAP | 0x80, 1, N_EARLY_STOP_EVENT_EXIT },
         { PTRACE_EVENT_SECCOMP, SIGTRAP, 1, N_EARLY_STOP_EVENT_SECCOMP },
-        { PTRACE_EVENT_EXIT, SIGTRAP, 2, N_EARLY_STOP_EVENT_EXIT },
-        { PTRACE_EVENT_EXIT, SIGTRAP, 3, N_EARLY_STOP_EVENT_EXIT },
+        { PTRACE_EVENT_EXIT, SIGTRAP, 2, N_EARLY_STOP_CAPACITY },
+        { PTRACE_EVENT_EXIT, SIGSTOP, 3, N_EARLY_STOP_EVENT_EXIT },
         { PTRACE_EVENT_SECCOMP, SIGTRAP, 0, N_EARLY_STOP_EVENT_SECCOMP },
         { PTRACE_EVENT_STOP, SIGTRAP, 0, N_EARLY_STOP_EVENT_STOP },
         { 123, SIGTRAP, 0, N_EARLY_STOP_EVENT_OTHER },
@@ -376,7 +379,7 @@ static void unit_early_rejection_vectors(void) {
     _Static_assert(sizeof(cases) / sizeof(cases[0]) == 19, "finite rejection fixtures");
     for (unsigned i = 0; i < sizeof(cases) / sizeof(cases[0]); i++) unit_rejected_wait(cases[i].ev, cases[i].sig, cases[i].queued, -1, cases[i].site);
     unit_rejected_wait(0, SIGSTOP, 1, N_UNKNOWN, N_UNKNOWN);
-    unit_rejected_wait(PTRACE_EVENT_EXIT, SIGTRAP, 0, N_POLICY_DENIAL, N_POLICY_DENIAL);
+    unit_rejected_wait(PTRACE_EVENT_EXIT, SIGSTOP, 0, N_POLICY_DENIAL, N_POLICY_DENIAL);
     // Additional group members exercise the same pure classifier without a new case/reset.
     errno = EDOM;
     assert(early_stop_site(0, SIGTTIN) == N_EARLY_STOP_SIGNAL_JOB_CONTROL && early_stop_site(0, SIGTTOU) == N_EARLY_STOP_SIGNAL_JOB_CONTROL);
@@ -396,7 +399,9 @@ static void unit_hold_wait(unsigned ev, int sig, unsigned exit_seen) {
     assert(early_stops[0] == 102 && early_exit_seen[0] == exit_seen && !task(102) && !group(102));
     for (unsigned i = 1; i < TASKS; i++) assert(!early_stops[i] && !early_exit_seen[i]);
     assert(!memcmp(tasks, before_tasks, sizeof(tasks)) && !memcmp(groups, before_groups, sizeof(groups)) && !memcmp(&unit_regs, &regs, sizeof(regs)));
-    assert(live == 1 && births == 1 && peak == 2 && pending == 1 && reservations == 1 && task(root)->pending == PROCESS && !task(root)->born);
+    int thread = task(root)->pending == THREAD;
+    assert(task(root)->pending == PROCESS || thread);
+    assert(live == 1 && births == 1 && peak == (thread ? 1U : 2U) && pending == (thread ? 0U : 1U) && reservations == pending && !task(root)->born);
     assert(!waits && !failed_creations && !thread_births && !exec_retired && !denied && !clone3_fallbacks && !failed && !cancelled && !closure_echild && !root_terminal);
     assert(first_seen == before_seen && first_site == before_site && !io_uring_setup_attempts && !io_uring_setup_eperm_writes && !eperm_register_writes && !eagain_register_writes);
     assert(!unit_ptraces && !unit_resumes && !unit_resume_length && !unit_sets && !unit_kills && !unit_opens && !unit_closes && !unit_sends && !unit_clocks && !unit_event_io.calls);
@@ -408,33 +413,48 @@ static struct task *unit_held_process(int prior) {
     unit_hold_wait(0, SIGSTOP, 0); unit_hold_wait(PTRACE_EVENT_EXIT, SIGTRAP, 1);
     return parent;
 }
+static struct task *unit_first_exit(unsigned thread, int prior) {
+    struct task *parent = unit_begin(); parent->pending = thread ? THREAD : PROCESS;
+    pending = reservations = thread ? 0 : 1; peak = thread ? 1 : 2;
+    unit_event_old = 102; unit_info.op = PTRACE_SYSCALL_INFO_EXIT; unit_info.exit.is_error = 0;
+    if (prior >= 0) assert(failure_mark(prior) == -1);
+    unit_hold_wait(PTRACE_EVENT_EXIT, SIGTRAP, 1);
+    return parent;
+}
 static void unit_held_exit_success(void) {
-    unit_held_process(-1);
-    struct user_regs_struct regs = unit_regs;
-    unit_wait_vector[0] = (struct unit_wait){ .tid = root, .status = (PTRACE_EVENT_FORK << 16) | (SIGTRAP << 8) | 0x7f };
-    unit_wait_vector[1] = (struct unit_wait){ .tid = root, .status = ((SIGTRAP | 0x80) << 8) | 0x7f };
-    unit_wait_vector[2] = (struct unit_wait){ .tid = 102, .status = SIGKILL };
-    unit_wait_vector[3] = (struct unit_wait){ .tid = root, .status = (PTRACE_EVENT_EXIT << 16) | (SIGTRAP << 8) | 0x7f };
-    unit_wait_vector[4] = (struct unit_wait){ .tid = root, .status = 0 };
-    unit_wait_vector[5] = (struct unit_wait){ .tid = -1, .error = ECHILD }; unit_wait_length = 6; unit_wait_index = 0;
-    assert(reap() == 0 && closure_echild && root_terminal && !failed && !cancelled && !first_seen);
-    assert(unit_waits == 10 && unit_wait_index == 6 && unit_ptraces == 6 && unit_resumes == 4 && unit_resume_length == 4);
-    assert(!live && !pending && reservations == 1 && births == 2 && peak == 2 && waits == 2 && !thread_births && !exec_retired && !failed_creations);
-    assert(unit_opens == 1 && unit_closes == 2 && !unit_kills && !unit_clocks && !unit_sends && !unit_sets && !denied && !clone3_fallbacks);
-    assert(!io_uring_setup_attempts && !io_uring_setup_eperm_writes && !eperm_register_writes && !eagain_register_writes && !memcmp(&unit_regs, &regs, sizeof(regs)));
-    assert(unit_event_io.calls == 1 && !strcmp(unit_events, "EXITED 101 0 0 0 0\n"));
-    assert(unit_resume_vector[0].tid == 102 && unit_resume_vector[0].request == PTRACE_CONT);
-    assert(unit_resume_vector[1].tid == root && unit_resume_vector[1].request == PTRACE_SYSCALL);
-    for (unsigned i = 2; i < 4; i++) assert(unit_resume_vector[i].tid == root && unit_resume_vector[i].request == PTRACE_CONT);
-    for (unsigned i = 0; i < 4; i++) assert(!unit_resume_vector[i].forwarded);
-    for (unsigned i = 0; i < TASKS; i++) assert(!tasks[i].tid && !early_stops[i] && !early_exit_seen[i]);
-    for (unsigned i = 0; i < GROUPS; i++) assert(!groups[i].tgid);
+    // The THREAD first-EXIT vector checks synthetic bookkeeping, not fatal-signal kernel ordering.
+    for (unsigned scenario = 0; scenario < 3; scenario++) {
+        unsigned thread = scenario == 2;
+        if (!scenario) unit_held_process(-1); else unit_first_exit(thread, -1);
+        struct user_regs_struct regs = unit_regs;
+        unit_wait_vector[0] = (struct unit_wait){ .tid = root, .status = ((thread ? PTRACE_EVENT_CLONE : PTRACE_EVENT_FORK) << 16) | (SIGTRAP << 8) | 0x7f };
+        unit_wait_vector[1] = (struct unit_wait){ .tid = root, .status = ((SIGTRAP | 0x80) << 8) | 0x7f };
+        unit_wait_vector[2] = (struct unit_wait){ .tid = 102, .status = thread ? 0 : SIGKILL };
+        unit_wait_vector[3] = (struct unit_wait){ .tid = root, .status = (PTRACE_EVENT_EXIT << 16) | (SIGTRAP << 8) | 0x7f };
+        unit_wait_vector[4] = (struct unit_wait){ .tid = root, .status = 0 };
+        unit_wait_vector[5] = (struct unit_wait){ .tid = -1, .error = ECHILD }; unit_wait_length = 6; unit_wait_index = 0;
+        assert(reap() == 0 && closure_echild && root_terminal && !failed && !cancelled && !first_seen);
+        assert(unit_waits == (scenario ? 8U : 10U) && unit_wait_index == 6 && unit_ptraces == 6 && unit_resumes == 4 && unit_resume_length == 4);
+        assert(!live && !pending && reservations == (thread ? 0U : 1U) && births == (thread ? 1U : 2U));
+        assert(peak == (thread ? 1U : 2U) && waits == 2 && thread_births == thread && !exec_retired && !failed_creations);
+        assert(unit_opens == (thread ? 0U : 1U) && unit_closes == (thread ? 1U : 2U) && !unit_kills && !unit_clocks && !unit_sends && !unit_sets && !denied && !clone3_fallbacks);
+        assert(!io_uring_setup_attempts && !io_uring_setup_eperm_writes && !eperm_register_writes && !eagain_register_writes && !memcmp(&unit_regs, &regs, sizeof(regs)));
+        assert(unit_event_io.calls == 1 && !strcmp(unit_events, "EXITED 101 0 0 0 0\n"));
+        assert(unit_resume_vector[0].tid == 102 && unit_resume_vector[0].request == PTRACE_CONT);
+        assert(unit_resume_vector[1].tid == root && unit_resume_vector[1].request == PTRACE_SYSCALL);
+        for (unsigned i = 2; i < 4; i++) assert(unit_resume_vector[i].tid == root && unit_resume_vector[i].request == PTRACE_CONT);
+        for (unsigned i = 0; i < 4; i++) assert(!unit_resume_vector[i].forwarded);
+        for (unsigned i = 0; i < TASKS; i++) assert(!tasks[i].tid && !early_stops[i] && !early_exit_seen[i]);
+        for (unsigned i = 0; i < GROUPS; i++) assert(!groups[i].tgid);
+    }
 }
 static void unit_held_exit_rejections(void) {
     const int sites[] = { N_EARLY_STOP_EVENT_EXIT, N_BIRTH_METADATA, N_WAIT_REGISTRY, N_BIRTH_RESERVATION,
-        N_GROUP_ADMISSION, N_WAIT_REGISTRY, N_WAIT_REGISTRY, N_BIRTH_TASK, N_EARLY_STOP_DUPLICATE, N_EARLY_STOP_EVENT_FORK };
-    for (unsigned fault = 0; fault < sizeof(sites) / sizeof(sites[0]); fault++) {
-        struct task *parent = unit_held_process(-1); struct user_regs_struct regs = unit_regs;
+        N_GROUP_ADMISSION, N_WAIT_REGISTRY, N_WAIT_REGISTRY, N_BIRTH_TASK, N_EARLY_STOP_DUPLICATE, N_EARLY_STOP_EVENT_FORK,
+        N_RESUME, N_RESUME, N_GROUP_ADMISSION, N_RESUME };
+    _Static_assert(sizeof(sites) / sizeof(sites[0]) == 14, "finite held/first-EXIT refusal fixtures");
+    for (unsigned first_exit = 0; first_exit < 2; first_exit++) for (unsigned fault = 0; fault < sizeof(sites) / sizeof(sites[0]); fault++) {
+        struct task *parent = first_exit ? unit_first_exit(0, -1) : unit_held_process(-1); struct user_regs_struct regs = unit_regs;
         unit_wait_vector[0] = (struct unit_wait){ .tid = root, .status = (PTRACE_EVENT_FORK << 16) | (SIGTRAP << 8) | 0x7f };
         unit_wait_length = 1; unit_wait_index = 0;
         if (fault == 0) unit_wait_vector[0].tid = 102, unit_wait_vector[0].status = (PTRACE_EVENT_EXIT << 16) | (SIGTRAP << 8) | 0x7f;
@@ -452,21 +472,32 @@ static void unit_held_exit_rejections(void) {
         if (fault == 7) assert(add_task(102, 102, 1));
         if (fault == 8) unit_wait_vector[0] = (struct unit_wait){ .tid = 102, .status = (SIGSTOP << 8) | 0x7f };
         if (fault == 9) unit_wait_vector[0].tid = 103;
-        errno = EDOM; assert(reap() == -1 && errno == (fault == 4 ? EIO : fault == 6 ? ECHILD : EDOM)); unit_site(sites[fault]);
-        assert(early_stops[0] == 102 && early_exit_seen[0] == 1 && !group(102) && !closure_echild && !failed && !cancelled);
+        if (fault == 10) unit_resume_failure = 1;
+        if (fault == 11) { unit_resume_failure = 1; unit_resume_error = ESRCH; }
+        if (fault == 12) { unit_open_failure = 1; unit_open_error = ESRCH; }
+        if (fault == 13) { unit_resume_failure = 2; unit_resume_error = ESRCH; }
+        int expected_errno = fault == 4 || fault == 10 ? EIO : fault == 11 || fault == 12 || fault == 13 ? ESRCH : fault == 6 ? ECHILD : EDOM;
+        errno = EDOM; assert(reap() == -1 && errno == expected_errno); unit_site(sites[fault]);
+        int admitted = fault == 10 || fault == 11 || fault == 13;
+        assert(!closure_echild && !failed && !cancelled);
+        if (admitted) assert(!early_stops[0] && !early_exit_seen[0] && group(102) && task(102) && !task(102)->newborn && parent->born);
+        else assert(early_stops[0] == 102 && early_exit_seen[0] == 1 && !group(102));
         for (unsigned i = 1; i < TASKS; i++) assert(!early_stops[i] && !early_exit_seen[i]);
-        const unsigned ptraces[] = { 0, 0, 2, 1, 1, 0, 0, 1, 0, 0 };
-        assert(unit_ptraces == ptraces[fault] && unit_resumes == (fault == 2 ? 1U : 0U) && unit_resume_length == unit_resumes);
-        assert(unit_waits == 4 + unit_wait_length && unit_wait_index == unit_wait_length && unit_opens == (fault == 2 || fault == 4 ? 1U : 0U));
+        const unsigned ptraces[] = { 0, 0, 2, 1, 1, 0, 0, 1, 0, 0, 2, 2, 1, 3 };
+        assert(unit_ptraces == ptraces[fault] && unit_resumes == (fault == 13 ? 2U : fault == 2 || admitted ? 1U : 0U) && unit_resume_length == unit_resumes);
+        assert(unit_waits == (first_exit ? 2U : 4U) + unit_wait_length && unit_wait_index == unit_wait_length);
+        assert(unit_opens == (fault == 2 || fault == 4 || fault == 12 || admitted ? 1U : 0U));
         assert(unit_closes == (fault == 6 ? 1U : 0U) && unit_event_io.calls == (fault == 6 ? 1U : 0U));
-        assert(live == (fault == 2 ? 2U : fault == 6 ? 0U : 1U) && births == (fault == 2 ? 2U : 1U) && peak == 2 && reservations == 1);
-        assert(pending == (fault == 2 || fault == 3 || fault == 4 || fault == 6 ? 0U : 1U));
+        assert(live == (fault == 2 || admitted ? 2U : fault == 6 ? 0U : 1U) && births == (fault == 2 || admitted ? 2U : 1U) && peak == 2 && reservations == 1);
+        assert(pending == (fault == 2 || fault == 3 || fault == 4 || fault == 6 || fault == 12 || admitted ? 0U : 1U));
         assert(waits == (fault == 6 ? 1U : 0U) && failed_creations == (fault == 6 ? 1U : 0U) && root_terminal == (fault == 6));
         assert(!unit_sets && !unit_kills && !unit_clocks && !unit_sends && !thread_births && !exec_retired && !denied && !clone3_fallbacks);
         assert(!io_uring_setup_attempts && !io_uring_setup_eperm_writes && !eperm_register_writes && !eagain_register_writes && !memcmp(&unit_regs, &regs, sizeof(regs)));
         if (fault == 2) assert(!task(102) && task(103) && task(103)->newborn && group(103) && parent->born && unit_resume_vector[0].tid == root);
-        else if (fault == 3 || fault == 4 || fault == 7) assert(task(102) && task(102)->newborn && !parent->born);
-        else assert(!task(102));
+        else if (fault == 3 || fault == 4 || fault == 7 || fault == 12) assert(task(102) && task(102)->newborn && !parent->born);
+        else if (!admitted) assert(!task(102));
+        if (admitted) assert(unit_resume_vector[0].tid == 102 && unit_resume_vector[0].request == PTRACE_CONT && !unit_resume_vector[0].forwarded);
+        if (fault == 13) assert(unit_resume_vector[1].tid == root && unit_resume_vector[1].request == PTRACE_SYSCALL && !unit_resume_vector[1].forwarded);
         if (fault == 6) assert(!task(root) && !strcmp(unit_events, "EXITED 101 -1 9 0 0\n"));
     }
     unit_begin();
@@ -480,13 +511,35 @@ static void unit_held_exit_rejections(void) {
     for (unsigned i = 0; i < TASKS; i++) assert(early_stops[i] == (i == TASKS - 1 ? 102 : (pid_t)(1000 + i)) && early_exit_seen[i] == 1);
     assert(!task(102) && !group(102) && live == 1 && births == 1 && peak == 1 && !pending && !reservations && !waits && !failed && !cancelled && !closure_echild);
     assert(unit_waits == 3 && !unit_ptraces && !unit_resumes && !unit_resume_length && !unit_sets && !unit_kills && !unit_clocks && !unit_opens && !unit_closes && !unit_sends && !unit_event_io.calls);
-    for (unsigned prior = 0; prior < 2; prior++) {
-        int site = prior ? N_POLICY_DENIAL : N_UNKNOWN; unit_held_process(site);
+    for (unsigned first_exit = 0; first_exit < 2; first_exit++) for (unsigned prior = 0; prior < 2; prior++) {
+        int site = prior ? N_POLICY_DENIAL : N_UNKNOWN;
+        if (first_exit) unit_first_exit(0, site); else unit_held_process(site);
         unit_wait_vector[0] = (struct unit_wait){ .tid = 102, .status = (PTRACE_EVENT_EXIT << 16) | (SIGTRAP << 8) | 0x7f };
         unit_wait_length = 1; unit_wait_index = 0; errno = EDOM;
         assert(reap() == -1 && errno == EDOM && early_stops[0] == 102 && early_exit_seen[0] == 1); unit_site(site);
         assert(!task(102) && !group(102) && pending == 1 && reservations == 1 && live == 1 && births == 1 && !failed && !cancelled && !waits);
-        assert(unit_waits == 5 && !unit_ptraces && !unit_resumes && !unit_resume_length && !unit_sets && !unit_kills && !unit_clocks && !unit_opens && !unit_closes && !unit_sends && !unit_event_io.calls);
+        assert(unit_waits == (first_exit ? 3U : 5U) && !unit_ptraces && !unit_resumes && !unit_resume_length && !unit_sets && !unit_kills && !unit_clocks && !unit_opens && !unit_closes && !unit_sends && !unit_event_io.calls);
+    }
+}
+static void unit_stale_early_slots(void) {
+    for (unsigned first_exit = 0; first_exit < 2; first_exit++) {
+        struct task *parent = unit_begin(); parent->pending = PROCESS; pending = reservations = 1; peak = 2;
+        unit_event_old = 102; unit_info.op = PTRACE_SYSCALL_INFO_EXIT; unit_info.exit.is_error = 0;
+        early_exit_seen[0] = 1; // A free slot must receive the new stop's own state.
+        if (!first_exit) unit_hold_wait(0, SIGSTOP, 0);
+        unit_hold_wait(PTRACE_EVENT_EXIT, SIGTRAP, 1);
+        struct user_regs_struct regs = unit_regs;
+        unit_wait_vector[0] = (struct unit_wait){ .tid = root, .status = (PTRACE_EVENT_FORK << 16) | (SIGTRAP << 8) | 0x7f };
+        unit_wait_vector[1] = (struct unit_wait){ .tid = 0 }; unit_wait_length = 2; unit_wait_index = 0; errno = EDOM;
+        assert(reap() == 0 && errno == EDOM && !first_seen && !failed && !cancelled && !root_terminal && !closure_echild);
+        assert(parent->born && parent->pending == PROCESS && task(102) && task(102)->tgid == 102 && !task(102)->newborn && group(102));
+        assert(live == 2 && births == 2 && peak == 2 && !pending && reservations == 1 && !waits && !failed_creations && !thread_births && !exec_retired);
+        assert(unit_waits == (first_exit ? 4U : 6U) && unit_ptraces == 3 && unit_resumes == 2 && unit_resume_length == 2 && unit_opens == 1);
+        assert(unit_resume_vector[0].tid == 102 && unit_resume_vector[0].request == PTRACE_CONT && !unit_resume_vector[0].forwarded);
+        assert(unit_resume_vector[1].tid == root && unit_resume_vector[1].request == PTRACE_SYSCALL && !unit_resume_vector[1].forwarded);
+        for (unsigned i = 0; i < TASKS; i++) assert(!early_stops[i] && !early_exit_seen[i]);
+        assert(!unit_sets && !unit_kills && !unit_clocks && !unit_closes && !unit_sends && !unit_event_io.calls && !denied && !clone3_fallbacks);
+        assert(!io_uring_setup_attempts && !io_uring_setup_eperm_writes && !eperm_register_writes && !eagain_register_writes && !memcmp(&unit_regs, &regs, sizeof(regs)));
     }
 }
 static void unit_input_contract(void) {
@@ -635,7 +688,7 @@ int main(void) {
     assert(reap() == -1 && !io_uring_setup_eperm_writes); failed = 1; cancel();
     assert(failed && cancelled && unit_kills == 1);
     unit_site(N_EXIT_SETREGS);
-    unit_wait_and_group_contract(); unit_birth_wait_vectors(); unit_early_rejection_vectors(); unit_held_exit_success(); unit_held_exit_rejections(); unit_input_contract(); unit_commands_contract();
+    unit_wait_and_group_contract(); unit_birth_wait_vectors(); unit_early_rejection_vectors(); unit_held_exit_success(); unit_held_exit_rejections(); unit_stale_early_slots(); unit_input_contract(); unit_commands_contract();
     printf("IO_URING_FALLBACK_UNIT_OK %u\n", unit_cases);
     return 0;
 }
