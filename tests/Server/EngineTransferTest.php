@@ -242,7 +242,7 @@ function engine_transfer_working_data(): void
         Assert::same($result['nativeBufferedSource'] ?? null, false);
         $used = \Tablo\SqlColumn::integer($result, 'peakPhpWorkingBytes');
         Assert::true($used > 0);
-        Assert::true($used <= 2_097_152, 'Complete measured helper, including cold transfer metadata, exceeds2MiB');
+        Assert::true($used <= 2_097_152, 'Complete measured helper, including cold transfer metadata, exceeds2MiB; peakPhpWorkingBytes=' . $used);
         Assert::same($result['allTypedDigestsPreserved'] ?? null, true);
         \Tablo\Tests\Support\SessionEvidence::record('transfer-working-memory', ['status' => 'passed', 'payloadBytes' => 11_520_000,
             'tables' => 15, 'peakPhpWorkingBytes' => $used, 'nativeBufferedSource' => false,

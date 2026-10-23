@@ -502,6 +502,10 @@ directions and actual SIGKILL/restart at the durable DDL and prepublication
 boundaries of both engines. The complete transfer memory case measures PHP-used
 working data against a 2MiB bound over a cold roundtrip with more than 8MiB of source payload; it does
 not claim to measure external native allocator RSS.
+When that upper assertion fails, an optional `memoryDiagnostic` on failed native
+progress can report its bounded `peakPhpWorkingBytes` value. It requires the exact
+known assertion context and public caller; it is a reported diagnostic with
+`rootCause=UNKNOWN`, not independent measurement, provenance or acceptance proof.
 
 The six SQLite OS/PHP cells remain required. Four additional Ubuntu cells cover
 both server engines on PHP 8.2 and 8.5. Direct MySQL↔MariaDB transfer and owned

@@ -37,6 +37,62 @@ function server_native_failure(string $root, #[\SensitiveParameter] string $byte
     } catch (\Throwable) { return $unknown; }
 }
 
+/** One reported assertion value only; neither independent measurement nor acceptance/provenance evidence.
+ * @param array<int|string, string> $publicSources Frozen owner catalog, never child-provided source membership.
+ * @return array{schema: string, unit: string, scope: string, rootCause: string, peakPhpWorkingBytes: int}|null */
+function server_native_memory_failure(string $root, #[\SensitiveParameter] string $bytes, string $identity, array $publicSources): ?array
+{
+    try {
+        if (strlen($bytes) > 1_048_576 || !array_is_list($publicSources) || count($publicSources) > 2048
+            || $identity !== 'Tablo\\Tests\\Server\\EngineTransferTest::completeNativeRoundTripOverEightMiBUsesAtMostTwoMiBOfPhpWorkingData') { return null; }
+        $failure = server_native_memory_report($bytes, $identity);
+        if ($failure === null || !server_native_memory_origin($root, $failure, $publicSources)) { return null; }
+        $value = server_native_memory_bytes($failure['message'] ?? null);
+        if ($value === null) { return null; }
+        return ['schema' => 'tablo/server-native-memory-diagnostic/v1', 'unit' => 'bytes',
+            'scope' => 'complete-cold-roundtrip-php-working-data', 'rootCause' => 'UNKNOWN', 'peakPhpWorkingBytes' => $value];
+    } catch (\Throwable) { return null; }
+}
+
+/** Internal pure report validation; decoding failures stay inside the caller's nullable boundary. */
+function server_native_memory_report(#[\SensitiveParameter] string $bytes, string $identity): ?array
+{
+    $report = JsonRecord::decode($bytes, depth: 32); $failures = JsonRecord::checked($report['failures'] ?? null);
+    if (($report['status'] ?? null) !== 'failed' || !array_is_list($failures) || count($failures) !== 1) { return null; }
+    $failure = JsonRecord::checked($failures[0]);
+    return [$failure['test'] ?? null, $failure['status'] ?? null, $failure['exception'] ?? null]
+        === [$identity, 'failed', 'Testo\\Assert\\State\\Assertion\\ComparisonFailure'] ? $failure : null;
+}
+
+/** The exact exception file and first caller frame are labels in the report, never paths to open.
+ * @param list<string> $publicSources */
+function server_native_memory_origin(string $root, #[\SensitiveParameter] array $failure, array $publicSources): bool
+{
+    /** @var mixed $file Untrusted exception file is checked below. */
+    $file = $failure['file'] ?? null;
+    /** @var mixed $line Untrusted line must be a bounded integer. */
+    $line = $failure['line'] ?? null;
+    /** @var mixed $trace Only a list may supply the first caller frame. */
+    $trace = $failure['trace'] ?? null;
+    if (!is_string($file) || strlen($file) > 4096 || !is_int($line) || $line < 1 || $line > 100_000
+        || str_replace('\\', replace: '/', subject: $file) !== str_replace('\\', replace: '/', subject: $root) . '/vendor/testo/assert/Assert.php'
+        || !is_array($trace) || !array_is_list($trace)) { return false; }
+    /** @var mixed $frame No later frame can replace an invalid first frame. */
+    $frame = $trace[0] ?? null; $match = [];
+    if (!is_string($frame) || strlen($frame) > 4096
+        || preg_match('~\A#0 (.+):([1-9][0-9]{0,5}): Testo\\\\Assert::true\(\)\z~D', $frame, $match) !== 1) { return false; }
+    $caller = server_native_failure_origin($root, \Tablo\RegexCapture::text($match, 1), (int) \Tablo\RegexCapture::text($match, 2), $publicSources);
+    return $caller['source'] === 'tests/Server/EngineTransferTest.php';
+}
+
+function server_native_memory_bytes(#[\SensitiveParameter] mixed $message): ?int
+{
+    $match = [];
+    if (!is_string($message) || preg_match('/\AFailed assertion that `false` is exactly `true`: expected `true`, got `false`\.\nMeaning: Complete measured helper, including cold transfer metadata, exceeds2MiB; peakPhpWorkingBytes=([1-9][0-9]{0,8})\z/D', $message, $match) !== 1) { return null; }
+    $value = (int) \Tablo\RegexCapture::text($match, 1);
+    return $value > 2_097_152 && $value <= 268_435_456 ? $value : null;
+}
+
 /** Only a repository-relative PHP source and line survive; no message, frame text or origin is opened.
  * @param list<string> $publicSources
  * @return array{origin: string, source: ?string, line: ?int} */

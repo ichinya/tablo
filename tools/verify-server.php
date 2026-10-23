@@ -227,9 +227,13 @@ function server_verify_failure_callback(string $root, array $selection, array $s
     return static function (array $failed) use ($root, $selection, $spec): void {
         /** @var mixed $exit Only the bounded native nonzero integer is retained below. */
         $exit = $failed['exit_code'] ?? null;
-        server_verify_progress($root, $selection['lane'], $selection['index'] + 1, ['identity' => $selection['identity'], 'source' => $spec['path'], 'status' => 'failed',
+        $bytes = SqlColumn::string($failed, 'stdout');
+        $record = ['identity' => $selection['identity'], 'source' => $spec['path'], 'status' => 'failed',
             'childExit' => is_int($exit) && $exit >= 1 && $exit <= 255 ? $exit : 'UNKNOWN',
-            'diagnostic' => \Tablo\Tools\server_native_failure($root, SqlColumn::string($failed, 'stdout'), $selection['identity'], $selection['publicSources'])]);
+            'diagnostic' => \Tablo\Tools\server_native_failure($root, $bytes, $selection['identity'], $selection['publicSources'])];
+        $memory = \Tablo\Tools\server_native_memory_failure($root, $bytes, $selection['identity'], $selection['publicSources']);
+        if ($memory !== null) { $record['memoryDiagnostic'] = $memory; }
+        server_verify_progress($root, $selection['lane'], $selection['index'] + 1, $record);
     };
 }
 
