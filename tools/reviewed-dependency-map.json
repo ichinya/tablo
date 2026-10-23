@@ -8577,6 +8577,18 @@
       "Composer analyze"
     ]
   },
+  "tests/Unit/MetadataPrivilegesPdo.php": {
+    "owner": "Tablo\\Tests\\Unit\\MetadataPrivilegesPdo",
+    "consumers": ["Composer lint", "Composer analyze", "Composer verify"]
+  },
+  "tests/Unit/MetadataPrivilegesStatement.php": {
+    "owner": "Tablo\\Tests\\Unit\\MetadataPrivilegesStatement",
+    "consumers": ["Composer lint", "Composer analyze", "Composer verify"]
+  },
+  "tests/Unit/ServerMetadataPrivilegesTest.php": {
+    "owner": "Tablo\\Tests\\Unit\\ServerMetadataPrivilegesTest",
+    "consumers": ["Composer lint", "Composer analyze", "Composer verify"]
+  },
   "tests/Unit/SqlStatementTest.php": {
     "owner": "Tablo\\Tests\\Unit\\SqlStatementTest",
     "consumers": [

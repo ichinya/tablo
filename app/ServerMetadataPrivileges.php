@@ -28,7 +28,9 @@ final class ServerMetadataPrivileges
     private static function roles(PDO $db, #[\SensitiveParameter] DatabaseConfiguration $configuration): void
     {
         foreach (['APPLICABLE_ROLES', 'ENABLED_ROLES'] as $table) {
-            if (ServerSchema::rows($db, 'SELECT 1 AS unsupported FROM information_schema.' . $table . ' LIMIT 1') !== []) { throw new DatabaseFailure('schema'); }
+            // MariaDB represents no active role by a SQL NULL row. Filter before LIMIT so it cannot hide a real role.
+            $where = $configuration->engine === 'mariadb' && $table === 'ENABLED_ROLES' ? ' WHERE ROLE_NAME IS NOT NULL' : '';
+            if (ServerSchema::rows($db, 'SELECT 1 AS unsupported FROM information_schema.' . $table . $where . ' LIMIT 1') !== []) { throw new DatabaseFailure('schema'); }
         }
         if ($configuration->engine === 'mysql') {
             $row = ServerSchema::rows($db, 'SELECT @@GLOBAL.partial_revokes AS partial_revokes')[0] ?? throw new DatabaseFailure('schema');

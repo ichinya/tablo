@@ -8,7 +8,7 @@
                 "Composer verify",
                 "Reviewed dependency capture"
             ],
-            "fingerprint": "sha256:3093651df0f0651d909840ef2e89ab98f1089d72d8af7d562098bc51351b8e9f"
+            "fingerprint": "sha256:f1d5ad382a90c5a96181a40d0e6a7374623447fc7cd83593b579d1204b57a061"
         },
         {
             "path": "tools/reviewed-dependencies.php",
@@ -8134,7 +8134,7 @@
                 "Composer analyze",
                 "Composer verify:server"
             ],
-            "fingerprint": "sha256:7b4157c44b4f655eb2bcad8a545f2f1610d63e89bfd40ed9baccd4e1b7425c41"
+            "fingerprint": "sha256:8c984399e828c05bca4be654e98f427a06bf20a0f6b275ee096432e8776e5b28"
         },
         {
             "path": "tests/Server/EngineWatermarkTest.php",
@@ -10602,6 +10602,36 @@
             "fingerprint": "sha256:269f5a66367ab986f458d2e7bea965853659cb10e857f34519a8164407b2a017"
         },
         {
+            "path": "tests/Unit/MetadataPrivilegesPdo.php",
+            "owner": "Tablo\\Tests\\Unit\\MetadataPrivilegesPdo",
+            "consumers": [
+                "Composer lint",
+                "Composer analyze",
+                "Composer verify"
+            ],
+            "fingerprint": "sha256:1bba08abc3d40119b9531d9dbd8ac4e07ecb07b1bda253c0520c02714bbb5870"
+        },
+        {
+            "path": "tests/Unit/MetadataPrivilegesStatement.php",
+            "owner": "Tablo\\Tests\\Unit\\MetadataPrivilegesStatement",
+            "consumers": [
+                "Composer lint",
+                "Composer analyze",
+                "Composer verify"
+            ],
+            "fingerprint": "sha256:780b1a7a62f6892f90539dd07aadb6ff2963653a972538ba8cb3b199ee70d07e"
+        },
+        {
+            "path": "tests/Unit/ServerMetadataPrivilegesTest.php",
+            "owner": "Tablo\\Tests\\Unit\\ServerMetadataPrivilegesTest",
+            "consumers": [
+                "Composer lint",
+                "Composer analyze",
+                "Composer verify"
+            ],
+            "fingerprint": "sha256:cd51aa67f55c300608b9ba98f358015676fb17bbce348a7018399db65c2c67f4"
+        },
+        {
             "path": "tests/Unit/SqlStatementTest.php",
             "owner": "Tablo\\Tests\\Unit\\SqlStatementTest",
             "consumers": [
@@ -11021,7 +11051,7 @@
                 "tools/server-supervisor-linux-qualify.cjs",
                 "tools/server-linux-prepare.cjs"
             ],
-            "fingerprint": "sha256:1ac3481c87b4f014e769ba926206a3d218d919864e4589d81e6cd607fa6010e8"
+            "fingerprint": "sha256:4e5bc3382b2c5eb43e33b19d6ea0d296bb558febc00264273a64fb632387389b"
         },
         {
             "path": "tools/ServerTestEvidence.php",
@@ -11032,7 +11062,7 @@
                 "Composer lint",
                 "Composer analyze"
             ],
-            "fingerprint": "sha256:de97ab79556f7b8c291dff8db2d08793fa0bfa137158352ee95671a7d266ca05"
+            "fingerprint": "sha256:8add1e2611126c0a99fa14628003e96c3efff99503306c31ca173875994b4303"
         },
         {
             "path": "tools/verify-server.php",
@@ -11044,7 +11074,7 @@
                 "Composer analyze",
                 "tools/server-supervisor.cjs"
             ],
-            "fingerprint": "sha256:840f46514d107a181bf2b92e81aeca79854dcb9c11dee45522148648d56f3b77"
+            "fingerprint": "sha256:26faa241e4cda0d559b57db4d27fd3a0027acf65c772464aa081d9a2e946d15d"
         },
         {
             "path": "tools/verify.php",
@@ -11336,7 +11366,7 @@
                 "Composer analyze",
                 "app/ServerMetadataAdmission.php"
             ],
-            "fingerprint": "sha256:b70a5bc27408df6ac7f3edf57b6e62a15a2bf75f8aea0629b86c1c71e89fb65a"
+            "fingerprint": "sha256:dc1e1eb7128834fe62927dd3b9e611597fe599ded99157d131cf9646c5339f47"
         },
         {
             "path": "app/ServerMetadataInventory.php",
@@ -11372,7 +11402,7 @@
                 "Composer verify:server",
                 "All native binding admission prerequisites"
             ],
-            "fingerprint": "sha256:24edf63d3595fb83646f285c011adbd6c0a699d04f1c816bf57937ac91ceb2bb"
+            "fingerprint": "sha256:3cafcecde9e207b1a8c794b25492ba51012ecf1e318994a07dc0968a465dfc04"
         },
         {
             "path": "tools/server-supervisor-linux.c",

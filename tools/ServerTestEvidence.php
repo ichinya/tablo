@@ -151,13 +151,13 @@ function server_native_original_platform_skip(DOMElement $case, array $spec): ar
 function server_native_baseline_platform_policy(): array
 {
     return ['platform' => 'Linux', 'identity' => 'Tablo\\Tests\\Network\\PasswordHelperTest::shippedHelperPreservesHostEncodingAndExactCredentials',
-        'path' => 'tests/Network/PasswordHelperTest.php', 'reason' => 'Native Windows PowerShell host required.', 'windowsPassed' => 436, 'linuxPassed' => 435];
+        'path' => 'tests/Network/PasswordHelperTest.php', 'reason' => 'Native Windows PowerShell host required.', 'windowsPassed' => 441, 'linuxPassed' => 440];
 }
 
 /** @param array{cases: array<string, array{status: string, assertions: int, seconds: float}>, assertions: int, platform: string} $native */
 function server_native_baseline_summary(array $summary, array $native): void
 {
-    if ($native['platform'] !== PHP_OS_FAMILY || count($native['cases']) !== 436) { throw new RuntimeException('Original native platform or baseline union refused.'); }
+    if ($native['platform'] !== PHP_OS_FAMILY || count($native['cases']) !== 441) { throw new RuntimeException('Original native platform or baseline union refused.'); }
     $counts = server_native_baseline_counts($native['cases']);
     if ($counts['assertions'] !== $native['assertions']) { throw new RuntimeException('Original native assertion sum disagrees.'); }
     server_native_baseline_totals($summary, $counts);
@@ -186,7 +186,7 @@ function server_native_baseline_totals(array $summary, array $counts): void
     $totals = JsonRecord::checked($summary['totals'] ?? null);
     if ($counts['skipped'] !== $expectedSkips || $assertions < 1 || ($summary['status'] ?? null) !== 'passed'
         || [SqlColumn::integer($totals, 'total'), SqlColumn::integer($totals, 'passed'), SqlColumn::integer($totals, 'assertions'), $totals['skipped'] ?? 0]
-            !== [436, 436 - $expectedSkips, $assertions, $expectedSkips] || ($summary['failures'] ?? null) !== []) {
+            !== [441, 441 - $expectedSkips, $assertions, $expectedSkips] || ($summary['failures'] ?? null) !== []) {
         throw new RuntimeException('Original native baseline summary and JUnit disagree.');
     }
     foreach (array_keys($totals) as $name) {

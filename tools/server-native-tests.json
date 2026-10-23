@@ -4201,7 +4201,7 @@
     }
   },
   "baseline": {
-    "requiredIdentityCount": 436,
+    "requiredIdentityCount": 441,
     "identities": [
       {
         "identity": "Tablo\\Tests\\Http\\AdminPasswordTest::resetRevokesEveryProtectedRouteAndPreservesSetupAndData",
@@ -7254,6 +7254,41 @@
         "dataRows": [],
         "minimumAssertions": 1,
         "deadlineSeconds": null
+      },
+      {
+        "identity": "Tablo\\Tests\\Unit\\ServerMetadataPrivilegesTest::mariaDbNoActiveRoleSentinelReachesTheCompleteDirectGrantChecks",
+        "path": "tests/Unit/ServerMetadataPrivilegesTest.php",
+        "dataRows": [],
+        "minimumAssertions": 1,
+        "deadlineSeconds": null
+      },
+      {
+        "identity": "Tablo\\Tests\\Unit\\ServerMetadataPrivilegesTest::actualEnabledRolesNeverHideBehindNullOrBecomePublicExceptions",
+        "path": "tests/Unit/ServerMetadataPrivilegesTest.php",
+        "dataRows": [],
+        "minimumAssertions": 1,
+        "deadlineSeconds": null
+      },
+      {
+        "identity": "Tablo\\Tests\\Unit\\ServerMetadataPrivilegesTest::inactiveApplicableRolesAndPublicRemainForbidden",
+        "path": "tests/Unit/ServerMetadataPrivilegesTest.php",
+        "dataRows": [],
+        "minimumAssertions": 1,
+        "deadlineSeconds": null
+      },
+      {
+        "identity": "Tablo\\Tests\\Unit\\ServerMetadataPrivilegesTest::acceptingTheSentinelCannotSkipIdentityOrGrantValidation",
+        "path": "tests/Unit/ServerMetadataPrivilegesTest.php",
+        "dataRows": [],
+        "minimumAssertions": 1,
+        "deadlineSeconds": null
+      },
+      {
+        "identity": "Tablo\\Tests\\Unit\\ServerMetadataPrivilegesTest::mysqlRetainsItsExistingQueriesAndPartialRevokePolicy",
+        "path": "tests/Unit/ServerMetadataPrivilegesTest.php",
+        "dataRows": [],
+        "minimumAssertions": 1,
+        "deadlineSeconds": null
       }
     ],
     "prerequisite": "Unchanged Composer verify with explicitly isolated SQLite configuration; source/dependency refusal must happen before native subprocesses.",
@@ -7269,8 +7304,8 @@
       "identity": "Tablo\\Tests\\Network\\PasswordHelperTest::shippedHelperPreservesHostEncodingAndExactCredentials",
       "path": "tests/Network/PasswordHelperTest.php",
       "reason": "Native Windows PowerShell host required.",
-      "windowsPassed": 436,
-      "linuxPassed": 435
+      "windowsPassed": 441,
+      "linuxPassed": 440
     }
   },
   "aggregate": {
@@ -7296,6 +7331,7 @@
     "missingSublaneIsFailure": true
   },
   "qualification": [
+    "Source62 preserves all original436 baseline identity objects and adds five closed-PDO metadata-role regression cases:441 current baseline identities. The MariaDB SQL NULL enabled-role sentinel is excluded before LIMIT; every actual applicable or enabled role remains refused. Current engine/CI acceptance still requires independent runtime evidence.",
     "Historical Source42 declared188 main and6 cross identities, including actual server crash/restart mechanisms. Engine, cross, crash, memory and hosted qualification remains UNQUALIFIED until observed.",
     "Every method requires exact real Testo discovery, source path, data-row qualification, passed status, nonzero assertions and its fixed8/20-second deadline.",
     "Historical Source42 declaration totaled630 distinct identities:436 baseline,188 main and6 cross. The two accepted fixtureless parser cases are bounded prior evidence; the new caller-transaction case and full current engine/cross/crash suites remain NOTRUN. Callback interruption and independent-session locks do not prove an actual server crash or simultaneous migration process.",

@@ -140,12 +140,12 @@ final class EngineVerificationTest
 function engine_verification_baseline_summary(string $identity): void
 {
     $cases = [];
-    for ($index = 0; $index < 435; $index++) { $cases['Synthetic\\Baseline::case' . $index] = ['status' => 'passed', 'assertions' => 1, 'seconds' => 0.01]; }
-    $linux = PHP_OS_FAMILY === 'Linux'; $passed = $linux ? 435 : 436;
+    for ($index = 0; $index < 440; $index++) { $cases['Synthetic\\Baseline::case' . $index] = ['status' => 'passed', 'assertions' => 1, 'seconds' => 0.01]; }
+    $linux = PHP_OS_FAMILY === 'Linux'; $passed = $linux ? 440 : 441;
     $cases[$identity] = ['status' => $linux ? 'skipped_platform' : 'passed', 'assertions' => $linux ? 0 : 1, 'seconds' => 0.01];
     $native = ['cases' => $cases, 'assertions' => $passed, 'platform' => PHP_OS_FAMILY];
-    $summary = ['status' => 'passed', 'totals' => ['total' => 436, 'passed' => $passed, 'assertions' => $passed, 'skipped' => $linux ? 1 : 0], 'failures' => []];
-    \Tablo\Tools\server_native_baseline_summary($summary, $native); Assert::same(count($native['cases']), 436);
+    $summary = ['status' => 'passed', 'totals' => ['total' => 441, 'passed' => $passed, 'assertions' => $passed, 'skipped' => $linux ? 1 : 0], 'failures' => []];
+    \Tablo\Tools\server_native_baseline_summary($summary, $native); Assert::same(count($native['cases']), 441);
     foreach (['error' => 1, 'skipped' => 2] as $name => $count) {
         $wrong = $summary; $wrong['totals'][$name] = $count; $refused = false;
         try { \Tablo\Tools\server_native_baseline_summary($wrong, $native); } catch (\RuntimeException) { $refused = true; }

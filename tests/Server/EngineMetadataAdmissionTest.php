@@ -74,8 +74,10 @@ function engine_metadata_hidden(string $case, string $counter, int $expected): v
         }
         if ($case === 'metadata-role') {
             $metadata = ServerPdoConnection::open($configuration->metadata());
-            Assert::same($fixture->scalar('SELECT COUNT(*) FROM information_schema.APPLICABLE_ROLES', $metadata), 1);
-            $metadata = null;
+            try {
+                Assert::same($fixture->scalar('SELECT COUNT(*) FROM information_schema.APPLICABLE_ROLES', $metadata), 1);
+                Assert::same($fixture->scalar('SELECT COUNT(*) FROM information_schema.ENABLED_ROLES WHERE ROLE_NAME IS NOT NULL', $metadata), 0);
+            } finally { $metadata = null; }
         }
         engine_metadata_refuses($fixture->environment(), category: 'schema');
         Assert::same(engine_metadata_snapshot($db), $before);
@@ -119,6 +121,13 @@ function engine_metadata_positive(): void
     try {
         $configuration = DatabaseConfiguration::fromEnvironment(environment: $fixture->environment());
         $observation = ServerMetadataAdmission::observe($configuration, 10);
+        if ($configuration->engine === 'mariadb') {
+            $metadata = ServerPdoConnection::open($configuration->metadata());
+            try {
+                Assert::same(ServerSchema::rows($metadata, 'SELECT ROLE_NAME FROM information_schema.ENABLED_ROLES'), [['ROLE_NAME' => null]]);
+                Assert::same($fixture->scalar('SELECT COUNT(*) FROM information_schema.APPLICABLE_ROLES', $metadata), 0);
+            } finally { $metadata = null; }
+        }
         Assert::same(count($observation['objects']), 18); Assert::same($observation['server']['catalog'] ?? null, $configuration->catalog);
         $db = $fixture->database();
         engine_metadata_writer_grants($db, $configuration);
