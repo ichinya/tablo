@@ -147,14 +147,17 @@ function engine_verification_failed_report(): void
     $report = ['status' => 'failed', 'failures' => [$failure]];
     $project = static fn (array $value): array => \Tablo\Tools\server_native_failure($root, \Tablo\JsonEncoding::encode($value), $identity, engine_verification_public_sources());
     $actual = $project($report);
-    Assert::same($actual, ['schema' => 'tablo/server-native-failure/v1', 'rootCause' => 'UNKNOWN', 'reportStatus' => 'failed',
-        'type' => 'assertion', 'origin' => 'trace', 'source' => 'tests/Server/EngineConstraintsTest.php', 'line' => 549]);
+    Assert::same($actual, ['schema' => 'tablo/server-native-failure/v2', 'rootCause' => 'UNKNOWN', 'reportStatus' => 'failed',
+        'type' => 'assertion', 'origin' => 'trace', 'source' => 'tests/Server/EngineConstraintsTest.php', 'line' => 549,
+        'category' => 'UNKNOWN', 'callerSource' => 'tests/Server/EngineConstraintsTest.php', 'callerLine' => 549]);
     Assert::false(str_contains(\Tablo\JsonEncoding::encode($actual), $private));
     Assert::false(str_contains(\Tablo\JsonEncoding::encode($actual), $root));
     $direct = $failure; $direct['file'] = str_replace('/', replace: '\\', subject: $root . '/app/DatabaseTransferTarget.php');
     $direct['line'] = 99; $direct['exception'] = 'Tablo\\DatabaseFailure'; $direct['status'] = 'error';
     $actual = $project(['status' => 'failed', 'failures' => [$direct]]);
     Assert::same([$actual['type'], $actual['origin'], $actual['source'], $actual['line']], ['database', 'exception', 'app/DatabaseTransferTarget.php', 99]);
+    engine_verification_failed_category($failure, $private, $project);
+    engine_verification_failed_caller($root, $failure, $private, $project);
     engine_verification_failed_report_invalid($root, $identity, $failure, $private);
 }
 
@@ -181,7 +184,54 @@ function engine_verification_failed_report_invalid(string $root, string $identit
 }
 
 /** @return list<string> */
-function engine_verification_public_sources(): array { return ['app/DatabaseTransferTarget.php', 'tests/Server/EngineConstraintsTest.php']; }
+function engine_verification_public_sources(): array { return ['app/DatabaseTransfer.php', 'app/DatabaseTransferTarget.php', 'tests/Server/EngineConstraintsTest.php']; }
+
+/** Independent public message fixtures; only the complete exact DatabaseFailure message is admitted.
+ * @param \Closure(array): array $project */
+function engine_verification_failed_category(array $failure, string $private, \Closure $project): void
+{
+    $categories = ['Database configuration invalid.' => 'configuration', 'Selected PDO driver unavailable.' => 'driver',
+        'Unsupported database engine.' => 'engine', 'Database schema incompatible or in progress.' => 'schema',
+        'Installation key unavailable.' => 'key', 'Database busy.' => 'busy', 'Storage outcome uncertain.' => 'uncertain',
+        'Database constraint refused.' => 'constraint', 'Database unavailable.' => 'unavailable'];
+    foreach ($categories as $message => $category) {
+        $value = array_replace($failure, ['exception' => 'Tablo\\DatabaseFailure', 'message' => $message]);
+        Assert::same(\Tablo\SqlColumn::string($project(['status' => 'failed', 'failures' => [$value]]), 'category'), $category);
+        foreach ([$private . $message, $message . $private, $message . "\n", strtolower($message), null, []] as $invalid) {
+            $value['message'] = $invalid;
+            Assert::same(\Tablo\SqlColumn::string($project(['status' => 'failed', 'failures' => [$value]]), 'category'), 'UNKNOWN');
+        }
+    }
+    $value = array_replace($failure, ['exception' => 'RuntimeException', 'message' => 'Database busy.']);
+    Assert::same(\Tablo\SqlColumn::string($project(['status' => 'failed', 'failures' => [$value]]), 'category'), 'UNKNOWN');
+}
+
+/** @param \Closure(array): array $project */
+function engine_verification_failed_caller(string $root, array $failure, string $private, \Closure $project): void
+{
+    $value = array_replace($failure, ['exception' => 'Tablo\\DatabaseFailure', 'message' => 'Database schema incompatible or in progress.',
+        'file' => $root . '/app/DatabaseTransfer.php', 'line' => 125,
+        'trace' => ['#0 ' . $root . '/app/DatabaseTransfer.php:53: safe(' . $private . ')']]);
+    $actual = $project(['status' => 'failed', 'failures' => [$value]]);
+    Assert::same([\Tablo\SqlColumn::nullableString($actual, 'source'), \Tablo\SqlColumn::nullableInteger($actual, 'line'),
+        \Tablo\SqlColumn::nullableString($actual, 'callerSource'), \Tablo\SqlColumn::nullableInteger($actual, 'callerLine'), \Tablo\SqlColumn::string($actual, 'category')],
+        ['app/DatabaseTransfer.php', 125, 'app/DatabaseTransfer.php', 53, 'schema']);
+    Assert::false(str_contains(\Tablo\JsonEncoding::encode($actual), $private));
+    Assert::false(str_contains(\Tablo\JsonEncoding::encode($actual), $root));
+    foreach (['app/' . $private . '.php:53: safe()', 'storage/Private.php:53: safe()', 'app/DatabaseTransfer.php:0: safe()',
+        'app/DatabaseTransfer.php:100001: safe()'] as $frame) {
+        $value['trace'] = ['#0 ' . $root . '/' . $frame];
+        $actual = $project(['status' => 'failed', 'failures' => [$value]]);
+        Assert::same([\Tablo\SqlColumn::nullableString($actual, 'callerSource'), \Tablo\SqlColumn::nullableInteger($actual, 'callerLine')], [null, null]);
+        Assert::false(str_contains(\Tablo\JsonEncoding::encode($actual), $private));
+    }
+    foreach ([[], ['key' => '#0 ' . $root . '/app/DatabaseTransfer.php:53: safe()'],
+        [str_repeat('x', times: 4097)], [...array_fill(0, count: 8, value: $private), '#8 ' . $root . '/app/DatabaseTransfer.php:53: safe()']] as $trace) {
+        $value['trace'] = $trace;
+        $actual = $project(['status' => 'failed', 'failures' => [$value]]);
+        Assert::same([\Tablo\SqlColumn::nullableString($actual, 'callerSource'), \Tablo\SqlColumn::nullableInteger($actual, 'callerLine')], [null, null]);
+    }
+}
 
 /** @param \Closure(array): array $project */
 function engine_verification_failed_report_membership(string $root, string $identity, array $failure, string $private, \Closure $project): void

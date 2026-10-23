@@ -12,11 +12,12 @@ use Tablo\SqlColumn;
 
 /** Diagnostic projection of one failed Testo report; never evidence of admission or a root cause.
  * @param array<int|string, string> $publicSources Frozen owner catalog, never supplied by the child report; list shape is checked here.
- * @return array{schema: string, rootCause: string, reportStatus: string, type: string, origin: string, source: ?string, line: ?int} */
+ * @return array{schema: string, rootCause: string, reportStatus: string, type: string, origin: string, source: ?string, line: ?int, category: string, callerSource: ?string, callerLine: ?int} */
 function server_native_failure(string $root, #[\SensitiveParameter] string $bytes, string $identity, array $publicSources): array
 {
-    $unknown = ['schema' => 'tablo/server-native-failure/v1', 'rootCause' => 'UNKNOWN', 'reportStatus' => 'UNKNOWN',
-        'type' => 'UNKNOWN', 'origin' => 'UNKNOWN', 'source' => null, 'line' => null];
+    $unknown = ['schema' => 'tablo/server-native-failure/v2', 'rootCause' => 'UNKNOWN', 'reportStatus' => 'UNKNOWN',
+        'type' => 'UNKNOWN', 'origin' => 'UNKNOWN', 'source' => null, 'line' => null,
+        'category' => 'UNKNOWN', 'callerSource' => null, 'callerLine' => null];
     try {
         if (strlen($bytes) > 1_048_576 || !array_is_list($publicSources) || count($publicSources) > 2048) { return $unknown; }
         $report = JsonRecord::decode($bytes, 32); $failures = JsonRecord::checked($report['failures'] ?? null);
@@ -29,8 +30,10 @@ function server_native_failure(string $root, #[\SensitiveParameter] string $byte
             'Error', 'TypeError', 'ValueError', 'ParseError' => 'php', default => 'UNKNOWN',
         };
         $location = server_native_failure_location($root, $failure, $publicSources);
-        return ['schema' => 'tablo/server-native-failure/v1', 'rootCause' => 'UNKNOWN', 'reportStatus' => SqlColumn::string($failure, 'status'),
-            'type' => $type, 'origin' => $location['origin'], 'source' => $location['source'], 'line' => $location['line']];
+        $caller = server_native_failure_trace($root, $failure, $publicSources);
+        return ['schema' => 'tablo/server-native-failure/v2', 'rootCause' => 'UNKNOWN', 'reportStatus' => SqlColumn::string($failure, 'status'),
+            'type' => $type, 'origin' => $location['origin'], 'source' => $location['source'], 'line' => $location['line'],
+            'category' => server_native_failure_category($failure), 'callerSource' => $caller['source'], 'callerLine' => $caller['line']];
     } catch (\Throwable) { return $unknown; }
 }
 
@@ -41,6 +44,14 @@ function server_native_failure_location(string $root, #[\SensitiveParameter] arr
 {
     $direct = server_native_failure_origin($root, $failure['file'] ?? null, $failure['line'] ?? null, $publicSources);
     if ($direct['source'] !== null) { return ['origin' => 'exception'] + $direct; }
+    return server_native_failure_trace($root, $failure, $publicSources);
+}
+
+/** One bounded public caller is diagnostic only; its frame text and arguments are never retained.
+ * @param list<string> $publicSources
+ * @return array{origin: string, source: ?string, line: ?int} */
+function server_native_failure_trace(string $root, #[\SensitiveParameter] array $failure, array $publicSources): array
+{
     /** @var mixed $trace Untrusted report data is admitted only as a bounded list below. */
     $trace = $failure['trace'] ?? null;
     if (is_array($trace) && array_is_list($trace)) {
@@ -54,6 +65,18 @@ function server_native_failure_location(string $root, #[\SensitiveParameter] arr
         }
     }
     return ['origin' => 'UNKNOWN', 'source' => null, 'line' => null];
+}
+
+/** Match complete fixed public DatabaseFailure messages, never a native or partial diagnostic. */
+function server_native_failure_category(#[\SensitiveParameter] array $failure): string
+{
+    if (($failure['exception'] ?? null) !== 'Tablo\\DatabaseFailure') { return 'UNKNOWN'; }
+    return match ($failure['message'] ?? null) {
+        'Database configuration invalid.' => 'configuration', 'Selected PDO driver unavailable.' => 'driver',
+        'Unsupported database engine.' => 'engine', 'Database schema incompatible or in progress.' => 'schema',
+        'Installation key unavailable.' => 'key', 'Database busy.' => 'busy', 'Storage outcome uncertain.' => 'uncertain',
+        'Database constraint refused.' => 'constraint', 'Database unavailable.' => 'unavailable', default => 'UNKNOWN',
+    };
 }
 
 /** @param list<string> $publicSources
