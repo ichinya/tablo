@@ -566,7 +566,8 @@ function engine_verification_initialize_bootstrap(): void
         $observation = \server_cell_initialize_observation($result) ?? throw new \RuntimeException('Expected initialization failure observation.');
         Assert::same($observation['diagnostic'], \Tablo\JsonRecord::decode($lines[0] ?? ''));
         Assert::same([$observation['schema'], $observation['reportedExit'], $observation['stdout'], $observation['stderr']],
-            ['tablo/server-initialize-observation/v1', 1, 'EMPTY', 'NONEMPTY']);
+            ['tablo/server-initialize-observation/v2', 1, 'EMPTY', 'NONEMPTY']);
+        Assert::same($observation['rejection'], null);
         Assert::false(str_contains(\Tablo\JsonEncoding::encode($observation), $secret));
         Assert::false(str_contains($result['stderr'], $secret)); Assert::false(str_contains($result['stderr'], $directory->path));
         Assert::false(str_contains($result['stderr'], $root));

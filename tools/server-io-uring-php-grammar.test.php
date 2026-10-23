@@ -433,6 +433,7 @@ namespace {
         $crlf = $child; $crlf['stderr'] = str_replace("\n", replace: "\r\n", subject: $child['stderr']); grammar_expect($parse($crlf) === $base);
         grammar_availability_invalid($parse, $base, $child); grammar_availability_valid($parse, $base);
         grammar_initialize_progress($parse, $base); grammar_initialize_reports($child);
+        grammar_initialize_rejections($base, $child);
         grammar_expect(\Tablo\Tools\grammar_state()['effects'] === []);
     }
 
@@ -507,6 +508,45 @@ namespace {
         grammar_expect(($missing['reportedExit'] ?? null) === 'UNKNOWN');
     }
 
+    /** Independent direct-callee regression cases, rather than deriving completeness from the allowlist itself.
+     * @param array{exit_code: int, stdout: string, stderr: string} $child */
+    function grammar_initialize_rejections(array $base, array $child): void
+    {
+        /** @var Closure(array): ?array $observe */
+        $observe = grammar_prepare_callable('Tablo\\Tests\\InitializeReportGrammar\\server_cell_initialize_observation');
+        $accepted = $observe($child) ?? throw new RuntimeException('Expected rejected-child observation.');
+        grammar_expect(($accepted['schema'] ?? null) === 'tablo/server-initialize-observation/v2');
+        grammar_expect(array_key_exists('rejection', $accepted)); grammar_expect(($accepted['rejection'] ?? null) === null);
+        foreach (['ServerColumnAdmission', 'ServerIndexAdmission', 'ServerForeignAdmission', 'ServerCheckAdmission'] as $owner) {
+            $valid = $base; $valid['source'] = 'app/' . $owner . '.php';
+            $result = $observe(grammar_availability_child($valid)) ?? throw new RuntimeException('Expected direct-owner observation.');
+            grammar_expect(($result['diagnostic'] ?? null) === $valid); grammar_expect(array_key_exists('rejection', $result));
+            grammar_expect(($result['rejection'] ?? null) === null);
+        }
+        foreach ([[], array_replace($child, ['exit_code' => null]), array_replace($child, ['exit_code' => '1']), array_replace($child, ['stdout' => 'PRIVATE'])] as $bad) {
+            grammar_initialize_rejection($bad, expected: 'CHILD_SHAPE');
+        }
+        grammar_initialize_rejection(array_replace($child, ['stderr' => str_repeat('x', times: 1_025)]), expected: 'OVERSIZE');
+        grammar_initialize_rejection(array_replace($child, ['stderr' => 'PRIVATE']), expected: 'FOOTER_MISSING');
+        foreach (['PRIVATE', '[]', '{'] as $prefix) {
+            grammar_initialize_rejection(array_replace($child, ['stderr' => $prefix . "\nNative server cell failed.\n"]), expected: 'JSON_INVALID');
+        }
+        grammar_initialize_rejection(grammar_availability_child(array_replace($base, ['schema' => 'PRIVATE'])), expected: 'SCHEMA_INVALID');
+        grammar_initialize_rejection(grammar_availability_child(array_replace($base, ['step' => '0'])), expected: 'SCHEMA_INVALID');
+        grammar_initialize_rejection(grammar_availability_child(array_replace($base, ['nativeCode' => '2002'])), expected: 'SCHEMA_INVALID');
+        grammar_initialize_rejection(grammar_availability_child(array_replace($base, ['source' => 'app/PRIVATE.php'])), expected: 'ORIGIN_INVALID');
+        grammar_initialize_rejection(array_replace($child, ['stderr' => ' ' . $child['stderr']]), expected: 'CANONICAL_INVALID');
+    }
+
+    function grammar_initialize_rejection(array $child, string $expected): void
+    {
+        /** @var Closure(array): ?array $observe */
+        $observe = grammar_prepare_callable('Tablo\\Tests\\InitializeReportGrammar\\server_cell_initialize_observation');
+        $record = $observe($child) ?? throw new RuntimeException('Expected failed-child observation.');
+        grammar_expect(array_key_exists('rejection', $record)); grammar_expect(($record['rejection'] ?? null) === $expected);
+        grammar_expect(($record['diagnostic'] ?? null) === null); grammar_expect(!str_contains(json_encode($record, JSON_THROW_ON_ERROR), 'PRIVATE'));
+    }
+
     /** Fixed aliases close the known unqualified filesystem, process, environment and runtime-query effect APIs. */
     function grammar_diagnostic_imports(): string
     {
@@ -536,6 +576,13 @@ namespace {
         $parse = grammar_prepare_callable('Tablo\\Tests\\' . $namespace . '\\server_cell_failure_marker');
         grammar_expect($parse($child, $kind) === null);
         $state = &\Tablo\Tools\grammar_state(); grammar_expect($state['effects'] === ['Diagnostic effect attempted.']); $state['effects'] = [];
+        if ($kind === 'initialize') {
+            /** @var Closure(array): ?array $observe */
+            $observe = grammar_prepare_callable('Tablo\\Tests\\' . $namespace . '\\server_cell_initialize_observation');
+            $record = $observe($child) ?? throw new RuntimeException('Expected internally rejected observation.');
+            grammar_expect(($record['rejection'] ?? null) === 'INTERNAL_UNKNOWN');
+            grammar_expect($state['effects'] === ['Diagnostic effect attempted.']); $state['effects'] = [];
+        }
     }
 
     /** @param Closure(array): ?array $parse

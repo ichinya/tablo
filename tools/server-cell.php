@@ -1750,23 +1750,33 @@ function server_cell_availability_marker(#[\SensitiveParameter] array $child): ?
     return server_cell_failure_marker($child, kind: 'availability');
 }
 
-/** Complete caught-failure envelope only; the finite kind selects its own exact validator. */
-function server_cell_failure_marker(#[\SensitiveParameter] array $child, string $kind): ?array
+/** Complete caught-failure envelope only; a fixed rejection enum never includes input bytes.
+ * @param-out ?string $rejection */
+function server_cell_failure_marker(#[\SensitiveParameter] array $child, string $kind, ?string &$rejection = null): ?array
 {
+    $rejection = 'INTERNAL_UNKNOWN';
     try {
-        if (($child['exit_code'] ?? null) !== 1 || ($child['stdout'] ?? null) !== '' || !is_string($child['stderr'] ?? null)
-            || strlen($child['stderr']) > 1_024) { return null; }
+        if (!in_array($kind, ['availability', 'initialize'], strict: true)) { return null; }
+        $rejection = 'CHILD_SHAPE';
+        if (($child['exit_code'] ?? null) !== 1 || ($child['stdout'] ?? null) !== '' || !is_string($child['stderr'] ?? null)) { return null; }
+        $rejection = 'OVERSIZE'; if (strlen($child['stderr']) > 1_024) { return null; }
+        $rejection = 'FOOTER_MISSING';
         $bytes = str_replace("\r\n", replace: "\n", subject: $child['stderr']); $suffix = "\nNative server cell failed.\n";
         if (!str_ends_with($bytes, $suffix)) { return null; }
         $json = substr($bytes, offset: 0, length: -strlen($suffix));
+        $rejection = 'JSON_INVALID';
         /** @var mixed $decoded A marker must be an actual JSON object, never a coerced array. */
         $decoded = json_decode($json, associative: false, depth: 16, flags: JSON_THROW_ON_ERROR);
         if (!$decoded instanceof \stdClass) { return null; }
         $record = get_object_vars($decoded);
-        $valid = match ($kind) { 'availability' => server_cell_availability_record($record), 'initialize' => server_cell_initialize_record($record), default => false };
-        if (!$valid || json_encode($record, JSON_THROW_ON_ERROR) !== $json) { return null; }
+        $rejection = 'SCHEMA_INVALID';
+        $valid = match ($kind) { 'availability' => server_cell_availability_record($record), 'initialize' => server_cell_initialize_record($record, $rejection) };
+        if (!$valid) { return null; }
+        $rejection = 'CANONICAL_INVALID'; if (json_encode($record, JSON_THROW_ON_ERROR) !== $json) { return null; }
+        $rejection = null;
         return $record;
-    } catch (Throwable $discarded) { unset($discarded); return null; }
+    } catch (\JsonException $discarded) { unset($discarded); $rejection = 'JSON_INVALID'; return null; }
+    catch (Throwable $discarded) { unset($discarded); $rejection = 'INTERNAL_UNKNOWN'; return null; }
 }
 
 /** Exact field types and finite reviewed origins; validation never opens a named path. */
@@ -1836,15 +1846,16 @@ function server_cell_require_initialization(#[\SensitiveParameter] array $child,
     throw new RuntimeException('Native fixture preparation failed or its outcome is unknown.');
 }
 
-/** @return array{schema: string, status: string, rootCause: string, issueAccepted: bool, reportedExit: int|null|string, stdout: string, stderr: string, diagnostic: ?array}|null */
+/** @return array{schema: string, status: string, rootCause: string, issueAccepted: bool, reportedExit: int|null|string, stdout: string, stderr: string, diagnostic: ?array, rejection: ?string}|null */
 function server_cell_initialize_observation(#[\SensitiveParameter] array $child): ?array
 {
     if ([($child['exit_code'] ?? null), ($child['stderr'] ?? null)] === [0, '']) { return null; }
-    return ['schema' => 'tablo/server-initialize-observation/v1', 'status' => 'failed', 'rootCause' => 'UNKNOWN', 'issueAccepted' => false,
+    $rejection = null; $diagnostic = server_cell_failure_marker($child, kind: 'initialize', rejection: $rejection);
+    return ['schema' => 'tablo/server-initialize-observation/v2', 'status' => 'failed', 'rootCause' => 'UNKNOWN', 'issueAccepted' => false,
         'reportedExit' => server_cell_capability_exit(array_key_exists('exit_code', $child) ? $child['exit_code'] : 'UNKNOWN'),
         'stdout' => match (true) { !is_string($child['stdout'] ?? null) => 'UNKNOWN', $child['stdout'] === '' => 'EMPTY', default => 'NONEMPTY' },
         'stderr' => match (true) { !is_string($child['stderr'] ?? null) => 'UNKNOWN', $child['stderr'] === '' => 'EMPTY', default => 'NONEMPTY' },
-        'diagnostic' => server_cell_initialize_marker($child)];
+        'diagnostic' => $diagnostic, 'rejection' => $rejection];
 }
 
 function server_cell_initialize_marker(#[\SensitiveParameter] array $child): ?array
@@ -1852,16 +1863,19 @@ function server_cell_initialize_marker(#[\SensitiveParameter] array $child): ?ar
     return server_cell_failure_marker($child, kind: 'initialize');
 }
 
-/** Exact initialization shape plus common credential-free classifications. */
-function server_cell_initialize_record(array $record): bool
+/** Exact initialization shape plus common credential-free classifications.
+ * @param-out ?string $rejection */
+function server_cell_initialize_record(array $record, ?string &$rejection = null): bool
 {
+    $rejection = 'SCHEMA_INVALID';
     if (array_keys($record) !== ['schema', 'engine', 'stage', 'type', 'category', 'sqlState', 'nativeCode', 'nativeReason', 'source', 'line', 'point', 'step']
         || ($record['schema'] ?? null) !== 'tablo/server-initialize-failure/v1' || !server_cell_initialize_progress($record)) { return false; }
     /** @var array{source: mixed, line: mixed, ...} $record Exact keys above admit presence including SQL nulls. */
-    if (!server_cell_initialize_location($record)) { return false; }
     $base = array_slice($record, offset: 0, length: 10, preserve_keys: true);
     $base['schema'] = 'tablo/server-availability-failure/v1'; $base['stage'] = 'bootstrap'; $base['source'] = null; $base['line'] = null;
-    return server_cell_availability_record($base);
+    if (!server_cell_availability_record($base)) { return false; }
+    $rejection = 'ORIGIN_INVALID'; if (!server_cell_initialize_location($record)) { return false; }
+    $rejection = null; return true;
 }
 
 /** Progress is the last callback, never an inferred failing instruction or completed-table count. */
@@ -1886,6 +1900,7 @@ function server_cell_initialize_sources(): array
 {
     return array_merge(server_cell_availability_sources(), array_map(static fn (string $name): string => 'app/' . $name . '.php',
         ['ServerMigration', 'ServerMigrationLock', 'ServerMigrationStep', 'ServerMigrationJournal', 'ServerMigrationState', 'ServerTableAdmission',
+            'ServerColumnAdmission', 'ServerIndexAdmission', 'ServerForeignAdmission', 'ServerCheckAdmission',
             'ServerBootstrap', 'ServerBootstrapReceipt', 'ServerLock', 'ServerLockOwnership', 'ServerWriterAdmission']));
 }
 
