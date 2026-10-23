@@ -55,6 +55,63 @@ function observerDockerLeases(owner) {
   }
   return Object.freeze(operations);
 }
+function observerLeaseKind(label) {
+  if (['native/context-admission', 'native/resource-absence', 'native/readiness', 'fixture/prepare'].includes(label)) return label;
+  if (typeof label === 'string' && label.startsWith('native/docker/')) {
+    const operation = label.slice('native/docker/'.length);
+    if (DOCKER_OPERATIONS.includes(operation)) return 'native/docker/' + operation;
+  }
+  return 'UNKNOWN';
+}
+function observerCancellationLeases(owner, reason) {
+  const leases = owner?.leases, active = leases?.active;
+  const unknown = { boundary: 'UNKNOWN', activeLeaseCount: 'UNKNOWN', limitingLeaseKinds: 'UNKNOWN' };
+  if (!(active instanceof Map) || active.size > 8 || typeof leases.parentEnd !== 'bigint' || leases.parentEnd <= 0n) return unknown;
+  const rows = [...active.values()];
+  if (rows.some(lease => !object(lease) || typeof lease.started !== 'bigint' || typeof lease.end !== 'bigint'
+      || lease.started < 0n || lease.end <= lease.started || lease.end > leases.parentEnd)) return unknown;
+  const end = rows.reduce((minimum, lease) => lease.end < minimum ? lease.end : minimum, leases.parentEnd);
+  const limiting = rows.filter(lease => lease.end === end);
+  const boundary = reason === 'deadline' ? end === leases.parentEnd ? limiting.length ? 'PARENT_AND_LEASE' : 'PARENT' : 'LEASE'
+    : ['owner-loss', 'protocol'].includes(reason) ? 'NOT_DEADLINE' : 'UNKNOWN';
+  return { boundary, activeLeaseCount: active.size, limitingLeaseKinds: Object.freeze(limiting.map(lease => observerLeaseKind(lease.label))) };
+}
+function observerAcceptedEvent(owner, kind) {
+  const state = owner?.phase?.diagnostic?.state;
+  if (state === undefined || state === null) return 'MISSING';
+  if (!object(state)) return 'UNKNOWN';
+  if (state[kind] === null) return false;
+  return object(state[kind]) ? true : state[kind] === undefined ? 'MISSING' : 'UNKNOWN';
+}
+function observerCancel(owner, reason) {
+  if (owner.cancelReason) return;
+  owner.cancelReason = reason;
+  try {
+    owner.firstCancellation = Object.freeze({ ...observerCancellationLeases(owner, reason),
+      readyAccepted: observerAcceptedEvent(owner, 'ready'), startedAccepted: observerAcceptedEvent(owner, 'started'),
+      inputAccepted: observerAcceptedEvent(owner, 'input'), exitedAccepted: observerAcceptedEvent(owner, 'exited'),
+      closedAccepted: observerAcceptedEvent(owner, 'closed') });
+  } catch { owner.firstCancellation = 'UNKNOWN'; }
+  try { owner.send?.('cancel', { reason }); } catch { owner.controlDeliveryKnown = false; }
+}
+function observerCloseDiagnostic(owner) {
+  const close = owner?.phase?.diagnostic?.close;
+  if (close === undefined || close === null) return { adapterCloseObserved: 'MISSING', adapterSignal: 'MISSING' };
+  return { adapterCloseObserved: typeof close.closeObserved === 'boolean' ? close.closeObserved : 'UNKNOWN',
+    adapterSignal: close.signal === null ? null : ['SIGKILL', 'SIGTERM', 'SIGINT'].includes(close.signal) ? close.signal : 'UNKNOWN' };
+}
+function observerFirstCancellation(value) {
+  if (value === null || value === 'MISSING' || value === 'UNKNOWN') return value;
+  const events = ['readyAccepted', 'startedAccepted', 'inputAccepted', 'exitedAccepted', 'closedAccepted'];
+  if (!exactKeys(value, ['boundary', 'activeLeaseCount', 'limitingLeaseKinds', ...events])
+      || !['PARENT', 'LEASE', 'PARENT_AND_LEASE', 'NOT_DEADLINE', 'UNKNOWN'].includes(value.boundary)
+      || !(value.activeLeaseCount === 'UNKNOWN' || integer(value.activeLeaseCount, 0, 8))
+      || events.some(name => ![true, false, 'MISSING', 'UNKNOWN'].includes(value[name]))) return 'UNKNOWN';
+  const kinds = value.limitingLeaseKinds;
+  if (kinds !== 'UNKNOWN' && (!Array.isArray(kinds) || kinds.length > 8
+      || kinds.some(kind => kind !== 'UNKNOWN' && observerLeaseKind(kind) !== kind))) return 'UNKNOWN';
+  return Object.freeze({ ...value, limitingLeaseKinds: Array.isArray(kinds) ? Object.freeze([...kinds]) : kinds });
+}
 const PREPARE_STAGES = Object.freeze(['ARGUMENTS', 'DEPENDENCY_GUARD', 'LOAD', 'PLAN_BINDING', 'OBSERVER_BINDING', 'MATERIALIZE', 'AUTOLOAD',
   'ENVIRONMENT', 'CONTROLLER_DIRECTORY', 'EXECUTE', 'UNKNOWN']);
 const PREPARE_CLASSES = Object.freeze(['RuntimeException', 'LogicException', 'InvalidArgumentException', 'JsonException', 'Error', 'TypeError',
@@ -112,7 +169,7 @@ function latchObserverFailure(failure, error, owner) {
   if (failure.first) return;
   const stage = OBSERVER_STAGES.includes(failure.stage) ? failure.stage : 'UNKNOWN';
   const phase = ['prepare', 'baseline', 'engine', 'control', 'MISSING'].includes(failure.phase) ? failure.phase : 'UNKNOWN';
-  const base = { schema: 'tablo/server-safe-observer-failure/v2', status: 'failed', rootCause: 'UNKNOWN', issueAccepted: false, stage, phase };
+  const base = { schema: 'tablo/server-safe-observer-failure/v3', status: 'failed', rootCause: 'UNKNOWN', issueAccepted: false, stage, phase };
   try {
     const scalar = (value, valid) => value === undefined ? 'MISSING' : value === null ? null : valid(value) ? value : 'UNKNOWN';
     const prototype = object(error) ? Object.getPrototypeOf(error) : null;
@@ -127,8 +184,11 @@ function latchObserverFailure(failure, error, owner) {
       inputSettled: scalar(owner?.adapterState?.input?.settled, value => typeof value === 'boolean'),
       scopeObservedEmpty: scalar(owner?.adapterState?.closed?.scopeObservedEmpty, value => typeof value === 'boolean'),
       activeDockerLeases: observerDockerLeases(owner),
+      firstCancellation: observerFirstCancellation(owner?.firstCancellation === undefined ? 'MISSING' : owner.firstCancellation),
+      ...observerCloseDiagnostic(owner),
       prepareDiagnostic: consolePrepareDiagnostic(owner?.phase?.kind === 'prepare' ? owner.phase.prepareDiagnostic : undefined) });
-  } catch { failure.first = Object.freeze({ ...base, errorClass: 'UNKNOWN', refusal: 'UNKNOWN', activeDockerLeases: 'UNKNOWN', prepareDiagnostic: 'MISSING' }); }
+  } catch { failure.first = Object.freeze({ ...base, errorClass: 'UNKNOWN', refusal: 'UNKNOWN', activeDockerLeases: 'UNKNOWN',
+    firstCancellation: 'UNKNOWN', adapterCloseObserved: 'UNKNOWN', adapterSignal: 'UNKNOWN', prepareDiagnostic: 'MISSING' }); }
 }
 function emitObserverFailure(failure) {
   try {
@@ -822,6 +882,7 @@ async function runLinuxAdapter(owner, plan) {
     });
     owner.adapter = child;
     const state = adapterState(plan); owner.adapterState = state;
+    const diagnostic = owner.phase?.diagnostic; if (object(diagnostic)) diagnostic.state = state;
     const records = new LinuxRecords(); const frames = new Frames(owner.phase.adapterAuthority, plan.nonce, 'adapter-to-node', 'node-to-adapter');
     owner.nativeDenialDiagnostic = 'UNKNOWN'; // Never an admission/event field.
     let stdout = Buffer.alloc(0), stderr = Buffer.alloc(0), authenticated = Buffer.alloc(0);
@@ -886,6 +947,7 @@ async function runLinuxAdapter(owner, plan) {
         resolve({ code: null, signal: null, closeObserved: false });
       };
     });
+    if (object(diagnostic)) diagnostic.close = { closeObserved: close.closeObserved, signal: close.signal };
     owner.expire = null;
     if (!close.closeObserved || records.pending.length || protocolFailed) owner.nativeDenialDiagnostic = 'UNKNOWN';
     for (let i = 0; i < handles.length; i++) if (i < 2) await handles[i].sync();
@@ -1000,6 +1062,7 @@ async function runAdapter(owner, plan) {
   owner.adapter = child;
   const frames = new Frames(owner.phase.adapterAuthority, plan.nonce, 'node-to-adapter', 'adapter-to-node');
   const state = adapterState(plan); owner.adapterState = state;
+  const diagnostic = owner.phase?.diagnostic; if (object(diagnostic)) diagnostic.state = state;
   let stderr = Buffer.alloc(0); let stdout = Buffer.alloc(0); let spawnError = false; let stderrTruncated = false;
   const send = (kind, payload) => { if (!child.stdin.destroyed) child.stdin.write(frames.encode(kind, { planId: plan.planId, ...payload })); };
   owner.send = send;
@@ -1033,6 +1096,7 @@ async function runAdapter(owner, plan) {
       resolve({ code: null, signal: null, closeObserved: false });
     };
   });
+  if (object(diagnostic)) diagnostic.close = { closeObserved: close.closeObserved, signal: close.signal };
   owner.expire = null;
   owner.adapterClose = { pid: child.pid ?? null, ...close, spawnError, stdoutTrailingBytes: frames.pending.length,
     stdoutBytes: stdout.length, stdoutSha256: sha(stdout), stderrBytes: stderr.length, stderrSha256: sha(stderr), stderrTruncated };
@@ -1119,13 +1183,8 @@ async function supervise(file, hash, control = false, failure = observerFailure(
   const parent = path.dirname(observer.root); await regular(path.join(parent, path.basename(file)));
   await fs.mkdir(observer.root, { mode: 0o700 });
   for (const directory of ['private', 'evidence', 'phases']) await fs.mkdir(observer.root + '/' + directory, { mode: 0o700 });
-  owner = { plan, observer, leases, control, cancelReason: null, phaseResults: [] };
-  owner.cancel = reason => {
-    if (!owner.cancelReason) {
-      owner.cancelReason = reason;
-      try { owner.send?.('cancel', { reason }); } catch { owner.controlDeliveryKnown = false; }
-    }
-  };
+  owner = { plan, observer, leases, control, cancelReason: null, firstCancellation: null, phaseResults: [] };
+  owner.cancel = reason => observerCancel(owner, reason);
   const timer = setInterval(() => {
     if (leases.cancellationDue()) owner.cancel('deadline');
     if (leases.remaining() <= 0n) owner.expire?.();
@@ -1142,7 +1201,7 @@ async function supervise(file, hash, control = false, failure = observerFailure(
       failure.stage = 'phase-admission'; failure.phase = declaration.kind;
       if (owner.cancelReason || owner.connections !== 0 || leases.active.size !== 0) fail('PRIOR_PHASE_UNSETTLED');
       owner.phase = { ...declaration, authority: randomBytes(32), adapterAuthority: randomBytes(32), sequence: 0,
-        prepareDiagnosticOpen: declaration.kind === 'prepare' && !control };
+        prepareDiagnosticOpen: declaration.kind === 'prepare' && !control, diagnostic: { state: null, close: null } };
       failure.stage = 'phase-layout';
       await fs.mkdir(owner.phase.root, { mode: 0o700 });
       for (const directory of ['private', 'evidence', 'cwd']) await fs.mkdir(owner.phase.root + '/' + directory, { mode: 0o700 });

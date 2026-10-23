@@ -58,21 +58,23 @@ function server_expression_arguments(string $name, array $lexemes, int &$positio
 {
     $arguments = [];
     do {
-        $arguments[] = server_expression_argument($name, $lexemes, $position, $operator);
+        $arguments[] = server_expression_argument($name, count($arguments), $lexemes, $position, $operator);
         if (($lexemes[$position] ?? '') !== ',') { break; }
         $position++;
     } while (true);
     ServerExpressionTokens::consume($lexemes, $position, ')');
     if ($name === 'replace' && count($arguments) !== 3) { throw new DatabaseFailure('schema'); }
+    if ($name === 'locate' && !in_array(count($arguments), [2, 3], strict: true)) { throw new DatabaseFailure('schema'); }
     return $arguments;
 }
 
 /** @param list<string> $lexemes */
-function server_expression_argument(string $name, array $lexemes, int &$position, ServerExpressionOperator $operator): array
+function server_expression_argument(string $name, int $index, array $lexemes, int &$position, ServerExpressionOperator $operator): array
 {
     $candidate = $lexemes[$position] ?? '';
-    if ($name === 'replace' && str_starts_with($candidate, '0x') && in_array($lexemes[$position + 1] ?? '', [',', ')'], strict: true)) {
-        // REPLACE consumes this complete argument as a string, never as a numeric expression.
+    $stringArgument = $name === 'replace' || ($name === 'locate' && $index < 2);
+    if ($stringArgument && str_starts_with($candidate, '0x') && in_array($lexemes[$position + 1] ?? '', [',', ')'], strict: true)) {
+        // These complete arguments are consumed as strings; LOCATE's optional position is numeric.
         $position++;
         return server_expression_literal('_binary ' . $candidate);
     }

@@ -24,6 +24,7 @@ final class EngineConstraintsTest
         engine_constraints_mysql_metadata();
         engine_constraints_replace_hex();
         engine_constraints_mysql_metadata_bytes();
+        engine_constraints_locate_hex();
     }
 
     #[Test]
@@ -146,6 +147,17 @@ function engine_constraints_expression_failure_origins(): void
         $lines[] = $caught?->getLine();
     }
     Assert::same(count(array_unique($lines)), 6, 'each lexer guard must identify its own public source line');
+    $printerLines = [];
+    foreach (["event = _utf8mb4'PRIVATE'", "event = _unknown'PRIVATE'", 'unknown_word = 1'] as $invalid) {
+        $caught = null;
+        try { ServerExpression::canonical($invalid); } catch (DatabaseFailure $error) { $caught = $error; }
+        Assert::same($caught?->category, 'schema');
+        Assert::same($caught?->getMessage(), 'Database schema incompatible or in progress.');
+        Assert::same($caught?->getPrevious(), null);
+        Assert::same(basename($caught->getFile()), 'ServerExpressionTokens.php');
+        $printerLines[] = $caught?->getLine();
+    }
+    Assert::same(count(array_unique($printerLines)), 3, 'unsupported charset literals, other underscore identifiers and ordinary identifiers retain distinct fixed origins');
 }
 
 function engine_constraints_modulo_forms(): void
@@ -279,6 +291,46 @@ function engine_constraints_generated_hex(): void
         }
     }
     Assert::same($seen, 2);
+}
+
+/** MySQL also prints the name CHECK's NUL search literal as hex; the optional LOCATE position stays numeric. */
+function engine_constraints_locate_hex(): void
+{
+    foreach (["LOCATE(0x00,CAST(name AS BINARY))" => "LOCATE(X'00',CAST(name AS BINARY))",
+        "LOCATE(0x00,0x410042)" => "LOCATE(X'00',X'410042')",
+        "LOCATE(0xf,0x000f,1)" => "LOCATE(X'0f',X'000f',1)",
+        "LOCATE(0xAA,REPLACE(name,0x41,0x61))" => "LOCATE(X'aa',REPLACE(name,X'41',X'61'))"] as $actual => $expected) {
+        Assert::same(ServerExpression::canonical($actual), ServerExpression::canonical($expected));
+    }
+    Assert::false(ServerExpression::canonical('LOCATE(0x00,name)') === ServerExpression::canonical('LOCATE(0x0000,name)'));
+    Assert::false(ServerExpression::canonical("LOCATE('0x00',name)") === ServerExpression::canonical('LOCATE(0x00,name)'));
+    foreach (['LOCATE(0x00,name,0x02)', 'LOCATE((0x00),name)', 'LOCATE(0x00 + 0,name)',
+        'LOCATE(ASCII(0x41),name)', 'LOCATE(0x00,CAST(0x41 AS BINARY))', 'LOCATE(0x00,name + 0x41)',
+        'LOCATE(0x00)', 'LOCATE(0x00,name,1,2)'] as $invalid) {
+        $caught = null;
+        try { ServerExpression::canonical($invalid); } catch (DatabaseFailure $error) { $caught = $error; }
+        Assert::same($caught?->category, 'schema');
+        Assert::same($caught?->getMessage(), 'Database schema incompatible or in progress.');
+        Assert::same($caught?->getPrevious(), null);
+    }
+    /** @var \Tablo\ServerSchema::Layout $layout Checked-in complete public MySQL CHECK descriptor. */
+    $layout = json_decode(\Tablo\RequiredFile::bytes(file_get_contents(dirname(__DIR__, levels: 2) . '/database/mysql84-layout.json')),
+        associative: true, flags: JSON_THROW_ON_ERROR);
+    $seen = 0;
+    foreach ($layout['tables'] as $table) {
+        foreach ($table['checks'] as $check) {
+            if ($check['name'] !== 'git_tokens_c1') { continue; }
+            Assert::same(substr_count($check['expression'], needle: "X'00'"), 1);
+            $printed = str_replace("X'00'", replace: '0x00', subject: $check['expression']);
+            $actual = ServerExpression::decodeMysqlMetadata(engine_constraints_mysql_encode($printed));
+            Assert::same(ServerExpression::canonical($actual), ServerExpression::canonical($check['expression']));
+            $mutated = str_replace('0x00', replace: '0x01', subject: $actual);
+            Assert::false($mutated === $actual);
+            Assert::false(ServerExpression::canonical($mutated) === ServerExpression::canonical($check['expression']));
+            $seen++;
+        }
+    }
+    Assert::same($seen, 1);
 }
 
 /** Check the wrapper's complete byte alphabet and both finite size boundaries independently of SQL parsing. */

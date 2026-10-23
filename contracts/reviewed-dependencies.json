@@ -3145,7 +3145,7 @@
                 "Composer verify",
                 "app/ServerExpressionOperator.php"
             ],
-            "fingerprint": "sha256:17532e673c240b188328e799ab77e1f8c8715b5c313abdd28548d6426b87dd56"
+            "fingerprint": "sha256:1337777c85b6b4f82104a69e4a266d76d49b9bafe198de2a49dca8b9f9335159"
         },
         {
             "path": "app/ServerExpressionOperator.php",
@@ -3170,7 +3170,7 @@
                 "app/ServerExpressionAtom.php",
                 "app/ServerExpressionOperator.php"
             ],
-            "fingerprint": "sha256:2febecea9e1a67a7e2c699448fab08cef6e3f00f247eac742856f95dcc26078b"
+            "fingerprint": "sha256:8bb65b31129a454e642fd38001967b649da8a0feb6c8068b1bdc91ac4b0791dd"
         },
         {
             "path": "app/ServerForeignAdmission.php",
@@ -7908,7 +7908,7 @@
                 "Composer analyze",
                 "Composer verify:server"
             ],
-            "fingerprint": "sha256:4e05badee932f703c86ceb68af3b39fc10eb62a1424eaa82f1325880e93cd651"
+            "fingerprint": "sha256:750718fad3533898f32f7856f2cfaf86e4ababb8ded352f31a64ed8e15f509c8"
         },
         {
             "path": "tests/Server/EngineFixtureSafetyTest.php",
@@ -11266,7 +11266,7 @@
                 "tools/server-native-denial.test.cjs",
                 "tools/server-io-uring-fallback.test.cjs"
             ],
-            "fingerprint": "sha256:24841b03513bc0a508d6602622b82f223712e0a5cdb770e4dd3788f6b5929002"
+            "fingerprint": "sha256:93bf17ed7f898a2c2307f03d57c623c0de7f4f79b850a5bf5db9ffc24c5ab80c"
         },
         {
             "path": "tools/server-supervisor-windows.ps1",
@@ -11517,7 +11517,7 @@
                 "tools/server-native-tests.json",
                 "node --test tools/server-io-uring-fallback.test.cjs"
             ],
-            "fingerprint": "sha256:a90155f5c0556d7a78341a910263468b9bf7a4cfbb141d357257aad492c3ae25"
+            "fingerprint": "sha256:c13990ca18a6de54fd70fa1149037a77640171ffa48289e2bf2e1ce8768eb8a5"
         },
         {
             "path": "tools/server-io-uring-php-grammar.test.php",

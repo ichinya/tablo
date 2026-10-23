@@ -69,7 +69,7 @@ function ownerModule(files, transport = null) {
       if (['node:crypto','node:util'].includes(name)) return require(name);
       tripwire('UNEXPECTED_IMPORT ' + name);
     } };
-  vm.runInNewContext(source + '\nObject.assign(module.exports, { observerFailure, latchObserverFailure, observerDockerLeases, DOCKER_OPERATIONS, listen, controllerRequest, prepareDiagnostic, PREPARE_STAGES, PREPARE_CLASSES, PREPARE_SOURCES });', sandbox, { filename: sandbox.__filename });
+  vm.runInNewContext(source + '\nObject.assign(module.exports, { observerFailure, latchObserverFailure, observerDockerLeases, observerCancel, observerCancellationLeases, observerFirstCancellation, observerCloseDiagnostic, DOCKER_OPERATIONS, listen, controllerRequest, prepareDiagnostic, PREPARE_STAGES, PREPARE_CLASSES, PREPARE_SOURCES });', sandbox, { filename: sandbox.__filename });
   return { api: module.exports, context, effects };
 }
 function receiptFixture() {
@@ -385,15 +385,16 @@ function observerHarness(options = {}) {
     if (!Object.hasOwn(value, key)) tripwire('UNEXPECTED_ACCESS ' + String(key)); return value[key];
   } });
   const module = { exports: {} };
-  let expired = false;
+  let expired = false, now = 1n, liveOwner;
+  const tick = value => { now = value; for (const timer of timers) timer.callback(); };
   const sandbox = { module, exports: module.exports, Buffer, Error, TypeError, RangeError, SyntaxError,
     JSON: { parse: JSON.parse, stringify(...values) { if (options.serializationFails) throw retentionError; return JSON.stringify(...values); } },
     __filename: '/synthetic/owner.cjs',
-    setInterval(callback, delay) { assert.equal(delay, 10); step('timer'); const token = {}; timers.add(token); return token; },
+    setInterval(callback, delay) { assert.equal(delay, 10); step('timer'); const token = { callback }; timers.add(token); return token; },
     clearInterval(token) { assert(timers.delete(token)); step('timer-clear'); },
     process: closed({ version: options.version ?? 'v24.13.0', platform: options.platform ?? 'linux', arch: 'x64', execPath: '/synthetic/node',
       env: { PATH: '/synthetic/tools' },
-      hrtime: { bigint: () => expired ? 1801_000_000_000n : 1n }, once(signal) { assert(['SIGINT','SIGTERM'].includes(signal)); listeners.add(signal); },
+      hrtime: { bigint: () => expired ? 1801_000_000_000n : now }, once(signal) { assert(['SIGINT','SIGTERM'].includes(signal)); listeners.add(signal); },
       removeListener(signal) { assert(listeners.delete(signal)); },
       stderr: { write(bytes) { step('output'); if (options.outputFails) throw retentionError; output.push(bytes); } } }),
     require(name) {
@@ -403,6 +404,7 @@ function observerHarness(options = {}) {
       if (name === 'node:fs/promises') return closed({ mkdir: async (directory, mode) => {
         assert.equal(mode.mode, 0o700); assert.equal(Object.keys(mode).join(','), 'mode');
         if (!memoryDirectories.has(directory)) tripwire('DIRECTORY');
+        if (directory === root + '/' + options.cancelBeforeAdapterPhase) liveOwner.cancel('protocol');
         step(directory.startsWith(root + '/prepare') ? 'phase-layout' : 'root-layout');
       } });
       if (name === 'node:net') return closed({});
@@ -425,12 +427,13 @@ function observerHarness(options = {}) {
     declaration: () => { step('declaration'); return observer; },
     pinned: async () => step('pins'), linuxPins: async () => step('linux-pins'),
     regular: async value => { if (value !== file) tripwire('REGULAR'); step('root-layout'); return value; },
-    listen: async owner => { step('listener'); owner.connections = 0; owner.server = { close() { step('server-close'); } }; },
+    listen: async owner => { step('listener'); liveOwner = owner; owner.connections = 0; owner.server = { close() { step('server-close'); } }; },
     controllerLaunch: async () => { step('launch-description'); return {}; },
     adapterPlan: async () => { step('adapter-plan'); return {}; },
     runAdapter: async owner => { step('adapter-run'); owner.adapterClose = { code: 0 };
       if (options.prepareDiagnostic !== undefined) owner.phase.prepareDiagnostic = options.prepareDiagnostic;
       owner.adapterState = { exited: { exitCode: 0 }, input: { settled: true }, closed: { scopeObservedEmpty: true } };
+      if (options.onRun) await options.onRun(owner, tick);
       if (options.cancel) owner.cancel(options.cancel); return owner.adapterState; },
     verifyCustody: async () => { step('custody'); return {}; }, verifyPhase: async () => { step('phase-proof'); return {}; },
     retain: async (value, record) => {
@@ -457,13 +460,135 @@ test('actual observer projects only finite active Docker lease families and free
     assert.deepEqual(Array.from(h.api.observerDockerLeases({ leases })), [operation]);
     const failure = h.api.observerFailure(); failure.stage = 'custody'; failure.phase = 'prepare';
     h.api.latchObserverFailure(failure, new Error('PRIVATE'), { leases, adapterState: { exited: { exitCode: 1 } } });
-    assert.equal(failure.first.schema, 'tablo/server-safe-observer-failure/v2');
+    assert.equal(failure.first.schema, 'tablo/server-safe-observer-failure/v3');
     assert.deepEqual(Array.from(failure.first.activeDockerLeases), [operation]); assert.equal(failure.first.controllerExit, 1);
     leases.active.clear(); h.api.latchObserverFailure(failure, new Error('PRIVATE later'), { leases });
     assert.deepEqual(Array.from(failure.first.activeDockerLeases), [operation]);
     assert(!JSON.stringify(failure.first).includes('PRIVATE')); assert.equal(failure.first.issueAccepted, false);
   }
   assert.deepEqual(h.effects, []);
+});
+
+test('actual observer retains the first lease deadline before closure and later cancellation', async () => {
+  let captured;
+  const h = observerHarness({ at: 'custody', onRun(owner, tick) {
+    const lease = owner.leases.admit(8, 'native/readiness');
+    const state = { ready: {}, started: {}, input: {}, exited: null, closed: null };
+    owner.phase.diagnostic.state = state;
+    tick(7_000_000_000n); assert.equal(owner.cancelReason, null);
+    tick(7_000_000_001n); assert.equal(owner.cancelReason, 'deadline');
+    captured = owner.firstCancellation;
+    assert.equal(captured.boundary, 'LEASE'); assert.equal(captured.activeLeaseCount, 1);
+    assert.deepEqual(Array.from(captured.limitingLeaseKinds), ['native/readiness']);
+    assert.equal(captured.readyAccepted, true); assert.equal(captured.startedAccepted, true); assert.equal(captured.inputAccepted, true);
+    assert.equal(captured.exitedAccepted, false); assert.equal(captured.closedAccepted, false);
+    assert(Object.isFrozen(captured)); assert(Object.isFrozen(captured.limitingLeaseKinds));
+    owner.leases.finish(lease.id, true); owner.leases.admit(8, 'native/docker/volume-create');
+    state.exited = {}; state.closed = {};
+    owner.phase.diagnostic.close = { closeObserved: true, signal: 'SIGKILL' };
+    owner.cancel('owner-loss'); assert.equal(owner.firstCancellation, captured); assert.equal(owner.cancelReason, 'deadline');
+  } });
+  await assert.rejects(h.run(), error => error === h.original); observerClosed(h);
+  const failure = JSON.parse(h.output[0]);
+  assert.equal(failure.schema, 'tablo/server-safe-observer-failure/v3');
+  assert.deepEqual(failure.firstCancellation, JSON.parse(JSON.stringify(captured)));
+  assert.deepEqual(failure.activeDockerLeases, ['volume-create']);
+  assert.equal(failure.adapterCloseObserved, true); assert.equal(failure.adapterSignal, 'SIGKILL');
+});
+
+test('first cancellation reports all limiting ties without reading a new clock', () => {
+  const h = ownerModule(new Map()); let clockCalls = 0;
+  const leases = new h.api.Leases(8_000_000_001n, () => { clockCalls++; return 1n; });
+  leases.admit(8, 'native/context-admission'); leases.admit(30, 'fixture/prepare');
+  const beforeCalls = clockCalls;
+  const owner = { leases, cancelReason: null, firstCancellation: null };
+  h.api.observerCancel(owner, 'deadline');
+  assert.equal(clockCalls, beforeCalls);
+  assert.equal(owner.firstCancellation.boundary, 'PARENT_AND_LEASE');
+  assert.equal(owner.firstCancellation.activeLeaseCount, 2);
+  assert.deepEqual(Array.from(owner.firstCancellation.limitingLeaseKinds), ['native/context-admission', 'fixture/prepare']);
+  const parent = { leases: new h.api.Leases(20n), cancelReason: null };
+  h.api.observerCancel(parent, 'deadline'); assert.equal(parent.firstCancellation.boundary, 'PARENT');
+  assert.deepEqual(Array.from(parent.firstCancellation.limitingLeaseKinds), []);
+  const protocol = { leases, cancelReason: null };
+  h.api.observerCancel(protocol, 'protocol'); assert.equal(protocol.firstCancellation.boundary, 'NOT_DEADLINE');
+  assert.deepEqual(h.effects, []);
+});
+
+test('cancellation projection refuses malformed state and never copies lease or event text', () => {
+  const h = ownerModule(new Map());
+  for (const label of ['PRIVATE /secret', 'native/docker/PRIVATE', { private: 'PRIVATE' }]) {
+    const leases = new h.api.Leases(30_000_000_000n, () => 1n), lease = leases.admit(8, 'native/readiness');
+    leases.active.get(lease.id).label = label;
+    const owner = { leases, cancelReason: null, phase: { diagnostic: { state: { ready: 'PRIVATE', input: { private: 'PRIVATE' } } } } };
+    h.api.observerCancel(owner, 'deadline');
+    assert.deepEqual(Array.from(owner.firstCancellation.limitingLeaseKinds), ['UNKNOWN']);
+    assert.equal(owner.firstCancellation.readyAccepted, 'UNKNOWN'); assert.equal(owner.firstCancellation.inputAccepted, true);
+    assert(!JSON.stringify(owner.firstCancellation).includes('PRIVATE'));
+  }
+  for (const change of [leases => { leases.parentEnd = 'PRIVATE'; }, leases => { leases.active = {}; },
+    leases => { leases.active.set(1, { started: 1n, end: 'PRIVATE' }); },
+    leases => { leases.active.set(1, { started: 2n, end: 1n }); },
+    leases => { for (let i = 1; i <= 9; i++) leases.active.set(i, { started: 1n, end: 2n, label: 'PRIVATE' }); }]) {
+    const leases = new h.api.Leases(30n); change(leases);
+    const owner = { leases, cancelReason: null }; h.api.observerCancel(owner, 'deadline');
+    assert.equal(owner.firstCancellation.boundary, 'UNKNOWN');
+    assert(!JSON.stringify(owner.firstCancellation).includes('PRIVATE'));
+  }
+  for (const invalid of ['PRIVATE', {}, { boundary: 'PRIVATE' }]) assert.equal(h.api.observerFirstCancellation(invalid), 'UNKNOWN');
+  const owner = { cancelReason: null, leases: { get active() { throw Error('PRIVATE'); } }, send() { throw Error('PRIVATE'); } };
+  h.api.observerCancel(owner, 'deadline'); assert.equal(owner.cancelReason, 'deadline');
+  assert.equal(owner.firstCancellation, 'UNKNOWN'); assert.equal(owner.controlDeliveryKnown, false);
+  assert.deepEqual(h.effects, []);
+});
+
+test('observer diagnostics separate actual signal closure from expiry and reject hostile snapshots', () => {
+  const h = ownerModule(new Map());
+  for (const [close, observed, signal] of [[{ closeObserved: true, signal: 'SIGKILL' }, true, 'SIGKILL'],
+    [{ closeObserved: false, signal: null }, false, null], [{ closeObserved: 'PRIVATE', signal: 'PRIVATE' }, 'UNKNOWN', 'UNKNOWN']]) {
+    const owner = { phase: { diagnostic: { close } }, firstCancellation: 'PRIVATE' };
+    const failure = h.api.observerFailure(); h.api.latchObserverFailure(failure, new Error('PRIVATE'), owner);
+    assert.equal(failure.first.adapterCloseObserved, observed); assert.equal(failure.first.adapterSignal, signal);
+    assert.equal(failure.first.firstCancellation, 'UNKNOWN'); assert(!JSON.stringify(failure.first).includes('PRIVATE'));
+  }
+  const leases = new h.api.Leases(30n);
+  const owner = { leases, cancelReason: null }; h.api.observerCancel(owner, 'protocol');
+  const valid = JSON.parse(JSON.stringify(owner.firstCancellation));
+  for (const change of [value => { value.extra = 'PRIVATE'; }, value => { value.limitingLeaseKinds = ['PRIVATE']; },
+    value => { value.readyAccepted = 'PRIVATE'; }, value => { value.activeLeaseCount = 9; }]) {
+    const changed = structuredClone(valid); change(changed); assert.equal(h.api.observerFirstCancellation(changed), 'UNKNOWN');
+  }
+  assert.deepEqual(h.effects, []);
+});
+
+test('a cancellation between phases cannot inherit the previous adapter events or close', async () => {
+  const h = observerHarness({ cancelBeforeAdapterPhase: 'baseline', onRun(owner) {
+    if (owner.phase.kind !== 'prepare') return;
+    owner.phase.diagnostic.state = { ready: {}, started: {}, input: {}, exited: {}, closed: {} };
+    owner.phase.diagnostic.close = { closeObserved: true, signal: 'SIGKILL' };
+  } });
+  await assert.rejects(h.run()); observerClosed(h);
+  const failure = JSON.parse(h.output[0]);
+  assert.equal(failure.firstCancellation.boundary, 'NOT_DEADLINE');
+  for (const event of ['readyAccepted', 'startedAccepted', 'inputAccepted', 'exitedAccepted', 'closedAccepted']) {
+    assert.equal(failure.firstCancellation[event], 'MISSING');
+  }
+  assert.equal(failure.adapterCloseObserved, 'MISSING'); assert.equal(failure.adapterSignal, 'MISSING');
+});
+
+test('the largest finite cancellation snapshot and prepare projection fit the original console envelope', async () => {
+  const diagnostic = prepareV5(capabilityV4({ reportedExit: 0, stdout: 'READY', stderr: 'NONEMPTY', category: 'UNKNOWN',
+    missingExtension: null, stderrKind: 'UNKNOWN', stderrReason: 'BUFFER_LIMIT_FIRST_RECORD_MODULE_LOAD_MESSAGE' }));
+  const h = observerHarness({ at: 'custody', prepareDiagnostic: diagnostic, onRun(owner) {
+    for (let i = 0; i < 8; i++) owner.leases.admit(8, 'native/docker/container-inspect');
+    owner.cancel('deadline');
+  } });
+  await assert.rejects(h.run(), error => error === h.original); observerClosed(h);
+  const failure = JSON.parse(h.output[0]);
+  assert.equal(failure.firstCancellation.activeLeaseCount, 8);
+  assert.equal(failure.firstCancellation.limitingLeaseKinds.length, 8);
+  assert.deepEqual(failure.prepareDiagnostic, diagnostic); assert.equal(failure.issueAccepted, false);
+  assert(Buffer.byteLength(h.output[0]) <= 4096);
 });
 test('active Docker lease projection rejects private labels malformed maps and overlarge inventories', () => {
   const h = ownerModule(new Map()), leases = new h.api.Leases(1800_000_000_000n, () => 1n);
