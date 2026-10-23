@@ -18,6 +18,7 @@ final class EngineConstraintsTest
         Assert::false(ServerExpression::canonical('id = 1 AND (enabled = 1 OR online = 0)') === ServerExpression::canonical('(id = 1 AND enabled = 1) OR online = 0'));
         Assert::false(ServerExpression::canonical("event = 'pending '") === ServerExpression::canonical("event = 'pending'"));
         Assert::same(ServerExpression::canonical("event = X'41'"), ServerExpression::canonical("event = 'A'"));
+        engine_constraints_substring_aliases();
     }
 
     #[Test]
@@ -96,6 +97,34 @@ final class EngineConstraintsTest
     public function directSqlRejectsMalformedDomainRowsAcrossEveryCurrentTable(): void
     { engine_constraints_domain_rows(); }
 
+}
+
+/** Server printers use SUBSTR for the standard SUBSTRING call; never rewrite literal bytes or argument trees. */
+function engine_constraints_substring_aliases(): void
+{
+    foreach (['SUBSTR(created_at,1,4)', 'substr(created_at,1,4)', 'SuBsTr (created_at,1,4)'] as $alias) {
+        Assert::same(ServerExpression::canonical($alias), ServerExpression::canonical('SUBSTRING(created_at,1,4)'));
+    }
+    Assert::false(ServerExpression::canonical('SUBSTR(created_at,2,4)') === ServerExpression::canonical('SUBSTRING(created_at,1,4)'));
+    Assert::false(ServerExpression::canonical("event = 'substr(' ") === ServerExpression::canonical("event = 'substring(' "));
+    foreach (['substr_oracle(created_at,1,4)', 'substring_index(created_at,1,4)', 'unknown_function(created_at,1,4)',
+        'mariadb.substr(created_at,1,4)', 'SUBSTR(created_at FROM 1 FOR 4)'] as $invalid) {
+        $category = null;
+        try { ServerExpression::canonical($invalid); } catch (DatabaseFailure $error) { $category = $error->category; }
+        Assert::same($category, 'schema');
+    }
+    foreach (['mysql84', 'mariadb114'] as $engine) {
+        /** @var array{tables: list<array{checks: list<array{expression: string}>}>} $layout Checked-in public schema descriptor. */
+        $layout = json_decode(\Tablo\RequiredFile::bytes(file_get_contents(dirname(__DIR__, levels: 2) . '/database/' . $engine . '-layout.json')),
+            associative: true, flags: JSON_THROW_ON_ERROR);
+        foreach ($layout['tables'] as $table) {
+            foreach ($table['checks'] as $check) {
+                $expression = $check['expression'];
+                Assert::same(ServerExpression::canonical(str_replace('SUBSTRING(', replace: 'substr(', subject: $expression)),
+                    ServerExpression::canonical($expression));
+            }
+        }
+    }
 }
 
 function engine_constraints_foreign_keys(): void

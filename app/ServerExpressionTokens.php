@@ -21,7 +21,7 @@ final class ServerExpressionTokens
         if (count($tokens) > 2048) { self::refuse(); }
         foreach ($tokens as $lexeme) {
             if (preg_match('/\A[a-zA-Z_][a-zA-Z0-9_]*\z/D', $lexeme) !== 1) { continue; }
-            if (in_array(strtolower($lexeme), [...self::IDENTIFIERS, 'as'], strict: true)) { continue; }
+            if (in_array(strtolower($lexeme), [...self::IDENTIFIERS, 'as', 'substr'], strict: true)) { continue; }
             self::refuse();
         }
         return $tokens;

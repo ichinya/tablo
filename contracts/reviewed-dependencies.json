@@ -3145,7 +3145,7 @@
                 "Composer verify",
                 "app/ServerExpressionOperator.php"
             ],
-            "fingerprint": "sha256:fa9a1fcee5d717979b8a49fb893d340c01bc2aa7d7316da314cfbd55a5f30bfd"
+            "fingerprint": "sha256:8196786acc22e2641388d367eaeba6c353c79a37c73f57c2c3268e188c0478a5"
         },
         {
             "path": "app/ServerExpressionOperator.php",
@@ -3170,7 +3170,7 @@
                 "app/ServerExpressionAtom.php",
                 "app/ServerExpressionOperator.php"
             ],
-            "fingerprint": "sha256:a97d4ae96d9eb9f4f3b7ffcc1499a7d50ab0f677781d938f0c94892cae4f2016"
+            "fingerprint": "sha256:63064db06e36bad6b437ebb8fb5483f35eedcfe4bf5f91020d53a65fca13dc64"
         },
         {
             "path": "app/ServerForeignAdmission.php",
@@ -7908,7 +7908,7 @@
                 "Composer analyze",
                 "Composer verify:server"
             ],
-            "fingerprint": "sha256:c5b4cf749283b16245596159aa52196063da6558cad98e156d8d0fd99a7968bc"
+            "fingerprint": "sha256:4368b675e4d07585c22a8bee9bc2051a8ef58023b2b3738728b157f036d06562"
         },
         {
             "path": "tests/Server/EngineFixtureSafetyTest.php",

@@ -18,7 +18,10 @@ final class ServerExpressionAtom
         }
         if (in_array($lower, ['not', '-'], strict: true)) { return [$lower, $operator->parse($lexemes, $position, minimum: 60)]; }
         if ($lower === 'case') { return self::conditional($lexemes, $position, $operator); }
-        if (($lexemes[$position] ?? '') === '(') { return self::call($lower, $lexemes, $position, $operator); }
+        if (($lexemes[$position] ?? '') === '(') {
+            // Both supported server printers use SUBSTR for the standard SUBSTRING call.
+            return self::call($lower === 'substr' ? 'substring' : $lower, $lexemes, $position, $operator);
+        }
         if (str_contains($lexeme, "'") || str_starts_with($lower, '_binary')) { return server_expression_literal($lexeme); }
         return ['atom', str_replace('`', replace: '', subject: $lower)];
     }
