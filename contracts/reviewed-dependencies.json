@@ -7878,7 +7878,7 @@
                 "Tablo\\Tests\\Support\\EngineProcess",
                 "Native selected-engine login race"
             ],
-            "fingerprint": "sha256:713147d51aa16568dc0a74e0feeee6b82ab4811b9a0f21d1fce1c6e6b7f6d015"
+            "fingerprint": "sha256:d83443857f36f10a62da62549e5f4b65958f8c5ecc2f93db264c6c7c4c560760"
         },
         {
             "path": "tests/Server/EngineAutoIdentityTest.php",
@@ -8124,7 +8124,7 @@
                 "Composer analyze",
                 "Composer verify:server"
             ],
-            "fingerprint": "sha256:1553af47c1179aebad7b44ecd6b073c1cb2354f9066b2a4cad0a02312ec5b956"
+            "fingerprint": "sha256:d986d4bdc6a20fdc2e17601b9ef3a0ea3f7ead1842d998facba752dd2f669354"
         },
         {
             "path": "tests/Server/EngineVerificationTest.php",

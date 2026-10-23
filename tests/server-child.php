@@ -137,6 +137,6 @@ function tablo_engine_transfer_working_data_actor(string $case): void
 function tablo_engine_transfer_unbuffered(PDO $reader): bool
 {
     $attribute = \Tablo\DatabaseInteger::checked(constant((PHP_VERSION_ID >= 80_400 ? 'Pdo\\Mysql::ATTR_' : 'PDO::MYSQL_ATTR_') . 'USE_BUFFERED_QUERY'));
-    if ($reader->getAttribute($attribute) !== false) { throw new RuntimeException('Actual native transfer source remains buffered.'); }
+    if (!in_array($reader->getAttribute($attribute), [false, 0], strict: true)) { throw new RuntimeException('Actual native transfer source remains buffered.'); }
     return false;
 }
