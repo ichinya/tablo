@@ -56,8 +56,11 @@ final class EngineTransferTest
         $source = self::source($root . '/source.sqlite', $fixture->vault);
         $scope = $fixture->vault->credentialScope(FixtureCredentials::value(label: 'transfer-token'));
         $digest = DatabaseTransfer::export($source, $fixture->vault, $root . '/from-sqlite', $root . '/export-scratch.sqlite', offline: true);
-        Assert::same(DatabaseTransfer::importServer($fixture->maintenance(), $fixture->vault, $root . '/from-sqlite', $root . '/import-scratch.sqlite', offline: true), $digest);
+        $maintenance = $fixture->maintenance();
+        engine_transfer_committed_cursor($maintenance, $fixture->vault, $root . '/from-sqlite', $digest);
+        Assert::same(DatabaseTransfer::importServer($maintenance, $fixture->vault, $root . '/from-sqlite', $root . '/import-scratch.sqlite', offline: true), $digest);
         $server = $fixture->database();
+        Assert::same(DatabaseTransferSequence::scalar($server, 'SELECT COUNT(*) AS value FROM users'), 1);
         Assert::same(count(DatabaseTransferManifest::TABLES), 15);
         foreach (DatabaseTransferManifest::TABLES as $table) { Assert::true(DatabaseTransferSequence::scalar($server, 'SELECT COUNT(*) AS value FROM `' . $table . '`') > 0); }
         Assert::same(DatabaseTransferSequence::floors($server)['check_history'], 9000);
@@ -119,6 +122,30 @@ final class EngineTransferTest
         ServerSchema::rows($db, 'INSERT INTO notification_slots (site_id,event,event_id,source_id,config_revision,channel_revision,payload,private_cipher,created_at,expires_at,due_at,status,attempts,claim,lease_until,acknowledged_at) VALUES (20,?,?,100,6,2,?,?,1,2,1,?,2,?,2,3)',
             ['unavailable', 'synthetic-event ', '{"version":1}', $vault->encrypt(FixtureCredentials::value(label: 'transfer-private')), 'sent', "completed-claim \0\xff"]);
     }
+}
+
+/** Model interruption after a committed row/cursor and before journal completion, on the owned real target. */
+function engine_transfer_committed_cursor(PDO $target, TokenVault $vault, string $archive, string $digest): void
+{
+    $manifest = \Tablo\DatabaseTransferVerification::manifest($archive, $vault);
+    Assert::same($manifest['digest'], $digest);
+    \Tablo\ServerMigrationLock::run($target, $vault, static function (\Tablo\ServerLock $lock) use ($target, $vault, $archive, $digest, $manifest): void {
+        $lock->assertOwned();
+        \Tablo\DatabaseTransferTarget::prepare($target, $manifest['header'], $digest, $vault);
+        $table = DatabaseTransferManifest::tables()[0] ?? throw new \RuntimeException('Missing users transfer table.');
+        $receipt = $manifest['header']['tables'][0] ?? throw new \RuntimeException('Missing users transfer receipt.');
+        Assert::same([$table['name'], $receipt['name'], $receipt['rows']], ['users', 'users', 1]);
+        $plan = \Tablo\DatabaseTransferTarget::plan($digest);
+        \Tablo\database_transfer_cursor_table($target, $archive, $table, $receipt, ['plan' => $plan, 'step' => 0]);
+        $rows = ServerSchema::rows($target, 'SELECT `cursor` FROM tablo_migration_journal WHERE plan = ? AND step = 0', [$plan]);
+        $cursor = \Tablo\SqlColumn::string($rows[0] ?? [], 'cursor');
+        Assert::same(\Tablo\JsonRecord::decode($cursor), ['rows' => 1, 'primary' => [['integer', '1']]]);
+        Assert::same(DatabaseTransferSequence::scalar($target, 'SELECT COUNT(*) AS value FROM users'), 1);
+        ServerSchema::rows($target, "UPDATE tablo_migration_journal SET phase = 'intent' WHERE plan = ? AND step = 0", [$plan]);
+        Assert::same(ServerSchema::rows($target, 'SELECT phase, `cursor` FROM tablo_migration_journal WHERE plan = ? AND step = 0', [$plan]),
+            [['phase' => 'intent', 'cursor' => $cursor]]);
+        Assert::same((new \Tablo\ServerMigrationState($target))->status()['phase'], 'importing');
+    });
 }
 
 /** One real native rollback, with a distinct complete transfer for each pruning state.

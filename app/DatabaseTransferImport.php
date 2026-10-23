@@ -85,7 +85,7 @@ function database_transfer_cursor_table(PDO $db, #[\SensitiveParameter] string $
     $plan = $position['plan']; $step = $position['step'];
     $journal = new ServerMigrationJournal($db, $plan);
     $journal->intent($step, $receipt['sha256'], 10, 10, $table['name']);
-    $records = ServerSchema::rows($db, 'SELECT cursor FROM tablo_migration_journal WHERE plan = ? AND step = ?', [$plan, $step]);
+    $records = ServerSchema::rows($db, 'SELECT `cursor` FROM tablo_migration_journal WHERE plan = ? AND step = ?', [$plan, $step]);
     $cursor = SqlColumn::nullableString($records[0] ?? [], 'cursor');
     $record = $cursor === null ? ['rows' => 0, 'primary' => []] : JsonRecord::decode($cursor);
     $previous = DatabaseInteger::checked($record['rows'] ?? null);
@@ -104,7 +104,7 @@ function database_transfer_cursor_table(PDO $db, #[\SensitiveParameter] string $
         $primary = database_transfer_value_primary($table, $values);
         DatabaseTransferTarget::atomic($db, static function () use ($db, $table, $values, $plan, $step, $rowNumber, $primary): void {
             DatabaseTransferRows::insert($db, $table, $values);
-            ServerSchema::rows($db, 'UPDATE tablo_migration_journal SET cursor = ? WHERE plan = ? AND step = ?',
+            ServerSchema::rows($db, 'UPDATE tablo_migration_journal SET `cursor` = ? WHERE plan = ? AND step = ?',
                 [JsonEncoding::encode(['rows' => $rowNumber, 'primary' => DatabaseTransferRows::encode($primary)]), $plan, $step]);
         });
     }

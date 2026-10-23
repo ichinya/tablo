@@ -784,7 +784,7 @@
                 "Composer verify",
                 "app/DatabaseTransfer.php"
             ],
-            "fingerprint": "sha256:72939476aee2f280b907d4380a28ad78543d6cef1d3e5bae94165baef53dfaf5"
+            "fingerprint": "sha256:9677b9f7e6c38f2c0f2de02a02e417038d7ea856b71b8ace5946caa377acc269"
         },
         {
             "path": "app/DatabaseTransferManifest.php",
@@ -8124,7 +8124,7 @@
                 "Composer analyze",
                 "Composer verify:server"
             ],
-            "fingerprint": "sha256:20f16b249278f5370e6291358869e3628703af0654bffd000bdc54074052d0bb"
+            "fingerprint": "sha256:7ea28f9c195b83e61639a35957b2afb35a666445539ea1d33b1199a3e297ee91"
         },
         {
             "path": "tests/Server/EngineVerificationTest.php",
