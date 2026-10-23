@@ -17,7 +17,11 @@ const NATIVE_FIRST_FAILURE_SITES = Object.freeze(['UNKNOWN', 'INTERRUPT', 'RESER
   'WAIT_EVENT', 'SIGNAL_INFO', 'RESUME', 'SUPPRESS_REGS', 'GATE_METADATA', 'GATE_NOT_LAUNCHED', 'COUNTER_BOUND',
   'POLICY_DENIAL', 'EXIT_METADATA', 'EXIT_URING_ACCOUNTING', 'EXIT_GETREGS', 'EXIT_SETREGS', 'EXIT_BIRTH_ACCOUNTING',
   'BIRTH_METADATA', 'BIRTH_TASK', 'BIRTH_RESERVATION', 'GROUP_ADMISSION', 'EXEC_METADATA', 'EXEC_ACCOUNTING',
-  'TERMINAL_ACCOUNTING', 'TERMINAL_SIGSYS', 'ROOT_DESCENDANTS', 'INPUT_READ', 'INPUT_WRITE', 'INPUT_EOF', 'EVENT_WRITE', 'CANCEL_SIGNAL']);
+  'TERMINAL_ACCOUNTING', 'TERMINAL_SIGSYS', 'ROOT_DESCENDANTS', 'INPUT_READ', 'INPUT_WRITE', 'INPUT_EOF', 'EVENT_WRITE', 'CANCEL_SIGNAL',
+  'EARLY_STOP_DUPLICATE', 'EARLY_STOP_CAPACITY', 'EARLY_STOP_EVENT_FORK', 'EARLY_STOP_EVENT_VFORK', 'EARLY_STOP_EVENT_CLONE',
+  'EARLY_STOP_EVENT_EXIT', 'EARLY_STOP_EVENT_SECCOMP', 'EARLY_STOP_EVENT_STOP', 'EARLY_STOP_EVENT_OTHER',
+  'EARLY_STOP_SIGNAL_SYSCALL_TRAP', 'EARLY_STOP_SIGNAL_TRAP', 'EARLY_STOP_SIGNAL_JOB_CONTROL',
+  'EARLY_STOP_SIGNAL_WAKEUP_OR_PROFILE', 'EARLY_STOP_SIGNAL_TERMINATION', 'EARLY_STOP_SIGNAL_OTHER']);
 const CHECK_IDS = Object.freeze(Array.from({ length: 149 }, (_, index) => 'Q' + String(index + 1).padStart(3, '0')));
 const enumeration = (value, values) => values.includes(value) ? value : UNKNOWN;
 const number = (value, min = 0, max = 2147483647) => Number.isSafeInteger(value) && value >= min && value <= max ? value : UNKNOWN;
@@ -55,7 +59,7 @@ function projectFailure(input) {
   const close = owner?.adapterClose ?? (input?.stage === 'INPUT_BOUNDARY' ? invocation : undefined);
   const root = events?.exited, closed = events?.closed, admission = closed?.admission;
   return {
-    schema: 'tablo/linux-safe-qualification-failure/v4', status: 'failed', qualified: false, rootCause: UNKNOWN,
+    schema: 'tablo/linux-safe-qualification-failure/v5', status: 'failed', qualified: false, rootCause: UNKNOWN,
     stage: enumeration(input?.stage, STAGES), subject: enumeration(input?.subject, SUBJECTS),
     index: number(input?.index, 0, 31), checkId: enumeration(input?.check, CHECK_IDS), completed: number(input?.completed, 0, 38),
     adapter: { exitCode: nullable(close?.code, value => number(value, -1, 255)),

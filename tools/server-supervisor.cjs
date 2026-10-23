@@ -195,7 +195,7 @@ function latchObserverFailure(failure, error, owner) {
   if (failure.first) return;
   const stage = OBSERVER_STAGES.includes(failure.stage) ? failure.stage : 'UNKNOWN';
   const phase = ['prepare', 'baseline', 'engine', 'control', 'MISSING'].includes(failure.phase) ? failure.phase : 'UNKNOWN';
-  const base = { schema: 'tablo/server-safe-observer-failure/v5', status: 'failed', rootCause: 'UNKNOWN', issueAccepted: false, stage, phase };
+  const base = { schema: 'tablo/server-safe-observer-failure/v6', status: 'failed', rootCause: 'UNKNOWN', issueAccepted: false, stage, phase };
   try {
     const nativePhase = owner?.phase;
     if (object(nativePhase)) observerFailureNativePhases.set(failure, nativePhase);
@@ -712,7 +712,7 @@ function linuxClosedEvents(events, close) {
   const input = events?.input, closed = events?.closed;
   return close?.closeObserved === true && close.signal === null && close.spawnError === false
     && close.protocolFailed === false && close.stdoutTrailingBytes === 0 && close.stderrBytes === 0
-    && close.nativeProtocol === 'private-inherited-pipes/v3'
+    && close.nativeProtocol === 'private-inherited-pipes/v4'
     && events?.ready?.policy === LINUX_POLICY && events.started && events.exited?.rootExitObserved === true
     && events.exited.terminationRequested === false && input?.settled === true && input.stdinClosed === true
     && input.errorCode === null && input.sourceEofObserved === true
@@ -748,7 +748,7 @@ async function linuxControlEvidence(neutral, fallback, q, qroot, platform, runti
         || row.status !== 'passed' || !linuxAdmission(a, limit)
         || !linuxReceiptIdentity(row.events, q, limit, q.nonce + '/linux-controller/' + index, { path: controlsPath, sha256: q.controlsBinarySha256 })
         || row.adapterClose?.closeObserved !== true
-        || row.adapterClose.nativeProtocol !== 'private-inherited-pipes/v3' || row.adapterClose.protocolFailed !== false
+        || row.adapterClose.nativeProtocol !== 'private-inherited-pipes/v4' || row.adapterClose.protocolFailed !== false
         || row.adapterClose.signal !== null || row.adapterClose.stderrBytes !== 0
         || row.events.closed.scopeObservedEmpty !== true || row.events.closed.custodySettled !== true
         || (mode.startsWith('limit') || mode.startsWith('overflow')) && a.peakCommitted !== limit
@@ -835,7 +835,11 @@ const NATIVE_FIRST_FAILURE_SITES = Object.freeze(['UNKNOWN', 'INTERRUPT', 'RESER
   'WAIT_EVENT', 'SIGNAL_INFO', 'RESUME', 'SUPPRESS_REGS', 'GATE_METADATA', 'GATE_NOT_LAUNCHED', 'COUNTER_BOUND',
   'POLICY_DENIAL', 'EXIT_METADATA', 'EXIT_URING_ACCOUNTING', 'EXIT_GETREGS', 'EXIT_SETREGS', 'EXIT_BIRTH_ACCOUNTING',
   'BIRTH_METADATA', 'BIRTH_TASK', 'BIRTH_RESERVATION', 'GROUP_ADMISSION', 'EXEC_METADATA', 'EXEC_ACCOUNTING',
-  'TERMINAL_ACCOUNTING', 'TERMINAL_SIGSYS', 'ROOT_DESCENDANTS', 'INPUT_READ', 'INPUT_WRITE', 'INPUT_EOF', 'EVENT_WRITE', 'CANCEL_SIGNAL']);
+  'TERMINAL_ACCOUNTING', 'TERMINAL_SIGSYS', 'ROOT_DESCENDANTS', 'INPUT_READ', 'INPUT_WRITE', 'INPUT_EOF', 'EVENT_WRITE', 'CANCEL_SIGNAL',
+  'EARLY_STOP_DUPLICATE', 'EARLY_STOP_CAPACITY', 'EARLY_STOP_EVENT_FORK', 'EARLY_STOP_EVENT_VFORK', 'EARLY_STOP_EVENT_CLONE',
+  'EARLY_STOP_EVENT_EXIT', 'EARLY_STOP_EVENT_SECCOMP', 'EARLY_STOP_EVENT_STOP', 'EARLY_STOP_EVENT_OTHER',
+  'EARLY_STOP_SIGNAL_SYSCALL_TRAP', 'EARLY_STOP_SIGNAL_TRAP', 'EARLY_STOP_SIGNAL_JOB_CONTROL',
+  'EARLY_STOP_SIGNAL_WAKEUP_OR_PROFILE', 'EARLY_STOP_SIGNAL_TERMINATION', 'EARLY_STOP_SIGNAL_OTHER']);
 function nativeFirstFailureSite(value) { return NATIVE_FIRST_FAILURE_SITES.includes(value) ? value : 'UNKNOWN'; }
 function linuxDenialDiagnostic(values, deniedCount) {
   if (!Array.isArray(values) || values.length !== DENIAL_FIELDS.length
@@ -882,7 +886,7 @@ class LinuxRecords {
         const numbers = values.map(Number);
         let site = 'UNKNOWN';
         if (kind === 'EXITED' && numbers.length === 5) {
-          if (!integer(numbers[4], 0, 38)) fail('LINUX_FIRST_FAILURE_SITE');
+          if (!integer(numbers[4], 0, 53)) fail('LINUX_FIRST_FAILURE_SITE');
           site = NATIVE_FIRST_FAILURE_SITES[numbers.pop()]; // Strip before the original authority callback.
         }
         if (kind === 'DENIALS') {
@@ -1022,7 +1026,7 @@ async function runLinuxAdapter(owner, plan) {
     }
     owner.adapterClose = { pid: child.pid ?? null, ...close, spawnError, stdoutTrailingBytes: records.pending.length,
       stdoutBytes: stdout.length, stdoutSha256: sha(stdout), stderrBytes: stderr.length, stderrSha256: sha(stderr), stderrTruncated,
-      nativeProtocol: 'private-inherited-pipes/v3', protocolFailed };
+      nativeProtocol: 'private-inherited-pipes/v4', protocolFailed };
     await fs.writeFile(owner.phase.root + '/evidence/adapter.stdout', stdout, { flag: 'wx', mode: 0o600 });
     await fs.writeFile(owner.phase.root + '/evidence/adapter.stderr', stderr, { flag: 'wx', mode: 0o600 });
     await fs.writeFile(owner.phase.root + '/evidence/adapter-authenticated.ndjson', authenticated, { flag: 'wx', mode: 0o600 });

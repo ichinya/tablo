@@ -68,13 +68,35 @@ enum { N_UNKNOWN, N_INTERRUPT, N_RESERVE, N_HARD_END, N_COMMAND_CHANNEL,
     N_EXIT_SETREGS, N_EXIT_BIRTH_ACCOUNTING, N_BIRTH_METADATA, N_BIRTH_TASK,
     N_BIRTH_RESERVATION, N_GROUP_ADMISSION, N_EXEC_METADATA, N_EXEC_ACCOUNTING,
     N_TERMINAL_ACCOUNTING, N_TERMINAL_SIGSYS, N_ROOT_DESCENDANTS, N_INPUT_READ,
-    N_INPUT_WRITE, N_INPUT_EOF, N_EVENT_WRITE, N_CANCEL_SIGNAL };
+    N_INPUT_WRITE, N_INPUT_EOF, N_EVENT_WRITE, N_CANCEL_SIGNAL,
+    N_EARLY_STOP_DUPLICATE, N_EARLY_STOP_CAPACITY, N_EARLY_STOP_EVENT_FORK,
+    N_EARLY_STOP_EVENT_VFORK, N_EARLY_STOP_EVENT_CLONE, N_EARLY_STOP_EVENT_EXIT,
+    N_EARLY_STOP_EVENT_SECCOMP, N_EARLY_STOP_EVENT_STOP, N_EARLY_STOP_EVENT_OTHER,
+    N_EARLY_STOP_SIGNAL_SYSCALL_TRAP, N_EARLY_STOP_SIGNAL_TRAP, N_EARLY_STOP_SIGNAL_JOB_CONTROL,
+    N_EARLY_STOP_SIGNAL_WAKEUP_OR_PROFILE, N_EARLY_STOP_SIGNAL_TERMINATION, N_EARLY_STOP_SIGNAL_OTHER };
 static int first_seen, first_site;
 static int failure_mark(int site) {
     if (!first_seen) { first_seen = 1; first_site = site; }
     return -1;
 }
 static int failure_observed(int site) { (void)failure_mark(site); return 1; }
+// Classify only an already-rejected wait using values already acquired by reap.
+// Legacy aggregate ID11 remains reserved; no event/signal value leaves this enum.
+static int early_stop_site(unsigned ev, int sig) {
+    if (ev == PTRACE_EVENT_FORK) return N_EARLY_STOP_EVENT_FORK;
+    if (ev == PTRACE_EVENT_VFORK) return N_EARLY_STOP_EVENT_VFORK;
+    if (ev == PTRACE_EVENT_CLONE) return N_EARLY_STOP_EVENT_CLONE;
+    if (ev == PTRACE_EVENT_EXIT) return N_EARLY_STOP_EVENT_EXIT;
+    if (ev == PTRACE_EVENT_SECCOMP) return N_EARLY_STOP_EVENT_SECCOMP;
+    if (ev == PTRACE_EVENT_STOP) return N_EARLY_STOP_EVENT_STOP;
+    if (ev) return N_EARLY_STOP_EVENT_OTHER;
+    if (sig == (SIGTRAP | 0x80)) return N_EARLY_STOP_SIGNAL_SYSCALL_TRAP;
+    if (sig == SIGTRAP) return N_EARLY_STOP_SIGNAL_TRAP;
+    if (sig == SIGTSTP || sig == SIGTTIN || sig == SIGTTOU || sig == SIGCONT) return N_EARLY_STOP_SIGNAL_JOB_CONTROL;
+    if (sig == SIGURG || sig == SIGPROF) return N_EARLY_STOP_SIGNAL_WAKEUP_OR_PROFILE;
+    if (sig == SIGHUP || sig == SIGINT || sig == SIGQUIT || sig == SIGTERM) return N_EARLY_STOP_SIGNAL_TERMINATION;
+    return N_EARLY_STOP_SIGNAL_OTHER;
+}
 
 static void diagnostic_increment(unsigned *counter) {
     if (*counter < INT32_MAX) (*counter)++; // Saturation cannot alter admission.
@@ -363,11 +385,11 @@ static int reap(void) {
             // Birth notification and the child's automatic SIGSTOP are separate
             // kernel waits. Hold an early stop until a known parent's event proves
             // its ownership. It cannot run, and an unmatched stop forbids closure.
-            if (ev || sig != SIGSTOP) return failure_mark(N_EARLY_STOP);
+            if (ev || sig != SIGSTOP) return failure_mark(early_stop_site(ev, sig));
             unsigned i;
-            for (i = 0; i < TASKS; i++) if (early_stops[i] == tid) return failure_mark(N_EARLY_STOP);
+            for (i = 0; i < TASKS; i++) if (early_stops[i] == tid) return failure_mark(N_EARLY_STOP_DUPLICATE);
             for (i = 0; i < TASKS && early_stops[i]; i++) {}
-            if (i == TASKS) return failure_mark(N_EARLY_STOP);
+            if (i == TASKS) return failure_mark(N_EARLY_STOP_CAPACITY);
             early_stops[i] = tid;
         }
         else if (ev == PTRACE_EVENT_SECCOMP) { if (gate(t)) return failure_mark(N_UNKNOWN); }
