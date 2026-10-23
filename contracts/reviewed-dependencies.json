@@ -3072,7 +3072,7 @@
                 "tests/Server/EngineMigrationAdmissionTest.php",
                 "tests/Server/EngineCheckAdmissionTest.php"
             ],
-            "fingerprint": "sha256:eaf931c1e784a7db3e6dfd8a607f8154783c5b87c9f6f59835434a9fc50a8140"
+            "fingerprint": "sha256:47e5f7e7cd91ff02b7b2fc986b205fa1c084cb561d33cb38de10db58c0645b83"
         },
         {
             "path": "app/ServerColumnAdmission.php",
@@ -8154,7 +8154,7 @@
                 "Composer analyze",
                 "Composer verify:server"
             ],
-            "fingerprint": "sha256:9760aa84eeb3917daa1884577faa3b1a949de7d1cfd4816fdf43d371f7053976"
+            "fingerprint": "sha256:936e7a03940bae50753095ca8208930802d2a7c1f1e868869405ddda961b7535"
         },
         {
             "path": "tests/ServerCross/EngineCrossTransferTest.php",
@@ -10629,7 +10629,7 @@
                 "Composer analyze",
                 "Composer verify"
             ],
-            "fingerprint": "sha256:8a52dc39572bf1bedf979cf1d2e2cb12dbad697b7a226cad3ff7fb34f56d6cdb"
+            "fingerprint": "sha256:d80e6670e98a5a56bc2499018d692ada790f705628f446aea814e41f00862bd5"
         },
         {
             "path": "tests/Unit/SqlStatementTest.php",
@@ -11391,7 +11391,7 @@
                 "tests/Server/EngineMetadataAdmissionTest.php",
                 "tests/Support/EngineBoundaryProbe.php"
             ],
-            "fingerprint": "sha256:dfc8afe580a8e7f12d1ec4cafb95a0ca0a27c60aa2823e6513f47f95eeaaaec3"
+            "fingerprint": "sha256:757587437c876c337d04f6c5713f660749c1575ca147de1e1f38027833c828c6"
         },
         {
             "path": "tests/Server/EngineMetadataAdmissionTest.php",

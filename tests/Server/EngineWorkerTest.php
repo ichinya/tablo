@@ -64,6 +64,7 @@ final class EngineWorkerTest
         $control = DatabaseConnectionFactory::open(DatabaseConfiguration::fromEnvironment('control', $fixture->environment()));
         Assert::same(DatabaseSession::get($control)?->vault, null);
         Assert::same(DatabaseSession::get($control)?->keyAuthenticated, false);
+        Assert::same(DatabaseSession::get($control)?->metadataObservation, null);
         $stop = new WorkerStateRepository($control);
         Assert::true($stop->requestStop($first)); Assert::true($stop->requestStop($first));
         $next = $state->begin(); Assert::false($first === $next);

@@ -21,7 +21,7 @@ final class ServerCheckAdmission
     public static function verify(PDO $db, array $table): void
     {
         $configuration = DatabaseSession::get($db)?->configuration;
-        $clauses = $configuration?->engine === 'mariadb' && $configuration->role === 'writer'
+        $clauses = $configuration?->engine === 'mariadb' && in_array($configuration->role, ['writer', 'control'], strict: true)
             ? ServerMetadataAdmission::checks($db, $table['name']) : server_check_admission_clauses($db, $table);
         if (count($clauses) !== count($table['checks'])) { self::refuse(); }
         foreach ($table['checks'] as $check) {

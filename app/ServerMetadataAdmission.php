@@ -53,7 +53,7 @@ final class ServerMetadataAdmission
     public static function checks(PDO $db, string $table): array
     {
         $session = DatabaseSession::get($db) ?? throw new DatabaseFailure('schema');
-        if ($session->configuration->engine !== 'mariadb' || $session->configuration->role !== 'writer') { throw new DatabaseFailure('schema'); }
+        if ($session->configuration->engine !== 'mariadb' || !in_array($session->configuration->role, ['writer', 'control'], strict: true)) { throw new DatabaseFailure('schema'); }
         $observation = $session->metadataObservation ?? self::observe($session->configuration, 10);
         self::bind($db, $observation);
         return $observation['checks'][$table] ?? throw new DatabaseFailure('schema');
@@ -68,11 +68,11 @@ final class ServerMetadataAdmission
     }
 }
 
-/** Only the complete writer admission needs privileged CHECK visibility. Migrators read their own post-DDL metadata.
+/** Complete writer and control admission need privileged CHECK visibility. Migrators read their own post-DDL metadata.
  * @return array<string, array<string, string>> */
 function server_metadata_check_observation(PDO $db, DatabaseConfiguration $configuration, ?int $version): array
 {
-    if ($configuration->engine !== 'mariadb' || $configuration->role !== 'writer' || $version !== 10) { return []; }
+    if ($configuration->engine !== 'mariadb' || !in_array($configuration->role, ['writer', 'control'], strict: true) || $version !== 10) { return []; }
     $checks = [];
     foreach (ServerSchema::layout($db)['tables'] as $table) { $checks[$table['name']] = ServerCheckAdmission::clauses($db, $table); }
     return $checks;
