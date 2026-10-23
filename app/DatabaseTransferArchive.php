@@ -85,6 +85,7 @@ function database_transfer_archive_stream(PDO $source, PDO $scratch, array $tabl
         if ($chunkRows === 0 && count($chunks) >= $remainingChunks) { throw new DatabaseFailure('schema'); }
         DatabaseTransferPreflight::row($scratch, $table, $values);
         $data .= $line; $chunkRows++; $rows++; hash_update($hash, $line);
+        unset($line);
     }
     if ($chunkRows !== 0) { $chunks[] = database_transfer_archive_chunk($directory, $table['name'], count($chunks), $data, $chunkRows); }
     return ['name' => $table['name'], 'rows' => $rows, 'sha256' => hash_final($hash), 'chunks' => $chunks];

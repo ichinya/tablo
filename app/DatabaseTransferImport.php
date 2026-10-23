@@ -109,6 +109,7 @@ function database_transfer_cursor_table(PDO $db, #[\SensitiveParameter] string $
         });
     }
     if ($rowNumber < $previous) { throw new DatabaseFailure('schema'); }
+    unset($values, $stored);
     DatabaseTransferVerification::table($db, $table, $receipt);
     $journal->done($step);
 }
