@@ -4,11 +4,15 @@ declare(strict_types=1);
 namespace Tablo\Tests\Server;
 
 use Tablo\DatabaseFailure;
+use Tablo\DatabaseTransferArchive;
 use Tablo\DatabaseTransferManifest;
+use Tablo\DatabaseTransferRows;
 use Tablo\DatabaseTransferVerification;
+use Tablo\JsonEncoding;
 use Tablo\JsonRecord;
 use Tablo\RequiredFile;
 use Tablo\Tests\Support\EngineFixture;
+use Tablo\Tests\Support\TemporaryDirectory;
 use Testo\Assert;
 use Testo\Test;
 
@@ -78,6 +82,7 @@ final class EngineTransferAdmissionTest
             try { \Tablo\DatabaseTransferRows::value($invalid, $shape); } catch (DatabaseFailure $error) { $failure = $error; }
             Assert::same($failure?->category, 'schema');
         }
+        engine_transfer_archive_lines($table, $sites);
     }
 
     #[Test]
@@ -122,4 +127,142 @@ function engine_transfer_invalid_utc_codec(): void
         try { \Tablo\DatabaseTransferRows::value($invalid, $utc); } catch (DatabaseFailure $error) { $caught = $error; }
         Assert::same($caught?->category, 'schema'); Assert::same($caught?->getPrevious(), null);
     }
+}
+
+/** @param \Tablo\DatabaseTransferManifest::Table $table
+ * @param \Tablo\DatabaseTransferManifest::Table $sites */
+function engine_transfer_archive_lines(array $table, array $sites): void
+{
+    $directory = new TemporaryDirectory('tablo-transfer-chunk-codec-');
+    try {
+        $rows = [["synthetic:\xFF\0A \r", 1, 2], ['second', 3, 4], ['final', 5, 6]];
+        $lines = array_map(engine_transfer_archive_line(...), $rows);
+        foreach ([[[$lines[0]], [1], [$rows[0]]], [[$lines[0] . $lines[1]], [2], [$rows[0], $rows[1]]],
+            [[$lines[0] . $lines[1], $lines[2]], [2, 1], $rows], [[$lines[0], $lines[1], $lines[2]], [1, 1, 1], $rows],
+            [[], [], []]] as [$chunks, $counts, $expected]) {
+            $receipt = engine_transfer_archive_fixture($directory->path, $table, $chunks, $counts);
+            Assert::same(iterator_to_array(DatabaseTransferArchive::read($directory->path, $table, $receipt)), $expected);
+        }
+        engine_transfer_archive_authentication($directory->path, $table, $lines[0], $lines[1]);
+        engine_transfer_archive_framing($directory->path, $table, $lines[0], $lines[1]);
+        engine_transfer_archive_completion($directory->path, $table, $rows[0], $lines[0], $lines[1]);
+        engine_transfer_archive_large($directory->path, $sites);
+    } finally { $directory->close(); }
+}
+
+/** @param \Tablo\DatabaseTransferRows::Values $values */
+function engine_transfer_archive_line(array $values): string
+{
+    return JsonEncoding::encode(DatabaseTransferRows::encode($values)) . "\n";
+}
+
+/** @param \Tablo\DatabaseTransferManifest::Table $table
+ * @param list<string> $chunks
+ * @param list<int> $counts
+ * @return \Tablo\DatabaseTransferArchive::Receipt */
+function engine_transfer_archive_fixture(string $directory, array $table, array $chunks, array $counts): array
+{
+    Assert::same(count($chunks), count($counts)); $receipts = [];
+    foreach ($chunks as $index => $bytes) {
+        Assert::same(file_put_contents($directory . '/' . $table['name'] . '.' . $index . '.jsonl', $bytes), strlen($bytes));
+        $receipts[] = ['rows' => $counts[$index] ?? throw new \RuntimeException('Synthetic chunk row count absent.'), 'bytes' => strlen($bytes), 'sha256' => hash('sha256', $bytes)];
+    }
+    return ['name' => $table['name'], 'rows' => \Tablo\DatabaseInteger::checked(array_sum($counts)), 'sha256' => hash('sha256', implode('', $chunks)), 'chunks' => $receipts];
+}
+
+/** @param \Tablo\DatabaseTransferManifest::Table $table
+ * @param \Tablo\DatabaseTransferArchive::Receipt $receipt
+ * @param class-string<DatabaseFailure|\JsonException> $expectedFailure */
+function engine_transfer_archive_refuses(string $directory, array $table, array $receipt, int $expectedRows, string $expectedFailure = DatabaseFailure::class): void
+{
+    $seen = []; $caught = null;
+    try {
+        foreach (DatabaseTransferArchive::read($directory, $table, $receipt) as $values) { $seen[] = $values; }
+    } catch (DatabaseFailure|\JsonException $error) { $caught = $error; }
+    Assert::same($caught === null ? null : $caught::class, $expectedFailure);
+    if ($caught instanceof DatabaseFailure) { Assert::same($caught->category, 'schema'); }
+    if ($caught instanceof \JsonException) { Assert::same($caught->getCode(), JSON_ERROR_SYNTAX); }
+    Assert::same($caught?->getPrevious(), null);
+    Assert::same(count($seen), $expectedRows);
+}
+
+/** @param \Tablo\DatabaseTransferManifest::Table $table */
+function engine_transfer_archive_authentication(string $directory, array $table, string $first, string $second): void
+{
+    $bytes = $first . $second;
+    foreach (['size', 'hash', 'end'] as $fault) {
+        $receipt = engine_transfer_archive_fixture($directory, $table, [$bytes], [2]);
+        $chunk = $receipt['chunks'][0] ?? throw new \RuntimeException('Synthetic authentication chunk absent.');
+        if ($fault === 'size') { $chunk['bytes']++; }
+        if ($fault === 'hash') { $chunk['sha256'] = str_repeat('0', times: 64); }
+        $receipt['chunks'][0] = $chunk;
+        if ($fault === 'end') {
+            $changed = substr($bytes, offset: 0, length: -1) . 'x';
+            Assert::same(file_put_contents($directory . '/' . $table['name'] . '.0.jsonl', $changed), strlen($bytes));
+        }
+        engine_transfer_archive_refuses($directory, $table, $receipt, expectedRows: 0);
+    }
+}
+
+/** @param \Tablo\DatabaseTransferManifest::Table $table */
+function engine_transfer_archive_framing(string $directory, array $table, string $first, string $second): void
+{
+    foreach ([[substr($first, offset: 0, length: -1), 1, 0, DatabaseFailure::class], [$first . $second, 1, 0, DatabaseFailure::class],
+        ["\n" . $first, 2, 0, \JsonException::class], [$first . "\n", 2, 1, \JsonException::class],
+        [substr($first, offset: 0, length: -1) . "\r\n", 1, 0, DatabaseFailure::class], [' ' . $first, 1, 0, DatabaseFailure::class]] as [$bytes, $count, $escaped, $failure]) {
+        // Self-consistent hashes isolate framing and canonical row validation.
+        $receipt = engine_transfer_archive_fixture($directory, $table, [$bytes], [$count]);
+        engine_transfer_archive_refuses($directory, $table, $receipt, $escaped, $failure);
+    }
+}
+
+/** @param \Tablo\DatabaseTransferManifest::Table $table
+ * @param \Tablo\DatabaseTransferRows::Values $firstRow */
+function engine_transfer_archive_completion(string $directory, array $table, array $firstRow, string $first, string $second): void
+{
+    $receipt = engine_transfer_archive_fixture($directory, $table, [$first, $second], [1, 1]);
+    $changed = substr($second, offset: 0, length: -1) . 'x';
+    Assert::same(file_put_contents($directory . '/' . $table['name'] . '.1.jsonl', $changed), strlen($second));
+    $reader = DatabaseTransferArchive::read($directory, $table, $receipt);
+    Assert::same($reader->current(), $firstRow); unset($reader);
+    engine_transfer_archive_refuses($directory, $table, $receipt, expectedRows: 1);
+    foreach (['digest', 'rows'] as $fault) {
+        $receipt = engine_transfer_archive_fixture($directory, $table, [$first, $second], [1, 1]);
+        if ($fault === 'digest') { $receipt['sha256'] = str_repeat('0', times: 64); }
+        if ($fault === 'rows') { $receipt['rows']++; }
+        engine_transfer_archive_refuses($directory, $table, $receipt, expectedRows: 2);
+    }
+}
+
+/** @param \Tablo\DatabaseTransferManifest::Table $table */
+function engine_transfer_archive_large(string $directory, array $table): void
+{
+    $rows = [engine_transfer_archive_site($table, id: 1), engine_transfer_archive_site($table, id: 2)];
+    $bytes = implode('', array_map(engine_transfer_archive_line(...), $rows));
+    Assert::true(strlen($bytes) > DatabaseTransferManifest::CHUNK_BYTES - 32_768);
+    Assert::true(strlen($bytes) <= DatabaseTransferManifest::CHUNK_BYTES);
+    $receipt = engine_transfer_archive_fixture($directory, $table, [$bytes], [2]);
+    Assert::same(iterator_to_array(DatabaseTransferArchive::read($directory, $table, $receipt)), $rows);
+}
+
+/** @param \Tablo\DatabaseTransferManifest::Table $table
+ * @return \Tablo\DatabaseTransferRows::Values */
+function engine_transfer_archive_site(array $table, int $id): array
+{
+    /** @var array<string, mixed> $record Synthetic fields are checked against the public columns below. */
+    $record = ['id' => $id, 'name' => 'Synthetic', 'url' => 'https://example.test', 'provider' => 'github',
+        'repository' => 'synthetic/repository', 'github_token' => null, 'git_token_id' => null, 'branch' => 'main',
+        'health_path' => '/up', 'version_path' => '', 'version_json_path' => '', 'health_check_mode' => 'http',
+        'health_json_path' => '', 'health_json_operator' => '==', 'health_json_expected_value' => '', 'comparison_mode' => 'release',
+        'enabled' => 1, 'sort_order' => 0, 'online' => null, 'deployed_version' => null, 'deployed_commit' => null,
+        'latest_release' => null, 'latest_commit' => null, 'open_issues' => null, 'open_prs' => null, 'response_time_ms' => null,
+        'last_error' => str_repeat('x', times: 90_000), 'checked_at' => null, 'created_at' => '2026-01-01T00:00:00Z',
+        'updated_at' => '2026-01-01T00:00:00Z', 'health_error_code' => null, 'health_http_status' => null, 'config_revision' => 0, 'endpoint_token' => null];
+    $columns = DatabaseTransferManifest::columns($table); Assert::same(array_keys($record), array_column($columns, 'name'));
+    $values = [];
+    foreach ($columns as $column) {
+        if (!array_key_exists($column['name'], $record)) { throw new \RuntimeException('Synthetic site field absent.'); }
+        $values[] = DatabaseTransferRows::value($record[$column['name']], $column);
+    }
+    return $values;
 }

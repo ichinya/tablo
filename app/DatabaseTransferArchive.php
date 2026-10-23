@@ -125,10 +125,15 @@ function database_transfer_chunk_read(#[\SensitiveParameter] string $directory, 
         if (is_link($path)) { throw new DatabaseFailure('configuration'); }
         $bytes = RequiredFile::bytes(file_get_contents($path, length: DatabaseTransferManifest::CHUNK_BYTES + 1));
         if (strlen($bytes) !== $chunk['bytes'] || !hash_equals($chunk['sha256'], hash('sha256', $bytes))) { throw new DatabaseFailure('schema'); }
-        $lines = explode("\n", $bytes); $last = array_pop($lines);
-        if ($last !== '' || count($lines) !== $chunk['rows']) { throw new DatabaseFailure('schema'); }
+        if (($bytes !== '' && !str_ends_with($bytes, "\n")) || substr_count($bytes, needle: "\n") !== $chunk['rows']) { throw new DatabaseFailure('schema'); }
         hash_update($hash, $bytes);
-        foreach ($lines as $line) { $rows++; yield DatabaseTransferRows::line($line, $table); }
+        $offset = 0;
+        while (($end = strpos($bytes, needle: "\n", offset: $offset)) !== false) {
+            $line = substr($bytes, $offset, $end - $offset); $offset = $end + 1;
+            $rows++; yield DatabaseTransferRows::line($line, $table);
+            unset($line);
+        }
+        unset($bytes);
     }
     if ($rows !== $receipt['rows'] || !hash_equals($receipt['sha256'], hash_final($hash))) { throw new DatabaseFailure('schema'); }
 }
