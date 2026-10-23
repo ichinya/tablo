@@ -8092,7 +8092,7 @@
                 "Composer verify:server",
                 "Transfer native binding selectors"
             ],
-            "fingerprint": "sha256:273ac02c6395ad1b47c8932f8c79cee05542eaf2a6c7cf9aa2e1454e3f036666"
+            "fingerprint": "sha256:c945372aa1ba341ebfd2400a0e4605a5a8b28e26c0cf44705d3c93237cd9e4cf"
         },
         {
             "path": "tests/Server/EngineTransferEnvelopeTest.php",

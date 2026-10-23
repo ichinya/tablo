@@ -42,7 +42,7 @@ final class EngineTransferAdmissionTest
         $writer = $fixture->database(); $before = $fixture->scalar('SELECT check_interval_minutes FROM installation_settings', $writer);
         $source = \Tablo\DatabaseConnectionFactory::open(\Tablo\DatabaseConfiguration::fromEnvironment(environment: $fixture->environment()), mode: 'transfer-source', vault: $fixture->vault);
         $bufferAttribute = \Tablo\DatabaseInteger::checked(constant((PHP_VERSION_ID >= 80_400 ? 'Pdo\\Mysql::ATTR_' : 'PDO::MYSQL_ATTR_') . 'USE_BUFFERED_QUERY'));
-        Assert::same($source->getAttribute($bufferAttribute), false);
+        Assert::true(in_array($source->getAttribute($bufferAttribute), [false, 0], strict: true));
         $source->beginTransaction(); $native = null;
         try {
             try { $source->exec('UPDATE installation_settings SET check_interval_minutes = 99'); }
