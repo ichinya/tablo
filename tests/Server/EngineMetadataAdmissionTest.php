@@ -131,6 +131,7 @@ function engine_metadata_positive(): void
         Assert::same(count($observation['objects']), 18); Assert::same($observation['server']['catalog'] ?? null, $configuration->catalog);
         $db = $fixture->database();
         engine_metadata_writer_grants($db, $configuration);
+        engine_metadata_journal_checks($fixture, $db, $configuration);
         $sites = new \Tablo\SiteRepository($db, $fixture->vault);
         Assert::same($sites->save(\Tablo\Tests\Support\UnitFixtures::site()), 1);
         $watermark = $fixture->scalar('SELECT committed_history_high_watermark FROM tablo_database_state', $db);
@@ -142,6 +143,16 @@ function engine_metadata_positive(): void
         Assert::same($fixture->nativeFailure('CREATE TABLE forbidden_writer_table(id BIGINT)'), 1142);
         Assert::same(count(ServerSchema::objects($db)), 18);
     } finally { $fixture->close(); }
+}
+
+function engine_metadata_journal_checks(EngineFixture $fixture, \PDO $writer, DatabaseConfiguration $configuration): void
+{
+    if ($configuration->engine !== 'mariadb') { return; }
+    $journal = ServerSchema::layout($writer)['tables'][0] ?? throw new \RuntimeException('Missing journal descriptor.');
+    foreach ([$writer, $fixture->maintenance()] as $connection) {
+        \Tablo\ServerCheckAdmission::verify($connection, $journal);
+        Assert::same($fixture->scalar("SELECT COUNT(*) FROM information_schema.CHECK_CONSTRAINTS WHERE CONSTRAINT_SCHEMA = DATABASE() AND TABLE_NAME = 'tablo_migration_journal'", $connection), count($journal['checks']));
+    }
 }
 
 /** @param array<string, string> $environment */

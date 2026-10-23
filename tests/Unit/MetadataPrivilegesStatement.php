@@ -19,14 +19,16 @@ final class MetadataPrivilegesStatement extends PDOStatement
     public function __construct(private readonly MetadataPrivilegesPdo $owner, private readonly string $sql) {}
     public function bindValue(string|int $param, mixed $value, int $type = PDO::PARAM_STR): bool
     {
-        if ([$this->executed, $this->closed, $param, $value, $type, $this->bindings] !== [false, false, 1, "'meta'@'%'", PDO::PARAM_STR, []]) {
+        $expected = metadata_statement_bindings($this->sql);
+        if ($this->executed || $this->closed || $type !== PDO::PARAM_STR || $param !== count($this->bindings) + 1
+            || !array_key_exists($param, $expected) || $value !== $expected[$param]) {
             throw new RuntimeException('Unexpected metadata binding.');
         }
         $this->bindings[$param] = $value; return true;
     }
     public function execute(?array $params = null): bool
     {
-        $expected = str_contains($this->sql, 'CAST(GRANTEE AS BINARY) = ?') ? [1 => "'meta'@'%'"] : [];
+        $expected = metadata_statement_bindings($this->sql);
         if ([$params, $this->executed, $this->closed, $this->bindings] !== [null, false, false, $expected]) { throw new RuntimeException('Unexpected metadata execution.'); }
         $this->executed = true; return true;
     }
@@ -40,4 +42,13 @@ final class MetadataPrivilegesStatement extends PDOStatement
         if ($this->closed) { throw new RuntimeException('Metadata cursor closed twice.'); }
         $this->closed = true; $this->owner->closed++; return true;
     }
+}
+
+/** @return array<int, string> */
+function metadata_statement_bindings(string $query): array
+{
+    if (str_contains($query, 'FROM information_schema.CHECK_CONSTRAINTS')) {
+        return str_contains($query, 'TABLE_CONSTRAINTS') ? [1 => 'tablo_migration_journal', 2 => 'CHECK'] : [1 => 'tablo_migration_journal'];
+    }
+    return str_contains($query, 'CAST(GRANTEE AS BINARY) = ?') ? [1 => "'meta'@'%'"] : [];
 }

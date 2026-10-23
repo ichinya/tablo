@@ -29,6 +29,7 @@ final class MetadataPrivilegesPdo extends PDO
     /** @return list<array> */
     public function rows(string $query): array
     {
+        if (str_starts_with($this->fault, 'checks/') && str_contains($query, 'FROM information_schema.CHECK_CONSTRAINTS')) { return metadata_checks_rows($this, $query); }
         return match ($query) {
             'SELECT CURRENT_USER() AS identity' => [['identity' => $this->fault === 'identity' ? 'foreign@%' : 'meta@%']],
             'SELECT 1 AS unsupported FROM information_schema.APPLICABLE_ROLES LIMIT 1' => $this->applicable === [] ? [] : [['unsupported' => 1]],
@@ -48,8 +49,7 @@ final class MetadataPrivilegesPdo extends PDO
     /** @return list<array{unsupported: int}> */
     private function filteredRoles(): array
     {
-        if ($this->engine !== 'mariadb') { throw new RuntimeException('MySQL role query changed.'); }
-        return array_filter($this->enabled, static fn (?string $role): bool => $role !== null) === [] ? [] : [['unsupported' => 1]];
+        return metadata_privileges_filtered_roles($this);
     }
 
     /** @return list<array{catalog: string, privilege_type: string, grantable: string}> */
@@ -63,4 +63,11 @@ final class MetadataPrivilegesPdo extends PDO
         if ($this->fault === 'catalog') { $rows[0]['catalog'] = 'foreign'; }
         return $rows;
     }
+}
+
+/** @return list<array{unsupported: int}> */
+function metadata_privileges_filtered_roles(MetadataPrivilegesPdo $db): array
+{
+    if ($db->engine !== 'mariadb') { throw new RuntimeException('MySQL role query changed.'); }
+    return array_filter($db->enabled, static fn (?string $role): bool => $role !== null) === [] ? [] : [['unsupported' => 1]];
 }

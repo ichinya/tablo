@@ -42,8 +42,11 @@ final class ServerCheckAdmission
 function server_check_admission_clauses(PDO $db, array $table): array
 {
     $mysql = DatabaseSession::get($db)?->configuration->engine === 'mysql';
-    $enforcement = $mysql ? ', t.ENFORCED AS enforced' : '';
-    $checks = ServerSchema::rows($db, 'SELECT c.CONSTRAINT_NAME AS name, c.CHECK_CLAUSE AS clause' . $enforcement . ' FROM information_schema.CHECK_CONSTRAINTS c JOIN information_schema.TABLE_CONSTRAINTS t ON t.CONSTRAINT_SCHEMA = c.CONSTRAINT_SCHEMA AND t.CONSTRAINT_NAME = c.CONSTRAINT_NAME WHERE t.TABLE_SCHEMA = DATABASE() AND t.TABLE_NAME = ? AND t.CONSTRAINT_TYPE = ?', [$table['name'], 'CHECK']);
+    // MariaDB TABLE_CONSTRAINTS requires a non-SELECT privilege; the journal writer is SELECT-only.
+    $query = $mysql
+        ? 'SELECT c.CONSTRAINT_NAME AS name, c.CHECK_CLAUSE AS clause, t.ENFORCED AS enforced FROM information_schema.CHECK_CONSTRAINTS c JOIN information_schema.TABLE_CONSTRAINTS t ON t.CONSTRAINT_SCHEMA = c.CONSTRAINT_SCHEMA AND t.CONSTRAINT_NAME = c.CONSTRAINT_NAME WHERE t.TABLE_SCHEMA = DATABASE() AND t.TABLE_NAME = ? AND t.CONSTRAINT_TYPE = ?'
+        : 'SELECT CONSTRAINT_NAME AS name, CHECK_CLAUSE AS clause FROM information_schema.CHECK_CONSTRAINTS WHERE CONSTRAINT_SCHEMA = DATABASE() AND TABLE_NAME = ?';
+    $checks = ServerSchema::rows($db, $query, $mysql ? [$table['name'], 'CHECK'] : [$table['name']]);
     if (count($checks) !== count($table['checks'])) { throw new DatabaseFailure('schema'); }
     $clauses = [];
     foreach ($checks as $check) {
