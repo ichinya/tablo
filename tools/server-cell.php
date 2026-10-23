@@ -205,7 +205,7 @@ function server_cell_prepare(array $context, array $catalogs, array $spec, array
     server_cell_private_write($input, \Tablo\JsonEncoding::encode(['schema' => 'tablo/server-fixture-initialize/v1', 'nonce' => $nonce, 'fixtures' => $fixtures, 'engine' => $engine]));
     $result = Subprocess::run([PHP_BINARY, server_cell_script($context, relative: 'tools/server-cell.php'), '--initialize=' . $input], $context['directory'], $environment,
         new CommandOptions(timeout: server_cell_remaining($deadline), replacementEnvironment: $environment));
-    if ([$result['exit_code'], $result['stderr']] !== [0, '']) { throw new RuntimeException('Native fixture preparation failed or its outcome is unknown.'); }
+    server_cell_require_initialization($result, str_replace('\\', replace: '/', subject: dirname(__DIR__)));
     server_cell_metadata_controls($catalogs, $fixtures, $base, $nonce);
     server_cell_observer_finish($preparation, server_cell_observer_closed($result, SubprocessReceipt::read($result['files']['receipt'])));
     if (array_key_exists('crash', $spec)) { server_cell_crash($context, $environment, $spec); }
@@ -1747,6 +1747,12 @@ function server_cell_availability_observation(#[\SensitiveParameter] array $chil
 /** Parse only the child's complete caught-failure envelope already returned in memory. */
 function server_cell_availability_marker(#[\SensitiveParameter] array $child): ?array
 {
+    return server_cell_failure_marker($child, kind: 'availability');
+}
+
+/** Complete caught-failure envelope only; the finite kind selects its own exact validator. */
+function server_cell_failure_marker(#[\SensitiveParameter] array $child, string $kind): ?array
+{
     try {
         if (($child['exit_code'] ?? null) !== 1 || ($child['stdout'] ?? null) !== '' || !is_string($child['stderr'] ?? null)
             || strlen($child['stderr']) > 1_024) { return null; }
@@ -1757,7 +1763,8 @@ function server_cell_availability_marker(#[\SensitiveParameter] array $child): ?
         $decoded = json_decode($json, associative: false, depth: 16, flags: JSON_THROW_ON_ERROR);
         if (!$decoded instanceof \stdClass) { return null; }
         $record = get_object_vars($decoded);
-        if (!server_cell_availability_record($record) || json_encode($record, JSON_THROW_ON_ERROR) !== $json) { return null; }
+        $valid = match ($kind) { 'availability' => server_cell_availability_record($record), 'initialize' => server_cell_initialize_record($record), default => false };
+        if (!$valid || json_encode($record, JSON_THROW_ON_ERROR) !== $json) { return null; }
         return $record;
     } catch (Throwable $discarded) { unset($discarded); return null; }
 }
@@ -1818,6 +1825,81 @@ function server_cell_report_availability_failure(#[\SensitiveParameter] array $c
         $bytes = json_encode($observation, JSON_THROW_ON_ERROR | JSON_UNESCAPED_SLASHES) . "\n";
         if (strlen($bytes) > 2_048) { return; }
         server_cell_private_write(dirname($runtime) . '/safe-availability-failure.json', $bytes);
+    } catch (Throwable $discarded) { unset($discarded); }
+}
+
+/** Keep the original preparation predicate and failure even if diagnostics cannot be retained. */
+function server_cell_require_initialization(#[\SensitiveParameter] array $child, string $root): void
+{
+    if ([($child['exit_code'] ?? null), ($child['stderr'] ?? null)] === [0, '']) { return; }
+    server_cell_report_initialize_failure($child, $root);
+    throw new RuntimeException('Native fixture preparation failed or its outcome is unknown.');
+}
+
+/** @return array{schema: string, status: string, rootCause: string, issueAccepted: bool, reportedExit: int|null|string, stdout: string, stderr: string, diagnostic: ?array}|null */
+function server_cell_initialize_observation(#[\SensitiveParameter] array $child): ?array
+{
+    if ([($child['exit_code'] ?? null), ($child['stderr'] ?? null)] === [0, '']) { return null; }
+    return ['schema' => 'tablo/server-initialize-observation/v1', 'status' => 'failed', 'rootCause' => 'UNKNOWN', 'issueAccepted' => false,
+        'reportedExit' => server_cell_capability_exit($child['exit_code'] ?? 'UNKNOWN'),
+        'stdout' => match (true) { !is_string($child['stdout'] ?? null) => 'UNKNOWN', $child['stdout'] === '' => 'EMPTY', default => 'NONEMPTY' },
+        'stderr' => match (true) { !is_string($child['stderr'] ?? null) => 'UNKNOWN', $child['stderr'] === '' => 'EMPTY', default => 'NONEMPTY' },
+        'diagnostic' => server_cell_initialize_marker($child)];
+}
+
+function server_cell_initialize_marker(#[\SensitiveParameter] array $child): ?array
+{
+    return server_cell_failure_marker($child, kind: 'initialize');
+}
+
+/** Exact initialization shape plus common credential-free classifications. */
+function server_cell_initialize_record(array $record): bool
+{
+    if (array_keys($record) !== ['schema', 'engine', 'stage', 'type', 'category', 'sqlState', 'nativeCode', 'nativeReason', 'source', 'line', 'point', 'step']
+        || ($record['schema'] ?? null) !== 'tablo/server-initialize-failure/v1' || !server_cell_initialize_progress($record)) { return false; }
+    /** @var array{source: mixed, line: mixed, ...} $record Exact keys above admit presence including SQL nulls. */
+    if (!server_cell_initialize_location($record)) { return false; }
+    $base = array_slice($record, offset: 0, length: 10, preserve_keys: true);
+    $base['schema'] = 'tablo/server-availability-failure/v1'; $base['stage'] = 'bootstrap'; $base['source'] = null; $base['line'] = null;
+    return server_cell_availability_record($base);
+}
+
+/** Progress is the last callback, never an inferred failing instruction or completed-table count. */
+function server_cell_initialize_progress(array $record): bool
+{
+    /** @var mixed $step Strict integers only, matching the child producer's finite step range. */
+    $step = $record['step'] ?? null;
+    return in_array($record['stage'] ?? null, ['bootstrap', 'input', 'fixture', 'connection', 'objects', 'migration', 'admission', 'unknown'], strict: true)
+        && in_array($record['point'] ?? null, [null, 'before-ddl', 'after-ddl', 'after-journal', 'before-publication', 'after-publication'], strict: true)
+        && ($step === null || (is_int($step) && $step >= 0 && $step < 18));
+}
+
+/** @param array{source: mixed, line: mixed, ...} $record */
+function server_cell_initialize_location(array $record): bool
+{
+    return [$record['source'], $record['line']] === [null, null]
+        || (is_string($record['source']) && in_array($record['source'], server_cell_initialize_sources(), strict: true)
+            && is_int($record['line']) && $record['line'] > 0 && $record['line'] <= 1_000_000);
+}
+
+function server_cell_initialize_sources(): array
+{
+    return array_merge(server_cell_availability_sources(), array_map(static fn (string $name): string => 'app/' . $name . '.php',
+        ['ServerMigration', 'ServerMigrationLock', 'ServerMigrationStep', 'ServerMigrationJournal', 'ServerMigrationState', 'ServerTableAdmission',
+            'ServerBootstrap', 'ServerBootstrapReceipt', 'ServerLock', 'ServerLockOwnership', 'ServerWriterAdmission']));
+}
+
+/** One exclusive companion; no existing engine/availability record or raw stream is reopened. */
+function server_cell_report_initialize_failure(#[\SensitiveParameter] array $child, string $root): void
+{
+    try {
+        $runtime = dirname($root);
+        if (basename($root) !== 'source' || preg_match('/\Atablo-server-[0-9a-f]{32}\z/D', basename($runtime)) !== 1) { return; }
+        $observation = server_cell_initialize_observation($child);
+        if ($observation === null) { return; }
+        $bytes = json_encode($observation, JSON_THROW_ON_ERROR | JSON_UNESCAPED_SLASHES) . "\n";
+        if (strlen($bytes) > 2_048) { return; }
+        server_cell_private_write(dirname($runtime) . '/safe-initialize-failure.json', $bytes);
     } catch (Throwable $discarded) { unset($discarded); }
 }
 

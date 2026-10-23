@@ -8134,7 +8134,7 @@
                 "Composer analyze",
                 "Composer verify:server"
             ],
-            "fingerprint": "sha256:8c984399e828c05bca4be654e98f427a06bf20a0f6b275ee096432e8776e5b28"
+            "fingerprint": "sha256:f4f9ab371238887b5410c67ccfe6c3a78c8df8e292ec650ac31fd4b74a61ef28"
         },
         {
             "path": "tests/Server/EngineWatermarkTest.php",
@@ -10629,7 +10629,7 @@
                 "Composer analyze",
                 "Composer verify"
             ],
-            "fingerprint": "sha256:cd51aa67f55c300608b9ba98f358015676fb17bbce348a7018399db65c2c67f4"
+            "fingerprint": "sha256:5cc7f804b7304936337307b47b7d2169698a24cff3cbbcf17e1b44ded1accc8e"
         },
         {
             "path": "tests/Unit/SqlStatementTest.php",
@@ -11229,7 +11229,7 @@
                 "tests/Server/EngineVerificationTest.php",
                 "tools/server-io-uring-php-grammar.test.php"
             ],
-            "fingerprint": "sha256:e935751f600b4a27183e3ab12cf0f87a3addc063672d227296996f32e79e46db"
+            "fingerprint": "sha256:72ce10850c9624452a204b0a5c1c0aec3853da6c073a80fd7fb9f029c2e76f70"
         },
         {
             "path": "tests/ServerCross/EngineServerCrashTest.php",
@@ -11527,7 +11527,7 @@
                 "tools/server-native-tests.json",
                 "php -n tools/server-io-uring-php-grammar.test.php"
             ],
-            "fingerprint": "sha256:41bf7aab9f901d124d3c622380bd46aca9a183c1c0a4995cbd58015c47733e78"
+            "fingerprint": "sha256:8f0eca8f16d1e24c26a1a8e13e05c074197238825f54f9d61123c2e609dbbe96"
         },
         {
             "path": "tools/server-supervisor-linux-fallback-unit.c",

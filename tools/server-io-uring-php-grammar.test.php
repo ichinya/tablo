@@ -216,6 +216,18 @@ namespace Tablo\Tests\AvailabilityReportGrammar {
     }
 }
 
+namespace Tablo\Tests\InitializeReportGrammar {
+    /** @return array<string, mixed> */
+    function &state(): array { static $value = []; return $value; }
+    function server_cell_private_write(string $path, string $bytes): void
+    {
+        if ($path !== '/synthetic/cell/safe-initialize-failure.json') { \Tablo\Tools\grammar_tripwire('Foreign initialization report path.'); }
+        $value = &state();
+        if (($value['writeFails'] ?? false) === true || array_key_exists('written', $value)) { throw new \RuntimeException('PRIVATE secondary write'); }
+        $value['written'] = $bytes;
+    }
+}
+
 namespace {
     require __DIR__ . '/../app/JsonRecord.php';
     require __DIR__ . '/../app/SqlColumn.php';
@@ -331,7 +343,7 @@ namespace {
     }
     $changed = $qualified; $changed['runtimes'] = array_reverse($runtimes, preserve_keys: true);
     grammar_refused(static fn () => $run($build, $changed));
-    grammar_prepare_failures(); grammar_private_ini(); grammar_runtime_diagnostics(); grammar_availability_diagnostics();
+    grammar_prepare_failures(); grammar_private_ini(); grammar_runtime_diagnostics(); grammar_availability_diagnostics(); grammar_initialization_diagnostics();
     // The only reads above were the two explicit in-memory receipt strings;
     // none of their reference paths can be opened by this isolated harness.
     echo 'IO_URING_PHP_GRAMMAR_OK ' . \Tablo\Tools\grammar_state()['checks'] . "\n";
@@ -378,7 +390,7 @@ namespace {
     function grammar_availability_diagnostics(): void
     {
         $cell = \Tablo\RequiredFile::bytes(file_get_contents(__DIR__ . '/server-cell.php', length: 262_145));
-        $bodies = grammar_ini_functions($cell, ['server_cell_require_availability', 'server_cell_availability_observation', 'server_cell_availability_marker',
+        $bodies = grammar_ini_functions($cell, ['server_cell_require_availability', 'server_cell_availability_observation', 'server_cell_availability_marker', 'server_cell_failure_marker',
             'server_cell_availability_record', 'server_cell_availability_details', 'server_cell_availability_location', 'server_cell_availability_sources', 'server_cell_report_availability_failure', 'server_cell_capability_exit', 'server_cell_prepare_sources']);
         // Only exact helpers are evaluated; publication is a closed, exclusive in-memory seam.
         // @mago-expect lint:no-eval
@@ -391,6 +403,85 @@ namespace {
         $crlf = $child; $crlf['stderr'] = str_replace("\n", replace: "\r\n", subject: $child['stderr']); grammar_expect($parse($crlf) === $base);
         grammar_availability_invalid($parse, $base, $child); grammar_availability_valid($parse, $base);
         grammar_availability_reports($child); grammar_expect(\Tablo\Tools\grammar_state()['effects'] === []);
+    }
+
+    function grammar_initialization_diagnostics(): void
+    {
+        $cell = \Tablo\RequiredFile::bytes(file_get_contents(__DIR__ . '/server-cell.php', length: 262_145));
+        $bodies = grammar_ini_functions($cell, ['server_cell_require_initialization', 'server_cell_initialize_observation', 'server_cell_initialize_marker', 'server_cell_failure_marker',
+            'server_cell_initialize_record', 'server_cell_initialize_progress', 'server_cell_initialize_location', 'server_cell_initialize_sources', 'server_cell_report_initialize_failure',
+            'server_cell_availability_record', 'server_cell_availability_details', 'server_cell_availability_location', 'server_cell_availability_sources', 'server_cell_capability_exit', 'server_cell_prepare_sources']);
+        // The same exact envelope parser runs in both namespaces; all publication effects are closed.
+        // @mago-expect lint:no-eval
+        eval('namespace Tablo\\Tests\\InitializeReportGrammar; use RuntimeException, Throwable;' . implode("\n", $bodies));
+        /** @var Closure(array): ?array $parse */
+        $parse = grammar_prepare_callable('Tablo\\Tests\\InitializeReportGrammar\\server_cell_initialize_marker');
+        $base = ['schema' => 'tablo/server-initialize-failure/v1', 'engine' => 'mariadb', 'stage' => 'migration', 'type' => 'database',
+            'category' => 'unavailable', 'sqlState' => 'HY000', 'nativeCode' => 2002, 'nativeReason' => 'connection-refused', 'source' => 'app/ServerMigrationStep.php', 'line' => 17,
+            'point' => 'before-ddl', 'step' => 0];
+        $child = grammar_availability_child($base); grammar_expect($parse($child) === $base);
+        $crlf = $child; $crlf['stderr'] = str_replace("\n", replace: "\r\n", subject: $child['stderr']); grammar_expect($parse($crlf) === $base);
+        grammar_availability_invalid($parse, $base, $child); grammar_availability_valid($parse, $base);
+        grammar_initialize_progress($parse, $base); grammar_initialize_reports($child);
+        grammar_expect(\Tablo\Tools\grammar_state()['effects'] === []);
+    }
+
+    /** @param Closure(array): ?array $parse */
+    function grammar_initialize_progress(Closure $parse, array $base): void
+    {
+        foreach (['point', 'step'] as $key) {
+            $bad = $base; unset($bad[$key]); grammar_expect($parse(grammar_availability_child($bad)) === null);
+            foreach (['PRIVATE', [], true, 1.5] as $value) { $bad = $base; $bad[$key] = $value; grammar_expect($parse(grammar_availability_child($bad)) === null); }
+        }
+        foreach ([-1, 18, '0'] as $step) { $bad = $base; $bad['step'] = $step; grammar_expect($parse(grammar_availability_child($bad)) === null); }
+        grammar_initialize_values($parse, $base);
+        /** @var Closure(): list<string> $sources */
+        $sources = grammar_prepare_callable('Tablo\\Tests\\InitializeReportGrammar\\server_cell_initialize_sources');
+        foreach ($sources() as $source) { $valid = $base; $valid['source'] = $source; grammar_expect($parse(grammar_availability_child($valid)) === $valid); }
+        /** @var Closure(array, string): ?array $shared */
+        $shared = grammar_prepare_callable('Tablo\\Tests\\InitializeReportGrammar\\server_cell_failure_marker');
+        foreach (['unknown', 'availability'] as $kind) { grammar_expect($shared(grammar_availability_child($base), $kind) === null); }
+    }
+
+    /** @param Closure(array): ?array $parse */
+    function grammar_initialize_values(Closure $parse, array $base): void
+    {
+        foreach ([null, 0, 10, 17] as $step) {
+            foreach ([null, 'before-ddl', 'after-ddl', 'after-journal', 'before-publication', 'after-publication'] as $point) {
+                $valid = array_replace($base, ['step' => $step, 'point' => $point]); grammar_expect($parse(grammar_availability_child($valid)) === $valid);
+            }
+        }
+        foreach (['bootstrap', 'input', 'fixture', 'connection', 'objects', 'migration', 'admission', 'unknown'] as $stage) {
+            $valid = $base; $valid['stage'] = $stage; grammar_expect($parse(grammar_availability_child($valid)) === $valid);
+        }
+    }
+
+    function grammar_initialize_reports(array $child): void
+    {
+        /** @var Closure(array): ?array $observe */
+        $observe = grammar_prepare_callable('Tablo\\Tests\\InitializeReportGrammar\\server_cell_initialize_observation');
+        $guard = grammar_prepare_callable('Tablo\\Tests\\InitializeReportGrammar\\server_cell_require_initialization');
+        $report = grammar_prepare_callable('Tablo\\Tests\\InitializeReportGrammar\\server_cell_report_initialize_failure');
+        $root = '/synthetic/cell/tablo-server-' . str_repeat('a', times: 32) . '/source';
+        $state = &\Tablo\Tests\InitializeReportGrammar\state(); $state = [];
+        $success = ['exit_code' => 0, 'stdout' => 'PRIVATE arbitrary success output', 'stderr' => ''];
+        $guard($success, $root); grammar_expect($observe($success) === null); grammar_expect(\Tablo\Tests\InitializeReportGrammar\state() === []);
+        foreach ([$child, [], ['exit_code' => 0, 'stdout' => 'PRIVATE', 'stderr' => 'PRIVATE'], ['exit_code' => 2, 'stdout' => '', 'stderr' => '']] as $failure) {
+            grammar_expect(!str_contains(json_encode($observe($failure), JSON_THROW_ON_ERROR), 'PRIVATE'));
+            foreach ([[], ['writeFails' => true]] as $fault) {
+                $state = $fault; $caught = null;
+                try { $guard($failure, $root); } catch (RuntimeException $error) { $caught = $error; }
+                grammar_expect($caught?->getMessage() === 'Native fixture preparation failed or its outcome is unknown.');
+            }
+        }
+        $state = []; $report($child, $root);
+        /** @var mixed $first The writer stores exactly the attempted bytes, never a synthesized record. */
+        $first = \Tablo\Tests\InitializeReportGrammar\state()['written'] ?? null;
+        grammar_expect(is_string($first) && strlen($first) < 2_048); $report([], $root);
+        grammar_expect((\Tablo\Tests\InitializeReportGrammar\state()['written'] ?? null) === $first);
+        foreach (['/foreign', '/synthetic/cell/source', '/synthetic/tablo-server-invalid/source'] as $foreign) {
+            $state = []; $report($child, $foreign); grammar_expect(\Tablo\Tests\InitializeReportGrammar\state() === []);
+        }
     }
 
     /** @param Closure(array): ?array $parse

@@ -50,7 +50,9 @@ function metadata_privileges_enabled_roles(): void
 function metadata_privileges_applicable(): void
 {
     foreach (['mysql', 'mariadb'] as $engine) {
-        foreach (['staff', 'PUBLIC', 'NULL', null] as $role) { metadata_privileges_check(new MetadataPrivilegesPdo($engine, [null], [$role]), expected: 'schema'); }
+        foreach (['staff', 'PUBLIC', 'NULL', null] as $role) {
+            metadata_privileges_check(new MetadataPrivilegesPdo($engine, $engine === 'mysql' ? [] : [null], [$role]), expected: 'schema');
+        }
     }
 }
 
