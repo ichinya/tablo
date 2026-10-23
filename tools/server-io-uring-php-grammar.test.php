@@ -508,7 +508,7 @@ namespace {
         grammar_expect(($missing['reportedExit'] ?? null) === 'UNKNOWN');
     }
 
-    /** Independent direct-callee regression cases, rather than deriving completeness from the allowlist itself.
+    /** Independent reachable-owner regression cases, rather than deriving completeness from the allowlist itself.
      * @param array{exit_code: int, stdout: string, stderr: string} $child */
     function grammar_initialize_rejections(array $base, array $child): void
     {
@@ -517,7 +517,9 @@ namespace {
         $accepted = $observe($child) ?? throw new RuntimeException('Expected rejected-child observation.');
         grammar_expect(($accepted['schema'] ?? null) === 'tablo/server-initialize-observation/v2');
         grammar_expect(array_key_exists('rejection', $accepted)); grammar_expect(($accepted['rejection'] ?? null) === null);
-        foreach (['ServerColumnAdmission', 'ServerIndexAdmission', 'ServerForeignAdmission', 'ServerCheckAdmission'] as $owner) {
+        foreach (['ServerColumnAdmission', 'ServerIndexAdmission', 'ServerForeignAdmission', 'ServerCheckAdmission',
+            'ServerSessionSettings', 'KeyFilePath', 'KeyFileRead', 'VaultKeyFile', 'ServerExpression', 'ServerExpressionTokens',
+            'ServerExpressionOperator', 'ServerExpressionAtom', 'RegexCapture'] as $owner) {
             $valid = $base; $valid['source'] = 'app/' . $owner . '.php';
             $result = $observe(grammar_availability_child($valid)) ?? throw new RuntimeException('Expected direct-owner observation.');
             grammar_expect(($result['diagnostic'] ?? null) === $valid); grammar_expect(array_key_exists('rejection', $result));

@@ -44,7 +44,7 @@ final class ReviewedDependenciesTest
         try {
             self::fixture($directory);
             self::refusal($directory->path, 'Missing project-local');
-            $command = [PHP_BINARY, $directory->path . '/tools/capture-reviewed-dependencies.php'];
+            $command = [PHP_BINARY, '-n', $directory->path . '/tools/capture-reviewed-dependencies.php'];
             Assert::same(Subprocess::run($command, $directory, [])['exit_code'], 0);
             $path = $directory->path . '/contracts/reviewed-dependencies.json';
             $captured = file_get_contents($path);
@@ -69,7 +69,7 @@ final class ReviewedDependenciesTest
         $directory = new TemporaryDirectory('tablo-reviewed-manifest-');
         try {
             self::fixture($directory);
-            Assert::same(Subprocess::run([PHP_BINARY, $directory->path . '/tools/capture-reviewed-dependencies.php'], $directory, [])['exit_code'], 0);
+            Assert::same(Subprocess::run([PHP_BINARY, '-n', $directory->path . '/tools/capture-reviewed-dependencies.php'], $directory, [])['exit_code'], 0);
             $path = $directory->path . '/contracts/reviewed-dependencies.json';
             $original = \Tablo\RequiredFile::bytes(file_get_contents($path));
             $manifest = \Tablo\JsonRecord::checked(json_decode($original, associative: true, depth: 64, flags: JSON_THROW_ON_ERROR));

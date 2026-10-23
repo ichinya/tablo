@@ -1901,6 +1901,8 @@ function server_cell_initialize_sources(): array
     return array_merge(server_cell_availability_sources(), array_map(static fn (string $name): string => 'app/' . $name . '.php',
         ['ServerMigration', 'ServerMigrationLock', 'ServerMigrationStep', 'ServerMigrationJournal', 'ServerMigrationState', 'ServerTableAdmission',
             'ServerColumnAdmission', 'ServerIndexAdmission', 'ServerForeignAdmission', 'ServerCheckAdmission',
+            'ServerSessionSettings', 'KeyFilePath', 'KeyFileRead', 'VaultKeyFile', 'ServerExpression', 'ServerExpressionTokens',
+            'ServerExpressionOperator', 'ServerExpressionAtom', 'RegexCapture',
             'ServerBootstrap', 'ServerBootstrapReceipt', 'ServerLock', 'ServerLockOwnership', 'ServerWriterAdmission']));
 }
 

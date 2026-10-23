@@ -10415,7 +10415,7 @@
                 "Composer verify",
                 "Composer analyze"
             ],
-            "fingerprint": "sha256:b19ad96d29da6604606bba24e4dbf2299addff0574d63779456e82c1da4f412c"
+            "fingerprint": "sha256:240ad1cff6baf37cb3f8863ebe01e197a5d4133f843196bb2ca577a128b80c60"
         },
         {
             "path": "tests/Unit/RuntimeIniTest.php",
@@ -11229,7 +11229,7 @@
                 "tests/Server/EngineVerificationTest.php",
                 "tools/server-io-uring-php-grammar.test.php"
             ],
-            "fingerprint": "sha256:d4e29c2198c1bdbf3842987b89c492329cc2ac0bcb60f0f918b9d2047977a2f5"
+            "fingerprint": "sha256:c83f0cfa4b7df15aff99b10c8d00e5846fbac284042ead01d3e6d7408b0461bb"
         },
         {
             "path": "tests/ServerCross/EngineServerCrashTest.php",
@@ -11527,7 +11527,7 @@
                 "tools/server-native-tests.json",
                 "php -n tools/server-io-uring-php-grammar.test.php"
             ],
-            "fingerprint": "sha256:72c1a683e13878b2cdb3ddade4306aa85c1878bf9eb2a5e7ed0efaab4988bab8"
+            "fingerprint": "sha256:08530e37d547c00c6baf89de9080e3796a7a88b10b705f93d5f985ca91d1a300"
         },
         {
             "path": "tools/server-supervisor-linux-fallback-unit.c",
