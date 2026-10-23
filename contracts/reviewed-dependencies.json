@@ -7919,7 +7919,7 @@
                 "Composer verify:server",
                 "Tablo\\Tests\\Support\\EngineFixture inherited-key refusal"
             ],
-            "fingerprint": "sha256:154460fa13ea518ddaaf3ae145605886dad626ef0cfaef01e47641686adbf07c"
+            "fingerprint": "sha256:550b8fda2677d6fa021f6034c919533ede472ba19d8fd0e7e6cd764e19c3b223"
         },
         {
             "path": "tests/Server/EngineFlowTest.php",
@@ -11199,7 +11199,7 @@
                 "tests/Server/EngineVerificationTest.php",
                 "tools/server-io-uring-php-grammar.test.php"
             ],
-            "fingerprint": "sha256:65e13c54c0b4ad5e199e07a07b5884afebfc5b6f1f1ad9252968915b3728083e"
+            "fingerprint": "sha256:e935751f600b4a27183e3ab12cf0f87a3addc063672d227296996f32e79e46db"
         },
         {
             "path": "tests/ServerCross/EngineServerCrashTest.php",
@@ -11497,7 +11497,7 @@
                 "tools/server-native-tests.json",
                 "php -n tools/server-io-uring-php-grammar.test.php"
             ],
-            "fingerprint": "sha256:e74ecb1dbe252702f71cf2507b2772b44461d152a7629c69a276da24237f850e"
+            "fingerprint": "sha256:41bf7aab9f901d124d3c622380bd46aca9a183c1c0a4995cbd58015c47733e78"
         },
         {
             "path": "tools/server-supervisor-linux-fallback-unit.c",

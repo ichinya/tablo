@@ -512,6 +512,13 @@ function engine_fixture_safe_engine_failure(\Tablo\DatabaseFailure $failure, #[\
     $bytes = \Tablo\JsonEncoding::encode($record);
     Assert::true(strlen($bytes) < 1_024); Assert::false(str_contains($bytes, $secret));
     Assert::false(array_key_exists('message', $record)); Assert::false(array_key_exists('trace', $record));
+    $marker = \server_cell_availability_failure($failure, engine: 'mariadb', stage: 'connection');
+    $observation = \server_cell_availability_observation(['exit_code' => 1, 'stdout' => '',
+        'stderr' => json_encode($marker, JSON_THROW_ON_ERROR) . "\nNative server cell failed.\n"]);
+    Assert::true(is_array($observation)); $observation ??= throw new \RuntimeException('Expected availability observation.');
+    Assert::same($observation['diagnostic'], $marker);
+    Assert::same([$observation['reportedExit'], $observation['stdout'], $observation['stderr']], [1, 'EMPTY', 'NONEMPTY']);
+    Assert::false(str_contains(\Tablo\JsonEncoding::encode($observation), $secret));
 }
 
 /** Authored inspect records exercise admission only; these controls never invoke Docker or prove availability. */

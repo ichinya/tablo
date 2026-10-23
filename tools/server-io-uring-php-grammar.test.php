@@ -204,6 +204,18 @@ namespace Tablo\Tests\EngineReportGrammar {
     }
 }
 
+namespace Tablo\Tests\AvailabilityReportGrammar {
+    /** @return array<string, mixed> */
+    function &state(): array { static $value = []; return $value; }
+    function server_cell_private_write(string $path, string $bytes): void
+    {
+        if ($path !== '/synthetic/cell/safe-availability-failure.json') { \Tablo\Tools\grammar_tripwire('Foreign availability report path.'); }
+        $value = &state();
+        if (($value['writeFails'] ?? false) === true || array_key_exists('written', $value)) { throw new \RuntimeException('PRIVATE secondary write'); }
+        $value['written'] = $bytes;
+    }
+}
+
 namespace {
     require __DIR__ . '/../app/JsonRecord.php';
     require __DIR__ . '/../app/SqlColumn.php';
@@ -319,7 +331,7 @@ namespace {
     }
     $changed = $qualified; $changed['runtimes'] = array_reverse($runtimes, preserve_keys: true);
     grammar_refused(static fn () => $run($build, $changed));
-    grammar_prepare_failures(); grammar_private_ini(); grammar_runtime_diagnostics();
+    grammar_prepare_failures(); grammar_private_ini(); grammar_runtime_diagnostics(); grammar_availability_diagnostics();
     // The only reads above were the two explicit in-memory receipt strings;
     // none of their reference paths can be opened by this isolated harness.
     echo 'IO_URING_PHP_GRAMMAR_OK ' . \Tablo\Tools\grammar_state()['checks'] . "\n";
@@ -361,6 +373,98 @@ namespace {
         // @mago-expect lint:no-eval
         eval('namespace Tablo\\Tests\\EngineReportGrammar; use RuntimeException, Throwable;' . implode("\n", $bodies));
         grammar_docker_operations(); grammar_engine_reports();
+    }
+
+    function grammar_availability_diagnostics(): void
+    {
+        $cell = \Tablo\RequiredFile::bytes(file_get_contents(__DIR__ . '/server-cell.php', length: 262_145));
+        $bodies = grammar_ini_functions($cell, ['server_cell_require_availability', 'server_cell_availability_observation', 'server_cell_availability_marker',
+            'server_cell_availability_record', 'server_cell_availability_details', 'server_cell_availability_location', 'server_cell_availability_sources', 'server_cell_report_availability_failure', 'server_cell_capability_exit', 'server_cell_prepare_sources']);
+        // Only exact helpers are evaluated; publication is a closed, exclusive in-memory seam.
+        // @mago-expect lint:no-eval
+        eval('namespace Tablo\\Tests\\AvailabilityReportGrammar; use RuntimeException, Throwable;' . implode("\n", $bodies));
+        /** @var Closure(array): ?array $parse */
+        $parse = grammar_prepare_callable('Tablo\\Tests\\AvailabilityReportGrammar\\server_cell_availability_marker');
+        $base = ['schema' => 'tablo/server-availability-failure/v1', 'engine' => 'mariadb', 'stage' => 'connection', 'type' => 'database',
+            'category' => 'unavailable', 'sqlState' => 'HY000', 'nativeCode' => 2002, 'nativeReason' => 'connection-refused', 'source' => 'app/DatabaseFailure.php', 'line' => 17];
+        $child = grammar_availability_child($base); grammar_expect($parse($child) === $base);
+        $crlf = $child; $crlf['stderr'] = str_replace("\n", replace: "\r\n", subject: $child['stderr']); grammar_expect($parse($crlf) === $base);
+        grammar_availability_invalid($parse, $base, $child); grammar_availability_valid($parse, $base);
+        grammar_availability_reports($child); grammar_expect(\Tablo\Tools\grammar_state()['effects'] === []);
+    }
+
+    /** @param Closure(array): ?array $parse
+     * @param array{exit_code: int, stdout: string, stderr: string} $child */
+    function grammar_availability_invalid(Closure $parse, array $base, array $child): void
+    {
+        foreach (['schema', 'engine', 'stage', 'type', 'category', 'sqlState', 'nativeCode', 'nativeReason', 'source', 'line'] as $key) {
+            $bad = $base; unset($bad[$key]); grammar_expect($parse(grammar_availability_child($bad)) === null);
+            foreach (['PRIVATE', [], true, 1.5] as $value) { $bad = $base; $bad[$key] = $value; grammar_expect($parse(grammar_availability_child($bad)) === null); }
+        }
+        foreach ([['extra' => 'PRIVATE'], ['nativeCode' => -1], ['nativeCode' => 65_536], ['nativeCode' => '2002'], ['sqlState' => 'hy000'],
+            ['line' => 0], ['line' => 1_000_001], ['line' => '17'], ['source' => null], ['line' => null], ['source' => '/private/secret.php'],
+            ['source' => 'app/../private.php'], ['type' => 'runtime'], ['type' => 'pdo']] as $change) {
+            grammar_expect($parse(grammar_availability_child(array_replace($base, $change))) === null);
+        }
+        $json = json_encode($base, JSON_THROW_ON_ERROR);
+        foreach ([' ' . $json, $json . ' ', str_replace('"engine":', replace: '"schema":"PRIVATE","engine":', subject: $json),
+            str_replace('"schema"', replace: '"sch\\u0065ma"', subject: $json), json_encode(array_reverse($base, preserve_keys: true), JSON_THROW_ON_ERROR),
+            '[]', 'null', '{', "\xff", $json . "\nPRIVATE", str_repeat('x', times: 1_025)] as $bad) {
+            $changed = $child; $changed['stderr'] = $bad . "\nNative server cell failed.\n"; grammar_expect($parse($changed) === null);
+        }
+        foreach (['', "PRIVATE\n", $child['stderr'] . "\n", "PRIVATE\n" . $child['stderr'], $child['stderr'] . "\0"] as $bad) {
+            $changed = $child; $changed['stderr'] = $bad; grammar_expect($parse($changed) === null);
+        }
+        foreach ([['exit_code' => 0], ['exit_code' => '1'], ['exit_code' => null], ['stdout' => 'PRIVATE'], ['stderr' => []]] as $change) {
+            grammar_expect($parse(array_replace($child, $change)) === null);
+        }
+    }
+
+    /** @param Closure(array): ?array $parse */
+    function grammar_availability_valid(Closure $parse, array $base): void
+    {
+        /** @var Closure(): list<string> $sources */
+        $sources = grammar_prepare_callable('Tablo\\Tests\\AvailabilityReportGrammar\\server_cell_availability_sources');
+        foreach ($sources() as $source) { $valid = $base; $valid['source'] = $source; grammar_expect($parse(grammar_availability_child($valid)) === $valid); }
+        foreach ([['nativeCode' => 0], ['nativeCode' => 65_535], ['source' => null, 'line' => null], ['type' => 'pdo', 'category' => null],
+            ['engine' => null], ['engine' => 'mysql'], ['line' => 1_000_000]] as $change) {
+            $valid = array_replace($base, $change); grammar_expect($parse(grammar_availability_child($valid)) === $valid);
+        }
+    }
+
+    /** @return array{exit_code: int, stdout: string, stderr: string} */
+    function grammar_availability_child(array $record): array
+    { return ['exit_code' => 1, 'stdout' => '', 'stderr' => json_encode($record, JSON_THROW_ON_ERROR) . "\nNative server cell failed.\n"]; }
+
+    function grammar_availability_reports(array $child): void
+    {
+        /** @var Closure(array): ?array $observe */
+        $observe = grammar_prepare_callable('Tablo\\Tests\\AvailabilityReportGrammar\\server_cell_availability_observation');
+        $guard = grammar_prepare_callable('Tablo\\Tests\\AvailabilityReportGrammar\\server_cell_require_availability');
+        $report = grammar_prepare_callable('Tablo\\Tests\\AvailabilityReportGrammar\\server_cell_report_availability_failure');
+        $root = '/synthetic/cell/tablo-server-' . str_repeat('a', times: 32) . '/source';
+        $success = ['exit_code' => 0, 'stdout' => 'PRIVATE success', 'stderr' => ''];
+        $state = &\Tablo\Tests\AvailabilityReportGrammar\state(); $state = [];
+        $guard($success, $root); grammar_expect($observe($success) === null); grammar_expect(\Tablo\Tests\AvailabilityReportGrammar\state() === []);
+        foreach ([$child, ['exit_code' => 0, 'stdout' => 'PRIVATE', 'stderr' => 'PRIVATE'], ['exit_code' => 2, 'stdout' => '', 'stderr' => ''],
+            [], ['exit_code' => null, 'stdout' => null, 'stderr' => null], ['exit_code' => 'PRIVATE', 'stdout' => [], 'stderr' => []]] as $failure) {
+            $value = $observe($failure); grammar_expect(is_array($value));
+            grammar_expect(!str_contains(json_encode($value, JSON_THROW_ON_ERROR), 'PRIVATE'));
+            foreach ([[], ['writeFails' => true]] as $fault) {
+                $state = $fault; $caught = null;
+                try { $guard($failure, $root); } catch (RuntimeException $error) { $caught = $error; }
+                grammar_expect($caught?->getMessage() === 'Actual fresh TLS PDO availability failed.');
+            }
+        }
+        grammar_expect($observe([]) === ['schema' => 'tablo/server-availability-observation/v1', 'status' => 'failed', 'rootCause' => 'UNKNOWN',
+            'issueAccepted' => false, 'reportedExit' => 'UNKNOWN', 'stdout' => 'UNKNOWN', 'stderr' => 'UNKNOWN', 'diagnostic' => null]);
+        $state = []; $report($child, $root);
+        /** @var mixed $first The closed publication seam records the actual attempted bytes. */
+        $first = \Tablo\Tests\AvailabilityReportGrammar\state()['written'] ?? null;
+        grammar_expect(is_string($first) && strlen($first) < 2_048); $report([], $root); grammar_expect((\Tablo\Tests\AvailabilityReportGrammar\state()['written'] ?? null) === $first);
+        foreach (['/foreign', '/synthetic/cell/source', '/synthetic/tablo-server-invalid/source'] as $foreign) {
+            $state = []; $report($child, $foreign); grammar_expect(\Tablo\Tests\AvailabilityReportGrammar\state() === []);
+        }
     }
 
     function grammar_docker_operations(): void

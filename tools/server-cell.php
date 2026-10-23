@@ -1721,8 +1721,104 @@ function server_cell_availability(array $context): array
     server_cell_private_write($path, \Tablo\JsonEncoding::encode(['schema' => 'tablo/server-pdo-availability/v1', 'nonce' => $nonce, 'fixtures' => $fixtures]));
     $child = Subprocess::run([PHP_BINARY, server_cell_script($context, relative: 'tools/server-cell.php'), '--availability=' . $path], $context['directory'], $environment,
         new CommandOptions(timeout: 30, replacementEnvironment: $environment));
-    if ($child['exit_code'] !== 0 || $child['stderr'] !== '') { throw new RuntimeException('Actual fresh TLS PDO availability failed.'); }
+    server_cell_require_availability($child, str_replace('\\', replace: '/', subject: dirname(__DIR__)));
     return ['actual' => JsonRecord::decode($child['stdout']), 'capture' => $child['files']];
+}
+
+/** A parsed diagnostic never changes the original admission predicate or failing exit. */
+function server_cell_require_availability(#[\SensitiveParameter] array $child, string $root): void
+{
+    if (($child['exit_code'] ?? null) === 0 && ($child['stderr'] ?? null) === '') { return; }
+    server_cell_report_availability_failure($child, $root);
+    throw new RuntimeException('Actual fresh TLS PDO availability failed.');
+}
+
+/** @return array{schema: string, status: string, rootCause: string, issueAccepted: bool, reportedExit: int|null|string, stdout: string, stderr: string, diagnostic: ?array}|null */
+function server_cell_availability_observation(#[\SensitiveParameter] array $child): ?array
+{
+    if (($child['exit_code'] ?? null) === 0 && ($child['stderr'] ?? null) === '') { return null; }
+    return ['schema' => 'tablo/server-availability-observation/v1', 'status' => 'failed', 'rootCause' => 'UNKNOWN', 'issueAccepted' => false,
+        'reportedExit' => server_cell_capability_exit($child['exit_code'] ?? 'UNKNOWN'),
+        'stdout' => match (true) { !is_string($child['stdout'] ?? null) => 'UNKNOWN', $child['stdout'] === '' => 'EMPTY', default => 'NONEMPTY' },
+        'stderr' => match (true) { !is_string($child['stderr'] ?? null) => 'UNKNOWN', $child['stderr'] === '' => 'EMPTY', default => 'NONEMPTY' },
+        'diagnostic' => server_cell_availability_marker($child)];
+}
+
+/** Parse only the child's complete caught-failure envelope already returned in memory. */
+function server_cell_availability_marker(#[\SensitiveParameter] array $child): ?array
+{
+    try {
+        if (($child['exit_code'] ?? null) !== 1 || ($child['stdout'] ?? null) !== '' || !is_string($child['stderr'] ?? null)
+            || strlen($child['stderr']) > 1_024) { return null; }
+        $bytes = str_replace("\r\n", replace: "\n", subject: $child['stderr']); $suffix = "\nNative server cell failed.\n";
+        if (!str_ends_with($bytes, $suffix)) { return null; }
+        $json = substr($bytes, offset: 0, length: -strlen($suffix));
+        /** @var mixed $decoded A marker must be an actual JSON object, never a coerced array. */
+        $decoded = json_decode($json, associative: false, depth: 16, flags: JSON_THROW_ON_ERROR);
+        if (!$decoded instanceof \stdClass) { return null; }
+        $record = get_object_vars($decoded);
+        if (!server_cell_availability_record($record) || json_encode($record, JSON_THROW_ON_ERROR) !== $json) { return null; }
+        return $record;
+    } catch (Throwable $discarded) { unset($discarded); return null; }
+}
+
+/** Exact field types and finite reviewed origins; validation never opens a named path. */
+function server_cell_availability_record(array $record): bool
+{
+    if (array_keys($record) !== ['schema', 'engine', 'stage', 'type', 'category', 'sqlState', 'nativeCode', 'nativeReason', 'source', 'line']
+        || ($record['schema'] ?? null) !== 'tablo/server-availability-failure/v1') { return false; }
+    $choices = ['engine' => [null, 'mysql', 'mariadb'], 'stage' => ['bootstrap', 'input', 'fixture', 'connection', 'objects', 'facts', 'unknown'],
+        'type' => ['database', 'pdo', 'runtime', 'error', 'other'],
+        'category' => [null, 'configuration', 'driver', 'engine', 'schema', 'key', 'busy', 'uncertain', 'constraint', 'unavailable'],
+        'nativeReason' => ['connection-refused', 'name-resolution', 'certificate-verification', 'ssl-handshake', 'unknown']];
+    foreach ($choices as $key => $allowed) { if (!in_array($record[$key] ?? null, $allowed, strict: true)) { return false; } }
+    /** @var array{sqlState: mixed, nativeCode: mixed, type: mixed, category: mixed, nativeReason: mixed, source: mixed, line: mixed, ...} $record Exact array_keys above admits presence, including null values. */
+    return server_cell_availability_details($record);
+}
+
+/** The caller has already admitted the exact ordered fields and finite enums.
+ * @param array{sqlState: mixed, nativeCode: mixed, type: mixed, category: mixed, nativeReason: mixed, source: mixed, line: mixed, ...} $record */
+function server_cell_availability_details(array $record): bool
+{
+    if (($record['sqlState'] !== null && (!is_string($record['sqlState']) || preg_match('/\A[0-9A-Z]{5}\z/D', $record['sqlState']) !== 1))
+        || ($record['nativeCode'] !== null && (!is_int($record['nativeCode']) || $record['nativeCode'] < 0 || $record['nativeCode'] > 65_535))) { return false; }
+    if (($record['type'] !== 'database' && $record['category'] !== null)
+        || (!in_array($record['type'], ['database', 'pdo'], strict: true)
+            && [$record['sqlState'], $record['nativeCode'], $record['nativeReason']] !== [null, null, 'unknown'])) { return false; }
+    return server_cell_availability_location($record);
+}
+
+/** @param array{source: mixed, line: mixed, ...} $record */
+function server_cell_availability_location(array $record): bool
+{
+    return [$record['source'], $record['line']] === [null, null]
+        || (is_string($record['source']) && in_array($record['source'], server_cell_availability_sources(), strict: true)
+            && is_int($record['line']) && $record['line'] > 0 && $record['line'] <= 1_000_000);
+}
+
+/** No runtime discovery: only public owners relevant to the standalone availability child. */
+function server_cell_availability_sources(): array
+{
+    return array_merge(server_cell_prepare_sources(), array_map(static fn (string $name): string => 'app/' . $name . '.php',
+        ['DatabaseConfiguration', 'DatabaseEnvironment', 'DatabaseConnectionFactory', 'DatabaseSession', 'PdoMysqlOptions', 'RuntimeIni',
+            'ServerPdoConnection', 'ServerTransport', 'ServerTls', 'ServerCredentials', 'ServerSessionAdmission', 'ServerSchema', 'ServerSchemaState', 'ServerSchemaDescriptor',
+            'ServerMetadataAdmission', 'ServerMetadataInventory', 'ServerMetadataPrivileges', 'ServerMetadataIdentity', 'ServerKeyIdentity', 'TokenVault',
+            'SqlColumn', 'SqlRows', 'SqlStatement', 'SqlValue', 'SqlBindingType', 'JsonRecord', 'JsonEncoding', 'RequiredFile']),
+        array_map(static fn (string $name): string => 'tests/Support/' . $name . '.php', ['EngineFixture', 'EngineSchedule', 'FixtureValue', 'FixtureFiles', 'FixtureNative']));
+}
+
+/** Companion to the original engine failure; exclusive publication cannot overwrite the first observation. */
+function server_cell_report_availability_failure(#[\SensitiveParameter] array $child, string $root): void
+{
+    try {
+        $runtime = dirname($root);
+        if (basename($root) !== 'source' || preg_match('/\Atablo-server-[0-9a-f]{32}\z/D', basename($runtime)) !== 1) { return; }
+        $observation = server_cell_availability_observation($child);
+        if ($observation === null) { return; }
+        $bytes = json_encode($observation, JSON_THROW_ON_ERROR | JSON_UNESCAPED_SLASHES) . "\n";
+        if (strlen($bytes) > 2_048) { return; }
+        server_cell_private_write(dirname($runtime) . '/safe-availability-failure.json', $bytes);
+    } catch (Throwable $discarded) { unset($discarded); }
 }
 
 /** Child scripts must resolve inside the prepared source whose offline autoload was generated.
