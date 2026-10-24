@@ -253,7 +253,7 @@ function engine_verification_phase_private(string $path, string $bytes): void
 function engine_verification_phase_collector(): void
 {
     if (PHP_OS_FAMILY !== 'Linux' || PHP_VERSION_ID < 80_500 || PHP_VERSION_ID >= 80_600) { return; }
-    foreach (['valid', 'failure', 'order', 'truncated', 'readonly', 'nonce', 'source', 'script', 'case', 'arguments', 'engine', 'hash', 'plan', 'sink', 'runtime', 'collision', 'linked', 'ancestor'] as $variant) {
+    foreach (['valid', 'failure', 'order', 'truncated', 'buffer-unavailable', 'readonly', 'nonce', 'source', 'script', 'case', 'arguments', 'engine', 'hash', 'plan', 'sink', 'runtime', 'collision', 'linked', 'ancestor'] as $variant) {
         $directory = new TemporaryDirectory('tablo-phase-collector-');
         try { engine_verification_phase_collector_case($directory, $variant); } finally { $directory->close(); }
     }
@@ -290,9 +290,31 @@ function engine_verification_phase_collector_case(TemporaryDirectory $directory,
     engine_verification_phase_private($layout['actor'], engine_verification_phase_actor($variant));
     $arguments = $variant === 'arguments' ? ['foreign', 'transfer-working-data'] : ['transfer-working-data', 'transfer-working-data'];
     $child = Subprocess::run([PHP_BINARY, '-n', $layout['actor'], ...$arguments], $directory, [], new CommandOptions(replacementEnvironment: $environment));
-    Assert::same([$child['exit_code'], $child['stdout'], $child['stderr']], [0, '{"primaryPreserved":true}', '']);
+    engine_verification_phase_child($child, $variant);
     Assert::false(file_exists($layout['foreign'] . '/transfer-phase-s107.tsv'));
     engine_verification_phase_collector_result($trace, $variant, $sentinel);
+}
+
+function engine_verification_phase_positive(string $variant): bool
+{ return in_array($variant, ['valid', 'failure', 'order', 'truncated', 'buffer-unavailable'], strict: true); }
+
+/** Positive fixture output contains only four source-authored booleans; no native diagnostic value is echoed.
+ * @param \Tablo\Tests\Support\Subprocess::Result $child */
+function engine_verification_phase_child(array $child, string $variant): void
+{
+    if (!engine_verification_phase_positive($variant)) {
+        Assert::same([$child['exit_code'], $child['stdout'], $child['stderr']], [0, '{"primaryPreserved":true}', '']); return;
+    }
+    Assert::same($child['exit_code'], 0);
+    Assert::true($child['stderr'] === '');
+    Assert::true(strlen($child['stdout']) <= 256);
+    $record = \Tablo\JsonRecord::decode($child['stdout']);
+    Assert::same(array_keys($record), ['primaryPreserved', 'gate', 'source', 'derivedDirectory']);
+    foreach (['primaryPreserved', 'gate', 'source', 'derivedDirectory'] as $field) { Assert::true(is_bool($record[$field] ?? null)); }
+    Assert::same($record['primaryPreserved'] ?? null, true);
+    Assert::same($record['gate'] ?? null, true);
+    Assert::same($record['source'] ?? null, true);
+    Assert::same($record['derivedDirectory'] ?? null, true);
 }
 
 /** @param array<string, string> $environment
@@ -319,9 +341,25 @@ function engine_verification_phase_actor(string $variant): string
 \Tablo\database_transfer_phase_mark(10);
 for ($index = 1; $index <= 70; $index++) { $syntheticGrowth = str_repeat('x', $index * 65536); \Tablo\database_transfer_phase_mark(20); }
 PHP : '';
-    return '<?php require dirname(__DIR__) . "/app/NativeWarning.php"; require dirname(__DIR__) . "/app/DatabaseTransfer.php"; try { ' . $growth . ' foreach (' . $phases . ' as $phase) { \\Tablo\\database_transfer_phase_mark($phase); }'
-        . ' throw new \\RuntimeException("SYNTHETIC_PRIMARY"); } catch (\\Throwable $primary) { ' . $failureMark . $writer
-        . ' echo json_encode(["primaryPreserved" => $writerPreserved && $primary instanceof \\RuntimeException && $primary->getMessage() === "SYNTHETIC_PRIMARY"], JSON_THROW_ON_ERROR); }';
+    $namespace = $variant === 'buffer-unavailable'
+        ? 'namespace Tablo { function stream_set_write_buffer(mixed $stream, int $size): int { return -1; } } namespace {' : 'namespace {';
+    $activation = engine_verification_phase_positive($variant) ? engine_verification_phase_activation_actor() : '$activation = [];';
+    return '<?php ' . $namespace . ' require dirname(__DIR__) . "/app/NativeWarning.php"; require dirname(__DIR__) . "/app/DatabaseTransfer.php";'
+        . ' try { ' . $growth . ' foreach (' . $phases . ' as $phase) { \\Tablo\\database_transfer_phase_mark($phase); }'
+        . ' throw new \\RuntimeException("SYNTHETIC_PRIMARY"); } catch (\\Throwable $primary) { ' . $failureMark . $writer . $activation
+        . ' echo json_encode(["primaryPreserved" => $writerPreserved && $primary instanceof \\RuntimeException && $primary->getMessage() === "SYNTHETIC_PRIMARY"] + $activation, JSON_THROW_ON_ERROR); } }';
+}
+
+function engine_verification_phase_activation_actor(): string
+{
+    return <<<'PHP'
+$activation = ["gate" => false, "source" => false, "derivedDirectory" => false];
+try {
+    $activation["gate"] = \Tablo\NativeWarning::ignore(static fn (): bool => \Tablo\database_transfer_phase_gate());
+    $activation["source"] = getenv("TABLO_TEST_SOURCE_ROOT") === str_replace("\\", "/", dirname(__DIR__));
+    $activation["derivedDirectory"] = \Tablo\NativeWarning::ignore(static fn (): bool => \Tablo\database_transfer_phase_directory() === getenv("TABLO_SESSION_EVIDENCE_DIRECTORY"));
+} catch (\Throwable) {}
+PHP;
 }
 
 function engine_verification_phase_readonly_actor(): string
@@ -340,7 +378,8 @@ PHP;
 
 function engine_verification_phase_collector_result(string $trace, string $variant, string $sentinel): void
 {
-    if (in_array($variant, ['valid', 'failure', 'order', 'truncated'], strict: true)) {
+    if (engine_verification_phase_positive($variant)) {
+        engine_verification_phase_trace_owned($trace);
         $bytes = \Tablo\Tools\server_native_phase_bytes($trace); Assert::true(is_string($bytes));
         $actual = \Tablo\Tools\server_native_phase_project(is_string($bytes) ? $bytes : '');
         Assert::same($actual['status'], match ($variant) { 'failure' => 'APP_FAILURE', 'order' => 'ORDER_INVALID', 'truncated' => 'TRUNCATED', default => 'APP_COMPLETE_ONLY' });
@@ -350,6 +389,18 @@ function engine_verification_phase_collector_result(string $trace, string $varia
     }
     if (in_array($variant, ['collision', 'linked'], strict: true)) { Assert::same(file_get_contents($trace), $sentinel); return; }
     Assert::false(file_exists($trace) || is_link($trace));
+}
+
+/** Distinct fixed assertion lines localize only this owned synthetic trace, before the stable reader runs. */
+function engine_verification_phase_trace_owned(string $trace): void
+{
+    clearstatcache(true, $trace);
+    Assert::true(is_file($trace) && !is_link($trace));
+    $stat = lstat($trace);
+    if (!is_array($stat)) { Assert::true(false); return; }
+    Assert::true($stat['size'] > 0 && $stat['size'] <= 8192);
+    Assert::true(($stat['mode'] & 0o170_000) === 0o100_000 && ($stat['mode'] & 0o777) === 0o600);
+    Assert::same($stat['nlink'], 1);
 }
 
 function engine_verification_failed_report(): void

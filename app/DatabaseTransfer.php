@@ -391,8 +391,8 @@ function database_transfer_phase_sink_guarded(): mixed
     if (!is_resource($handle)) { return false; }
     $admitted = false;
     try {
-        if (!database_transfer_phase_file($handle, $path) || !chmod($path, permissions: 0o600)
-            || stream_set_write_buffer($handle, size: 0) !== 0) { return false; }
+        if (!database_transfer_phase_file($handle, $path) || !chmod($path, permissions: 0o600)) { return false; }
+        stream_set_write_buffer($handle, size: 0);
         $stat = fstat($handle);
         if (!is_array($stat) || ($stat['mode'] & 0o777) !== 0o600) { return false; }
         $admitted = true; return $handle;
