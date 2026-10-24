@@ -32,8 +32,29 @@ final class ServerSchemaDescriptor
     public static function checksum(PDO $db, int $version = 10): string
     {
         if (!in_array($version, [9, 10], strict: true)) { self::refuse(); }
-        return hash('sha256', JsonEncoding::encode(array_values(array_filter(self::layout($db)['tables'],
-            static fn (array $table): bool => $version === 10 || $table['name'] !== 'read_api_token'))));
+        $tables = array_values(array_filter(self::layout($db)['tables'],
+            static fn (array $table): bool => $version === 10 || $table['name'] !== 'read_api_token'));
+        return self::checksumTables($tables);
+    }
+
+    /** @param list<array> $tables */
+    private static function checksumTables(array $tables): string
+    {
+        $hash = hash_init('sha256');
+        hash_update($hash, data: '[');
+        $separator = '';
+        foreach ($tables as $table) {
+            $encoded = JsonEncoding::encode([$table]);
+            hash_update($hash, $separator);
+            $limit = strlen($encoded) - 1;
+            for ($offset = 1; $offset < $limit; $offset += 4096) {
+                hash_update($hash, substr($encoded, $offset, min(4096, $limit - $offset)));
+            }
+            unset($encoded);
+            $separator = ',';
+        }
+        hash_update($hash, data: ']');
+        return hash_final($hash);
     }
     public static function sameDefault(mixed $actual, ?string $expected): bool
     {

@@ -3386,7 +3386,7 @@
                 "app/ServerColumnAdmission.php",
                 "app/ServerSchema.php"
             ],
-            "fingerprint": "sha256:c4668d4e9d5c56b2871c9a68e726c0654d797b266fce93865dc6041e281ca5fa"
+            "fingerprint": "sha256:becd99bdbedcf5d0258fba5f7138d287ca9e0dc892733e90fc288be064983d70"
         },
         {
             "path": "app/ServerSchemaState.php",
@@ -8001,7 +8001,7 @@
                 "Composer verify:server",
                 "Standalone frozen logical9 fixture materialization (source grant pending)"
             ],
-            "fingerprint": "sha256:5c85a79e7eb6721eb170eb1da92be50ee4820c42e83ebd4140506fe4517f9d3b"
+            "fingerprint": "sha256:8fe45c6d9e8ba5844654de085d3c31b17618b6dc097224acbb73c0a34ee7b85d"
         },
         {
             "path": "tests/Server/EngineMigrationProcessTest.php",

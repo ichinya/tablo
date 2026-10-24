@@ -115,6 +115,8 @@ final class EngineMigrationPreviousTest
         Assert::same([$header['schema'] ?? null, $header['engine'] ?? null, $header['metadataFormat'] ?? null, $header['logicalVersion'] ?? null, $header['domainTables'] ?? null, count($tables)],
             ['tablo/synthetic-logical9-fixture/v1', $engine, 1, 9, 14, 17]);
         $checksum = SqlColumn::string($header, 'layoutChecksum'); Assert::same($checksum, ServerSchema::checksum($db, version: 9));
+        engine_schema_checksum_streaming_contract();
+        engine_schema_checksum_public_equivalence($db);
         $declarations = []; $names = [];
         foreach (array_keys($tables) as $index) {
             $table = JsonRecord::checked($tables[$index] ?? null); $sql = SqlColumn::string($table, 'sql');
@@ -169,6 +171,80 @@ final class EngineMigrationPreviousTest
         }
         Assert::same(count($snapshot), 14); return $snapshot;
     }
+}
+
+function engine_schema_checksum_public_equivalence(PDO $db): void
+{
+    foreach ([9, 10] as $version) {
+        $reference = hash('sha256', \Tablo\JsonEncoding::encode(array_values(array_filter(ServerSchema::layout($db)['tables'],
+            static fn (array $table): bool => $version === 10 || $table['name'] !== 'read_api_token'))));
+        Assert::same(ServerSchema::checksum($db, $version), $reference);
+    }
+    Assert::same(ServerSchema::checksum($db), ServerSchema::checksum($db, version: 10));
+}
+
+/** Pure coverage invokes the same private algorithm used by the public checksum. */
+function engine_schema_checksum_streaming_contract(): void
+{
+    $method = new \ReflectionMethod(\Tablo\ServerSchemaDescriptor::class, 'checksumTables');
+    foreach ([[], [[]], [['name' => 'one']], [
+        ['name' => 'first', 'values' => [null, false, true, 0, 1, -1, 1.0, 1.5, -0.0, '1', '', [], ['nested' => []]]],
+        ['name' => 'second', 'payload' => "quote\" slash/ backslash\\ control\0\r\n\t Café\u{2028}"],
+    ], array_values([9 => ['name' => 'first'], 2 => ['name' => 'second', 'keys' => [3 => 'three', 1 => 'one']]])] as $tables) {
+        engine_schema_checksum_equivalent($method, $tables);
+    }
+    engine_schema_checksum_chunks($method);
+    engine_schema_checksum_depth($method);
+    engine_schema_checksum_encoding_failures($method);
+}
+
+/** @param list<array> $tables */
+function engine_schema_checksum_equivalent(\ReflectionMethod $method, array $tables): void
+{
+    $before = $tables;
+    $reference = hash('sha256', \Tablo\JsonEncoding::encode($tables));
+    Assert::same($method->invoke(null, $tables), $reference);
+    Assert::same($tables, $before);
+}
+
+function engine_schema_checksum_chunks(\ReflectionMethod $method): void
+{
+    foreach ([0, 1, 4093, 4094, 4095, 4096, 4097, 8191, 8192, 8193] as $length) {
+        $payload = str_repeat('x', $length) . "\"\\/\0\r\n\tCafé";
+        engine_schema_checksum_equivalent($method, [['payload' => $payload], ['payload' => 'tail'], ['payload' => $payload]]);
+    }
+}
+
+function engine_schema_checksum_depth(\ReflectionMethod $method): void
+{
+    $nested = 'leaf'; $boundary = false;
+    for ($depth = 1; $depth <= 513; $depth++) {
+        $nested = [$nested];
+        if ($depth < 508) { continue; }
+        $tables = [['payload' => $nested]];
+        $reference = engine_schema_checksum_outcome(static fn () => hash('sha256', \Tablo\JsonEncoding::encode($tables)));
+        Assert::same(engine_schema_checksum_outcome(static fn () => $method->invoke(null, $tables)), $reference);
+        $direct = engine_schema_checksum_outcome(static fn () => \Tablo\JsonEncoding::encode($tables[0]));
+        if ($reference['error'] === JSON_ERROR_DEPTH && $direct['error'] === null) { $boundary = true; }
+    }
+    Assert::true($boundary);
+}
+
+function engine_schema_checksum_encoding_failures(\ReflectionMethod $method): void
+{
+    foreach ([[['payload' => "\xFF"]], [['payload' => 'valid'], ['payload' => "\xC3\x28"]], [['value' => NAN]], [['value' => INF]]] as $tables) {
+        $reference = engine_schema_checksum_outcome(static fn () => hash('sha256', \Tablo\JsonEncoding::encode($tables)));
+        Assert::true($reference['error'] !== null);
+        Assert::same(engine_schema_checksum_outcome(static fn () => $method->invoke(null, $tables)), $reference);
+    }
+}
+
+/** @param \Closure(): mixed $operation
+ * @return array{value: mixed, error: int|string|null, message: ?string} */
+function engine_schema_checksum_outcome(\Closure $operation): array
+{
+    try { return ['value' => $operation(), 'error' => null, 'message' => null]; }
+    catch (\JsonException $failure) { return ['value' => null, 'error' => $failure->getCode(), 'message' => $failure->getMessage()]; }
 }
 
 function engine_migration_uncertain_phase(): void
