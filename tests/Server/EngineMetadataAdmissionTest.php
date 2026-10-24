@@ -302,7 +302,7 @@ function engine_metadata_writer_grants(\PDO $db, DatabaseConfiguration $configur
 {
     $grantee = ServerMetadataIdentity::grantee($db, $configuration);
     Assert::same(ServerSchema::rows($db, 'SELECT PRIVILEGE_TYPE FROM information_schema.SCHEMA_PRIVILEGES WHERE CAST(GRANTEE AS BINARY) = ?', [$grantee]), []);
-    $actual = ServerSchema::rows($db, 'SELECT TABLE_NAME AS name, PRIVILEGE_TYPE AS privilege_type, IS_GRANTABLE AS grantable FROM information_schema.TABLE_PRIVILEGES WHERE CAST(GRANTEE AS BINARY) = ? AND CAST(TABLE_SCHEMA AS BINARY) = CAST(DATABASE() AS BINARY) ORDER BY TABLE_NAME,PRIVILEGE_TYPE', [$grantee]);
+    $actual = ServerSchema::rows($db, 'SELECT TABLE_NAME AS name, PRIVILEGE_TYPE AS privilege_type, IS_GRANTABLE AS grantable FROM information_schema.TABLE_PRIVILEGES WHERE CAST(GRANTEE AS BINARY) = ? AND CAST(TABLE_SCHEMA AS BINARY) = CAST(DATABASE() AS BINARY) ORDER BY BINARY TABLE_NAME,BINARY PRIVILEGE_TYPE', [$grantee]);
     $expected = [];
     foreach (\Tablo\DatabaseTransferManifest::TABLES as $table) {
         foreach (['DELETE', 'INSERT', 'SELECT', 'UPDATE'] as $privilege) { $expected[] = ['name' => $table, 'privilege_type' => $privilege, 'grantable' => 'NO']; }
