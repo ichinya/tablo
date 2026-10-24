@@ -191,14 +191,14 @@ function server_verify_lane(string $root, TemporaryDirectory $directory, array $
         $prepared = server_cell_prepare($context, $catalogs, $declaration, ['engine' => $engine, 'lane' => $lane, 'index' => $index]);
         if ($readiness === []) { $readiness = server_verify_prepared_readiness($prepared, $engine, JsonRecord::checked($context['plan']['services'] ?? null)); }
         $results[$identity] = server_verify_one_case($root, $directory, $spec,
-            ['lane' => $lane, 'index' => $index++, 'identity' => $identity, 'catalogs' => $catalogs, 'publicSources' => $owner['publicSources'], 'phasePlan' => $context['plan']], $prepared);
+            ['lane' => $lane, 'index' => $index++, 'identity' => $identity, 'catalogs' => $catalogs, 'publicSources' => $owner['publicSources']], $prepared);
     }
     if ($readiness === []) { throw new RuntimeException('Actual selected-engine readiness evidence absent.'); }
     return ['cases' => $results, 'readiness' => $readiness];
 }
 
 /** @param array{identity: string, path: string, minimumAssertions: int, deadlineSeconds: ?int} $spec
- * @param array{lane: string, index: int, identity: string, catalogs: array<string, \Tablo\Tools\ServerFixtureCatalog>, publicSources: list<string>, phasePlan: array} $selection
+ * @param array{lane: string, index: int, identity: string, catalogs: array<string, \Tablo\Tools\ServerFixtureCatalog>, publicSources: list<string>} $selection
  * @param array{environment: array<string, string>, closureDirectory: string, fixtures: list<\Tablo\Tools\ServerFixturePlan::Fixture>} $prepared */
 function server_verify_one_case(string $root, TemporaryDirectory $directory, array $spec, array $selection, array $prepared): array
 {
@@ -208,71 +208,33 @@ function server_verify_one_case(string $root, TemporaryDirectory $directory, arr
     $report = $directory->path . '/native-' . $lane . '-' . $index . '.xml';
     $command = server_verify_command($spec['path'], $identity, $lane, $report);
     server_verify_progress($root, $lane, $index + 1, ['identity' => $identity, 'source' => $spec['path'], 'status' => 'started', 'deadlineSeconds' => $maximum]);
-    $child = server_verify_child($command, $directory, $prepared['environment'], $maximum, server_verify_failure_callback($root, $selection, $spec, $prepared));
+    $child = server_verify_child($command, $directory, $prepared['environment'], $maximum, server_verify_failure_callback($root, $selection, $spec));
     $native = \Tablo\Tools\server_native_junit($root, $report, [$identity => $spec]);
     \Tablo\Tools\server_native_summary(JsonRecord::decode($child['stdout'], 32), required: 1, assertions: $native['assertions']);
     foreach ($selection['catalogs'] as $catalog) { $catalog->complete($child, $native, $prepared['closureDirectory']); }
-    $progress = ['identity' => $identity, 'source' => $spec['path'], 'status' => 'passed', 'native' => $native];
-    $phase = server_verify_phase_diagnostic($root, $selection, $prepared, $child);
-    if ($phase !== null) { $progress['phaseDiagnostic'] = $phase; }
-    server_verify_progress($root, $lane, $index + 1, $progress);
+    server_verify_progress($root, $lane, $index + 1, ['identity' => $identity, 'source' => $spec['path'], 'status' => 'passed', 'native' => $native]);
     $result = ['source' => $spec['path'], 'native' => $native, 'junit' => $report, 'capture' => $child['files'],
         'fixtureSlots' => $prepared['fixtures'], 'descendantClosureDirectory' => $prepared['closureDirectory']];
     server_cell_observer_finish($lease, closed: true);
     return $result;
 }
 
-/** @param array{lane: string, index: int, identity: string, publicSources: list<string>, phasePlan: array, ...} $selection
+/** @param array{lane: string, index: int, identity: string, publicSources: list<string>, ...} $selection
  * @param array{path: string, ...} $spec
- * @param array{environment: array<string, string>, closureDirectory: string, ...} $prepared
- * @return \Closure(\Tablo\Tests\Support\Subprocess::Result): void */
-function server_verify_failure_callback(string $root, array $selection, array $spec, array $prepared): \Closure
+ * @return \Closure(array): void */
+function server_verify_failure_callback(string $root, array $selection, array $spec): \Closure
 {
-    return /** @param \Tablo\Tests\Support\Subprocess::Result $failed */ static function (array $failed) use ($root, $selection, $spec, $prepared): void {
-        $exit = $failed['exit_code'];
+    return static function (array $failed) use ($root, $selection, $spec): void {
+        /** @var mixed $exit Only the bounded native nonzero integer is retained below. */
+        $exit = $failed['exit_code'] ?? null;
         $bytes = SqlColumn::string($failed, 'stdout');
         $record = ['identity' => $selection['identity'], 'source' => $spec['path'], 'status' => 'failed',
             'childExit' => is_int($exit) && $exit >= 1 && $exit <= 255 ? $exit : 'UNKNOWN',
             'diagnostic' => \Tablo\Tools\server_native_failure($root, $bytes, $selection['identity'], $selection['publicSources'])];
         $memory = \Tablo\Tools\server_native_memory_failure($root, $bytes, $selection['identity'], $selection['publicSources']);
         if ($memory !== null) { $record['memoryDiagnostic'] = $memory; }
-        $phase = server_verify_phase_diagnostic($root, $selection, $prepared, $failed);
-        if ($phase !== null) { $record['phaseDiagnostic'] = $phase; }
         server_verify_progress($root, $selection['lane'], $selection['index'] + 1, $record);
     };
-}
-
-/** Optional Source107 output is scoped to one existing cold case and the already closed actual Testo child.
- * @param array{lane: string, index: int, identity: string, phasePlan: array, ...} $selection
- * @param array{environment: array<string, string>, closureDirectory: string, ...} $prepared
- * @param \Tablo\Tests\Support\Subprocess::Result $child */
-function server_verify_phase_diagnostic(string $root, array $selection, array $prepared, array $child): ?array
-{
-    if (!server_verify_phase_scope($selection, $prepared['environment'])) { return null; }
-    try {
-        return \Tablo\NativeWarning::ignore(static function () use ($root, $selection, $prepared, $child): array {
-            if (!server_verify_phase_closed($child)) { return \Tablo\Tools\server_native_phase_unknown(); }
-            return \Tablo\Tools\server_native_phase_diagnostic($root, $prepared['closureDirectory'], $prepared['environment'],
-                $selection['index'], $selection['phasePlan']);
-        });
-    } catch (Throwable) { return \Tablo\Tools\server_native_phase_unknown(); }
-}
-
-/** @param array{lane: string, identity: string, ...} $selection
- * @param array<string, string> $environment */
-function server_verify_phase_scope(array $selection, array $environment): bool
-{
-    return $selection['identity'] === 'Tablo\\Tests\\Server\\EngineTransferTest::completeNativeRoundTripOverEightMiBUsesAtMostTwoMiBOfPhpWorkingData'
-        && $selection['lane'] === 'main' && ($environment['TABLO_TEST_DB_DRIVER'] ?? null) === 'mariadb'
-        && PHP_VERSION_ID >= 80_500 && PHP_VERSION_ID < 80_600;
-}
-
-/** @param \Tablo\Tests\Support\Subprocess::Result $child */
-function server_verify_phase_closed(array $child): bool
-{
-    $receipt = \Tablo\Tests\Support\SubprocessReceipt::read($child['files']['receipt']);
-    return $receipt['closed'] && $receipt['root_exit_observed'] && is_int($receipt['pid']) && $receipt['pid'] > 0
-        && $receipt['exit_code'] === $child['exit_code'] && \Tablo\Tools\server_fixture_catalog_direct_stopped($receipt);
 }
 
 function server_verify_progress(string $root, string $lane, int $index, array $record): void
