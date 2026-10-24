@@ -132,6 +132,7 @@ function engine_metadata_positive(): void
         $db = $fixture->database();
         engine_metadata_writer_grants($db, $configuration);
         engine_metadata_journal_checks($fixture, $db, $configuration);
+        engine_metadata_invocation_tables($db, $configuration, $observation);
         engine_metadata_scoped_layout($fixture, $db, $configuration, $observation);
         $sites = new \Tablo\SiteRepository($db, $fixture->vault);
         Assert::same($sites->save(\Tablo\Tests\Support\UnitFixtures::site()), 1);
@@ -147,6 +148,56 @@ function engine_metadata_positive(): void
 }
 
 /** @param \Tablo\ServerMetadataAdmission::Observation $observation */
+function engine_metadata_invocation_tables(\PDO $db, DatabaseConfiguration $configuration, array $observation): void
+{
+    $tables = ServerSchema::layout($db)['tables']; $before = $tables;
+    $provided = ServerMetadataAdmission::observe($configuration, version: 10, expectedTables: $tables);
+    Assert::same(engine_metadata_sorted_observation($provided), engine_metadata_sorted_observation($observation));
+    Assert::same($tables, $before);
+    // This borrowed inventory exercises the existing version-9 name rule, not a real version-9 catalog.
+    $withoutApi = $provided;
+    $withoutApi['objects'] = array_values(array_filter($provided['objects'], static fn (array $object): bool => $object['name'] !== 'read_api_token'));
+    $missing = $provided;
+    $missing['objects'] = array_values(array_filter($provided['objects'], static fn (array $object): bool => $object['name'] !== 'users'));
+    $extra = $provided; $extra['objects'][] = ['name' => 'zz_source96_unexpected', 'kind' => 'BASE TABLE'];
+    foreach ([null, $tables] as $expectedTables) {
+        engine_metadata_expected_case($db, $provided, version: 10, expectedTables: $expectedTables);
+        engine_metadata_expected_case($db, $withoutApi, version: 9, expectedTables: $expectedTables);
+        foreach ([0, 11] as $version) { engine_metadata_expected_case($db, $withoutApi, $version, $expectedTables, category: 'schema'); }
+        engine_metadata_expected_case($db, $missing, version: 10, expectedTables: $expectedTables, category: 'schema');
+        engine_metadata_expected_case($db, $extra, version: 10, expectedTables: $expectedTables, category: 'schema');
+    }
+}
+
+/** CHECK rows have no SQL ordering contract; all observation values still compare exactly.
+ * @param \Tablo\ServerMetadataAdmission::Observation $observation
+ * @return \Tablo\ServerMetadataAdmission::Observation */
+function engine_metadata_sorted_observation(array $observation): array
+{
+    foreach ($observation['checks'] as $name => $clauses) { ksort($clauses, SORT_STRING); $observation['checks'][$name] = $clauses; }
+    return $observation;
+}
+
+/** @param \Tablo\ServerMetadataAdmission::Observation $observation
+ * @param list<\Tablo\ServerSchema::Table>|null $expectedTables */
+function engine_metadata_expected_case(\PDO $db, array $observation, int $version, ?array $expectedTables, ?string $category = null): void
+{
+    $session = \Tablo\DatabaseSession::get($db) ?? throw new \RuntimeException('Missing admitted session.');
+    $prior = $session->metadataObservation; $session->metadataObservation = $observation;
+    try {
+        $caught = null; $names = null;
+        try { $names = ServerMetadataAdmission::objects($db, $version, expectedTables: $expectedTables); }
+        catch (DatabaseFailure $error) { $caught = $error; }
+        Assert::same($session->metadataObservation, $observation);
+        if ($category === null) {
+            Assert::same($caught, null); Assert::same($names, array_column($observation['objects'], 'name'));
+            return;
+        }
+        Assert::same($caught?->category, $category); Assert::same($caught?->getPrevious(), null);
+    } finally { $session->metadataObservation = $prior; }
+}
+
+/** @param \Tablo\ServerMetadataAdmission::Observation $observation */
 function engine_metadata_scoped_layout(EngineFixture $fixture, \PDO $writer, DatabaseConfiguration $configuration, array $observation): void
 {
     if ($configuration->engine !== 'mariadb') { return; }
@@ -155,6 +206,8 @@ function engine_metadata_scoped_layout(EngineFixture $fixture, \PDO $writer, Dat
         Assert::same($session->metadataObservation, null);
         ServerSchema::validateLayout($connection);
         Assert::same($session->metadataObservation, null, 'fresh layout observations stay scoped to one admission');
+        ServerSchema::validateLayout($connection);
+        Assert::same($session->metadataObservation, null, 'sequential admissions each release their fresh observation');
         Assert::false($connection->inTransaction()); Assert::false(\Tablo\WriteTransaction::owns($connection));
     }
     engine_metadata_borrowed_layout($writer, $observation);
@@ -198,6 +251,7 @@ function engine_metadata_owned_layout_failure(EngineFixture $fixture, \PDO $db, 
     } finally {
         if ($changed) { $maintenance->exec('ALTER TABLE tablo_database_state DROP CONSTRAINT tablo_database_state_c3, ADD CONSTRAINT tablo_database_state_c3 CHECK (logical_version BETWEEN 0 AND 10)'); }
     }
+    ServerSchema::validateLayout($db); Assert::same($session->metadataObservation, null);
 }
 
 function engine_metadata_journal_checks(EngineFixture $fixture, \PDO $writer, DatabaseConfiguration $configuration): void

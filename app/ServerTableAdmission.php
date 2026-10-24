@@ -32,9 +32,9 @@ final class ServerTableAdmission
             if ($version === 10 && $session?->configuration->engine === 'mariadb'
                 && in_array($session->configuration->role, ['writer', 'control'], strict: true) && $session->metadataObservation === null) {
                 // One admission owns one fresh observation; a factory snapshot stays borrowed.
-                $session->metadataObservation = ServerMetadataAdmission::observe($session->configuration, $version); $owned = true;
+                $session->metadataObservation = ServerMetadataAdmission::observe($session->configuration, $version, expectedTables: $layout['tables']); $owned = true;
             }
-            if (ServerMetadataAdmission::objects($db, $version) !== $expected) { self::refuse(); }
+            if (ServerMetadataAdmission::objects($db, $version, expectedTables: $layout['tables']) !== $expected) { self::refuse(); }
             foreach ($tables as $table) { ServerTableAdmission::verify($db, $table); }
         } finally { if ($owned && $session !== null) { $session->metadataObservation = null; } }
     }

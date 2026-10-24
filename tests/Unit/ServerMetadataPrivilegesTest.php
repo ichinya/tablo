@@ -77,6 +77,7 @@ function metadata_checks_direct_role(MetadataPrivilegesPdo $db, DatabaseConfigur
     $queries = $db->queries;
     Assert::true(class_exists(\Tablo\ServerMetadataAdmission::class));
     Assert::same(\Tablo\server_metadata_check_observation($db, $configuration, version: 10), []);
+    Assert::same(\Tablo\server_metadata_check_observation($db, $configuration, version: 10, expectedTables: \Tablo\ServerSchema::layout($db)['tables']), []);
     $caught = null;
     try { \Tablo\ServerMetadataAdmission::checks($db, 'tablo_migration_journal'); } catch (DatabaseFailure $error) { $caught = $error; }
     Assert::same($caught?->category, 'schema'); Assert::same($caught?->getPrevious(), null);
@@ -133,12 +134,30 @@ function metadata_checks_observation(MetadataPrivilegesPdo $writer, DatabaseConf
         'TABLO_DB_USER' => 'writer', 'TABLO_DB_PASSWORD' => '', 'TABLO_DB_TLS' => 'local', 'TABLO_DB_METADATA_USER' => 'meta', 'TABLO_DB_METADATA_PASSWORD' => ''];
     \Tablo\DatabaseSession::register($metadata, DatabaseConfiguration::fromEnvironment(environment: $environment)->metadata());
     Assert::true(class_exists(\Tablo\ServerMetadataAdmission::class));
-    try { $checks = \Tablo\server_metadata_check_observation($metadata, $configuration, version: 10); }
+    try { $checks = metadata_checks_invocation_tables($metadata, $configuration); }
     finally { Assert::same($metadata->opened, $metadata->closed); }
     $session = \Tablo\DatabaseSession::get($writer) ?? throw new \RuntimeException('Missing writer session.');
     $session->metadataObservation = ['server' => \Tablo\ServerMetadataIdentity::server($writer), 'account' => "'meta'@'%'",
         'objects' => [['name' => 'tablo_migration_journal', 'kind' => 'BASE TABLE']], 'installation' => [], 'checks' => $checks];
     return $metadata;
+}
+
+/** Both paths use the existing closed metadata model, never a connection factory seam.
+ * @return array<string, array<string, string>> */
+function metadata_checks_invocation_tables(MetadataPrivilegesPdo $metadata, DatabaseConfiguration $configuration): array
+{
+    $tables = \Tablo\ServerSchema::layout($metadata)['tables']; $before = $tables;
+    $default = []; $provided = []; $defaultFailure = null; $providedFailure = null;
+    try { $default = \Tablo\server_metadata_check_observation($metadata, $configuration, version: 10); }
+    catch (DatabaseFailure $error) { $defaultFailure = $error; }
+    try { $provided = \Tablo\server_metadata_check_observation($metadata, $configuration, version: 10, expectedTables: $tables); }
+    catch (DatabaseFailure $error) { $providedFailure = $error; }
+    Assert::same($providedFailure?->category, $defaultFailure?->category);
+    Assert::same($providedFailure?->getPrevious(), null); Assert::same($tables, $before);
+    if ($defaultFailure !== null) { throw $defaultFailure; }
+    Assert::same($provided, $default);
+    Assert::same(array_keys($provided), array_column($tables, 'name'));
+    return $default;
 }
 
 function metadata_checks_bound_snapshot(string $role): void
@@ -164,12 +183,30 @@ function metadata_checks_bound_snapshot(string $role): void
         Assert::same($caught?->category, 'schema'); Assert::same($caught?->getPrevious(), null);
         Assert::same($session->metadataObservation, $borrowed);
     }
+    metadata_layout_invocation_refusals($db, $original);
     metadata_layout_bound_snapshot($db, $original);
     $session->metadataObservation = null;
     $caught = null;
     try { \Tablo\ServerCheckAdmission::verify($db, $table); } catch (DatabaseFailure $error) { $caught = $error; }
     Assert::same($caught?->category, 'configuration', 'cleared snapshots must request a fresh admitted observation');
     Assert::same($db->opened, $db->closed);
+}
+
+/** A partial bound inventory must refuse with either descriptor path; no fake SQL surface is expanded.
+ * @param \Tablo\ServerMetadataAdmission::Observation $observation */
+function metadata_layout_invocation_refusals(MetadataPrivilegesPdo $db, array $observation): void
+{
+    $session = \Tablo\DatabaseSession::get($db) ?? throw new \RuntimeException('Missing admitted session.');
+    $tables = \Tablo\ServerSchema::layout($db)['tables']; $session->metadataObservation = $observation;
+    foreach ([0, 9, 10, 11] as $version) {
+        foreach ([null, $tables] as $provided) {
+            $caught = null;
+            try { \Tablo\ServerMetadataAdmission::objects($db, $version, expectedTables: $provided); }
+            catch (DatabaseFailure $error) { $caught = $error; }
+            Assert::same($caught?->category, 'schema'); Assert::same($caught?->getPrevious(), null);
+            Assert::same($session->metadataObservation, $observation);
+        }
+    }
 }
 
 /** @param \Tablo\ServerMetadataAdmission::Observation $observation */

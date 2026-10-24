@@ -6,13 +6,18 @@ namespace Tablo;
 use PDO;
 
 /** Transient, explicitly privileged observation under the documented quiescent DDL lifecycle.
+ * Optional expectedTables is internal invocation reuse of the complete, unfiltered
+ * ServerSchema::layout($selectedPdo)['tables'] after source validation. It must never
+ * come from SQL, an archive, environment or a report; it is not stored on a session.
  * @phpstan-import-type Objects from ServerMetadataInventory
+ * @phpstan-import-type Table from ServerSchema
  * @phpstan-type Observation array{server: array<string, int|string>, account: string, objects: Objects, installation: list<array>, checks: array<string, array<string, string>>}
  */
 final class ServerMetadataAdmission
 {
-    /** @return Observation */
-    public static function observe(#[\SensitiveParameter] DatabaseConfiguration $configuration, ?int $version = null): array
+    /** @param list<Table>|null $expectedTables Validated invocation-owned source tables only.
+     * @return Observation */
+    public static function observe(#[\SensitiveParameter] DatabaseConfiguration $configuration, ?int $version = null, ?array $expectedTables = null): array
     {
         $db = null;
         try {
@@ -20,9 +25,9 @@ final class ServerMetadataAdmission
             ServerMetadataPrivileges::verify($db, $metadata);
             $objects = ServerMetadataInventory::read($db);
             $names = ServerMetadataInventory::tables($objects);
-            if ($version !== null) { self::expected($db, $names, $version); }
+            if ($version !== null) { self::expected($db, $names, $version, $expectedTables); }
             return ['server' => ServerMetadataIdentity::server($db), 'account' => ServerMetadataIdentity::grantee($db, $metadata), 'objects' => $objects,
-                'installation' => ServerMetadataIdentity::installation($db, $names), 'checks' => server_metadata_check_observation($db, $configuration, $version)];
+                'installation' => ServerMetadataIdentity::installation($db, $names), 'checks' => server_metadata_check_observation($db, $configuration, $version, $expectedTables)];
         } catch (\PDOException $error) { throw DatabaseFailure::fromNative($error); }
         finally { $db = null; }
     }
@@ -37,14 +42,15 @@ final class ServerMetadataAdmission
         }
     }
 
-    /** @return list<string> */
-    public static function objects(PDO $db, ?int $version = null): array
+    /** @param list<Table>|null $expectedTables Validated invocation-owned source tables only.
+     * @return list<string> */
+    public static function objects(PDO $db, ?int $version = null, ?array $expectedTables = null): array
     {
         $session = DatabaseSession::get($db) ?? throw new DatabaseFailure('schema');
-        $observation = $session->metadataObservation ?? self::observe($session->configuration, $version);
+        $observation = $session->metadataObservation ?? self::observe($session->configuration, $version, $expectedTables);
         self::bind($db, $observation);
         $names = ServerMetadataInventory::tables($observation['objects']);
-        if ($version !== null) { self::expected($db, $names, $version); }
+        if ($version !== null) { self::expected($db, $names, $version, $expectedTables); }
         return $names;
     }
 
@@ -59,21 +65,31 @@ final class ServerMetadataAdmission
         return $observation['checks'][$table] ?? throw new DatabaseFailure('schema');
     }
 
-    /** @param list<string> $names */
-    private static function expected(PDO $db, array $names, int $version): void
+    /** @param list<string> $names
+     * @param list<Table>|null $expectedTables */
+    private static function expected(PDO $db, array $names, int $version, ?array $expectedTables = null): void
     {
-        $tables = array_values(array_filter(ServerSchema::layout($db)['tables'], static fn (array $table): bool => $version === 10 || $table['name'] !== 'read_api_token'));
+        $tables = array_values(array_filter(server_metadata_expected_tables($db, $expectedTables), static fn (array $table): bool => $version === 10 || $table['name'] !== 'read_api_token'));
         $expected = array_column($tables, 'name'); sort($expected, SORT_STRING);
         if (!in_array($version, [9, 10], strict: true) || implode("\0", $names) !== implode("\0", $expected)) { throw new DatabaseFailure('schema'); }
     }
 }
 
+/** Internal fallback preserves the null path; supplied tables were validated in this invocation.
+ * @param list<\Tablo\ServerSchema::Table>|null $expectedTables
+ * @return list<\Tablo\ServerSchema::Table> */
+function server_metadata_expected_tables(PDO $db, ?array $expectedTables): array
+{
+    return $expectedTables ?? ServerSchema::layout($db)['tables'];
+}
+
 /** Complete writer and control admission need privileged CHECK visibility. Migrators read their own post-DDL metadata.
+ * @param list<\Tablo\ServerSchema::Table>|null $expectedTables Complete source tables already validated in this invocation, never external data.
  * @return array<string, array<string, string>> */
-function server_metadata_check_observation(PDO $db, DatabaseConfiguration $configuration, ?int $version): array
+function server_metadata_check_observation(PDO $db, DatabaseConfiguration $configuration, ?int $version, ?array $expectedTables = null): array
 {
     if ($configuration->engine !== 'mariadb' || !in_array($configuration->role, ['writer', 'control'], strict: true) || $version !== 10) { return []; }
     $checks = [];
-    foreach (ServerSchema::layout($db)['tables'] as $table) { $checks[$table['name']] = ServerCheckAdmission::clauses($db, $table); }
+    foreach (server_metadata_expected_tables($db, $expectedTables) as $table) { $checks[$table['name']] = ServerCheckAdmission::clauses($db, $table); }
     return $checks;
 }
