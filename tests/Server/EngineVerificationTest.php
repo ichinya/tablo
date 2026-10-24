@@ -844,12 +844,27 @@ function engine_verification_initialize_bootstrap(): void
         Assert::false(str_contains(\Tablo\JsonEncoding::encode($observation), $secret));
         Assert::false(str_contains($result['stderr'], $secret)); Assert::false(str_contains($result['stderr'], $directory->path));
         Assert::false(str_contains($result['stderr'], $root));
-        $native = \Tablo\Tests\Support\SubprocessReceipt::read($result['files']['receipt']);
-        Assert::true(is_int($native['pid']) && $native['pid'] > 0);
-        Assert::same([$native['exit_code'], $native['proc_close'], $native['root_exit_observed'], $native['closed']], [1, 1, true, true]);
-        Assert::same([$native['signaled'], $native['term_signal']], [false, null]);
+        engine_verification_initialize_closure($result['files']['receipt']);
     } catch (\Throwable $error) { $directory->retainFailure($error); throw $error; }
     finally { $directory->close(); }
+}
+
+function engine_verification_initialize_closure(string $receipt): void
+{
+    $native = \Tablo\Tests\Support\SubprocessReceipt::read($receipt);
+    Assert::true(is_int($native['pid']) && $native['pid'] > 0);
+    Assert::same([$native['exit_code'], $native['root_exit_observed'], $native['closed']], [1, true, true]);
+    Assert::same([$native['signaled'] ?? null, $native['term_signal'] ?? null], [false, null]);
+    $exits = array_values(array_filter($native['events'], static fn (array $event): bool => $event['stage'] === 'root-exit'));
+    $closes = array_values(array_filter($native['events'], static fn (array $event): bool => $event['stage'] === 'proc-close'));
+    Assert::same([count($exits), count($closes)], [1, 1]);
+    $exit = $exits[0] ?? throw new \RuntimeException('Actual initialization root exit missing.');
+    Assert::same([$exit['exit_code'] ?? null, $exit['native_exit_code'] ?? null, $exit['signaled'] ?? null, $exit['signal'] ?? null], [1, 1, false, 0]);
+    $close = $closes[0] ?? throw new \RuntimeException('Actual initialization proc-close missing.');
+    $raw = \Tablo\SqlColumn::integer($native, 'proc_close');
+    Assert::same(\Tablo\SqlColumn::integer($close, 'native_exit_code'), $raw);
+    // PHP 8.2 may lose the close return after its actual stopped observation.
+    Assert::true($raw === 1 || (PHP_VERSION_ID >= 80_200 && PHP_VERSION_ID < 80_300 && $raw === -1));
 }
 
 function engine_verification_initialize_source(string $root, TemporaryDirectory $directory): string

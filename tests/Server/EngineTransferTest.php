@@ -160,6 +160,7 @@ function engine_transfer_rollback_gap(string $case, array $expectedIds): void
         $initial = DatabaseTransfer::export($source, $fixture->vault, $root . '/initial', $root . '/initial-export.sqlite', offline: true);
         Assert::same(DatabaseTransfer::importServer($fixture->maintenance(), $fixture->vault, $root . '/initial', $root . '/initial-import.sqlite', offline: true), $initial);
         $server = $fixture->database();
+        engine_transfer_prepare_history_checkpoint($source, $server);
         ['committed' => $committed, 'reserved' => $reserved] = engine_transfer_reserve_history($fixture, $server);
         if ($expectedIds === []) { Assert::same((new \Tablo\CheckHistoryRepository($server))->pruneBatch('2027-01-01T00:00:00Z'), 2); }
         Assert::same($fixture->scalar('SELECT COUNT(*) FROM check_history'), count($expectedIds));
@@ -184,9 +185,34 @@ function engine_transfer_rollback_gap(string $case, array $expectedIds): void
         $targetSites = new \Tablo\SiteRepository($target, $fixture->vault);
         Assert::true(\Tablo\Tests\Support\IncidentFixtures::accept($targetSites, 20, 1, '2028-01-01T00:00:00Z'));
         Assert::same(DatabaseTransferSequence::scalar($target, 'SELECT MAX(id) AS value FROM check_history'), $reserved + 1);
+        engine_transfer_history_checkpoints($target, $reserved + 1, time: '2028-01-01T00:00:00Z');
         Assert::same(engine_transfer_typed_digests($server), $before);
         Assert::same(DatabaseTransferSequence::watermark($server), $committed);
     } finally { $fixture->close(); }
+}
+
+/** Prove opaque import bytes before this scenario starts genuine current projections. */
+function engine_transfer_prepare_history_checkpoint(PDO $source, PDO $server): void
+{
+    $opaque = [['site_id' => 20, 'last_history_id' => 100, 'config_revision' => 6, 'state' => '{"synthetic":"unchanged bytes "}']];
+    $sql = 'SELECT site_id,last_history_id,config_revision,state FROM notification_checkpoints WHERE site_id = 20';
+    Assert::same(ServerSchema::rows($source, $sql), $opaque);
+    Assert::same(ServerSchema::rows($server, $sql), $opaque);
+    \Tablo\WriteTransaction::run($server, static function () use ($server): void {
+        Assert::same($server->exec('DELETE FROM notification_checkpoints WHERE site_id = 20'), 1);
+    });
+}
+
+function engine_transfer_history_checkpoints(PDO $db, int $historyId, string $time): void
+{
+    Assert::same(ServerSchema::rows($db, 'SELECT site_id,last_history_id,config_revision FROM incident_checkpoints WHERE site_id = 20'),
+        [['site_id' => 20, 'last_history_id' => $historyId, 'config_revision' => 6]]);
+    $rows = ServerSchema::rows($db, 'SELECT site_id,last_history_id,config_revision,state FROM notification_checkpoints WHERE site_id = 20');
+    Assert::same(count($rows), 1);
+    $row = \Tablo\SqlNotificationCheckpointsConfigRevisionLastHistoryIdSiteIdRow::checked($rows[0] ?? []);
+    Assert::same([$row['site_id'], $row['last_history_id'], $row['config_revision']], [20, $historyId, 6]);
+    $state = \Tablo\NotificationCheckpointData::current(\Tablo\NotificationCheckpointData::channel($row['state']));
+    Assert::same([$state['channel'], $state['watermark']], [2, $time]);
 }
 
 /** @return array{committed: int, reserved: int} */
@@ -196,6 +222,7 @@ function engine_transfer_reserve_history(EngineFixture $fixture, PDO $server): a
     Assert::true(\Tablo\Tests\Support\IncidentFixtures::accept($sites, 20, 1, '2026-01-01T00:00:00Z'));
     $committed = DatabaseTransferSequence::watermark($server);
     Assert::same($committed, 9001);
+    engine_transfer_history_checkpoints($server, $committed, time: '2026-01-01T00:00:00Z');
     $owner = \Tablo\WriteTransaction::begin($server);
     try {
         ServerSchema::rows($server, "INSERT INTO check_history (site_id,config_revision,checked_at,version_status) VALUES (20,6,'2026-01-01T00:00:01Z','skipped')");
