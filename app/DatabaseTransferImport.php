@@ -38,8 +38,11 @@ final class DatabaseTransferImport
  * @param \Tablo\DatabaseTransferManifest::Header $header */
 function database_transfer_import_server(PDO $db, #[\SensitiveParameter] string $directory, array $header, string $digest, #[\SensitiveParameter] TokenVault $vault): void
 {
+    database_transfer_import_phase(80);
     ServerMigrationLock::run($db, $vault, static function (ServerLock $lock) use ($db, $directory, $header, $digest, $vault): void {
+        database_transfer_import_phase(81);
         DatabaseTransferTarget::prepare($db, $header, $digest, $vault);
+        database_transfer_import_phase(82);
         if ((new ServerMigrationState($db))->status()['phase'] === 'ready') {
             DatabaseTransferVerification::database($db, $header, $vault);
             return;
@@ -49,10 +52,14 @@ function database_transfer_import_server(PDO $db, #[\SensitiveParameter] string 
             $lock->assertOwned();
             database_transfer_cursor_table($db, $directory, $table, $header['tables'][$index] ?? throw new DatabaseFailure('schema'), ['plan' => $plan, 'step' => $index]);
         }
+        database_transfer_import_phase(83);
         DatabaseTransferSequence::apply($db, $header['sequences'], $header['watermark']);
+        database_transfer_import_phase(84);
         DatabaseTransferVerification::database($db, $header, $vault);
         DatabaseTransferTarget::publish($db, $header);
+        database_transfer_import_phase(85);
     });
+    database_transfer_import_phase(86);
 }
 
 /**
@@ -82,6 +89,7 @@ function database_transfer_sqlite_target_sqlite(PDO $scratch, array $header): vo
  * @param array{plan: string, step: int} $position */
 function database_transfer_cursor_table(PDO $db, #[\SensitiveParameter] string $directory, array $table, array $receipt, array $position): void
 {
+    database_transfer_import_phase(87);
     $plan = $position['plan']; $step = $position['step'];
     $journal = new ServerMigrationJournal($db, $plan);
     $journal->intent($step, $receipt['sha256'], 10, 10, $table['name']);
@@ -94,6 +102,7 @@ function database_transfer_cursor_table(PDO $db, #[\SensitiveParameter] string $
     if (DatabaseTransferSequence::scalar($db, 'SELECT COUNT(*) AS value FROM `' . $table['name'] . '`') !== $previous) { throw new DatabaseFailure('schema'); }
     $stored = DatabaseTransferRows::read($db, $table);
     $rowNumber = 0;
+    database_transfer_import_phase(88);
     DatabaseTransferArchive::visit($directory, $table, $receipt, static function (#[\SensitiveParameter] array $values) use ($db, $table, $position, $previous, $primaryCursor, $stored, &$rowNumber): void {
         $rowNumber++;
         if ($rowNumber <= $previous) {
@@ -103,10 +112,13 @@ function database_transfer_cursor_table(PDO $db, #[\SensitiveParameter] string $
         }
         database_transfer_cursor_append($db, $table, $values, $position, $rowNumber);
     });
+    database_transfer_import_phase(89);
     if ($rowNumber < $previous) { throw new DatabaseFailure('schema'); }
     unset($stored);
     DatabaseTransferVerification::table($db, $table, $receipt);
+    database_transfer_import_phase(90);
     $journal->done($step);
+    database_transfer_import_phase(91);
 }
 
 /** @param \Tablo\DatabaseTransferManifest::Table $table
@@ -121,4 +133,9 @@ function database_transfer_cursor_append(PDO $db, array $table, #[\SensitivePara
         ServerSchema::rows($db, 'UPDATE tablo_migration_journal SET `cursor` = ? WHERE plan = ? AND step = ?',
             [JsonEncoding::encode(['rows' => $rowNumber, 'primary' => DatabaseTransferRows::encode($primary)]), $plan, $step]);
     });
+}
+
+function database_transfer_import_phase(int $phase): void
+{
+    if (function_exists('Tablo\\database_transfer_phase_mark')) { database_transfer_phase_mark($phase); }
 }

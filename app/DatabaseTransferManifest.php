@@ -33,9 +33,11 @@ final class DatabaseTransferManifest
     public static function tables(): array
     {
         if (self::$dataTables !== null) { return self::$dataTables; }
+        database_transfer_manifest_phase(40);
         $bytes = RequiredFile::bytes(file_get_contents(dirname(__DIR__) . '/database/mysql84-layout.json'));
         /** @var Layout $layout Checked-in descriptor, not archive-controlled SQL. */
         $layout = json_decode($bytes, associative: true, flags: JSON_THROW_ON_ERROR);
+        database_transfer_manifest_phase(41);
         $tables = [];
         foreach (self::TABLES as $name) {
             $matches = array_values(array_filter($layout['tables'], static fn (array $table): bool => $table['name'] === $name));
@@ -48,6 +50,7 @@ final class DatabaseTransferManifest
             $tables[] = ['name' => $table['name'], 'columns' => $columns, 'primary' => $table['primary']];
         }
         self::$dataTables = $tables;
+        database_transfer_manifest_phase(42);
         return $tables;
     }
 
@@ -92,4 +95,9 @@ final class DatabaseTransferManifest
         }
         return $directory . '/' . $name;
     }
+}
+
+function database_transfer_manifest_phase(int $phase): void
+{
+    if (function_exists('Tablo\\database_transfer_phase_mark')) { database_transfer_phase_mark($phase); }
 }

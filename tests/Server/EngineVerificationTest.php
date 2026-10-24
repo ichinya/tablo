@@ -42,6 +42,9 @@ final class EngineVerificationTest
         require_once dirname(__DIR__, levels: 2) . '/tools/ServerTestEvidence.php';
         engine_verification_failed_report();
         engine_verification_failed_hook();
+        engine_verification_phase_projection();
+        engine_verification_phase_files();
+        engine_verification_phase_collector();
         $directory = new TemporaryDirectory('tablo-server-junit-');
         try {
             $root = dirname(__DIR__, levels: 2); $required = engine_verification_required();
@@ -136,6 +139,217 @@ final class EngineVerificationTest
     }
 
 
+}
+
+/** Independent synthetic numeric fixtures; they are diagnostic grammar checks, never cold metric evidence. */
+function engine_verification_phase_projection(): void
+{
+    $records = [[1, 1, 1, 0, 10, 100, 200, 0], [2, 2, 2, 61, 62, 120, 220, 0],
+        [3, 3, 2, 62, 1, 130, 240, 1], [2, 4, 6, 14, 15, 140, 260, 1], [4, 5, 6, 15, 900, 140, 260, 1]];
+    $wire = engine_verification_phase_wire($records); $project = \Tablo\Tools\server_native_phase_project(...);
+    $unknown = \Tablo\Tools\server_native_phase_unknown(); $valid = $project($wire);
+    Assert::same([$valid['status'], $valid['scope'], $valid['originalActorFinalPeak'], $valid['tail'], $valid['issueAccepted']],
+        ['APP_COMPLETE_ONLY', 'instrumented-app-only', 'UNKNOWN', 'UNKNOWN', false]);
+    Assert::same(count($valid['records']), 5);
+    Assert::same($valid['records'][1] ?? throw new \RuntimeException('Synthetic phase record missing.'), ['kind' => 2, 'sequence' => 2, 'operation' => 2, 'previousPhase' => 61,
+        'phase' => 62, 'usedBytes' => 120, 'peakBytes' => 220, 'flags' => 0]);
+    foreach (['', substr($wire, offset: 0, length: -1), $wire . "\n", "\xef\xbb\xbf" . $wire,
+        str_replace("\n", replace: "\r\n", subject: $wire), $wire . 'PRIVATE_PATH_SQL_KEY_ERROR',
+        "1\t1\t1\t0\t10\t100\t200\t0\t99\n", str_repeat('0', times: 8193),
+        str_repeat('0', times: 128) . "\n", "1\t1\t1\t0\t10\t100\t200\t0\n"] as $invalid) {
+        Assert::same($project($invalid), $unknown);
+    }
+    foreach (['00', '01', '+1', '-1', '1.0', '1e2', ' 1', '1 ', "1\0", '1099511627777', '9223372036854775808', 'PRIVATE_PATH_SQL_KEY_ERROR'] as $field) {
+        $bad = str_replace("\t100\t200\t", replace: "\t" . $field . "\t200\t", subject: $wire);
+        Assert::same($project($bad), $unknown);
+    }
+    engine_verification_phase_records($records, $unknown);
+    engine_verification_phase_terminals($unknown);
+    engine_verification_phase_caps($unknown);
+}
+
+/** @param list<list<int>> $records */
+function engine_verification_phase_wire(array $records): string
+{ return implode('', array_map(static fn (array $record): string => implode("\t", $record) . "\n", $records)); }
+
+/** @param list<list<int>> $records */
+function engine_verification_phase_records(array $records, array $unknown): void
+{
+    // Each tuple changes one record field without asking the implementation for its expected answer.
+    foreach ([[0, 0, 2], [0, 2, 2], [0, 3, 10], [0, 4, 11], [1, 0, 1], [1, 0, 5], [1, 1, 1], [1, 1, 3],
+        [1, 2, 0], [1, 2, 7], [1, 3, 0], [1, 3, 19], [1, 4, 19], [1, 4, 900], [1, 5, 221], [1, 6, 200], [1, 7, 8],
+        [2, 4, 62], [2, 6, 220], [2, 7, 0], [3, 2, 1], [3, 2, 5], [3, 7, 0],
+        [4, 2, 5], [4, 3, 14], [4, 4, 10], [4, 6, 259], [4, 7, 0], [4, 7, 3], [4, 7, 5]] as [$row, $field, $value]) {
+        $bad = $records; $bad[$row][$field] = $value;
+        Assert::same(\Tablo\Tools\server_native_phase_project(engine_verification_phase_wire($bad)), $unknown);
+    }
+    $bad = $records; $bad[] = [4, 6, 6, 15, 900, 140, 260, 1];
+    Assert::same(\Tablo\Tools\server_native_phase_project(engine_verification_phase_wire($bad)), $unknown);
+}
+
+function engine_verification_phase_terminals(array $unknown): void
+{
+    foreach ([[901, 1, 'APP_FAILURE'], [902, 3, 'TRUNCATED'], [903, 5, 'ORDER_INVALID'], [903, 7, 'ORDER_INVALID']] as [$phase, $flags, $status]) {
+        $wire = engine_verification_phase_wire([[1, 1, 1, 0, 10, 0, 0, 0], [4, 2, 1, 10, $phase, 0, 0, $flags]]);
+        $actual = \Tablo\Tools\server_native_phase_project($wire);
+        Assert::same([$actual['status'], $actual['issueAccepted'], count($actual['records'])], [$status, false, 2]);
+    }
+    foreach ([[901, 3], [902, 1], [902, 7], [903, 3]] as [$phase, $flags]) {
+        Assert::same(\Tablo\Tools\server_native_phase_project(engine_verification_phase_wire(
+            [[1, 1, 1, 0, 10, 0, 0, 0], [4, 2, 1, 10, $phase, 0, 0, $flags]])), $unknown);
+    }
+    $upper = engine_verification_phase_wire([[1, 1, 1, 0, 10, 1_099_511_627_776, 1_099_511_627_776, 0],
+        [4, 2, 6, 15, 900, 1_099_511_627_776, 1_099_511_627_776, 1]]);
+    Assert::same(\Tablo\Tools\server_native_phase_project($upper)['status'], 'APP_COMPLETE_ONLY');
+}
+
+function engine_verification_phase_caps(array $unknown): void
+{
+    $records = [[1, 1, 1, 0, 10, 1, 1, 0]];
+    for ($sequence = 2; $sequence <= 63; $sequence++) { $records[] = [2, $sequence, 1, 20, 21, 1, $sequence, 0]; }
+    $bounded = [...$records, [4, 64, 6, 15, 900, 1, 63, 1]];
+    Assert::same(count(\Tablo\Tools\server_native_phase_project(engine_verification_phase_wire($bounded))['records']), 64);
+    $overflow = [...$records, [2, 64, 1, 20, 21, 1, 64, 0], [4, 65, 6, 15, 900, 1, 64, 1]];
+    Assert::same(\Tablo\Tools\server_native_phase_project(engine_verification_phase_wire($overflow)), $unknown);
+    $truncated = [...$records, [4, 64, 6, 15, 902, 1, 63, 3]];
+    Assert::same(\Tablo\Tools\server_native_phase_project(engine_verification_phase_wire($truncated))['status'], 'TRUNCATED');
+    $truncated[63][4] = 900;
+    Assert::same(\Tablo\Tools\server_native_phase_project(engine_verification_phase_wire($truncated)), $unknown);
+    Assert::same(\Tablo\Tools\server_native_phase_project(engine_verification_phase_wire($records)), $unknown);
+}
+
+/** File custody checks use newly created synthetic files only; no controller qualification is fabricated. */
+function engine_verification_phase_files(): void
+{
+    if (PHP_OS_FAMILY !== 'Linux') { return; }
+    $directory = new TemporaryDirectory('tablo-phase-reader-');
+    try {
+        $wire = engine_verification_phase_wire([[1, 1, 1, 0, 10, 0, 0, 0], [4, 2, 6, 15, 900, 0, 0, 1]]);
+        $valid = $directory->path . '/valid'; engine_verification_phase_private($valid, $wire);
+        Assert::same(\Tablo\Tools\server_native_phase_bytes($valid), $wire);
+        Assert::null(\Tablo\Tools\server_native_phase_bytes($directory->path . '/missing'));
+        Assert::null(\Tablo\Tools\server_native_phase_bytes($directory->path));
+        $large = $directory->path . '/oversized'; engine_verification_phase_private($large, str_repeat('0', times: 8193));
+        Assert::null(\Tablo\Tools\server_native_phase_bytes($large));
+        $public = $directory->path . '/public'; engine_verification_phase_private($public, $wire); chmod($public, permissions: 0o644);
+        Assert::null(\Tablo\Tools\server_native_phase_bytes($public));
+        $linked = $directory->path . '/linked'; Assert::true(symlink($valid, $linked));
+        Assert::null(\Tablo\Tools\server_native_phase_bytes($linked));
+        $hard = $directory->path . '/hard'; Assert::true(link($valid, $hard));
+        Assert::null(\Tablo\Tools\server_native_phase_bytes($valid));
+        Assert::same(file_get_contents($valid), $wire);
+    } finally { $directory->close(); }
+}
+
+function engine_verification_phase_private(string $path, string $bytes): void
+{
+    $handle = fopen($path, mode: 'xb');
+    if (!is_resource($handle)) { throw new \RuntimeException('Cannot reserve synthetic phase fixture.'); }
+    try { Assert::same(fwrite($handle, $bytes), strlen($bytes)); Assert::true(chmod($path, permissions: 0o600)); }
+    finally { fclose($handle); }
+}
+
+/** Guarded facade-only children use no PDO, vault, export, observer or network. The fake plan is plain owned test bytes. */
+function engine_verification_phase_collector(): void
+{
+    if (PHP_OS_FAMILY !== 'Linux' || PHP_VERSION_ID < 80_500 || PHP_VERSION_ID >= 80_600) { return; }
+    foreach (['valid', 'failure', 'order', 'truncated', 'readonly', 'nonce', 'source', 'script', 'case', 'arguments', 'engine', 'hash', 'plan', 'sink', 'runtime', 'collision', 'linked', 'ancestor'] as $variant) {
+        $directory = new TemporaryDirectory('tablo-phase-collector-');
+        try { engine_verification_phase_collector_case($directory, $variant); } finally { $directory->close(); }
+    }
+}
+
+/** @return array{source: string, closure: string, environment: array<string, string>, actor: string, foreign: string} */
+function engine_verification_phase_layout(TemporaryDirectory $directory, string $variant): array
+{
+    $nonce = str_repeat('a', times: 32); $runtime = str_replace('\\', replace: '/', subject: $directory->path) . '/tablo-server-' . $nonce;
+    $source = $runtime . '/source'; $base = $runtime . '/cases/main-0'; $closure = $base . '/closure';
+    $fixture = $base . '/mariadb/tablo-server-' . $nonce; $foreign = str_replace('\\', replace: '/', subject: $directory->path) . '/owned-sentinel';
+    foreach ([$source . '/app', $source . '/tests', $runtime . '/evidence', $closure, $foreign] as $path) {
+        if (!mkdir($path, permissions: 0o700, recursive: true)) { throw new \RuntimeException('Cannot create synthetic phase layout.'); }
+    }
+    if ($variant === 'ancestor') { Assert::true(symlink($foreign, $base . '/mariadb')); }
+    if (!mkdir($fixture, permissions: 0o700, recursive: true)) { throw new \RuntimeException('Cannot create synthetic phase fixture directory.'); }
+    Assert::true(copy(dirname(__DIR__, levels: 2) . '/app/DatabaseTransfer.php', $source . '/app/DatabaseTransfer.php'));
+    Assert::true(copy(dirname(__DIR__, levels: 2) . '/app/NativeWarning.php', $source . '/app/NativeWarning.php'));
+    $plan = $runtime . '/evidence/started-cell.json'; engine_verification_phase_private($plan, bytes: 'synthetic-guard-bytes-only');
+    $environment = ['TABLO_TEST_DB_DRIVER' => 'mariadb', 'TABLO_TEST_ENGINE_CASE' => 'transfer-working-data',
+        'TABLO_TEST_SOURCE_ROOT' => $source, 'TABLO_TEST_RUN_NONCE' => $nonce, 'TABLO_TEST_RUNTIME_ROOT' => $fixture,
+        'TABLO_TEST_CELL_PLAN' => $plan, 'TABLO_TEST_CELL_PLAN_SHA256' => hash('sha256', data: 'synthetic-guard-bytes-only'), 'TABLO_SESSION_EVIDENCE_DIRECTORY' => $closure];
+    $actor = $source . '/tests/' . ($variant === 'script' ? 'other.php' : 'server-child.php');
+    return ['source' => $source, 'closure' => $closure, 'environment' => $environment, 'actor' => $actor, 'foreign' => $foreign];
+}
+
+function engine_verification_phase_collector_case(TemporaryDirectory $directory, string $variant): void
+{
+    $layout = engine_verification_phase_layout($directory, $variant);
+    $environment = engine_verification_phase_environment($layout['environment'], $layout['foreign'], $variant);
+    $trace = $layout['closure'] . '/transfer-phase-s107.tsv'; $sentinel = 'SYNTHETIC_EXISTING_MUST_STAY';
+    if ($variant === 'collision') { engine_verification_phase_private($trace, $sentinel); }
+    if ($variant === 'linked') { engine_verification_phase_private($layout['foreign'] . '/sentinel', $sentinel); Assert::true(symlink($layout['foreign'] . '/sentinel', $trace)); }
+    engine_verification_phase_private($layout['actor'], engine_verification_phase_actor($variant));
+    $arguments = $variant === 'arguments' ? ['foreign', 'transfer-working-data'] : ['transfer-working-data', 'transfer-working-data'];
+    $child = Subprocess::run([PHP_BINARY, '-n', $layout['actor'], ...$arguments], $directory, [], new CommandOptions(replacementEnvironment: $environment));
+    Assert::same([$child['exit_code'], $child['stdout'], $child['stderr']], [0, '{"primaryPreserved":true}', '']);
+    Assert::false(file_exists($layout['foreign'] . '/transfer-phase-s107.tsv'));
+    engine_verification_phase_collector_result($trace, $variant, $sentinel);
+}
+
+/** @param array<string, string> $environment
+ * @return array<string, string> */
+function engine_verification_phase_environment(array $environment, string $foreign, string $variant): array
+{
+    $changes = ['nonce' => ['TABLO_TEST_RUN_NONCE', str_repeat('b', times: 32)], 'source' => ['TABLO_TEST_SOURCE_ROOT', $foreign],
+        'case' => ['TABLO_TEST_ENGINE_CASE', 'foreign'], 'engine' => ['TABLO_TEST_DB_DRIVER', 'mysql'],
+        'hash' => ['TABLO_TEST_CELL_PLAN_SHA256', str_repeat('0', times: 64)], 'plan' => ['TABLO_TEST_CELL_PLAN', $foreign],
+        'sink' => ['TABLO_SESSION_EVIDENCE_DIRECTORY', $foreign], 'runtime' => ['TABLO_TEST_RUNTIME_ROOT', $foreign]];
+    if (array_key_exists($variant, $changes)) { [$name, $value] = $changes[$variant]; $environment[$name] = $value; }
+    return $environment;
+}
+
+function engine_verification_phase_actor(string $variant): string
+{
+    $phases = match ($variant) {
+        'failure' => '[10]', 'order' => '[10,12,10]', 'readonly' => '[]', 'truncated' => '[11,12,13,14,15,10,11,16,17,14,15]',
+        default => '[10,11,12,13,14,15,10,11,16,17,14,15]',
+    };
+    $failureMark = $variant === 'failure' ? '\\Tablo\\database_transfer_phase_mark(901);' : '';
+    $writer = $variant === 'readonly' ? engine_verification_phase_readonly_actor() : '$writerPreserved = true;';
+    $growth = $variant === 'truncated' ? <<<'PHP'
+\Tablo\database_transfer_phase_mark(10);
+for ($index = 1; $index <= 70; $index++) { $syntheticGrowth = str_repeat('x', $index * 65536); \Tablo\database_transfer_phase_mark(20); }
+PHP : '';
+    return '<?php require dirname(__DIR__) . "/app/NativeWarning.php"; require dirname(__DIR__) . "/app/DatabaseTransfer.php"; try { ' . $growth . ' foreach (' . $phases . ' as $phase) { \\Tablo\\database_transfer_phase_mark($phase); }'
+        . ' throw new \\RuntimeException("SYNTHETIC_PRIMARY"); } catch (\\Throwable $primary) { ' . $failureMark . $writer
+        . ' echo json_encode(["primaryPreserved" => $writerPreserved && $primary instanceof \\RuntimeException && $primary->getMessage() === "SYNTHETIC_PRIMARY"], JSON_THROW_ON_ERROR); }';
+}
+
+function engine_verification_phase_readonly_actor(): string
+{
+    return <<<'PHP'
+$warnings = 0; set_error_handler(static function (int $severity) use (&$warnings): bool { if ((error_reporting() & $severity) !== 0) { $warnings++; } return true; });
+try {
+    $owned = fopen(__FILE__, 'rb');
+    if (!is_resource($owned)) { throw new \RuntimeException('SYNTHETIC_HANDLE'); }
+    $refused = \Tablo\database_transfer_phase_record($owned, 1, 1, "1\t0\t10\t0\t0\t0") === 0;
+    \Tablo\database_transfer_phase_close($owned);
+    $writerPreserved = $refused && $warnings === 0;
+} finally { restore_error_handler(); }
+PHP;
+}
+
+function engine_verification_phase_collector_result(string $trace, string $variant, string $sentinel): void
+{
+    if (in_array($variant, ['valid', 'failure', 'order', 'truncated'], strict: true)) {
+        $bytes = \Tablo\Tools\server_native_phase_bytes($trace); Assert::true(is_string($bytes));
+        $actual = \Tablo\Tools\server_native_phase_project(is_string($bytes) ? $bytes : '');
+        Assert::same($actual['status'], match ($variant) { 'failure' => 'APP_FAILURE', 'order' => 'ORDER_INVALID', 'truncated' => 'TRUNCATED', default => 'APP_COMPLETE_ONLY' });
+        Assert::same([$actual['originalActorFinalPeak'], $actual['tail'], $actual['issueAccepted']], ['UNKNOWN', 'UNKNOWN', false]);
+        if ($variant === 'truncated') { Assert::same(count($actual['records']), 64); Assert::true(strlen(is_string($bytes) ? $bytes : '') <= 8192); }
+        return;
+    }
+    if (in_array($variant, ['collision', 'linked'], strict: true)) { Assert::same(file_get_contents($trace), $sentinel); return; }
+    Assert::false(file_exists($trace) || is_link($trace));
 }
 
 function engine_verification_failed_report(): void
