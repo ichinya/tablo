@@ -53,6 +53,14 @@ final class DatabaseTransferRows
         return database_transfer_codec_line($line, $table);
     }
 
+    /** @internal
+     * @param \Tablo\DatabaseTransferManifest::Table $table
+     * @return \Tablo\DatabaseTransferRows::Values */
+    public static function consumeLine(#[\SensitiveParameter] string &$line, array $table): array
+    {
+        return database_transfer_codec_consume_line($line, $table);
+    }
+
     /**
  * @param \Tablo\DatabaseTransferManifest::Table $table
  * @param \Tablo\DatabaseTransferRows::Values $values */
@@ -198,6 +206,21 @@ function database_transfer_codec_line(#[\SensitiveParameter] string $line, array
     $values = database_transfer_codec_decode(JsonRecord::decode($line), $table);
     // PHP may decode a numeric-key object as a list; wire equality closes that ambiguity.
     if (JsonEncoding::encode(database_transfer_codec_encode($values)) !== $line) { throw new DatabaseFailure('schema'); }
+    return $values;
+}
+
+/** @param \Tablo\DatabaseTransferManifest::Table $table
+ * @return \Tablo\DatabaseTransferRows::Values */
+function database_transfer_codec_consume_line(#[\SensitiveParameter] string &$line, array $table): array
+{
+    $input = JsonRecord::decode($line);
+    // Speculative wire encoding must not precede the typed decoder's failure.
+    try { $canonicalWire = JsonEncoding::encode($input) === $line; }
+    catch (\JsonException) { $canonicalWire = false; }
+    $line = '';
+    $values = database_transfer_codec_decode($input, $table);
+    // Successful typed decoding proves encode(values) === input, including list shapes.
+    if (!$canonicalWire) { throw new DatabaseFailure('schema'); }
     return $values;
 }
 

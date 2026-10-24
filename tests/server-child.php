@@ -121,41 +121,17 @@ function tablo_engine_transfer_working_data_actor(string $case): void
     $reverse = \Tablo\DatabaseTransfer::export($reader, $fixture->vault, $root . '/reverse', $root . '/reverse-export.sqlite', offline: true);
     $reimported = \Tablo\DatabaseTransfer::importSqlite($fixture->vault, $root . '/reverse', $root . '/staging.sqlite', $root . '/target.sqlite', offline: true);
     $target = new PDO('sqlite:' . $root . '/target.sqlite', options: [PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION, PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC]);
-    // TEMPORARY diagnostic: added CVs, closure and observer frames can perturb this cold measurement.
-    $observedPeak = 0; $observedPhase = 'UNKNOWN';
-    $observe = tablo_engine_transfer_peak_observer($observedPeak, $observedPhase);
-    $final = \Tablo\DatabaseTransfer::verify($target, $fixture->vault, $root . '/archive', $root . '/final-verify.sqlite', $observe);
-    unset($observe);
+    $final = \Tablo\DatabaseTransfer::verify($target, $fixture->vault, $root . '/archive', $root . '/final-verify.sqlite');
     if ([$imported, $verified, $final] !== [$digest, $digest, $digest] || $reimported !== $reverse || $buffered !== false) {
         throw new RuntimeException('Complete typed transfer integrity or unbuffered source refused.');
     }
     $peak = memory_get_peak_usage(false); $working = $peak - $baseline;
-    $currentWorking = memory_get_usage(false) - $baseline;
-    $result = tablo_engine_transfer_working_result([$baseline, $peak, $working, $currentWorking], $payloadBytes, $buffered,
-        $observedPeak === $peak ? $observedPhase : 'UNKNOWN');
-    $source = null; $server = null; $reader = null; $target = null; $fixture->close();
-    fwrite(STDOUT, \Tablo\JsonEncoding::encode($result) . "\n");
-}
-
-/** TEMPORARY readout construction remains after both saved memory samples, in this already loaded file.
- * @param array{int, int, int, int} $memory */
-function tablo_engine_transfer_working_result(array $memory, int $payloadBytes, bool $buffered, string $phase): array
-{
-    return ['status' => 'passed', 'tables' => count(\Tablo\DatabaseTransferManifest::TABLES), 'payloadBytes' => $payloadBytes,
-        'baselinePhpBytes' => $memory[0], 'peakPhpBytes' => $memory[1], 'peakPhpWorkingBytes' => $memory[2],
-        'finalVerifyCheckpoint' => $phase, 'currentPhpWorkingBytes' => $memory[3],
+    $result = ['status' => 'passed', 'tables' => count(\Tablo\DatabaseTransferManifest::TABLES), 'payloadBytes' => $payloadBytes,
+        'baselinePhpBytes' => $baseline, 'peakPhpBytes' => $peak, 'peakPhpWorkingBytes' => $working,
         'nativeBufferedSource' => $buffered, 'allTypedDigestsPreserved' => true,
         'metricScope' => 'PHP used-memory peak from after autoload before any fixture/admission/helper warmup through complete roundtrip; external native allocator RSS is not this metric'];
-}
-
-/** TEMPORARY observer factory is in this already loaded file; it adds no helper autoload.
- * @return \Closure(string): void */
-function tablo_engine_transfer_peak_observer(int &$observedPeak, string &$observedPhase): \Closure
-{
-    return static function (string $phase) use (&$observedPeak, &$observedPhase): void {
-        $candidate = memory_get_peak_usage(false);
-        if ($candidate > $observedPeak) { $observedPeak = $candidate; $observedPhase = $phase; }
-    };
+    $source = null; $server = null; $reader = null; $target = null; $fixture->close();
+    fwrite(STDOUT, \Tablo\JsonEncoding::encode($result) . "\n");
 }
 
 function tablo_engine_transfer_unbuffered(PDO $reader): bool

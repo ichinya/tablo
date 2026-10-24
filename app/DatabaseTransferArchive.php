@@ -48,6 +48,15 @@ final class DatabaseTransferArchive
     {
         return database_transfer_chunk_read($directory, $table, $receipt);
     }
+
+    /** @internal
+     * @param \Tablo\DatabaseTransferManifest::Table $table
+     * @param \Tablo\DatabaseTransferArchive::Receipt $receipt
+     * @param \Closure(\Tablo\DatabaseTransferRows::Values): void $consume */
+    public static function visit(#[\SensitiveParameter] string $directory, array $table, array $receipt, \Closure $consume): void
+    {
+        database_transfer_chunk_visit($directory, $table, $receipt, $consume);
+    }
 }
 
 // Internal operations for this fixed transfer module.
@@ -116,9 +125,11 @@ function database_transfer_chunk_private_file(#[\SensitiveParameter] string $pat
  *
  * @param \Tablo\DatabaseTransferArchive::Receipt $receipt
  *
+ * @param null|\Closure(\Tablo\DatabaseTransferRows::Values): void $consume
+ *
  * @return \Generator<int, \Tablo\DatabaseTransferRows::Values>
  */
-function database_transfer_chunk_read(#[\SensitiveParameter] string $directory, array $table, array $receipt): \Generator
+function database_transfer_chunk_read(#[\SensitiveParameter] string $directory, array $table, array $receipt, ?\Closure $consume = null): \Generator
 {
     $rows = 0; $hash = hash_init('sha256');
     foreach ($receipt['chunks'] as $index => $chunk) {
@@ -130,13 +141,32 @@ function database_transfer_chunk_read(#[\SensitiveParameter] string $directory, 
         hash_update($hash, $bytes);
         $offset = 0;
         while (($end = strpos($bytes, needle: "\n", offset: $offset)) !== false) {
-            $line = substr($bytes, $offset, $end - $offset); $offset = $end + 1;
-            $rows++; $values = DatabaseTransferRows::line($line, $table);
+            $line = database_transfer_chunk_line($bytes, $offset, $end);
+            $rows++; $values = DatabaseTransferRows::consumeLine($line, $table);
             unset($line);
-            yield $values;
+            if ($consume === null) { yield $values; }
+            if ($consume !== null) { $consume($values); }
             unset($values);
         }
         unset($bytes);
     }
     if ($rows !== $receipt['rows'] || !hash_equals($receipt['sha256'], hash_final($hash))) { throw new DatabaseFailure('schema'); }
+}
+
+/** @param \Tablo\DatabaseTransferManifest::Table $table
+ * @param \Tablo\DatabaseTransferArchive::Receipt $receipt
+ * @param \Closure(\Tablo\DatabaseTransferRows::Values): void $consume */
+function database_transfer_chunk_visit(#[\SensitiveParameter] string $directory, array $table, array $receipt, \Closure $consume): void
+{
+    // Visitor mode has no yields; exhausting the driver also validates final totals.
+    foreach (database_transfer_chunk_read($directory, $table, $receipt, $consume) as $unused) { unset($unused); }
+}
+
+function database_transfer_chunk_line(#[\SensitiveParameter] string &$bytes, int &$offset, int $end): string
+{
+    $line = substr($bytes, $offset, $end - $offset); $offset = $end + 1;
+    if ($offset >= 65_536 || $offset === strlen($bytes)) {
+        $bytes = $offset === strlen($bytes) ? '' : substr($bytes, $offset); $offset = 0;
+    }
+    return $line;
 }

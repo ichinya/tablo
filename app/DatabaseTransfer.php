@@ -26,12 +26,9 @@ final class DatabaseTransfer
         return database_transfer_facade_import_sqlite($vault, $directory, $scratchPath, $targetPath, $offline);
     }
 
-    /** TEMPORARY diagnostic observer belongs only to the explicitly selected final helper invocation.
-     * @param (\Closure(string): void)|null $observe */
-    public static function verify(PDO $db, #[\SensitiveParameter] TokenVault $vault, #[\SensitiveParameter] string $directory,
-        #[\SensitiveParameter] string $scratchPath, ?\Closure $observe = null): string
+    public static function verify(PDO $db, #[\SensitiveParameter] TokenVault $vault, #[\SensitiveParameter] string $directory, #[\SensitiveParameter] string $scratchPath): string
     {
-        return database_transfer_facade_verify($db, $vault, $directory, $scratchPath, $observe);
+        return database_transfer_facade_verify($db, $vault, $directory, $scratchPath);
     }
 
     public static function preflight(PDO $source, #[\SensitiveParameter] TokenVault $vault, #[\SensitiveParameter] string $scratchPath, bool $offline = false): int
@@ -94,22 +91,15 @@ function database_transfer_facade_import_sqlite(#[\SensitiveParameter] TokenVaul
 }
 
 
-/** TEMPORARY checkpoint calls add frames and may perturb the measured peak.
- * @param (\Closure(string): void)|null $observe */
-function database_transfer_facade_verify(PDO $db, #[\SensitiveParameter] TokenVault $vault, #[\SensitiveParameter] string $directory,
-    #[\SensitiveParameter] string $scratchPath, ?\Closure $observe = null): string
+function database_transfer_facade_verify(PDO $db, #[\SensitiveParameter] TokenVault $vault, #[\SensitiveParameter] string $directory, #[\SensitiveParameter] string $scratchPath): string
 {
     try {
         if (PHP_SAPI !== 'cli') { throw new DatabaseFailure('configuration'); }
-        $observe?->__invoke('VERIFY_ENTRY');
         DatabaseTransferPreflight::stream($db);
         $manifest = DatabaseTransferVerification::manifest($directory, $vault);
-        $observe?->__invoke('MANIFEST');
         $scratch = DatabaseTransferPreflight::scratch($scratchPath);
-        $observe?->__invoke('SCRATCH_SCHEMA');
-        DatabaseTransferVerification::scratch($scratch, $directory, $manifest['header'], $vault, $observe);
-        DatabaseTransferVerification::database($db, $manifest['header'], $vault, $observe);
-        $observe?->__invoke('VERIFY_RETURN');
+        DatabaseTransferVerification::scratch($scratch, $directory, $manifest['header'], $vault);
+        DatabaseTransferVerification::database($db, $manifest['header'], $vault);
         return $manifest['digest'];
     } catch (\Throwable $error) { throw database_transfer_persistence_safe($error); }
 }

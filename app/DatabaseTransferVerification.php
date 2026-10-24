@@ -23,12 +23,10 @@ final class DatabaseTransferVerification
     }
 
     /**
- * @param \Tablo\DatabaseTransferManifest::Header $header
- * @param (\Closure(string): void)|null $observe TEMPORARY invocation-only diagnostic. */
-    public static function scratch(PDO $scratch, #[\SensitiveParameter] string $directory, array $header,
-        #[\SensitiveParameter] TokenVault $vault, ?\Closure $observe = null): void
+ * @param \Tablo\DatabaseTransferManifest::Header $header */
+    public static function scratch(PDO $scratch, #[\SensitiveParameter] string $directory, array $header, #[\SensitiveParameter] TokenVault $vault): void
     {
-        database_transfer_verification_scratch($scratch, $directory, $header, $vault, $observe);
+        database_transfer_verification_scratch($scratch, $directory, $header, $vault);
     }
 
     /**
@@ -40,11 +38,10 @@ final class DatabaseTransferVerification
     }
 
     /**
- * @param \Tablo\DatabaseTransferManifest::Header $header
- * @param (\Closure(string): void)|null $observe TEMPORARY invocation-only diagnostic. */
-    public static function database(PDO $db, array $header, #[\SensitiveParameter] TokenVault $vault, ?\Closure $observe = null): void
+ * @param \Tablo\DatabaseTransferManifest::Header $header */
+    public static function database(PDO $db, array $header, #[\SensitiveParameter] TokenVault $vault): void
     {
-        database_transfer_verification_database($db, $header, $vault, $observe);
+        database_transfer_verification_database($db, $header, $vault);
     }
 }
 
@@ -52,25 +49,19 @@ final class DatabaseTransferVerification
 
 
 /**
- * @param \Tablo\DatabaseTransferManifest::Header $header
- * @param (\Closure(string): void)|null $observe TEMPORARY invocation-only diagnostic. */
-function database_transfer_verification_scratch(PDO $scratch, #[\SensitiveParameter] string $directory, array $header,
-    #[\SensitiveParameter] TokenVault $vault, ?\Closure $observe = null): void
+ * @param \Tablo\DatabaseTransferManifest::Header $header */
+function database_transfer_verification_scratch(PDO $scratch, #[\SensitiveParameter] string $directory, array $header, #[\SensitiveParameter] TokenVault $vault): void
 {
     foreach (DatabaseTransferManifest::tables() as $index => $table) {
         $receipt = $header['tables'][$index] ?? throw new DatabaseFailure('schema');
-        foreach (DatabaseTransferArchive::read($directory, $table, $receipt) as $values) {
+        DatabaseTransferArchive::visit($directory, $table, $receipt, static function (array $values) use ($scratch, $table): void {
             DatabaseTransferPreflight::row($scratch, $table, $values);
-            unset($values);
-        }
+        });
         DatabaseTransferPreflight::rowEnvelope($scratch, $table);
     }
-    $observe?->__invoke('ARCHIVE_ROWS_ENVELOPES');
     DatabaseTransferPreflight::quiescent($scratch);
     if (DatabaseTransferSequence::watermark($scratch) > $header['watermark']) { throw new DatabaseFailure('schema'); }
-    $observe?->__invoke('SCRATCH_STATE');
     ExternalKeyAuthentication::authenticateExternalKey($scratch, $vault);
-    $observe?->__invoke('SCRATCH_CREDENTIALS');
 }
 
 
@@ -89,12 +80,10 @@ function database_transfer_verification_table(PDO $db, array $table, array $rece
 
 
 /**
- * @param \Tablo\DatabaseTransferManifest::Header $header
- * @param (\Closure(string): void)|null $observe TEMPORARY invocation-only diagnostic. */
-function database_transfer_verification_database(PDO $db, array $header, #[\SensitiveParameter] TokenVault $vault, ?\Closure $observe = null): void
+ * @param \Tablo\DatabaseTransferManifest::Header $header */
+function database_transfer_verification_database(PDO $db, array $header, #[\SensitiveParameter] TokenVault $vault): void
 {
     foreach (DatabaseTransferManifest::tables() as $index => $table) { database_transfer_verification_table($db, $table, $header['tables'][$index] ?? throw new DatabaseFailure('schema')); }
-    $observe?->__invoke('TARGET_ROWS');
     $floors = DatabaseTransferSequence::floors($db);
     foreach ($header['sequences'] as $table => $floor) { if (SqlColumn::integer($floors, $table) < $floor) { throw new DatabaseFailure('schema'); } }
     $rows = ServerSchema::rows($db, 'SELECT installation_id FROM notification_settings WHERE id = 1');
@@ -104,9 +93,7 @@ function database_transfer_verification_database(PDO $db, array $header, #[\Sens
         : max($header['watermark'], $header['sequences']['check_history']);
     if (SqlColumn::string($rows[0] ?? [], 'installation_id') !== $header['installation']
         || DatabaseTransferSequence::watermark($db) !== $watermark) { throw new DatabaseFailure('schema'); }
-    $observe?->__invoke('TARGET_STATE');
     ExternalKeyAuthentication::authenticateExternalKey($db, $vault);
-    $observe?->__invoke('TARGET_CREDENTIALS');
 }
 
 /**

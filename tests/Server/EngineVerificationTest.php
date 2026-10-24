@@ -185,14 +185,13 @@ function engine_verification_failed_memory(): void
     engine_verification_memory_messages($base, $project);
     engine_verification_memory_origins($root, $base, $project);
     engine_verification_memory_envelope($root, $identity, $base, $project);
-    engine_verification_final_verify_memory();
 }
 
 /** Use the installed assertion formatter; only its synthetic caller frame is supplied explicitly. */
-function engine_verification_memory_report(string $root, int $used, ?string $context = null): array
+function engine_verification_memory_report(string $root, int $used): array
 {
     $failure = null;
-    try { Assert::true($used <= 2_097_152, $context ?? 'Complete measured helper, including cold transfer metadata, exceeds2MiB; peakPhpWorkingBytes=' . $used); }
+    try { Assert::true($used <= 2_097_152, 'Complete measured helper, including cold transfer metadata, exceeds2MiB; peakPhpWorkingBytes=' . $used); }
     catch (\Testo\Assert\State\Assertion\ComparisonFailure $error) { $failure = $error; unset($error); }
     if ($failure === null) { throw new \RuntimeException('Expected synthetic upper-memory assertion.'); }
     return ['status' => 'failed', 'failures' => [['test' => 'Tablo\\Tests\\Server\\EngineTransferTest::completeNativeRoundTripOverEightMiBUsesAtMostTwoMiBOfPhpWorkingData',
@@ -281,103 +280,6 @@ function engine_verification_memory_envelope(string $root, string $identity, arr
     $injected = $report + ['publicSources' => [$source]]; Assert::null($raw(\Tablo\JsonEncoding::encode($injected), []));
     $foreign = $report; $foreign['failures'] = [array_replace($failure, ['test' => 'foreign'])];
     Assert::null(\Tablo\Tools\server_native_memory_failure($root, \Tablo\JsonEncoding::encode($foreign), identity: 'foreign', publicSources: [$source]));
-}
-
-/** Exercise the installed formatter and the actual parent-side finite context builder, without an engine. */
-function engine_verification_final_verify_memory(): void
-{
-    require_once __DIR__ . '/EngineTransferTest.php';
-    $root = dirname(__DIR__, levels: 2);
-    $identity = 'Tablo\\Tests\\Server\\EngineTransferTest::completeNativeRoundTripOverEightMiBUsesAtMostTwoMiBOfPhpWorkingData';
-    $project = static fn (array $report): ?array => \Tablo\Tools\server_native_final_verify_failure($root, \Tablo\JsonEncoding::encode($report), $identity, ['tests/Server/EngineTransferTest.php']);
-    $phases = ['VERIFY_ENTRY', 'MANIFEST', 'SCRATCH_SCHEMA', 'ARCHIVE_ROWS_ENVELOPES', 'SCRATCH_STATE', 'SCRATCH_CREDENTIALS',
-        'TARGET_ROWS', 'TARGET_STATE', 'TARGET_CREDENTIALS', 'VERIFY_RETURN', 'UNKNOWN'];
-    foreach ($phases as $phase) {
-        $report = engine_verification_final_verify_report($root, $phase, current: 1_234_567); $before = $report;
-        Assert::same($project($report), ['schema' => 'tablo/server-native-final-verify-diagnostic/v1', 'unit' => 'bytes',
-            'scope' => 'temporary-final-verify-checkpoints-and-post-peak-current', 'rootCause' => 'UNKNOWN',
-            'firstCheckpointObservingFinalPeak' => $phase, 'currentPhpWorkingBytes' => 1_234_567]);
-        $wire = \Tablo\JsonEncoding::encode($report);
-        Assert::same(\Tablo\Tools\server_native_memory_failure($root, $wire, $identity, ['tests/Server/EngineTransferTest.php']),
-            ['schema' => 'tablo/server-native-memory-diagnostic/v1', 'unit' => 'bytes', 'scope' => 'complete-cold-roundtrip-php-working-data',
-                'rootCause' => 'UNKNOWN', 'peakPhpWorkingBytes' => 4_194_304]);
-        Assert::same(count(\Tablo\Tools\server_native_failure($root, $wire, $identity, ['tests/Server/EngineTransferTest.php'])), 10);
-        Assert::same($report, $before);
-        Assert::false(str_contains(\Tablo\JsonEncoding::encode($project($report)), 'PRIVATE_MEMORY_MESSAGE_SQL_SECRET_HISTORY'));
-        Assert::false(str_contains(\Tablo\JsonEncoding::encode($project($report)), $root));
-    }
-    foreach ([0, 268_435_456] as $current) {
-        Assert::same($project(engine_verification_final_verify_report($root, phase: 'TARGET_ROWS', current: $current))['currentPhpWorkingBytes'] ?? null, $current);
-    }
-    $base = engine_verification_final_verify_report($root, phase: 'TARGET_ROWS', current: 1_234_567);
-    engine_verification_memory_messages($base, $project);
-    engine_verification_memory_origins($root, $base, $project);
-    engine_verification_final_verify_messages($root, $base, $project);
-    engine_verification_final_verify_bounds($root, $identity, $base);
-    engine_verification_final_verify_context($root, $project);
-}
-
-function engine_verification_final_verify_report(string $root, string $phase, int $current): array
-{
-    return engine_verification_memory_report($root, used: 4_194_304, context: engine_transfer_memory_context(4_194_304,
-        ['finalVerifyCheckpoint' => $phase, 'currentPhpWorkingBytes' => $current]));
-}
-
-/** @param \Closure(array): ?array $project */
-function engine_verification_final_verify_messages(string $root, array $report, \Closure $project): void
-{
-    $failure = engine_verification_memory_case($report); $message = \Tablo\SqlColumn::string($failure, 'message');
-    foreach (['-1', '+1', '00', '01', '268435457', '999999999', '1234567.0', '1.234567e6', ' 1234567', '1234567 ',
-        "1234567\n", "1234567\0", '9223372036854775808', 'UNKNOWN', 'PRIVATE_MEMORY_MESSAGE_SQL_SECRET_HISTORY'] as $invalid) {
-        $bad = $report; $bad['failures'] = [array_replace($failure, ['message' => str_replace('currentPhpWorkingBytes=1234567', replace: 'currentPhpWorkingBytes=' . $invalid, subject: $message)])];
-        Assert::null($project($bad));
-        Assert::null(\Tablo\Tools\server_native_memory_bytes(engine_verification_memory_case($bad)['message'] ?? null));
-    }
-    foreach (['target_rows', 'TARGET_ROWS_PRIVATE', '', 'TARGET_ROWS; EXTRA=1', str_repeat('X', times: 33)] as $invalid) {
-        $bad = $report; $bad['failures'] = [array_replace($failure, ['message' => str_replace('finalVerifyCheckpoint=TARGET_ROWS', replace: 'finalVerifyCheckpoint=' . $invalid, subject: $message)])];
-        Assert::null($project($bad));
-        Assert::null(\Tablo\Tools\server_native_memory_bytes(engine_verification_memory_case($bad)['message'] ?? null));
-    }
-    $old = engine_verification_memory_report($root, used: 4_194_304);
-    Assert::null($project($old));
-    Assert::null($project($old + ['finalVerifyCheckpoint' => 'TARGET_ROWS', 'currentPhpWorkingBytes' => 1_234_567]));
-}
-
-function engine_verification_final_verify_bounds(string $root, string $identity, array $report): void
-{
-    $source = 'tests/Server/EngineTransferTest.php'; $bytes = \Tablo\JsonEncoding::encode($report);
-    $padding = 1_048_576 - strlen($bytes);
-    if ($padding < 0) { throw new \RuntimeException('Synthetic final verification report exceeds its fixture bound.'); }
-    $raw = /** @param array<int|string, string> $sources */ static fn (string $wire, string $selected, array $sources): ?array => \Tablo\Tools\server_native_final_verify_failure($root, $wire, $selected, $sources);
-    $failure = engine_verification_memory_case($report);
-    foreach ([['status' => 'passed', 'failures' => [$failure]], ['status' => 'failed', 'failures' => []],
-        ['status' => 'failed', 'failures' => [$failure, $failure]], ['status' => 'failed', 'failures' => ['key' => $failure]],
-        ['status' => 'failed', 'failures' => [null]]] as $bad) { Assert::null($raw(\Tablo\JsonEncoding::encode($bad), $identity, [$source])); }
-    foreach (['', '{', $bytes . 'false', str_repeat(' ', times: 1_048_577),
-        substr($bytes, offset: 0, length: -1) . ',"deep":' . str_repeat('[', times: 33) . '0' . str_repeat(']', times: 33) . '}'] as $wire) {
-        Assert::null($raw($wire, $identity, [$source]));
-    }
-    Assert::same($raw($bytes . str_repeat(' ', times: $padding), $identity, [$source]), $raw($bytes, $identity, [$source]));
-    Assert::same($raw($bytes, $identity, array_fill(0, count: 2048, value: $source)), $raw($bytes, $identity, [$source]));
-    foreach ([[], ['key' => $source], array_fill(0, count: 2049, value: $source)] as $sources) { Assert::null($raw($bytes, $identity, $sources)); }
-    Assert::null($raw($bytes, selected: 'foreign', sources: [$source]));
-    $foreign = $report; $foreign['failures'] = [array_replace($failure, ['test' => 'foreign'])];
-    Assert::null($raw(\Tablo\JsonEncoding::encode($foreign), selected: 'foreign', sources: [$source]));
-}
-
-/** Invalid optional helper fields must not replace or precede the original upper-bound failure.
- * @param \Closure(array): ?array $project */
-function engine_verification_final_verify_context(string $root, \Closure $project): void
-{
-    $old = engine_transfer_memory_context(4_194_304, []);
-    foreach ([['currentPhpWorkingBytes' => -1], ['currentPhpWorkingBytes' => 268_435_457], ['currentPhpWorkingBytes' => '1234567'],
-        ['currentPhpWorkingBytes' => null], ['currentPhpWorkingBytes' => []], ['finalVerifyCheckpoint' => 'PRIVATE_MEMORY_MESSAGE_SQL_SECRET_HISTORY'],
-        ['finalVerifyCheckpoint' => null], ['finalVerifyCheckpoint' => []]] as $invalid) {
-        $context = engine_transfer_memory_context(4_194_304, array_replace(['finalVerifyCheckpoint' => 'TARGET_ROWS', 'currentPhpWorkingBytes' => 1_234_567], $invalid));
-        Assert::same($context, $old);
-        Assert::null($project(engine_verification_memory_report($root, used: 4_194_304, context: $context)));
-        Assert::false(str_contains($context, 'PRIVATE_MEMORY_MESSAGE_SQL_SECRET_HISTORY'));
-    }
 }
 
 function engine_verification_failed_report_invalid(string $root, string $identity, array $failure, string $private): void

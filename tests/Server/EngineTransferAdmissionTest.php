@@ -142,12 +142,15 @@ function engine_transfer_archive_lines(array $table, array $sites): void
             [[], [], []]] as [$chunks, $counts, $expected]) {
             $receipt = engine_transfer_archive_fixture($directory->path, $table, $chunks, $counts);
             Assert::same(iterator_to_array(DatabaseTransferArchive::read($directory->path, $table, $receipt)), $expected);
+            Assert::same(engine_transfer_archive_visit($directory->path, $table, $receipt), $expected);
         }
         engine_transfer_archive_authentication($directory->path, $table, $lines[0], $lines[1]);
         engine_transfer_archive_framing($directory->path, $table, $lines[0], $lines[1]);
         engine_transfer_archive_numeric_object($directory->path, $table, $rows[0]);
         engine_transfer_archive_completion($directory->path, $table, $rows[0], $lines[0], $lines[1]);
         engine_transfer_archive_large($directory->path, $sites);
+        engine_transfer_archive_callback($directory->path, $table, $rows, $lines);
+        engine_transfer_codec_lines($table, $sites);
     } finally { $directory->close(); }
 }
 
@@ -176,15 +179,22 @@ function engine_transfer_archive_fixture(string $directory, array $table, array 
  * @param class-string<DatabaseFailure|\JsonException> $expectedFailure */
 function engine_transfer_archive_refuses(string $directory, array $table, array $receipt, int $expectedRows, string $expectedFailure = DatabaseFailure::class): void
 {
-    $seen = []; $caught = null;
-    try {
-        foreach (DatabaseTransferArchive::read($directory, $table, $receipt) as $values) { $seen[] = $values; }
-    } catch (DatabaseFailure|\JsonException $error) { $caught = $error; }
-    Assert::same($caught === null ? null : $caught::class, $expectedFailure);
-    if ($caught instanceof DatabaseFailure) { Assert::same($caught->category, 'schema'); }
-    if ($caught instanceof \JsonException) { Assert::same($caught->getCode(), JSON_ERROR_SYNTAX); }
-    Assert::same($caught?->getPrevious(), null);
-    Assert::same(count($seen), $expectedRows);
+    foreach ([false, true] as $visit) {
+        $seen = []; $caught = null;
+        try {
+            if ($visit) {
+                DatabaseTransferArchive::visit($directory, $table, $receipt, static function (array $values) use (&$seen): void { $seen[] = $values; });
+            }
+            if (!$visit) {
+                foreach (DatabaseTransferArchive::read($directory, $table, $receipt) as $values) { $seen[] = $values; }
+            }
+        } catch (DatabaseFailure|\JsonException $error) { $caught = $error; }
+        Assert::same($caught === null ? null : $caught::class, $expectedFailure);
+        if ($caught instanceof DatabaseFailure) { Assert::same($caught->category, 'schema'); }
+        if ($caught instanceof \JsonException) { Assert::same($caught->getCode(), JSON_ERROR_SYNTAX); }
+        Assert::same($caught?->getPrevious(), null);
+        Assert::same(count($seen), $expectedRows);
+    }
 }
 
 /** @param \Tablo\DatabaseTransferManifest::Table $table */
@@ -244,17 +254,98 @@ function engine_transfer_archive_completion(string $directory, array $table, arr
         if ($fault === 'rows') { $receipt['rows']++; }
         engine_transfer_archive_refuses($directory, $table, $receipt, expectedRows: 2);
     }
+    $empty = engine_transfer_archive_fixture($directory, $table, chunks: [], counts: []);
+    $empty['sha256'] = str_repeat('0', times: 64);
+    engine_transfer_archive_refuses($directory, $table, $empty, expectedRows: 0);
 }
 
 /** @param \Tablo\DatabaseTransferManifest::Table $table */
 function engine_transfer_archive_large(string $directory, array $table): void
 {
-    $rows = [engine_transfer_archive_site($table, id: 1), engine_transfer_archive_site($table, id: 2)];
-    $bytes = implode('', array_map(engine_transfer_archive_line(...), $rows));
+    $rows = [engine_transfer_archive_site($table, id: 1), engine_transfer_archive_site($table, id: 2),
+        engine_transfer_archive_site($table, id: 3), engine_transfer_archive_site($table, id: 4)];
+    $bytes = engine_transfer_archive_line($rows[0]) . engine_transfer_archive_line($rows[1]);
     Assert::true(strlen($bytes) > DatabaseTransferManifest::CHUNK_BYTES - 32_768);
     Assert::true(strlen($bytes) <= DatabaseTransferManifest::CHUNK_BYTES);
-    $receipt = engine_transfer_archive_fixture($directory, $table, [$bytes], [2]);
+    $tail = engine_transfer_archive_line($rows[2]) . engine_transfer_archive_line($rows[3]);
+    $receipt = engine_transfer_archive_fixture($directory, $table, [$bytes, $tail], [2, 2]);
     Assert::same(iterator_to_array(DatabaseTransferArchive::read($directory, $table, $receipt)), $rows);
+    Assert::same(engine_transfer_archive_visit($directory, $table, $receipt), $rows);
+}
+
+/** @param \Tablo\DatabaseTransferManifest::Table $table
+ * @param \Tablo\DatabaseTransferArchive::Receipt $receipt
+ * @return list<\Tablo\DatabaseTransferRows::Values> */
+function engine_transfer_archive_visit(string $directory, array $table, array $receipt): array
+{
+    $seen = [];
+    DatabaseTransferArchive::visit($directory, $table, $receipt, static function (array $values) use (&$seen): void { $seen[] = $values; });
+    return $seen;
+}
+
+/** @param \Tablo\DatabaseTransferManifest::Table $table
+ * @param list<\Tablo\DatabaseTransferRows::Values> $rows
+ * @param list<string> $lines */
+function engine_transfer_archive_callback(string $directory, array $table, array $rows, array $lines): void
+{
+    $receipt = engine_transfer_archive_fixture($directory, $table, [implode('', $lines)], [count($rows)]);
+    $failure = new \RuntimeException('Synthetic visitor failure.'); $caught = null; $seen = [];
+    try {
+        DatabaseTransferArchive::visit($directory, $table, $receipt, static function (array $values) use (&$seen, $failure): void {
+            $seen[] = $values;
+            if (count($seen) === 2) { throw $failure; }
+        });
+    } catch (\RuntimeException $error) { $caught = $error; }
+    Assert::same($caught, $failure); Assert::same($seen, array_slice($rows, offset: 0, length: 2));
+}
+
+/** @param \Tablo\DatabaseTransferManifest::Table $table
+ * @param \Tablo\DatabaseTransferManifest::Table $sites */
+function engine_transfer_codec_lines(array $table, array $sites): void
+{
+    $values = ["synthetic:\xFF\0A ", PHP_INT_MIN, PHP_INT_MAX];
+    $canonical = JsonEncoding::encode(DatabaseTransferRows::encode($values));
+    Assert::same(DatabaseTransferRows::line($canonical, $table), $values);
+    $object = JsonEncoding::encode((object) DatabaseTransferRows::encode($values));
+    $lines = [$canonical, $object, ' ' . $canonical, $canonical . "\r", $canonical . "\n", str_replace('bytes', replace: '\\u0062ytes', subject: $canonical),
+        str_replace('\\/', replace: '/', subject: $canonical),
+        '[["bytes","eA=="],["bytes","MQ=="],["integer","2"]]', '[["bytes","eA"],["integer","1"],["integer","2"]]',
+        '[["bytes","eA==="],["integer","1"],["integer","2"]]', '[{"0":"bytes","1":"eA=="},["integer","1"],["integer","2"]]',
+        '{"0":["bytes","eQ=="],"0":["bytes","eA=="],"1":["integer","1"],"2":["integer","2"]}',
+        ' [["bytes",1],["integer","1"],["integer","2"]]', '[["bytes",1e400],["integer","1"],["integer","2"]]',
+        '[1e400,["integer","1"],["integer","2"]]', '[true,null,{}]', '[[],[],[]]', '[]', '{}', 'null',
+        "[[\"bytes\",\"\xFF\"],[\"integer\",\"1\"],[\"integer\",\"2\"]]", str_repeat('[', times: 17) . str_repeat(']', times: 17)];
+    foreach ($lines as $line) { engine_transfer_codec_equivalent($line, $table); }
+    $row = engine_transfer_archive_site($sites, id: 1);
+    $large = JsonEncoding::encode(DatabaseTransferRows::encode($row));
+    Assert::same(DatabaseTransferRows::line($large, $sites), $row);
+    engine_transfer_codec_equivalent($large, $sites);
+}
+
+/** @param \Tablo\DatabaseTransferManifest::Table $table */
+function engine_transfer_codec_equivalent(string $original, array $table): void
+{
+    $line = $original; $consumed = $original;
+    $public = static function () use (&$line, $table): array { return DatabaseTransferRows::line($line, $table); };
+    $consume = static function () use (&$consumed, $table): array { return DatabaseTransferRows::consumeLine($consumed, $table); };
+    Assert::same(engine_transfer_codec_outcome($public), engine_transfer_codec_outcome($consume));
+    Assert::same($line, $original);
+    $parsed = true;
+    try { JsonRecord::decode($original); } catch (\JsonException|\RuntimeException) { $parsed = false; }
+    Assert::same($consumed, $parsed ? '' : $original);
+}
+
+/** @param \Closure(): \Tablo\DatabaseTransferRows::Values $decode
+ * @return array{values: null|\Tablo\DatabaseTransferRows::Values, failure: null|class-string<\Throwable>, message: ?string, category: ?string, previous: bool} */
+function engine_transfer_codec_outcome(\Closure $decode): array
+{
+    try {
+        $values = $decode();
+        return ['values' => $values, 'failure' => null, 'message' => null, 'category' => null, 'previous' => false];
+    } catch (\Throwable $error) {
+        return ['values' => null, 'failure' => $error::class, 'message' => $error->getMessage(),
+            'category' => $error instanceof DatabaseFailure ? $error->category : null, 'previous' => $error->getPrevious() !== null];
+    }
 }
 
 /** @param \Tablo\DatabaseTransferManifest::Table $table

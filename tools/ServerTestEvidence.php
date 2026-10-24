@@ -54,24 +54,6 @@ function server_native_memory_failure(string $root, #[\SensitiveParameter] strin
     } catch (\Throwable) { return null; }
 }
 
-/** TEMPORARY instrumented interval/current observation, never production performance acceptance.
- * @param array<int|string, string> $publicSources Frozen owner catalog, never child-provided membership.
- * @return array{schema: string, unit: string, scope: string, rootCause: string, firstCheckpointObservingFinalPeak: string, currentPhpWorkingBytes: int}|null */
-function server_native_final_verify_failure(string $root, #[\SensitiveParameter] string $bytes, string $identity, array $publicSources): ?array
-{
-    try {
-        if (strlen($bytes) > 1_048_576 || !array_is_list($publicSources) || count($publicSources) > 2048
-            || $identity !== 'Tablo\\Tests\\Server\\EngineTransferTest::completeNativeRoundTripOverEightMiBUsesAtMostTwoMiBOfPhpWorkingData') { return null; }
-        $failure = server_native_memory_report($bytes, $identity);
-        if ($failure === null || !server_native_memory_origin($root, $failure, $publicSources)) { return null; }
-        $values = server_native_final_verify_values($failure['message'] ?? null);
-        if ($values === null) { return null; }
-        return ['schema' => 'tablo/server-native-final-verify-diagnostic/v1', 'unit' => 'bytes',
-            'scope' => 'temporary-final-verify-checkpoints-and-post-peak-current', 'rootCause' => 'UNKNOWN',
-            'firstCheckpointObservingFinalPeak' => $values['phase'], 'currentPhpWorkingBytes' => $values['current']];
-    } catch (\Throwable) { return null; }
-}
-
 /** Internal pure report validation; decoding failures stay inside the caller's nullable boundary. */
 function server_native_memory_report(#[\SensitiveParameter] string $bytes, string $identity): ?array
 {
@@ -106,30 +88,9 @@ function server_native_memory_origin(string $root, #[\SensitiveParameter] array 
 function server_native_memory_bytes(#[\SensitiveParameter] mixed $message): ?int
 {
     $match = [];
-    if (!is_string($message) || preg_match('/\AFailed assertion that `false` is exactly `true`: expected `true`, got `false`\.\nMeaning: Complete measured helper, including cold transfer metadata, exceeds2MiB; peakPhpWorkingBytes=([1-9][0-9]{0,8})\z/D', $message, $match) !== 1) {
-        return server_native_final_verify_values($message)['peak'] ?? null;
-    }
+    if (!is_string($message) || preg_match('/\AFailed assertion that `false` is exactly `true`: expected `true`, got `false`\.\nMeaning: Complete measured helper, including cold transfer metadata, exceeds2MiB; peakPhpWorkingBytes=([1-9][0-9]{0,8})\z/D', $message, $match) !== 1) { return null; }
     $value = (int) \Tablo\RegexCapture::text($match, 1);
     return $value > 2_097_152 && $value <= 268_435_456 ? $value : null;
-}
-
-/** Only one complete temporary message variant is accepted; no partial numeric-prefix recovery.
- * @return array{peak: int, phase: string, current: int}|null */
-function server_native_final_verify_values(#[\SensitiveParameter] mixed $message): ?array
-{
-    $match = [];
-    if (!is_string($message) || preg_match('/\AFailed assertion that `false` is exactly `true`: expected `true`, got `false`\.\nMeaning: Complete measured helper, including cold transfer metadata, exceeds2MiB; peakPhpWorkingBytes=([1-9][0-9]{0,8}); finalVerifyCheckpoint=([A-Z_]{1,32}); currentPhpWorkingBytes=(0|[1-9][0-9]{0,8})\z/D', $message, $match) !== 1) { return null; }
-    $peak = (int) \Tablo\RegexCapture::text($match, 1); $current = (int) \Tablo\RegexCapture::text($match, 3);
-    $phase = \Tablo\RegexCapture::text($match, 2);
-    if ($peak <= 2_097_152 || $peak > 268_435_456 || $current > 268_435_456 || !server_native_final_verify_phase($phase)) { return null; }
-    return ['peak' => $peak, 'phase' => $phase, 'current' => $current];
-}
-
-/** This finite vocabulary labels sampled intervals only, including no matching final peak. */
-function server_native_final_verify_phase(string $phase): bool
-{
-    return in_array($phase, ['VERIFY_ENTRY', 'MANIFEST', 'SCRATCH_SCHEMA', 'ARCHIVE_ROWS_ENVELOPES', 'SCRATCH_STATE', 'SCRATCH_CREDENTIALS',
-        'TARGET_ROWS', 'TARGET_STATE', 'TARGET_CREDENTIALS', 'VERIFY_RETURN', 'UNKNOWN'], strict: true);
 }
 
 /** Only a repository-relative PHP source and line survive; no message, frame text or origin is opened.
