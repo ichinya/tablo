@@ -290,6 +290,7 @@ function database_transfer_phase_operation(int $phase, int $operation): int
         13 => $operation === 2 ? $operation : -1,
         15 => in_array($operation, [3, 6], strict: true) ? $operation : -1,
         17 => $operation === 5 ? $operation : -1,
+        100, 101, 102, 103, 104, 105, 106, 107, 108, 109, 110, 111, 112, 113, 114 => in_array($operation, [1, 4], strict: true) ? $operation : -1,
         901 => $operation >= 1 && $operation <= 6 ? $operation : -1,
         default => database_transfer_phase_known($phase) && $operation >= 1 && $operation <= 6 ? $operation : -1,
     };
@@ -300,7 +301,8 @@ function database_transfer_phase_known(int $phase): bool
     return match ($phase) {
         10, 11, 12, 13, 14, 15, 16, 17, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32, 33,
         40, 41, 42, 50, 51, 52, 53, 60, 61, 62, 63, 64, 65, 66, 67, 68, 69, 70, 71,
-        80, 81, 82, 83, 84, 85, 86, 87, 88, 89, 90, 91 => true,
+        80, 81, 82, 83, 84, 85, 86, 87, 88, 89, 90, 91,
+        100, 101, 102, 103, 104, 105, 106, 107, 108, 109, 110, 111, 112, 113, 114 => true,
         default => false,
     };
 }

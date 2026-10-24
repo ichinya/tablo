@@ -199,7 +199,8 @@ function server_native_phase_kind(array $record, int $offset, int $peak): bool
     if ($offset === 0) {
         return [$record['kind'], $record['operation'], $record['previousPhase'], $record['phase']] === [1, 1, 0, 10];
     }
-    if (!server_native_phase_app($record['previousPhase'])) { return false; }
+    if (!server_native_phase_app($record['previousPhase'])
+        || !server_native_phase_admitted_operation($record['previousPhase'], $record['operation'])) { return false; }
     return match ($record['kind']) {
         2 => server_native_phase_app($record['phase']) && server_native_phase_operation($record['phase'], $record['operation']) && $record['peakBytes'] > $peak,
         3 => $record['phase'] === 1 && ($record['flags'] & 1) === 1 && $record['peakBytes'] > $peak,
@@ -211,14 +212,24 @@ function server_native_phase_kind(array $record, int $offset, int $peak): bool
 function server_native_phase_app(int $phase): bool
 {
     return ($phase >= 10 && $phase <= 17) || ($phase >= 20 && $phase <= 33) || ($phase >= 40 && $phase <= 42)
-        || ($phase >= 50 && $phase <= 53) || ($phase >= 60 && $phase <= 71) || ($phase >= 80 && $phase <= 91);
+        || ($phase >= 50 && $phase <= 53) || ($phase >= 60 && $phase <= 71) || ($phase >= 80 && $phase <= 91)
+        || server_native_phase_admitted($phase);
+}
+
+function server_native_phase_admitted(int $phase): bool
+{ return $phase >= 100 && $phase <= 114; }
+
+function server_native_phase_admitted_operation(int $phase, int $operation): bool
+{
+    return !server_native_phase_admitted($phase) || in_array($operation, [1, 4], strict: true);
 }
 
 function server_native_phase_operation(int $phase, int $operation): bool
 {
     return match ($phase) {
         10, 11 => in_array($operation, [1, 4], strict: true), 12, 13 => $operation === 2,
-        14, 15 => in_array($operation, [3, 6], strict: true), 16, 17 => $operation === 5, default => true,
+        14, 15 => in_array($operation, [3, 6], strict: true), 16, 17 => $operation === 5,
+        default => server_native_phase_admitted_operation($phase, $operation),
     };
 }
 

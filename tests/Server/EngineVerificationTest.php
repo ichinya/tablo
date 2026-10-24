@@ -166,6 +166,59 @@ function engine_verification_phase_projection(): void
     engine_verification_phase_records($records, $unknown);
     engine_verification_phase_terminals($unknown);
     engine_verification_phase_caps($unknown);
+    engine_verification_phase_refinement($unknown);
+}
+
+/** Literal Source110 contract fixtures, independently authored rather than copied from the implementation whitelist. */
+function engine_verification_phase_refinement(array $unknown): void
+{
+    foreach ([100, 101, 102, 103, 104, 105, 106, 107, 108, 109, 110, 111, 112, 113, 114] as $phase) {
+        engine_verification_phase_refinement_operations($phase, $unknown);
+    }
+    foreach ([99, 115, 116, 117, 118, 899, 904, 999, 1000] as $phase) {
+        foreach (engine_verification_phase_refinement_records($phase, operation: 1) as $records) {
+            Assert::same(\Tablo\Tools\server_native_phase_project(engine_verification_phase_wire($records)), $unknown);
+        }
+    }
+    engine_verification_phase_refinement_caps($unknown);
+}
+
+function engine_verification_phase_refinement_operations(int $phase, array $unknown): void
+{
+    foreach ([1, 4] as $operation) {
+        foreach (engine_verification_phase_refinement_records($phase, $operation) as $records) {
+            $actual = \Tablo\Tools\server_native_phase_project(engine_verification_phase_wire($records));
+            Assert::same([$actual['status'], $actual['originalActorFinalPeak'], $actual['tail'], $actual['issueAccepted']], ['APP_FAILURE', 'UNKNOWN', 'UNKNOWN', false]);
+            Assert::same(count($actual['records']), count($records));
+        }
+    }
+    foreach ([2, 3, 5, 6] as $operation) {
+        foreach (engine_verification_phase_refinement_records($phase, $operation) as $records) {
+            Assert::same(\Tablo\Tools\server_native_phase_project(engine_verification_phase_wire($records)), $unknown);
+        }
+    }
+}
+
+/** Current APP phase, APP predecessor, observer predecessor, and terminal predecessor are separate fixtures.
+ * @return list<list<list<int>>> */
+function engine_verification_phase_refinement_records(int $phase, int $operation): array
+{
+    $initial = [1, 1, 1, 0, 10, 100, 200, 0];
+    return [[$initial, [2, 2, $operation, 24, $phase, 120, 220, 0], [4, 3, $operation, 25, 901, 120, 220, 1]],
+        [$initial, [2, 2, $operation, $phase, 25, 120, 220, 0], [4, 3, $operation, 25, 901, 120, 220, 1]],
+        [$initial, [3, 2, $operation, $phase, 1, 120, 220, 1], [4, 3, $operation, 25, 901, 120, 220, 1]],
+        [$initial, [4, 2, $operation, $phase, 901, 100, 200, 1]]];
+}
+
+function engine_verification_phase_refinement_caps(array $unknown): void
+{
+    $records = [[1, 1, 1, 0, 10, 1, 1, 0]];
+    for ($sequence = 2; $sequence <= 63; $sequence++) { $records[] = [2, $sequence, 1, 109, 110, 1, $sequence, 0]; }
+    $bounded = [...$records, [4, 64, 1, 110, 902, 1, 63, 3]];
+    $actual = \Tablo\Tools\server_native_phase_project(engine_verification_phase_wire($bounded));
+    Assert::same([$actual['status'], count($actual['records']), $actual['issueAccepted']], ['TRUNCATED', 64, false]);
+    $overflow = [...$records, [2, 64, 1, 109, 110, 1, 64, 0], [4, 65, 1, 110, 902, 1, 64, 3]];
+    Assert::same(\Tablo\Tools\server_native_phase_project(engine_verification_phase_wire($overflow)), $unknown);
 }
 
 /** @param list<list<int>> $records */
@@ -253,7 +306,8 @@ function engine_verification_phase_private(string $path, string $bytes): void
 function engine_verification_phase_collector(): void
 {
     if (PHP_OS_FAMILY !== 'Linux' || PHP_VERSION_ID < 80_500 || PHP_VERSION_ID >= 80_600) { return; }
-    foreach (['valid', 'failure', 'order', 'truncated', 'buffer-unavailable', 'readonly', 'nonce', 'source', 'script', 'case', 'arguments', 'engine', 'hash', 'plan', 'sink', 'runtime', 'collision', 'linked', 'ancestor'] as $variant) {
+    foreach (['valid', 'failure', 'order', 'truncated', 'buffer-unavailable', 'refined', 'refined-bad-id', 'refined-bad-op', 'refined-truncated',
+        'preflight-alone', 'readonly', 'nonce', 'source', 'script', 'case', 'arguments', 'engine', 'hash', 'plan', 'sink', 'runtime', 'collision', 'linked', 'ancestor'] as $variant) {
         $directory = new TemporaryDirectory('tablo-phase-collector-');
         try { engine_verification_phase_collector_case($directory, $variant); } finally { $directory->close(); }
     }
@@ -270,8 +324,9 @@ function engine_verification_phase_layout(TemporaryDirectory $directory, string 
     }
     if ($variant === 'ancestor') { Assert::true(symlink($foreign, $base . '/mariadb')); }
     if (!mkdir($fixture, permissions: 0o700, recursive: true)) { throw new \RuntimeException('Cannot create synthetic phase fixture directory.'); }
-    Assert::true(copy(dirname(__DIR__, levels: 2) . '/app/DatabaseTransfer.php', $source . '/app/DatabaseTransfer.php'));
-    Assert::true(copy(dirname(__DIR__, levels: 2) . '/app/NativeWarning.php', $source . '/app/NativeWarning.php'));
+    $modules = $variant === 'preflight-alone' ? ['DatabaseTransferPreflight'] : ['DatabaseTransfer', 'NativeWarning'];
+    if (str_starts_with($variant, 'refined')) { $modules[] = 'DatabaseTransferPreflight'; }
+    foreach ($modules as $module) { Assert::true(copy(dirname(__DIR__, levels: 2) . '/app/' . $module . '.php', $source . '/app/' . $module . '.php')); }
     $plan = $runtime . '/evidence/started-cell.json'; engine_verification_phase_private($plan, bytes: 'synthetic-guard-bytes-only');
     $environment = ['TABLO_TEST_DB_DRIVER' => 'mariadb', 'TABLO_TEST_ENGINE_CASE' => 'transfer-working-data',
         'TABLO_TEST_SOURCE_ROOT' => $source, 'TABLO_TEST_RUN_NONCE' => $nonce, 'TABLO_TEST_RUNTIME_ROOT' => $fixture,
@@ -296,7 +351,10 @@ function engine_verification_phase_collector_case(TemporaryDirectory $directory,
 }
 
 function engine_verification_phase_positive(string $variant): bool
-{ return in_array($variant, ['valid', 'failure', 'order', 'truncated', 'buffer-unavailable'], strict: true); }
+{
+    return in_array($variant, ['valid', 'failure', 'order', 'truncated', 'buffer-unavailable',
+        'refined', 'refined-bad-id', 'refined-bad-op', 'refined-truncated'], strict: true);
+}
 
 /** Positive fixture output contains only four source-authored booleans; no native diagnostic value is echoed.
  * @param \Tablo\Tests\Support\Subprocess::Result $child */
@@ -331,23 +389,68 @@ function engine_verification_phase_environment(array $environment, string $forei
 
 function engine_verification_phase_actor(string $variant): string
 {
-    $phases = match ($variant) {
-        'failure' => '[10]', 'order' => '[10,12,10]', 'readonly' => '[]', 'truncated' => '[11,12,13,14,15,10,11,16,17,14,15]',
-        default => '[10,11,12,13,14,15,10,11,16,17,14,15]',
-    };
+    if ($variant === 'preflight-alone') { return engine_verification_phase_preflight_actor(); }
+    $phases = engine_verification_phase_actor_phases($variant);
     $failureMark = $variant === 'failure' ? '\\Tablo\\database_transfer_phase_mark(901);' : '';
     $writer = $variant === 'readonly' ? engine_verification_phase_readonly_actor() : '$writerPreserved = true;';
-    $growth = $variant === 'truncated' ? <<<'PHP'
-\Tablo\database_transfer_phase_mark(10);
-for ($index = 1; $index <= 70; $index++) { $syntheticGrowth = str_repeat('x', $index * 65536); \Tablo\database_transfer_phase_mark(20); }
-PHP : '';
+    $growth = engine_verification_phase_growth_actor($variant);
     $namespace = $variant === 'buffer-unavailable'
         ? 'namespace Tablo { function stream_set_write_buffer(mixed $stream, int $size): int { return -1; } } namespace {' : 'namespace {';
     $activation = engine_verification_phase_positive($variant) ? engine_verification_phase_activation_actor() : '$activation = [];';
+    $mark = '\\Tablo\\database_transfer_phase_mark($phase);';
+    if (str_starts_with($variant, 'refined')) {
+        $mark = 'if ($phase >= 100 && $phase <= 114) { require_once dirname(__DIR__) . "/app/DatabaseTransferPreflight.php"; \\Tablo\\database_transfer_preflight_phase($phase); } else { \\Tablo\\database_transfer_phase_mark($phase); }';
+    }
     return '<?php ' . $namespace . ' require dirname(__DIR__) . "/app/NativeWarning.php"; require dirname(__DIR__) . "/app/DatabaseTransfer.php";'
-        . ' try { ' . $growth . ' foreach (' . $phases . ' as $phase) { \\Tablo\\database_transfer_phase_mark($phase); }'
+        . ' try { ' . $growth . ' foreach (' . $phases . ' as $phase) { ' . $mark . ' }'
         . ' throw new \\RuntimeException("SYNTHETIC_PRIMARY"); } catch (\\Throwable $primary) { ' . $failureMark . $writer . $activation
         . ' echo json_encode(["primaryPreserved" => $writerPreserved && $primary instanceof \\RuntimeException && $primary->getMessage() === "SYNTHETIC_PRIMARY"] + $activation, JSON_THROW_ON_ERROR); } }';
+}
+
+function engine_verification_phase_actor_phases(string $variant): string
+{
+    return match ($variant) {
+        'failure' => '[10]', 'order' => '[10,12,10]', 'readonly' => '[]', 'truncated' => '[11,12,13,14,15,10,11,16,17,14,15]',
+        'refined' => '[10,24,100,101,105,106,107,108,109,110,111,109,110,111,112,113,114,25,11,12,13,14,15,10,24,100,101,102,103,104,108,109,110,111,112,113,114,25,11,16,17,14,15]',
+        'refined-bad-id' => '[10,24,115]', 'refined-bad-op' => '[10,11,12,100]',
+        'refined-truncated' => '[112,113,114,25,11,12,13,14,15,10,24,100,101,102,103,104,108,109,110,111,112,113,114,25,11,16,17,14,15]',
+        default => '[10,11,12,13,14,15,10,11,16,17,14,15]',
+    };
+}
+
+function engine_verification_phase_growth_actor(string $variant): string
+{
+    if ($variant === 'refined-truncated') { return <<<'PHP'
+foreach ([10,24] as $phase) { \Tablo\database_transfer_phase_mark($phase); }
+require_once dirname(__DIR__) . '/app/DatabaseTransferPreflight.php';
+foreach ([100,101,105,106,107,108] as $phase) { \Tablo\database_transfer_preflight_phase($phase); }
+for ($index = 1; $index <= 70; $index++) {
+    $syntheticGrowth = str_repeat('x', $index * 65536);
+    foreach ([109,110,111] as $phase) { \Tablo\database_transfer_preflight_phase($phase); }
+}
+PHP; }
+    return $variant === 'truncated' ? <<<'PHP'
+\Tablo\database_transfer_phase_mark(10);
+for ($index = 1; $index <= 70; $index++) { $syntheticGrowth = str_repeat('x', $index * 65536); \Tablo\database_transfer_phase_mark(20); }
+PHP : '';
+}
+
+/** Standalone module loading must not discover or load the facade merely to forward a marker. */
+function engine_verification_phase_preflight_actor(): string
+{
+    return <<<'PHP'
+<?php
+require dirname(__DIR__) . '/app/DatabaseTransferPreflight.php';
+$before = function_exists('Tablo\\database_transfer_phase_mark');
+try {
+    \Tablo\database_transfer_preflight_phase(100);
+    \Tablo\database_transfer_preflight_phase(114);
+    throw new \RuntimeException('SYNTHETIC_PRIMARY');
+} catch (\Throwable $primary) {
+    echo json_encode(['primaryPreserved' => !$before && !function_exists('Tablo\\database_transfer_phase_mark')
+        && $primary instanceof \RuntimeException && $primary->getMessage() === 'SYNTHETIC_PRIMARY'], JSON_THROW_ON_ERROR);
+}
+PHP;
 }
 
 function engine_verification_phase_activation_actor(): string
@@ -382,9 +485,12 @@ function engine_verification_phase_collector_result(string $trace, string $varia
         engine_verification_phase_trace_owned($trace);
         $bytes = \Tablo\Tools\server_native_phase_bytes($trace); Assert::true(is_string($bytes));
         $actual = \Tablo\Tools\server_native_phase_project(is_string($bytes) ? $bytes : '');
-        Assert::same($actual['status'], match ($variant) { 'failure' => 'APP_FAILURE', 'order' => 'ORDER_INVALID', 'truncated' => 'TRUNCATED', default => 'APP_COMPLETE_ONLY' });
+        Assert::same($actual['status'], match ($variant) {
+            'failure' => 'APP_FAILURE', 'order', 'refined-bad-id', 'refined-bad-op' => 'ORDER_INVALID',
+            'truncated', 'refined-truncated' => 'TRUNCATED', default => 'APP_COMPLETE_ONLY',
+        });
         Assert::same([$actual['originalActorFinalPeak'], $actual['tail'], $actual['issueAccepted']], ['UNKNOWN', 'UNKNOWN', false]);
-        if ($variant === 'truncated') { Assert::same(count($actual['records']), 64); Assert::true(strlen(is_string($bytes) ? $bytes : '') <= 8192); }
+        if (in_array($variant, ['truncated', 'refined-truncated'], strict: true)) { Assert::same(count($actual['records']), 64); Assert::true(strlen(is_string($bytes) ? $bytes : '') <= 8192); }
         return;
     }
     if (in_array($variant, ['collision', 'linked'], strict: true)) { Assert::same(file_get_contents($trace), $sentinel); return; }

@@ -133,20 +133,39 @@ function database_transfer_source_snapshot(PDO $db): void
 
 function database_transfer_source_admitted(PDO $db, #[\SensitiveParameter] TokenVault $vault): void
 {
+    database_transfer_preflight_phase(100);
     database_transfer_source_stream($db);
-    if (DatabaseSession::server($db)) { ServerSchema::admit($db); ServerKeyIdentity::authenticate($db, $vault); }
+    database_transfer_preflight_phase(101);
+    if (DatabaseSession::server($db)) {
+        database_transfer_preflight_phase(102);
+        ServerSchema::admit($db);
+        database_transfer_preflight_phase(103);
+        ServerKeyIdentity::authenticate($db, $vault);
+        database_transfer_preflight_phase(104);
+    }
     if (!DatabaseSession::server($db)) {
+        database_transfer_preflight_phase(105);
         if (SchemaVersion::schemaVersion($db) !== 10) { throw new DatabaseFailure('schema'); }
+        database_transfer_preflight_phase(106);
         SchemaLayout::observe($db, 10);
+        database_transfer_preflight_phase(107);
     }
     $rows = 0; $bytes = 0;
+    database_transfer_preflight_phase(108);
     foreach (DatabaseTransferManifest::tables() as $table) {
-        database_transfer_preflight_row_envelope($db, $table); $size = database_transfer_preflight_footprint($db, $table);
+        database_transfer_preflight_phase(109);
+        database_transfer_preflight_row_envelope($db, $table);
+        database_transfer_preflight_phase(110);
+        $size = database_transfer_preflight_footprint($db, $table);
+        database_transfer_preflight_phase(111);
         if ($size['rows'] > DatabaseTransferManifest::MAX_ROWS - $rows || $size['bytes'] > DatabaseTransferManifest::MAX_RAW_BYTES - $bytes) { throw new DatabaseFailure('schema'); }
         $rows += $size['rows']; $bytes += $size['bytes'];
     }
+    database_transfer_preflight_phase(112);
     ExternalKeyAuthentication::authenticateExternalKey($db, $vault);
+    database_transfer_preflight_phase(113);
     database_transfer_preflight_quiescent($db);
+    database_transfer_preflight_phase(114);
 }
 
 
@@ -199,4 +218,9 @@ function database_transfer_sqlite_target_row(PDO $scratch, array $table, #[\Sens
         if (!is_int($value) || $value <= 0) { throw new DatabaseFailure('schema'); }
     }
     DatabaseTransferRows::insert($scratch, $table, $values);
+}
+
+function database_transfer_preflight_phase(int $phase): void
+{
+    if (function_exists('Tablo\\database_transfer_phase_mark')) { database_transfer_phase_mark($phase); }
 }
