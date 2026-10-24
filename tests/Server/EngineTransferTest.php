@@ -242,7 +242,7 @@ function engine_transfer_working_data(): void
         Assert::same($result['nativeBufferedSource'] ?? null, false);
         $used = \Tablo\SqlColumn::integer($result, 'peakPhpWorkingBytes');
         Assert::true($used > 0);
-        Assert::true($used <= 2_097_152, 'Complete measured helper, including cold transfer metadata, exceeds2MiB; peakPhpWorkingBytes=' . $used);
+        Assert::true($used <= 2_097_152, engine_transfer_memory_context($used, $result));
         Assert::same($result['allTypedDigestsPreserved'] ?? null, true);
         \Tablo\Tests\Support\SessionEvidence::record('transfer-working-memory', ['status' => 'passed', 'payloadBytes' => 11_520_000,
             'tables' => 15, 'peakPhpWorkingBytes' => $used, 'nativeBufferedSource' => false,
@@ -250,6 +250,20 @@ function engine_transfer_working_data(): void
             'metricScope' => \Tablo\SqlColumn::string($result, 'metricScope')]);
     } catch (\Throwable $error) { $directory->retainFailure($error); throw $error; }
     finally { $fixture->close(); $directory->close(); }
+}
+
+/** TEMPORARY diagnostic context; invalid optional fields leave the original assertion message intact. */
+function engine_transfer_memory_context(int $used, #[\SensitiveParameter] array $result): string
+{
+    $context = 'Complete measured helper, including cold transfer metadata, exceeds2MiB; peakPhpWorkingBytes=' . $used;
+    /** @var mixed $current Optional child data must pass the finite scalar guard below. */
+    $current = $result['currentPhpWorkingBytes'] ?? null;
+    /** @var mixed $phase No unvalidated phase may enter an assertion message. */
+    $phase = $result['finalVerifyCheckpoint'] ?? null;
+    if (!is_int($current) || $current < 0 || $current > 268_435_456 || !is_string($phase) || !in_array($phase,
+        ['VERIFY_ENTRY', 'MANIFEST', 'SCRATCH_SCHEMA', 'ARCHIVE_ROWS_ENVELOPES', 'SCRATCH_STATE', 'SCRATCH_CREDENTIALS',
+            'TARGET_ROWS', 'TARGET_STATE', 'TARGET_CREDENTIALS', 'VERIFY_RETURN', 'UNKNOWN'], strict: true)) { return $context; }
+    return $context . '; finalVerifyCheckpoint=' . $phase . '; currentPhpWorkingBytes=' . $current;
 }
 
 function engine_transfer_working_fixture(PDO $source): void
