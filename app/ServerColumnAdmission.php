@@ -20,6 +20,7 @@ final class ServerColumnAdmission
         $mysql = DatabaseSession::get($db)?->configuration->engine === 'mysql';
         foreach ($table['columns'] as $index => $expected) {
             $actual = SqlRows::required($columns[$index] ?? null, static fn (array $row): array => $row);
+            unset($columns[$index]);
             $type = SqlColumn::string($actual, 'type');
             $expectedShape = ['name' => $expected['name'], 'type' => $expected['type'], 'nullable' => $expected['nullable'] ? 'YES' : 'NO', 'auto' => $expected['auto'] ?? false];
             $actualShape = ['name' => SqlColumn::string($actual, 'name'), 'type' => $type === 'bigint(20)' ? 'bigint' : $type,
