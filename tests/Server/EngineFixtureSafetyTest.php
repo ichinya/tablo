@@ -159,34 +159,180 @@ function engine_fixture_complete_child_union(): void
 
 function engine_fixture_explicit_close_streams(): void
 {
+    foreach (['normal', 'forced', 'timeout'] as $mode) { engine_fixture_explicit_close_stream($mode); }
+}
+
+/** @param 'normal'|'forced'|'timeout' $mode */
+function engine_fixture_explicit_close_stream(string $mode): void
+{
     $owner = new \Tablo\Tests\Support\TemporaryDirectory('tablo-engine-close-evidence-');
     $childDirectory = new \Tablo\Tests\Support\TemporaryDirectory('tablo-engine-closed-child-');
-    $before = getenv('TABLO_SESSION_EVIDENCE_DIRECTORY'); $sink = \Tablo\Tests\Support\SessionEvidence::directory(); $child = null;
-    if ($sink === null) { $sink = $owner->path . '/saved'; Assert::true(mkdir($sink, permissions: 0o700)); putenv('TABLO_SESSION_EVIDENCE_DIRECTORY=' . $sink); }
+    $before = getenv('TABLO_SESSION_EVIDENCE_DIRECTORY'); $sink = engine_fixture_explicit_close_sink($owner); $child = null;
     try {
-        $child = new \Tablo\Tests\Support\Subprocess([PHP_BINARY, '-r', 'fwrite(STDERR,"closed-err");fwrite(STDOUT,"closed-out");fflush(STDERR);fflush(STDOUT);while(fgets(STDIN)!==false){}'], $childDirectory);
-        $child->awaitOutput('closed-out'); $child->close(); $child = null;
-        $matches = []; $paths = glob($sink . '/direct-child-close-*.json');
-        if ($paths === false) { throw new \RuntimeException('Closed stream evidence discovery failed.'); }
-        foreach ($paths as $path) {
-            $record = \Tablo\JsonRecord::decode(\Tablo\RequiredFile::bytes(file_get_contents($path)));
-            if (str_starts_with(\Tablo\SqlColumn::string($record, 'sourceReceipt'), $childDirectory->path . '/')) { $matches[] = $record; }
-        }
-        Assert::same(count($matches), 1); $closed = $matches[0] ?? throw new \RuntimeException('Real explicit-close evidence absent.');
-        $receipt = \Tablo\Tests\Support\SubprocessReceipt::read(\Tablo\SqlColumn::string($closed, 'receiptCopy'));
-        Assert::same([$receipt['closed'], $receipt['root_exit_observed']], [true, true]);
-        Assert::true(\Tablo\SqlColumn::integer($closed, 'pid') > 0); Assert::true(is_int($receipt['exit_code']));
-        $childDirectory->close(); Assert::false(is_dir($childDirectory->path));
-        $streams = \Tablo\JsonRecord::checked($closed['streams'] ?? null);
-        foreach (['stdout' => 'closed-out', 'stderr' => 'closed-err'] as $name => $expected) {
-            $stream = \Tablo\JsonRecord::checked($streams[$name] ?? null); $copy = \Tablo\SqlColumn::string($stream, 'path');
-            $original = $receipt['streams'][$name] ?? throw new \RuntimeException('Real closed stream receipt absent.');
-            Assert::false(is_file($original['path'])); Assert::same(file_get_contents($copy), $expected);
-            Assert::same(\Tablo\RequiredFile::digest($copy), $original['sha256']);
-            Assert::same(\Tablo\SqlColumn::string($stream, 'sha256'), $original['sha256']);
-        }
+        $child = engine_fixture_explicit_close_child($mode, $childDirectory);
+        engine_fixture_explicit_close_protocol($mode, $child, $childDirectory);
+        $child->close(); $child = null;
+        engine_fixture_explicit_close_retention($mode, $sink, $childDirectory);
     } catch (\Throwable $error) { $owner->retainFailure($error); $childDirectory->retainFailure($error); throw $error; }
     finally { $child?->close(); putenv($before === false ? 'TABLO_SESSION_EVIDENCE_DIRECTORY' : 'TABLO_SESSION_EVIDENCE_DIRECTORY=' . $before); $childDirectory->close(); $owner->close(); }
+}
+
+function engine_fixture_explicit_close_sink(\Tablo\Tests\Support\TemporaryDirectory $owner): string
+{
+    $sink = \Tablo\Tests\Support\SessionEvidence::directory();
+    if ($sink !== null) { return $sink; }
+    $sink = $owner->path . '/saved'; Assert::true(mkdir($sink, permissions: 0o700));
+    putenv('TABLO_SESSION_EVIDENCE_DIRECTORY=' . $sink);
+    return $sink;
+}
+
+/** @param 'normal'|'forced'|'timeout' $mode */
+function engine_fixture_explicit_close_child(string $mode, \Tablo\Tests\Support\TemporaryDirectory $directory): \Tablo\Tests\Support\Subprocess
+{
+    $body = 'fwrite(STDERR,"closed-err");fwrite(STDOUT,"closed-out");fflush(STDERR);fflush(STDOUT);';
+    $body .= match ($mode) {
+        'normal' => 'while(fgets(STDIN)!==false){}',
+        'forced' => 'while(true){usleep(20000);}',
+        'timeout' => 'fgets(STDIN);fwrite(STDOUT,"owned-ack");fflush(STDOUT);while(true){usleep(20000);}',
+    };
+    return new \Tablo\Tests\Support\Subprocess([PHP_BINARY, '-r', $body], $directory);
+}
+
+/** @param 'normal'|'forced'|'timeout' $mode */
+function engine_fixture_explicit_close_protocol(string $mode, \Tablo\Tests\Support\Subprocess $child, \Tablo\Tests\Support\TemporaryDirectory $directory): void
+{
+    $child->awaitOutput('closed-out');
+    if ($mode === 'timeout') { engine_fixture_await_exit_refusals($child, $directory); return; }
+    if ($mode === 'normal') { $child->send(''); $child->awaitExit(); }
+}
+
+function engine_fixture_explicit_close_record(string $sink, string $directory): array
+{
+    $matches = []; $paths = glob($sink . '/direct-child-close-*.json');
+    if ($paths === false) { throw new \RuntimeException('Closed stream evidence discovery failed.'); }
+    foreach ($paths as $path) {
+        $record = \Tablo\JsonRecord::decode(\Tablo\RequiredFile::bytes(file_get_contents($path)));
+        if (str_starts_with(\Tablo\SqlColumn::string($record, 'sourceReceipt'), $directory . '/')) { $matches[] = $record; }
+    }
+    Assert::same(count($matches), 1);
+    return $matches[0] ?? throw new \RuntimeException('Real explicit-close evidence absent.');
+}
+
+/** @param 'normal'|'forced'|'timeout' $mode */
+function engine_fixture_explicit_close_retention(string $mode, string $sink, \Tablo\Tests\Support\TemporaryDirectory $directory): void
+{
+    $closed = engine_fixture_explicit_close_record($sink, $directory->path);
+    $receipt = \Tablo\Tests\Support\SubprocessReceipt::read(\Tablo\SqlColumn::string($closed, 'receiptCopy'));
+    Assert::same([$receipt['closed'], $receipt['root_exit_observed']], [true, true]);
+    Assert::true(\Tablo\SqlColumn::integer($closed, 'pid') > 0);
+    Assert::same($receipt['pid'], \Tablo\SqlColumn::integer($closed, 'pid'));
+    engine_fixture_explicit_close_outcome($receipt, $mode);
+    if ($mode === 'timeout') { engine_fixture_await_exit_failure_receipt($receipt, $directory); return; }
+    $directory->close(); Assert::false(is_dir($directory->path));
+    engine_fixture_explicit_close_copies($receipt, $closed);
+}
+
+function engine_fixture_explicit_close_copies(array $record, array $closed): void
+{
+    $receipt = \Tablo\Tests\Support\SubprocessReceiptData::checked($record);
+    $streams = \Tablo\JsonRecord::checked($closed['streams'] ?? null);
+    foreach (['stdout' => 'closed-out', 'stderr' => 'closed-err'] as $name => $expected) {
+        $stream = \Tablo\JsonRecord::checked($streams[$name] ?? null); $copy = \Tablo\SqlColumn::string($stream, 'path');
+        $original = $receipt['streams'][$name] ?? throw new \RuntimeException('Real closed stream receipt absent.');
+        Assert::false(is_file($original['path'])); Assert::same(file_get_contents($copy), $expected);
+        Assert::same(\Tablo\RequiredFile::digest($copy), $original['sha256']);
+        Assert::same(\Tablo\SqlColumn::string($stream, 'sha256'), $original['sha256']);
+    }
+}
+
+/** @param 'normal'|'forced'|'timeout' $mode */
+function engine_fixture_explicit_close_outcome(array $record, string $mode): void
+{
+    $receipt = \Tablo\Tests\Support\SubprocessReceiptData::checked($record);
+    Assert::same($receipt['platform'] ?? null, PHP_OS_FAMILY);
+    $stages = array_column($receipt['events'], 'stage'); Assert::false(in_array('finish', $stages, strict: true));
+    $exits = array_values(array_filter($receipt['events'], static fn (array $event): bool => $event['stage'] === 'root-exit'));
+    $closes = array_values(array_filter($receipt['events'], static fn (array $event): bool => $event['stage'] === 'proc-close'));
+    Assert::same([count($exits), count($closes)], [1, 1]);
+    $exit = $exits[0] ?? throw new \RuntimeException('Real child stopped observation absent.');
+    $close = $closes[0] ?? throw new \RuntimeException('Real child close observation absent.');
+    engine_fixture_explicit_close_status($receipt, $exit, $close);
+    if ($mode === 'normal') { engine_fixture_normal_close_outcome($receipt, $exit, $stages); return; }
+    engine_fixture_forced_close_outcome($receipt, $exit);
+}
+
+function engine_fixture_explicit_close_status(array $record, array $exit, array $close): void
+{
+    $receipt = \Tablo\Tests\Support\SubprocessReceiptData::checked($record);
+    Assert::true(is_int($receipt['proc_close'] ?? null)); Assert::same($receipt['proc_close'] ?? null, $close['native_exit_code'] ?? null);
+    Assert::same([$receipt['exit_code'], $receipt['signaled'] ?? null], [$exit['exit_code'] ?? null, $exit['signaled'] ?? null]);
+}
+
+function engine_fixture_normal_close_outcome(array $record, array $exit, array $stages): void
+{
+    $receipt = \Tablo\Tests\Support\SubprocessReceiptData::checked($record);
+    Assert::true(is_int($receipt['exit_code']));
+    Assert::same([$receipt['exit_code'], $receipt['signaled'] ?? null, $receipt['term_signal'] ?? null], [0, false, null]);
+    Assert::same($exit['native_exit_code'] ?? null, 0);
+    Assert::true(in_array('input-closed', $stages, strict: true)); Assert::true(in_array('exit-selection', $stages, strict: true));
+    Assert::false(in_array('terminate-direct-child', $stages, strict: true));
+    Assert::false(in_array('termination-request-result', $stages, strict: true));
+}
+
+function engine_fixture_forced_close_outcome(array $record, array $exit): void
+{
+    $receipt = \Tablo\Tests\Support\SubprocessReceiptData::checked($record);
+    $requests = array_values(array_filter($receipt['events'], static fn (array $event): bool => $event['stage'] === 'termination-request-result'));
+    Assert::same(count($requests), 1); $request = $requests[0] ?? throw new \RuntimeException('Real child termination request absent.');
+    Assert::same([$request['signal'] ?? null, $request['accepted'] ?? null], [15, true]);
+    if (PHP_OS_FAMILY === 'Windows') {
+        engine_fixture_windows_close_outcome($receipt, $exit);
+        return;
+    }
+    Assert::same([$receipt['exit_code'], $receipt['signaled'] ?? null, $receipt['term_signal'] ?? null], [null, true, 15]);
+    Assert::same($exit['signal'] ?? null, 15);
+}
+
+function engine_fixture_windows_close_outcome(array $record, array $exit): void
+{
+    $receipt = \Tablo\Tests\Support\SubprocessReceiptData::checked($record);
+    Assert::true(is_int($receipt['exit_code'])); Assert::same($receipt['exit_code'], $exit['native_exit_code'] ?? null);
+    Assert::same([$receipt['signaled'] ?? null, $receipt['term_signal'] ?? null], [false, null]);
+}
+
+function engine_fixture_await_exit_refusals(\Tablo\Tests\Support\Subprocess $child, \Tablo\Tests\Support\TemporaryDirectory $directory): void
+{
+    foreach ([NAN, INF, -INF, -1.0] as $timeout) {
+        $caught = null;
+        try { $child->awaitExit($timeout); } catch (\RuntimeException $error) { $caught = $error; }
+        Assert::same($caught?->getMessage(), 'Invalid test command exit observation timeout');
+    }
+    Assert::same(glob($directory->path . '/command-*.json'), []); Assert::false($directory->hasFailure());
+    $child->sendBarrier("still-owned\n"); $child->awaitOutput('owned-ack');
+    $caught = null;
+    try { $child->awaitExit(0); } catch (\RuntimeException $error) { $caught = $error; }
+    Assert::true(str_contains($caught?->getMessage() ?? '', 'stage=exit-selection'));
+    Assert::true($directory->hasFailure());
+}
+
+function engine_fixture_await_exit_failure_receipt(array $record, \Tablo\Tests\Support\TemporaryDirectory $directory): void
+{
+    $receipt = \Tablo\Tests\Support\SubprocessReceiptData::checked($record);
+    $sequence = array_values(array_filter(array_column($receipt['events'], 'stage'), static fn (string $stage): bool =>
+        in_array($stage, ['barrier-input-flushed', 'exit-selection', 'failure', 'root-exit'], strict: true)));
+    Assert::same($sequence, ['barrier-input-flushed', 'exit-selection', 'failure', 'root-exit']);
+    $selections = array_values(array_filter($receipt['events'], static fn (array $event): bool => $event['stage'] === 'exit-selection'));
+    $failures = array_values(array_filter($receipt['events'], static fn (array $event): bool => $event['stage'] === 'failure'));
+    $selection = $selections[0] ?? throw new \RuntimeException('Real exit selection absent.');
+    $failure = $failures[0] ?? throw new \RuntimeException('Real exit observation failure absent.');
+    Assert::same($selection['timeout_seconds'] ?? null, 0);
+    Assert::same([$failure['failure_stage'] ?? null, $failure['type'] ?? null], ['exit-selection', \RuntimeException::class]);
+    $directory->close(); Assert::true(is_dir($directory->path));
+    foreach (['stdout' => 'closed-outowned-ack', 'stderr' => 'closed-err'] as $name => $expected) {
+        $stream = $receipt['streams'][$name] ?? throw new \RuntimeException('Retained failure stream absent.');
+        Assert::true(is_file($stream['path'])); Assert::same(file_get_contents($stream['path']), $expected);
+        Assert::same(\Tablo\RequiredFile::digest($stream['path']), $stream['sha256']);
+    }
 }
 
 function engine_fixture_private_controller_parent(): void

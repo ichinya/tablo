@@ -38,6 +38,9 @@ final class Subprocess
     { SubprocessInput::barrier($this->state, $input); }
     public function awaitOutput(string $marker, float $timeout = 5): void
     { SubprocessSelection::waitForOutput($this->state, $marker, $timeout); }
+    /** Observe the actual stopped child without closing it or collecting a finish result. */
+    public function awaitExit(float $timeout = 5): void
+    { SubprocessSelection::waitForExit($this->state, $timeout); }
     /** @return Result */
     public function finish(float $timeout = 8): array
     { return SubprocessCompletion::finish($this->state, $timeout); }

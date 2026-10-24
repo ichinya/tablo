@@ -94,22 +94,31 @@ function database_transfer_cursor_table(PDO $db, #[\SensitiveParameter] string $
     if (DatabaseTransferSequence::scalar($db, 'SELECT COUNT(*) AS value FROM `' . $table['name'] . '`') !== $previous) { throw new DatabaseFailure('schema'); }
     $stored = DatabaseTransferRows::read($db, $table);
     $rowNumber = 0;
-    foreach (DatabaseTransferArchive::read($directory, $table, $receipt) as $values) {
+    DatabaseTransferArchive::visit($directory, $table, $receipt, static function (#[\SensitiveParameter] array $values) use ($db, $table, $position, $previous, $primaryCursor, $stored, &$rowNumber): void {
         $rowNumber++;
         if ($rowNumber <= $previous) {
             if ($stored->current() !== $values) { throw new DatabaseFailure('schema'); }
             if ($rowNumber === $previous && DatabaseTransferRows::encode(database_transfer_value_primary($table, $values)) !== $primaryCursor) { throw new DatabaseFailure('schema'); }
-            $stored->next(); continue;
+            $stored->next(); return;
         }
-        $primary = database_transfer_value_primary($table, $values);
-        DatabaseTransferTarget::atomic($db, static function () use ($db, $table, $values, $plan, $step, $rowNumber, $primary): void {
-            DatabaseTransferRows::insert($db, $table, $values);
-            ServerSchema::rows($db, 'UPDATE tablo_migration_journal SET `cursor` = ? WHERE plan = ? AND step = ?',
-                [JsonEncoding::encode(['rows' => $rowNumber, 'primary' => DatabaseTransferRows::encode($primary)]), $plan, $step]);
-        });
-    }
+        database_transfer_cursor_append($db, $table, $values, $position, $rowNumber);
+    });
     if ($rowNumber < $previous) { throw new DatabaseFailure('schema'); }
-    unset($values, $stored);
+    unset($stored);
     DatabaseTransferVerification::table($db, $table, $receipt);
     $journal->done($step);
+}
+
+/** @param \Tablo\DatabaseTransferManifest::Table $table
+ * @param \Tablo\DatabaseTransferRows::Values $values
+ * @param array{plan: string, step: int} $position */
+function database_transfer_cursor_append(PDO $db, array $table, #[\SensitiveParameter] array $values, array $position, int $rowNumber): void
+{
+    $plan = $position['plan']; $step = $position['step'];
+    $primary = database_transfer_value_primary($table, $values);
+    DatabaseTransferTarget::atomic($db, static function () use ($db, $table, $values, $plan, $step, $rowNumber, $primary): void {
+        DatabaseTransferRows::insert($db, $table, $values);
+        ServerSchema::rows($db, 'UPDATE tablo_migration_journal SET `cursor` = ? WHERE plan = ? AND step = ?',
+            [JsonEncoding::encode(['rows' => $rowNumber, 'primary' => DatabaseTransferRows::encode($primary)]), $plan, $step]);
+    });
 }
