@@ -399,7 +399,7 @@ function engine_verification_phase_actor(string $variant): string
     $activation = engine_verification_phase_positive($variant) ? engine_verification_phase_activation_actor() : '$activation = [];';
     $mark = '\\Tablo\\database_transfer_phase_mark($phase);';
     if (str_starts_with($variant, 'refined')) {
-        $mark = 'if ($phase >= 100 && $phase <= 114) { require_once dirname(__DIR__) . "/app/DatabaseTransferPreflight.php"; \\Tablo\\database_transfer_preflight_phase($phase); } else { \\Tablo\\database_transfer_phase_mark($phase); }';
+        $mark = 'if ($phase >= 100) { require_once dirname(__DIR__) . "/app/DatabaseTransferPreflight.php"; \\Tablo\\database_transfer_preflight_phase($phase); } else { \\Tablo\\database_transfer_phase_mark($phase); }';
     }
     return '<?php ' . $namespace . ' require dirname(__DIR__) . "/app/NativeWarning.php"; require dirname(__DIR__) . "/app/DatabaseTransfer.php";'
         . ' try { ' . $growth . ' foreach (' . $phases . ' as $phase) { ' . $mark . ' }'
