@@ -188,13 +188,16 @@ function database_transfer_codec_decode(#[\SensitiveParameter] mixed $input, arr
     $columns = DatabaseTransferManifest::columns($table);
     $input = JsonRecord::checked($input);
     if (count($input) !== count($columns)) { throw new DatabaseFailure('schema'); }
-    $values = [];
+    $values = []; $canonical = array_is_list($input);
     foreach ($columns as $index => $column) {
         $cell = JsonRecord::checked($input[$index] ?? null);
-        $values[] = database_transfer_value_value(database_transfer_codec_cell($cell), $column);
+        $value = database_transfer_value_value(database_transfer_codec_cell($cell), $column);
+        $values[] = $value;
+        $canonical = database_transfer_codec_canonical_cell($cell, $value) && $canonical;
     }
-    // Exact canonical encoding also proves both outer and cell list shapes.
-    if (database_transfer_codec_encode($values) !== $input) { throw new DatabaseFailure('schema'); }
+    // Scalar validators prove canonical payloads; defer list/tag mismatches as before.
+    $matches = database_transfer_codec_columns_list($columns) ? $canonical : database_transfer_codec_encode($values) === $input;
+    if (!$matches) { throw new DatabaseFailure('schema'); }
     return $values;
 }
 
@@ -215,7 +218,7 @@ function database_transfer_codec_consume_line(#[\SensitiveParameter] string &$li
 {
     $input = JsonRecord::decode($line);
     // Speculative wire encoding must not precede the typed decoder's failure.
-    try { $canonicalWire = JsonEncoding::encode($input) === $line; }
+    try { $canonicalWire = database_transfer_codec_wire($input, $line); }
     catch (\JsonException) { $canonicalWire = false; }
     $line = '';
     $values = database_transfer_codec_decode($input, $table);
@@ -233,7 +236,83 @@ function database_transfer_codec_cell(#[\SensitiveParameter] array $cell): int|s
     $bytes = SqlColumn::string($cell, '1');
     if (count($cell) !== 2) { throw new DatabaseFailure('schema'); }
     if (($cell[0] ?? null) === 'integer') { return DatabaseInteger::checked($bytes); }
-    $decoded = base64_decode($bytes, strict: true);
-    if (($cell[0] ?? null) !== 'bytes' || $decoded === false || base64_encode($decoded) !== $bytes) { throw new DatabaseFailure('schema'); }
+    $decoded = database_transfer_codec_base64($bytes);
+    if (($cell[0] ?? null) !== 'bytes' || $decoded === false) { throw new DatabaseFailure('schema'); }
     return $decoded;
+}
+
+/** @param array $cell */
+function database_transfer_codec_canonical_cell(#[\SensitiveParameter] array $cell, #[\SensitiveParameter] int|string|null $value): bool
+{
+    $tag = match (true) { $value === null => 'null', is_int($value) => 'integer', default => 'bytes' };
+    return array_is_list($cell) && ($cell[0] ?? null) === $tag;
+}
+
+/** @param array $columns Public array callers may supply non-list descriptors. */
+function database_transfer_codec_columns_list(array $columns): bool
+{
+    return array_is_list($columns);
+}
+
+function database_transfer_codec_base64(#[\SensitiveParameter] string $encoded): string|false
+{
+    $result = ''; $offset = 0; $length = strlen($encoded);
+    while ($offset < $length) {
+        $piece = substr($encoded, $offset, length: 4096); $offset += strlen($piece);
+        if ($offset < $length && str_contains($piece, needle: '=')) { return false; }
+        $decoded = base64_decode($piece, strict: true);
+        if ($decoded === false || base64_encode($decoded) !== $piece) { return false; }
+        $result .= $decoded;
+    }
+    return $result;
+}
+
+/** @param array $input */
+function database_transfer_codec_wire(#[\SensitiveParameter] array $input, #[\SensitiveParameter] string $line): bool
+{
+    $offset = 0;
+    if (!array_is_list($input) || !database_transfer_codec_wire_fragment('[', $line, $offset)) { return false; }
+    /** @var mixed $cell Decoded JSON items require the runtime cell eligibility checks below. */
+    foreach ($input as $index => $cell) {
+        if (!database_transfer_codec_wire_fragment($index === 0 ? '' : ',', $line, $offset)
+            || !database_transfer_codec_wire_cell($cell, $line, $offset)) { return false; }
+    }
+    return database_transfer_codec_wire_fragment(']', $line, $offset) && $offset === strlen($line);
+}
+
+function database_transfer_codec_wire_cell(#[\SensitiveParameter] mixed $cell, #[\SensitiveParameter] string $line, int &$offset): bool
+{
+    if (!is_array($cell) || !array_is_list($cell)) { return false; }
+    if ($cell === ['null']) { return database_transfer_codec_wire_fragment('["null"]', $line, $offset); }
+    if (count($cell) !== 2) { return false; }
+    /** @var mixed $tag Decoded JSON tags are validated before string encoding. */
+    $tag = $cell[0] ?? null;
+    /** @var mixed $value Decoded JSON payloads are validated before string encoding. */
+    $value = $cell[1] ?? null;
+    if (!is_string($tag) || !in_array($tag, ['integer', 'bytes'], strict: true) || !is_string($value)) { return false; }
+    return database_transfer_codec_wire_fragment('[' . JsonEncoding::encode($tag) . ',', $line, $offset)
+        && database_transfer_codec_wire_string($value, $line, $offset)
+        && database_transfer_codec_wire_fragment(']', $line, $offset);
+}
+
+function database_transfer_codec_wire_string(#[\SensitiveParameter] string $value, #[\SensitiveParameter] string $line, int &$offset): bool
+{
+    if (!database_transfer_codec_wire_fragment('"', $line, $offset)) { return false; }
+    $start = 0; $length = strlen($value);
+    while ($start < $length) {
+        $piece = substr($value, $start, length: 4096); $start += strlen($piece);
+        if (preg_match('/[^\x00-\x7f]/', $piece) !== 0) { return false; }
+        $encoded = JsonEncoding::encode($piece);
+        if (!database_transfer_codec_wire_fragment(substr($encoded, offset: 1, length: -1), $line, $offset)) { return false; }
+    }
+    return database_transfer_codec_wire_fragment('"', $line, $offset);
+}
+
+function database_transfer_codec_wire_fragment(#[\SensitiveParameter] string $fragment, #[\SensitiveParameter] string $line, int &$offset): bool
+{
+    $length = strlen($fragment); $available = strlen($line);
+    if ($offset < 0 || $offset > $available || $length > $available - $offset) { return false; }
+    if ($length !== 0 && substr_compare($line, $fragment, $offset, $length) !== 0) { return false; }
+    $offset += $length;
+    return true;
 }

@@ -15,6 +15,8 @@ use PDO;
  * @phpstan-type Receipt array{name: string, rows: int, sha256: string, chunks: list<Chunk>}
  *
  * @phpstan-type WriteChunk array{handle: resource|null, bytes: int, rows: int, hash: \HashContext}
+ *
+ * @phpstan-type ReadLine array{bytes: int, sha256: string}
  */
 final class DatabaseTransferArchive
 {
@@ -176,20 +178,29 @@ function database_transfer_chunk_read(#[\SensitiveParameter] string $directory, 
     foreach ($receipt['chunks'] as $index => $chunk) {
         $path = DatabaseTransferManifest::path($directory, $table['name'] . '.' . $index . '.jsonl');
         if (is_link($path)) { throw new DatabaseFailure('configuration'); }
-        $bytes = RequiredFile::bytes(file_get_contents($path, length: DatabaseTransferManifest::CHUNK_BYTES + 1));
-        if (strlen($bytes) !== $chunk['bytes'] || !hash_equals($chunk['sha256'], hash('sha256', $bytes))) { throw new DatabaseFailure('schema'); }
-        if (($bytes !== '' && !str_ends_with($bytes, "\n")) || substr_count($bytes, needle: "\n") !== $chunk['rows']) { throw new DatabaseFailure('schema'); }
-        hash_update($hash, $bytes);
-        $offset = 0;
-        while (($end = strpos($bytes, needle: "\n", offset: $offset)) !== false) {
-            $line = database_transfer_chunk_line($bytes, $offset, $end);
-            $rows++; $values = DatabaseTransferRows::consumeLine($line, $table);
-            unset($line);
-            if ($consume === null) { yield $values; }
-            if ($consume !== null) { $consume($values); }
-            unset($values);
+        $handle = NativeWarning::ignore(static fn () => fopen($path, mode: 'rb'));
+        if (!is_resource($handle)) { throw new DatabaseFailure('unavailable'); }
+        try {
+            if (NativeWarning::ignore(static fn (): int => stream_set_read_buffer($handle, size: 0)) !== 0) { throw new DatabaseFailure('unavailable'); }
+            $lines = database_transfer_chunk_authenticate($handle, $chunk);
+            if (!NativeWarning::ignore(static fn (): bool => rewind($handle))) { throw new DatabaseFailure('unavailable'); }
+            foreach ($lines as $commitment) {
+                $line = database_transfer_chunk_line($handle, $commitment);
+                hash_update($hash, $line); $line = substr($line, offset: 0, length: -1);
+                $rows++; $values = DatabaseTransferRows::consumeLine($line, $table);
+                unset($line);
+                if ($consume === null) { yield $values; }
+                if ($consume !== null) { $consume($values); }
+                unset($values);
+            }
+            unset($lines, $commitment);
+            $tail = NativeWarning::ignore(static fn () => fread($handle, length: 1));
+            if ($tail === false || ($tail === '' && !feof($handle))) { throw new DatabaseFailure('unavailable'); }
+            if ($tail !== '') { throw new DatabaseFailure('schema'); }
+        } finally {
+            // A suspended retained generator owns this descriptor until resumed or destroyed.
+            database_transfer_chunk_close($handle);
         }
-        unset($bytes);
     }
     if ($rows !== $receipt['rows'] || !hash_equals($receipt['sha256'], hash_final($hash))) { throw new DatabaseFailure('schema'); }
 }
@@ -203,11 +214,65 @@ function database_transfer_chunk_visit(#[\SensitiveParameter] string $directory,
     foreach (database_transfer_chunk_read($directory, $table, $receipt, $consume) as $unused) { unset($unused); }
 }
 
-function database_transfer_chunk_line(#[\SensitiveParameter] string &$bytes, int &$offset, int $end): string
+/** @param resource $handle
+ * @param \Tablo\DatabaseTransferArchive::Chunk $chunk
+ * @return list<\Tablo\DatabaseTransferArchive::ReadLine> */
+function database_transfer_chunk_authenticate(#[\SensitiveParameter] mixed $handle, array $chunk): array
 {
-    $line = substr($bytes, $offset, $end - $offset); $offset = $end + 1;
-    if ($offset >= 65_536 || $offset === strlen($bytes)) {
-        $bytes = $offset === strlen($bytes) ? '' : substr($bytes, $offset); $offset = 0;
+    $lines = []; $bytes = 0; $lineBytes = 0; $hash = hash_init('sha256'); $lineHash = hash_init('sha256');
+    while (true) {
+        $limit = min(16_384, DatabaseTransferManifest::CHUNK_BYTES + 1 - $bytes);
+        $block = NativeWarning::ignore(static fn () => fread($handle, $limit));
+        if ($block === false) { throw new DatabaseFailure('unavailable'); }
+        if ($block === '') {
+            if (!feof($handle)) { throw new DatabaseFailure('unavailable'); }
+            break;
+        }
+        $bytes += strlen($block);
+        if ($bytes > DatabaseTransferManifest::CHUNK_BYTES) { throw new DatabaseFailure('schema'); }
+        hash_update($hash, $block);
+        database_transfer_chunk_commitments($block, $lines, $lineBytes, $lineHash);
     }
+    if ($bytes !== $chunk['bytes'] || !hash_equals($chunk['sha256'], hash_final($hash))
+        || $lineBytes !== 0 || count($lines) !== $chunk['rows']) { throw new DatabaseFailure('schema'); }
+    return $lines;
+}
+
+/** @param list<\Tablo\DatabaseTransferArchive::ReadLine> $lines */
+function database_transfer_chunk_commitments(#[\SensitiveParameter] string $block, array &$lines, int &$lineBytes, \HashContext &$lineHash): void
+{
+    $blockBytes = strlen($block); $offset = 0;
+    while ($offset < $blockBytes) {
+        $end = strpos($block, needle: "\n", offset: $offset);
+        $fragmentBytes = $end === false ? $blockBytes - $offset : $end - $offset + 1;
+        hash_update($lineHash, substr($block, $offset, $fragmentBytes));
+        $lineBytes += $fragmentBytes; $offset += $fragmentBytes;
+        if ($end === false) { continue; }
+        // Direct callers receive the same row bound as validated manifest receipts.
+        if (count($lines) >= DatabaseTransferManifest::CHUNK_ROWS) { throw new DatabaseFailure('schema'); }
+        $lines[] = ['bytes' => $lineBytes, 'sha256' => hash_final($lineHash)];
+        $lineBytes = 0; $lineHash = hash_init('sha256');
+    }
+}
+
+/** @param resource $handle
+ * @param \Tablo\DatabaseTransferArchive::ReadLine $commitment */
+function database_transfer_chunk_line(#[\SensitiveParameter] mixed $handle, array $commitment): string
+{
+    $line = '';
+    while (strlen($line) < $commitment['bytes']) {
+        $remaining = $commitment['bytes'] - strlen($line);
+        $fragment = NativeWarning::ignore(static fn () => fread($handle, $remaining));
+        if ($fragment === false) { throw new DatabaseFailure('unavailable'); }
+        if ($fragment === '') { throw new DatabaseFailure(feof($handle) ? 'schema' : 'unavailable'); }
+        $line .= $fragment; unset($fragment);
+    }
+    if (strlen($line) !== $commitment['bytes'] || !str_ends_with($line, "\n")
+        || !hash_equals($commitment['sha256'], hash('sha256', $line))) { throw new DatabaseFailure('schema'); }
     return $line;
+}
+
+function database_transfer_chunk_close(#[\SensitiveParameter] mixed $handle): void
+{
+    if (is_resource($handle)) { NativeWarning::ignore(static fn (): bool => fclose($handle)); }
 }

@@ -142,8 +142,11 @@ function engine_transfer_archive_lines(array $table, array $sites): void
             [[$lines[0] . $lines[1], $lines[2]], [2, 1], $rows], [[$lines[0], $lines[1], $lines[2]], [1, 1, 1], $rows],
             [[], [], []]] as [$chunks, $counts, $expected]) {
             $receipt = engine_transfer_archive_fixture($directory->path, $table, $chunks, $counts);
+            $streams = count(get_resources(type: 'stream'));
             Assert::same(iterator_to_array(DatabaseTransferArchive::read($directory->path, $table, $receipt)), $expected);
+            Assert::same(count(get_resources(type: 'stream')), $streams);
             Assert::same(engine_transfer_archive_visit($directory->path, $table, $receipt), $expected);
+            Assert::same(count(get_resources(type: 'stream')), $streams);
         }
         engine_transfer_archive_authentication($directory->path, $table, $lines[0], $lines[1]);
         engine_transfer_archive_framing($directory->path, $table, $lines[0], $lines[1]);
@@ -152,6 +155,12 @@ function engine_transfer_archive_lines(array $table, array $sites): void
         engine_transfer_archive_large($directory->path, $sites);
         engine_transfer_archive_callback($directory->path, $table, $rows, $lines);
         engine_transfer_codec_lines($table, $sites);
+        engine_transfer_codec_boundaries();
+        engine_transfer_codec_descriptors();
+        engine_transfer_codec_precedence($table);
+        engine_transfer_archive_reader_bounds($directory->path, $table, $sites);
+        engine_transfer_archive_reader_lifetime($directory->path, $table);
+        foreach (['change', 'truncate', 'append'] as $fault) { engine_transfer_archive_reader_mutation($directory->path, $table, $fault); }
     } finally { $directory->close(); }
 }
 
@@ -181,6 +190,7 @@ function engine_transfer_archive_fixture(string $directory, array $table, array 
 function engine_transfer_archive_refuses(string $directory, array $table, array $receipt, int $expectedRows, string $expectedFailure = DatabaseFailure::class): void
 {
     foreach ([false, true] as $visit) {
+        $streams = count(get_resources(type: 'stream'));
         $seen = []; $caught = null;
         try {
             if ($visit) {
@@ -195,6 +205,7 @@ function engine_transfer_archive_refuses(string $directory, array $table, array 
         if ($caught instanceof \JsonException) { Assert::same($caught->getCode(), JSON_ERROR_SYNTAX); }
         Assert::same($caught?->getPrevious(), null);
         Assert::same(count($seen), $expectedRows);
+        Assert::same(count(get_resources(type: 'stream')), $streams);
     }
 }
 
@@ -290,14 +301,26 @@ function engine_transfer_archive_visit(string $directory, array $table, array $r
 function engine_transfer_archive_callback(string $directory, array $table, array $rows, array $lines): void
 {
     $receipt = engine_transfer_archive_fixture($directory, $table, [implode('', $lines)], [count($rows)]);
-    $failure = new \RuntimeException('Synthetic visitor failure.'); $caught = null; $seen = [];
+    foreach ([new \RuntimeException('Synthetic visitor failure.'), new \Error('Synthetic visitor error.')] as $failure) {
+        engine_transfer_archive_callback_case($directory, $table, $receipt, $rows, $failure);
+    }
+}
+
+/** @param \Tablo\DatabaseTransferManifest::Table $table
+ * @param \Tablo\DatabaseTransferArchive::Receipt $receipt
+ * @param list<\Tablo\DatabaseTransferRows::Values> $rows */
+function engine_transfer_archive_callback_case(string $directory, array $table, array $receipt, array $rows, \Throwable $failure): void
+{
+    $caught = null; $seen = [];
+    $streams = count(get_resources(type: 'stream'));
     try {
         DatabaseTransferArchive::visit($directory, $table, $receipt, static function (array $values) use (&$seen, $failure): void {
             $seen[] = $values;
             if (count($seen) === 2) { throw $failure; }
         });
-    } catch (\RuntimeException $error) { $caught = $error; }
+    } catch (\Throwable $error) { $caught = $error; }
     Assert::same($caught, $failure); Assert::same($seen, array_slice($rows, offset: 0, length: 2));
+    Assert::same(count(get_resources(type: 'stream')), $streams);
 }
 
 /** @param \Tablo\DatabaseTransferManifest::Table $table
@@ -327,9 +350,12 @@ function engine_transfer_codec_lines(array $table, array $sites): void
 function engine_transfer_codec_equivalent(string $original, array $table): void
 {
     $line = $original; $consumed = $original;
+    $reference = static fn (): array => engine_transfer_codec_reference_line($original, $table);
     $public = static function () use (&$line, $table): array { return DatabaseTransferRows::line($line, $table); };
     $consume = static function () use (&$consumed, $table): array { return DatabaseTransferRows::consumeLine($consumed, $table); };
-    Assert::same(engine_transfer_codec_outcome($public), engine_transfer_codec_outcome($consume));
+    $expected = engine_transfer_codec_outcome($reference);
+    Assert::same(engine_transfer_codec_outcome($public), $expected);
+    Assert::same(engine_transfer_codec_outcome($consume), $expected);
     Assert::same($line, $original);
     $parsed = true;
     try { JsonRecord::decode($original); } catch (\JsonException|\RuntimeException) { $parsed = false; }
@@ -347,6 +373,253 @@ function engine_transfer_codec_outcome(\Closure $decode): array
         return ['values' => null, 'failure' => $error::class, 'message' => $error->getMessage(),
             'category' => $error instanceof DatabaseFailure ? $error->category : null, 'previous' => $error->getPrevious() !== null];
     }
+}
+
+/** Source101 oracle: deliberately retains the old whole-array and whole-wire guards.
+ * @param \Tablo\DatabaseTransferManifest::Table $table
+ * @return \Tablo\DatabaseTransferRows::Values */
+function engine_transfer_codec_reference_line(string $line, array $table): array
+{
+    $values = engine_transfer_codec_reference_decode(JsonRecord::decode($line), $table);
+    if (JsonEncoding::encode(engine_transfer_codec_reference_encode($values)) !== $line) { throw new DatabaseFailure('schema'); }
+    return $values;
+}
+
+/** @param \Tablo\DatabaseTransferManifest::Table $table
+ * @return \Tablo\DatabaseTransferRows::Values */
+function engine_transfer_codec_reference_decode(mixed $input, array $table): array
+{
+    $columns = DatabaseTransferManifest::columns($table);
+    $input = JsonRecord::checked($input);
+    if (count($input) !== count($columns)) { throw new DatabaseFailure('schema'); }
+    $values = [];
+    foreach ($columns as $index => $column) {
+        $cell = JsonRecord::checked($input[$index] ?? null);
+        $values[] = DatabaseTransferRows::value(engine_transfer_codec_reference_cell($cell), $column);
+    }
+    if (engine_transfer_codec_reference_encode($values) !== $input) { throw new DatabaseFailure('schema'); }
+    return $values;
+}
+
+/** @param array $cell */
+function engine_transfer_codec_reference_cell(array $cell): int|string|null
+{
+    if ($cell === ['null']) { return null; }
+    $bytes = \Tablo\SqlColumn::string($cell, '1');
+    if (count($cell) !== 2) { throw new DatabaseFailure('schema'); }
+    if (($cell[0] ?? null) === 'integer') { return \Tablo\DatabaseInteger::checked($bytes); }
+    $decoded = base64_decode($bytes, strict: true);
+    if (($cell[0] ?? null) !== 'bytes' || $decoded === false || base64_encode($decoded) !== $bytes) { throw new DatabaseFailure('schema'); }
+    return $decoded;
+}
+
+/** @param \Tablo\DatabaseTransferRows::Values $values
+ * @return list<array{string, string}|array{string}> */
+function engine_transfer_codec_reference_encode(array $values): array
+{
+    return array_map(static fn (int|string|null $value): array => match (true) {
+        $value === null => ['null'], is_int($value) => ['integer', (string) $value], default => ['bytes', base64_encode($value)],
+    }, $values);
+}
+
+/** @return \Tablo\DatabaseTransferManifest::Table */
+function engine_transfer_codec_binary_table(): array
+{
+    return ['name' => 'synthetic', 'columns' => [['name' => 'payload', 'type' => 'longblob', 'nullable' => true]], 'primary' => ['payload']];
+}
+
+function engine_transfer_codec_boundaries(): void
+{
+    $table = engine_transfer_codec_binary_table();
+    foreach ([0, 1, 2, 3, 3069, 3070, 3071, 3072, 3073, 6142, 6143, 6144, 6145, 90_000] as $length) {
+        $repetitions = intdiv($length, num2: 7) + 1;
+        if ($repetitions < 0) { throw new \RuntimeException('Negative synthetic byte repetition count.'); }
+        $raw = substr(str_repeat("\0\xFF/\\\"\r\n", times: $repetitions), offset: 0, length: $length);
+        $line = JsonEncoding::encode(engine_transfer_codec_reference_encode([$raw]));
+        Assert::same(DatabaseTransferRows::line($line, $table), [$raw]);
+        engine_transfer_codec_equivalent($line, $table);
+    }
+    $slashes = JsonEncoding::encode(engine_transfer_codec_reference_encode([str_repeat("\xFF", times: 3072)]));
+    engine_transfer_codec_equivalent($slashes, $table);
+    engine_transfer_codec_equivalent(str_replace('\\/', replace: '/', subject: $slashes), $table);
+    engine_transfer_codec_equivalent('[["null"]]', $table);
+    engine_transfer_codec_base64_faults($table);
+    engine_transfer_codec_wire_fragments();
+}
+
+/** @param \Tablo\DatabaseTransferManifest::Table $table */
+function engine_transfer_codec_base64_faults(array $table): void
+{
+    $padded = base64_encode(str_repeat('x', times: 3071));
+    foreach (['Zg', 'Zg=', 'Zg===', 'Zh==', 'Zm9=', '====', 'A===', 'AA_A', 'AA-A', "AA\0A", "AA A", "AA\r\nA",
+        $padded . 'AAAA', substr_replace(str_repeat('A', times: 8192), replace: '=', offset: 4095, length: 1),
+        str_repeat('A', times: 4095) . "\"\\/\0\r\n\t", str_repeat('A', times: 4095) . "\xC3\xA9"] as $payload) {
+        engine_transfer_codec_equivalent(JsonEncoding::encode([['bytes', $payload]]), $table);
+    }
+    foreach ([0, false, null, ['bytes'], (object) ['value' => 'bytes']] as $tag) {
+        engine_transfer_codec_equivalent(JsonEncoding::encode([[$tag, 'QQ==']]), $table);
+    }
+    foreach ([0, false, null, ['QQ==']] as $payload) {
+        engine_transfer_codec_equivalent(JsonEncoding::encode([['bytes', $payload]]), $table);
+    }
+    foreach (['!', ' ', "\0"] as $invalid) {
+        foreach ([4095, 4096] as $offset) {
+            $payload = substr_replace(str_repeat('A', times: 8192), $invalid, $offset, length: 1);
+            engine_transfer_codec_equivalent(JsonEncoding::encode([['bytes', $payload]]), $table);
+        }
+    }
+}
+
+function engine_transfer_codec_wire_fragments(): void
+{
+    foreach (['', str_repeat('/', times: 4096), str_repeat('A', times: 4095) . "\"\\/\0\r\n\t\x7f", str_repeat('x', times: 8192)] as $payload) {
+        $input = [['bytes', $payload]]; $line = JsonEncoding::encode($input);
+        Assert::true(\Tablo\database_transfer_codec_wire($input, $line));
+        Assert::false(\Tablo\database_transfer_codec_wire($input, $line . ' '));
+        Assert::false(\Tablo\database_transfer_codec_wire($input, substr($line, offset: 0, length: -1)));
+    }
+    Assert::false(\Tablo\database_transfer_codec_wire([['bytes', "\xC3\xA9"]], line: '[]'));
+    Assert::false(\Tablo\database_transfer_codec_wire([['bytes', false]], line: '[]'));
+}
+
+/** @param \Tablo\DatabaseTransferManifest::Table $table */
+function engine_transfer_codec_precedence(array $table): void
+{
+    foreach ([
+        '[["unknown","QQ=="],["integer","1"],["bytes",0]]',
+        '[["bytes","Zh=="],["integer","1"],["bytes",0]]',
+        '[["bytes","QQ==","extra"],["integer","1"],["bytes",0]]',
+        '[["bytes","QQ=="],["integer","01"],["bytes",0]]',
+        '[["bytes","QQ=="],["bytes","MQ=="],["bytes",0]]',
+        '[{"1":"QQ==","0":"bytes"},["integer","1"],["bytes",0]]',
+        '{"2":["bytes",0],"0":["bytes","QQ=="],"1":["integer","1"]}',
+    ] as $line) { engine_transfer_codec_equivalent($line, $table); }
+    foreach (['-0', '+1', '1e0', '9223372036854775808', '-9223372036854775809'] as $integer) {
+        engine_transfer_codec_equivalent(JsonEncoding::encode([['bytes', 'QQ=='], ['integer', $integer], ['integer', '2']]), $table);
+    }
+}
+
+function engine_transfer_codec_descriptors(): void
+{
+    $integer = ['name' => 'value', 'type' => 'bigint', 'nullable' => false];
+    /** @var \Tablo\DatabaseTransferManifest::Table $reordered Deliberately malformed public-array descriptor order. */
+    $reordered = ['name' => 'synthetic', 'columns' => [1 => $integer, 0 => $integer], 'primary' => ['value']];
+    foreach ([[['integer', '1'], ['integer', '2']], [['integer', '1'], ['integer', '1']]] as $input) {
+        engine_transfer_codec_decode_equivalent($input, $reordered);
+        engine_transfer_codec_equivalent(JsonEncoding::encode($input), $reordered);
+    }
+    $ordered = $reordered; $ordered['columns'] = [$integer, $integer];
+    foreach ([[1 => ['integer', '2'], 0 => ['integer', '1']], [[1 => '1', 0 => 'integer'], ['integer', '2']],
+        [[0 => 'integer', 2 => '1'], ['integer', '2']], [null, ['integer', '2']], false] as $input) {
+        engine_transfer_codec_decode_equivalent($input, $ordered);
+    }
+}
+
+/** @param \Tablo\DatabaseTransferManifest::Table $table */
+function engine_transfer_codec_decode_equivalent(mixed $input, array $table): void
+{
+    $reference = static fn (): array => engine_transfer_codec_reference_decode($input, $table);
+    $candidate = static fn (): array => DatabaseTransferRows::decode($input, $table);
+    Assert::same(engine_transfer_codec_outcome($candidate), engine_transfer_codec_outcome($reference));
+}
+
+/** @param \Tablo\DatabaseTransferManifest::Table $small
+ * @param \Tablo\DatabaseTransferManifest::Table $sites */
+function engine_transfer_archive_reader_bounds(string $directory, array $small, array $sites): void
+{
+    [$firstRow, $first] = engine_transfer_archive_sized_line($sites, id: 1, size: 16_384);
+    [$secondRow, $second] = engine_transfer_archive_sized_line($sites, id: 2, size: 16_388);
+    $receipt = engine_transfer_archive_fixture($directory, $sites, [$first . $second], [2]);
+    Assert::same(iterator_to_array(DatabaseTransferArchive::read($directory, $sites, $receipt)), [$firstRow, $secondRow]);
+    Assert::same(engine_transfer_archive_visit($directory, $sites, $receipt), [$firstRow, $secondRow]);
+    $rows = [];
+    for ($id = 1; $id <= 128; $id++) { $rows[] = ['reader-' . $id, 1, 2]; }
+    $bytes = implode('', array_map(engine_transfer_archive_line(...), $rows));
+    $receipt = engine_transfer_archive_fixture($directory, $small, [$bytes], [128]);
+    Assert::same(iterator_to_array(DatabaseTransferArchive::read($directory, $small, $receipt)), $rows);
+    Assert::same(engine_transfer_archive_visit($directory, $small, $receipt), $rows);
+    $receipt = engine_transfer_archive_fixture($directory, $small, [$bytes . engine_transfer_archive_line(['reader-129', 1, 2])], [129]);
+    engine_transfer_archive_refuses($directory, $small, $receipt, expectedRows: 0);
+}
+
+/** @param \Tablo\DatabaseTransferManifest::Table $table
+ * @return array{\Tablo\DatabaseTransferRows::Values, string} */
+function engine_transfer_archive_sized_line(array $table, int $id, int $size): array
+{
+    $row = engine_transfer_archive_site($table, $id);
+    $index = array_search('last_error', array_column(DatabaseTransferManifest::columns($table), 'name'), strict: true);
+    if (!is_int($index)) { throw new \RuntimeException('Synthetic payload column absent.'); }
+    $row[$index] = ''; $encodedSize = $size - strlen(engine_transfer_archive_line($row));
+    Assert::true($encodedSize >= 0 && $encodedSize % 4 === 0);
+    $repetitions = intdiv($encodedSize, num2: 4) * 3;
+    if ($repetitions < 0) { throw new \RuntimeException('Negative synthetic row repetition count.'); }
+    $row[$index] = str_repeat('x', times: $repetitions);
+    $line = engine_transfer_archive_line($row); Assert::same(strlen($line), $size);
+    return [$row, $line];
+}
+
+/** @param \Tablo\DatabaseTransferManifest::Table $table */
+function engine_transfer_archive_reader_lifetime(string $directory, array $table): void
+{
+    $rows = [['first', 1, 2], ['second', 3, 4]];
+    $receipt = engine_transfer_archive_fixture($directory, $table, [implode('', array_map(engine_transfer_archive_line(...), $rows))], [2]);
+    $streams = count(get_resources(type: 'stream')); $reader = DatabaseTransferArchive::read($directory, $table, $receipt);
+    Assert::same(count(get_resources(type: 'stream')), $streams);
+    $retained = $reader->current(); Assert::same($retained, $rows[0]);
+    Assert::same(count(get_resources(type: 'stream')), $streams + 1);
+    $reader->next(); Assert::same($reader->current(), $rows[1]);
+    $reader->next(); Assert::false($reader->valid());
+    Assert::same($retained, $rows[0]); Assert::same(count(get_resources(type: 'stream')), $streams);
+    unset($reader);
+    $abandoned = DatabaseTransferArchive::read($directory, $table, $receipt); $abandoned->current();
+    Assert::same(count(get_resources(type: 'stream')), $streams + 1);
+    unset($abandoned); Assert::same(count(get_resources(type: 'stream')), $streams);
+    $invalid = engine_transfer_archive_fixture($directory, $table, ["!\n"], [1]);
+    engine_transfer_archive_refuses($directory, $table, $invalid, expectedRows: 0, expectedFailure: \JsonException::class);
+    Assert::same(count(get_resources(type: 'stream')), $streams);
+}
+
+/** @param \Tablo\DatabaseTransferManifest::Table $table */
+function engine_transfer_archive_reader_mutation(string $directory, array $table, string $fault): void
+{
+    $rows = [['first', 1, 2], ['second', 3, 4]];
+    $first = engine_transfer_archive_line($rows[0]); $second = engine_transfer_archive_line($rows[1]);
+    $receipt = engine_transfer_archive_fixture($directory, $table, [$first . $second], [2]);
+    $streams = count(get_resources(type: 'stream')); $reader = DatabaseTransferArchive::read($directory, $table, $receipt);
+    $retained = $reader->current(); Assert::same($retained, $rows[0]);
+    Assert::same(count(get_resources(type: 'stream')), $streams + 1);
+    $replacement = engine_transfer_archive_mutation_bytes($first, $second, $fault);
+    Assert::same(file_put_contents($directory . '/' . $table['name'] . '.0.jsonl', $replacement), strlen($replacement));
+    $remaining = engine_transfer_archive_reader_drain($reader);
+    Assert::same($remaining['failure']?->category, 'schema'); Assert::same($remaining['failure']?->getPrevious(), null);
+    Assert::same($remaining['rows'], $fault === 'append' ? [$rows[1]] : []);
+    Assert::same($retained, $rows[0]); Assert::same(count(get_resources(type: 'stream')), $streams);
+    unset($reader); Assert::same(count(get_resources(type: 'stream')), $streams);
+}
+
+function engine_transfer_archive_mutation_bytes(string $first, string $second, string $fault): string
+{
+    return match ($fault) {
+        'change' => $first . engine_transfer_archive_line(['forged', 3, 4]),
+        'truncate' => $first . substr($second, offset: 0, length: -2),
+        'append' => $first . $second . engine_transfer_archive_line(['added', 5, 6]),
+        default => throw new \RuntimeException('Unknown synthetic mutation.'),
+    };
+}
+
+/** @param \Generator<int, \Tablo\DatabaseTransferRows::Values> $reader
+ * @return array{rows: list<\Tablo\DatabaseTransferRows::Values>, failure: ?DatabaseFailure} */
+function engine_transfer_archive_reader_drain(\Generator $reader): array
+{
+    $rows = []; $failure = null;
+    try {
+        $reader->next();
+        while ($reader->valid()) {
+            /** @var \Tablo\DatabaseTransferRows::Values $values The current item is checked by valid() above. */
+            $values = $reader->current(); $rows[] = $values; $reader->next();
+        }
+    } catch (DatabaseFailure $error) { $failure = $error; }
+    return ['rows' => $rows, 'failure' => $failure];
 }
 
 /** @param \Tablo\DatabaseTransferManifest::Table $table
