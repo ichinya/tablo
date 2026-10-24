@@ -84,6 +84,7 @@ final class EngineTransferAdmissionTest
         }
         engine_transfer_archive_lines($table, $sites);
         engine_transfer_archive_writing($table, $sites);
+        engine_transfer_manifest_column_ownership();
     }
 
     #[Test]
@@ -130,6 +131,88 @@ function engine_transfer_invalid_utc_codec(): void
     }
 }
 
+function engine_transfer_manifest_column_ownership(): void
+{
+    $directory = new TemporaryDirectory('tablo-transfer-manifest-columns-');
+    $selector = getenv('TABLO_TOKEN_KEY_FILE'); $vault = null;
+    try {
+        $key = $directory->path . '/synthetic.key';
+        Assert::same(file_put_contents($key, str_repeat('s', times: 32)), 32);
+        Assert::true(chmod($key, permissions: 0o600));
+        Assert::true(putenv('TABLO_TOKEN_KEY_FILE=' . $key));
+        $vault = new \Tablo\TokenVault($key, external: true);
+        engine_transfer_manifest_columns($directory->path, $vault);
+    } finally {
+        $vault = null;
+        putenv($selector === false ? 'TABLO_TOKEN_KEY_FILE' : 'TABLO_TOKEN_KEY_FILE=' . $selector);
+        $directory->close();
+    }
+}
+
+/** @return \Tablo\DatabaseTransferManifest::Header */
+function engine_transfer_manifest_empty_header(\Tablo\TokenVault $vault): array
+{
+    $receipts = [];
+    foreach (DatabaseTransferManifest::TABLES as $name) {
+        $receipts[] = ['name' => $name, 'rows' => 0, 'sha256' => hash('sha256', data: ''), 'chunks' => []];
+    }
+    $installation = str_repeat('a', times: 32);
+    return ['format' => 1, 'engine' => 'sqlite', 'logicalVersion' => 10, 'layout' => DatabaseTransferManifest::layout(),
+        'columns' => DatabaseTransferManifest::contract(), 'installation' => $installation,
+        'verifier' => $vault->serverVerifier($installation), 'sequences' => ['sites' => 0, 'git_tokens' => 0, 'check_history' => 0],
+        'watermark' => 0, 'tables' => $receipts];
+}
+
+function engine_transfer_manifest_columns(string $directory, \Tablo\TokenVault $vault): void
+{
+    $header = engine_transfer_manifest_empty_header($vault);
+    EngineTransferEnvelopeTest::manifest($directory, $header);
+    $expected = engine_transfer_manifest_wire_reference($directory);
+    Assert::same(DatabaseTransferVerification::manifest($directory, $vault), $expected);
+    engine_transfer_manifest_column_mutation($directory, $vault, $header, $expected);
+}
+
+/** @return array{header: array, digest: string} */
+function engine_transfer_manifest_wire_reference(string $directory): array
+{
+    $wire = RequiredFile::bytes(file_get_contents($directory . '/manifest.json'));
+    $envelope = JsonRecord::decode($wire); $header = JsonRecord::checked($envelope['payload'] ?? null);
+    $digest = hash('sha256', JsonEncoding::encode($header));
+    Assert::same(JsonEncoding::encode($envelope), $wire);
+    Assert::same(\Tablo\SqlColumn::string($envelope, 'sha256'), $digest);
+    return ['header' => $header, 'digest' => $digest];
+}
+
+/** @param \Tablo\DatabaseTransferManifest::Header $callerHeader
+ * @param array{header: array, digest: string} $expected */
+function engine_transfer_manifest_column_mutation(string $directory, \Tablo\TokenVault $vault, array $callerHeader, array $expected): void
+{
+    $contract = JsonRecord::decode(JsonEncoding::encode(DatabaseTransferManifest::contract()));
+    $tables = JsonRecord::decode(JsonEncoding::encode(DatabaseTransferManifest::tables()));
+    $prior = DatabaseTransferVerification::manifest($directory, $vault);
+    $changed = DatabaseTransferVerification::manifest($directory, $vault);
+    $first = $changed['header']['columns'][0]['columns'][0] ?? throw new \RuntimeException('Synthetic manifest column absent.');
+    $changed['header']['columns'][0]['columns'][0]['name'] = 'synthetic_mutated';
+    $changed['header']['columns'][0]['columns'][0]['type'] = 'longblob';
+    $changed['header']['columns'][0]['columns'][0]['nullable'] = !$first['nullable'];
+    Assert::true($changed['header'] !== $expected['header']);
+    Assert::same(DatabaseTransferManifest::contract(), $contract); Assert::same(DatabaseTransferManifest::tables(), $tables);
+    Assert::same($callerHeader, $expected['header']); Assert::same($prior, $expected);
+    Assert::same(DatabaseTransferVerification::manifest($directory, $vault), $expected);
+    engine_transfer_manifest_changed_refuses($directory, $vault, $changed['header']);
+}
+
+/** @param \Tablo\DatabaseTransferManifest::Header $changed */
+function engine_transfer_manifest_changed_refuses(string $directory, \Tablo\TokenVault $vault, array $changed): void
+{
+    EngineTransferEnvelopeTest::manifest($directory, $changed);
+    Assert::same(engine_transfer_manifest_wire_reference($directory)['header'], $changed);
+    $caught = null;
+    try { DatabaseTransferVerification::manifest($directory, $vault); }
+    catch (DatabaseFailure $error) { $caught = $error; }
+    Assert::same($caught?->category, 'schema'); Assert::same($caught?->getPrevious(), null);
+}
+
 /** @param \Tablo\DatabaseTransferManifest::Table $table
  * @param \Tablo\DatabaseTransferManifest::Table $sites */
 function engine_transfer_archive_lines(array $table, array $sites): void
@@ -156,7 +239,6 @@ function engine_transfer_archive_lines(array $table, array $sites): void
         engine_transfer_archive_callback($directory->path, $table, $rows, $lines);
         engine_transfer_codec_lines($table, $sites);
         engine_transfer_codec_boundaries();
-        engine_transfer_codec_emission();
         engine_transfer_codec_descriptors();
         engine_transfer_codec_precedence($table);
         engine_transfer_archive_reader_bounds($directory->path, $table, $sites);
@@ -421,69 +503,6 @@ function engine_transfer_codec_reference_encode(array $values): array
     return array_map(static fn (int|string|null $value): array => match (true) {
         $value === null => ['null'], is_int($value) => ['integer', (string) $value], default => ['bytes', base64_encode($value)],
     }, $values);
-}
-
-function engine_transfer_codec_emission(): void
-{
-    foreach ([[], [null], [''], [PHP_INT_MIN, 0, PHP_INT_MAX], ["opaque:\0\xFF/\\\"\r\n", null, 1]] as $values) {
-        engine_transfer_codec_emit_parity($values);
-    }
-    foreach ([0, 1, 2, 3071, 3072, 3073, 6143, 6144, 6145, 90_000] as $length) {
-        $repetitions = intdiv($length, num2: 7) + 1;
-        if ($repetitions < 0) { throw new \RuntimeException('Negative synthetic emitter repetition count.'); }
-        $raw = substr(str_repeat("\0\xFF/\\\"\r\n", times: $repetitions), offset: 0, length: $length);
-        engine_transfer_codec_emit_parity([$raw]);
-    }
-    foreach ([str_repeat("\xFF", times: 6145), str_repeat('a', times: 3071) . "\xF0\x9F\x98\x80",
-        str_repeat('b', times: 3070) . "\xE2\x82\xAC", str_repeat('c', times: 3071) . "\xC3\xA9"] as $raw) {
-        engine_transfer_codec_emit_parity([$raw, null, PHP_INT_MAX]);
-    }
-    engine_transfer_codec_emit_false();
-    foreach ([new \RuntimeException('Synthetic emitter failure.'), new \Error('Synthetic emitter error.')] as $failure) {
-        engine_transfer_codec_emit_failure($failure);
-    }
-}
-
-/** @param \Tablo\DatabaseTransferRows::Values $values */
-function engine_transfer_codec_emit_parity(array $values): void
-{
-    $expected = JsonEncoding::encode(engine_transfer_codec_reference_encode($values)) . "\n";
-    $wire = ''; $bytes = 0; $maximum = 0; $hash = hash_init('sha256');
-    DatabaseTransferRows::emit($values, static function (string $fragment) use (&$wire, &$bytes, &$maximum, $hash): void {
-        $wire .= $fragment; $bytes += strlen($fragment); $maximum = max($maximum, strlen($fragment));
-        hash_update($hash, $fragment);
-    });
-    Assert::same($wire, $expected); Assert::same($bytes, strlen($expected));
-    Assert::same(hash_final($hash), hash('sha256', $expected)); Assert::true($maximum <= 8192);
-}
-
-function engine_transfer_codec_emit_false(): void
-{
-    $values = ['', null, PHP_INT_MIN, str_repeat("\xFF", times: 3073)]; $wire = ''; $calls = 0;
-    DatabaseTransferRows::emit($values, static function (string $fragment) use (&$wire, &$calls): bool {
-        $wire .= $fragment; $calls++; return false;
-    });
-    Assert::same($wire, JsonEncoding::encode(engine_transfer_codec_reference_encode($values)) . "\n");
-    Assert::true(engine_transfer_codec_emit_calls($calls) > 3);
-}
-
-function engine_transfer_codec_emit_failure(\Throwable $failure): void
-{
-    $calls = 0; $caught = null;
-    try {
-        DatabaseTransferRows::emit([str_repeat("\xFF", times: 6145)], static function (string $_fragment) use (&$calls, $failure): void {
-            $calls++;
-            if ($calls === 4) { throw $failure; }
-        });
-    } catch (\Throwable $error) { $caught = $error; }
-    Assert::same($caught, $failure); Assert::same(engine_transfer_codec_emit_calls($calls), 4);
-}
-
-/** Validate the completed callback observation without assuming a static invocation count. */
-function engine_transfer_codec_emit_calls(mixed $calls): int
-{
-    if (!is_int($calls)) { throw new \RuntimeException('Invalid synthetic emitter callback count.'); }
-    return $calls;
 }
 
 /** @return \Tablo\DatabaseTransferManifest::Table */

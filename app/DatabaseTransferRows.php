@@ -61,14 +61,6 @@ final class DatabaseTransferRows
         return database_transfer_codec_consume_line($line, $table);
     }
 
-    /** @internal
-     * @param \Tablo\DatabaseTransferRows::Values $values
-     * @param \Closure(string): void $sink */
-    public static function emit(#[\SensitiveParameter] array $values, #[\SensitiveParameter] \Closure $sink): void
-    {
-        database_transfer_codec_emit($values, $sink);
-    }
-
     /**
  * @param \Tablo\DatabaseTransferManifest::Table $table
  * @param \Tablo\DatabaseTransferRows::Values $values */
@@ -323,37 +315,4 @@ function database_transfer_codec_wire_fragment(#[\SensitiveParameter] string $fr
     if ($length !== 0 && substr_compare($line, $fragment, $offset, $length) !== 0) { return false; }
     $offset += $length;
     return true;
-}
-
-/** @param \Tablo\DatabaseTransferRows::Values $values
- * @param \Closure(string): void $sink */
-function database_transfer_codec_emit(#[\SensitiveParameter] array $values, #[\SensitiveParameter] \Closure $sink): void
-{
-    $sink('[');
-    foreach ($values as $index => $value) {
-        if ($index !== 0) { $sink(','); }
-        database_transfer_codec_emit_cell($value, $sink);
-    }
-    $sink("]\n");
-}
-
-/** @param \Closure(string): void $sink */
-function database_transfer_codec_emit_cell(#[\SensitiveParameter] int|string|null $value, #[\SensitiveParameter] \Closure $sink): void
-{
-    if (is_string($value)) { database_transfer_codec_emit_bytes($value, $sink); return; }
-    $cell = database_transfer_codec_encode([$value])[0] ?? throw new DatabaseFailure('schema');
-    $sink(JsonEncoding::encode($cell));
-}
-
-/** @param \Closure(string): void $sink */
-function database_transfer_codec_emit_bytes(#[\SensitiveParameter] string $value, #[\SensitiveParameter] \Closure $sink): void
-{
-    $sink('["bytes","'); $offset = 0; $length = strlen($value);
-    while ($offset < $length) {
-        $piece = substr($value, $offset, length: 3072); $offset += strlen($piece);
-        // Three-byte alignment makes concatenated base64 pieces equal whole-string base64.
-        $encoded = JsonEncoding::encode(base64_encode($piece));
-        $sink(substr($encoded, offset: 1, length: -1));
-    }
-    $sink('"]');
 }

@@ -71,9 +71,8 @@ function database_transfer_verification_scratch(PDO $scratch, #[\SensitiveParame
 function database_transfer_verification_table(PDO $db, array $table, array $receipt): void
 {
     $rows = 0; $hash = hash_init('sha256');
-    $sink = static function (#[\SensitiveParameter] string $fragment) use ($hash): void { hash_update($hash, $fragment); };
     foreach (DatabaseTransferRows::read($db, $table) as $values) {
-        $rows++; DatabaseTransferRows::emit($values, $sink);
+        $rows++; hash_update($hash, JsonEncoding::encode(DatabaseTransferRows::encode($values)) . "\n");
         unset($values);
     }
     if ([$rows, hash_final($hash)] !== [$receipt['rows'], $receipt['sha256']]) { throw new DatabaseFailure('schema'); }
@@ -130,6 +129,7 @@ function database_transfer_header_manifest(#[\SensitiveParameter] string $direct
         if ($chunks > DatabaseTransferManifest::MAX_CHUNKS) { throw new DatabaseFailure('schema'); }
     }
     if ($names !== DatabaseTransferManifest::TABLES) { throw new DatabaseFailure('schema'); }
+    $header['columns'] = $expected[3];
     /** @var \Tablo\DatabaseTransferManifest::Header $header Structure and finite identities validated above. */
     return ['header' => $header, 'digest' => $digest];
 }
