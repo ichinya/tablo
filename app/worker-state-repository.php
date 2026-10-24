@@ -20,6 +20,7 @@ final class WorkerStateRepository
     // Only call after acquiring the real lifetime installation lock.
     public function begin(): string
     {
+        if (DatabaseSession::server($this->db) && !WriteTransaction::owns($this->db)) { return WriteTransaction::run($this->db, $this->begin(...)); }
         $generation = bin2hex(random_bytes(16));
         $statement = \Tablo\SqlStatement::checked($this->db->prepare('UPDATE worker_runtime SET run_id = ?, stop_requested = 0 WHERE id = 1'));
         $statement->execute([$generation]);
@@ -40,6 +41,7 @@ final class WorkerStateRepository
 
     public function requestStop(string $observed_generation): bool
     {
+        if (DatabaseSession::server($this->db) && !WriteTransaction::owns($this->db)) { return WriteTransaction::run($this->db, fn (): bool => $this->requestStop($observed_generation), purpose: 'control'); }
         $statement = \Tablo\SqlStatement::checked($this->db->prepare('UPDATE worker_runtime SET stop_requested = 1 WHERE id = 1 AND run_id = ?'));
         $statement->execute([$observed_generation]);
         return $statement->rowCount() === 1;
@@ -59,6 +61,7 @@ final class WorkerStateRepository
 
     public function finish(string $generation): void
     {
+        if (DatabaseSession::server($this->db) && !WriteTransaction::owns($this->db)) { WriteTransaction::run($this->db, function () use ($generation): void { $this->finish($generation); }); return; }
         \Tablo\SqlStatement::checked($this->db->prepare('UPDATE worker_runtime SET run_id = NULL, stop_requested = 0 WHERE id = 1 AND run_id = ?'))->execute([$generation]);
     }
 

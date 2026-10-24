@@ -7,6 +7,12 @@ final class VaultLocation
 {
     public static function forDatabase(\PDO $db): TokenVault
     {
+        if (DatabaseSession::server($db)) {
+            $vault = DatabaseSession::get($db)->vault ?? TokenVault::configured();
+            if ($vault === null || !$vault->isExternal()) { throw new DatabaseFailure('key'); }
+            ServerKeyIdentity::authenticate($db, $vault);
+            return $vault;
+        }
         $external = TokenVault::configured();
         if ($external !== null) { return $external; }
         $databasePath = \Tablo\SqlRows::one(\Tablo\SqlStatement::checked($db->query('PRAGMA database_list'))->fetch(), \Tablo\SqlFileNameSeqRow::checked(...))['file'] ?? '';

@@ -4,9 +4,7 @@ declare(strict_types=1);
 namespace Tablo;
 
 use PDO;
-use PDOException;
 use SensitiveParameter;
-use Throwable;
 
 // Pinned Lekalo requires lowercase physical source paths for this contracted owner.
 // @mago-expect lint:file-name
@@ -27,14 +25,7 @@ final class Auth
     public function setupSession(#[SensitiveParameter] string $password, #[SensitiveParameter] string $confirmation): string
     {
         $hash = PasswordService::hash($password, $confirmation);
-        try {
-            (new AdministratorCredentialWrite($this->db))->executeCredential('INSERT INTO users (id, password_hash) VALUES (1, ?)', [$hash]);
-        } catch (PDOException $e) {
-            if (!$this->needsSetup()) {
-                throw ValidationException::field(field: 'password', message: 'Администратор уже создан. Войдите с существующим паролем.');
-            }
-            throw $e;
-        }
+        (new AdministratorCredentialWrite($this->db))->setup($hash);
         return AdministratorFingerprint::fingerprint($hash);
     }
 
@@ -47,10 +38,10 @@ final class Auth
     {
         $key = hash('sha256', $address);
         $now = time();
-        $this->db->exec('BEGIN IMMEDIATE');
+        $transaction = WriteTransaction::begin($this->db);
         try {
             \Tablo\SqlStatement::checked($this->db->prepare('DELETE FROM login_limits WHERE window_start < ?'))->execute([$now - 900]);
-            $statement = \Tablo\SqlStatement::checked($this->db->prepare('SELECT failures FROM login_limits WHERE key = ?'));
+            $statement = \Tablo\SqlStatement::checked($this->db->prepare('SELECT failures FROM login_limits WHERE `key` = ?'));
             $statement->execute([$key]);
             $failures = (int) $statement->fetchColumn();
             $statement->closeCursor();
@@ -60,20 +51,22 @@ final class Auth
             $hash = $this->adminHash();
             $valid = is_string($hash) && !str_contains($password, "\0") && password_verify($password, $hash);
             if ($valid) {
-                \Tablo\SqlStatement::checked($this->db->prepare('DELETE FROM login_limits WHERE key = ?'))->execute([$key]);
+                \Tablo\SqlStatement::checked($this->db->prepare('DELETE FROM login_limits WHERE `key` = ?'))->execute([$key]);
                 if (password_needs_rehash($hash, PASSWORD_DEFAULT)) {
                     $hash = PasswordService::hash($password, $password);
                     (new AdministratorCredentialWrite($this->db))->executeCredential('UPDATE users SET password_hash = ? WHERE id = 1', [$hash]);
                 }
             }
             if (!$valid) {
-                \Tablo\SqlStatement::checked($this->db->prepare('INSERT INTO login_limits (key, failures, window_start) VALUES (?, 1, ?)
-                    ON CONFLICT(key) DO UPDATE SET failures = failures + 1'))->execute([$key, $now]);
+                \Tablo\SqlStatement::checked($this->db->prepare(ServerDialect::choose($this->db,
+                    'INSERT INTO login_limits (`key`, failures, window_start) VALUES (?, 1, ?) ON CONFLICT(`key`) DO UPDATE SET failures = failures + 1',
+                    'INSERT INTO login_limits (`key`, failures, window_start) VALUES (?, 1, ?) ON DUPLICATE KEY UPDATE failures = failures + 1')))->execute([$key, $now]);
             }
-            $this->db->exec('COMMIT');
+            $transaction->commit();
             return $valid && $hash !== null ? AdministratorFingerprint::fingerprint($hash) : null;
         } catch (\Throwable $e) {
-            try { $this->db->exec('ROLLBACK'); } catch (Throwable $discardedCleanup) { /* Preserve original failure. */  unset($discardedCleanup); }
+            $transaction->rollbackPreserving();
+            if (DatabaseSession::server($this->db) && $e instanceof \PDOException) { throw DatabaseFailure::fromNative($e); }
             throw $e;
         }
     }

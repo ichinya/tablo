@@ -19,6 +19,7 @@ final class NotificationProjector
      */
     public function accepted(int $historyId, array $row, #[\SensitiveParameter] array $site, int $wall): void
     {
+        ServerWriterAdmission::borrow($this->db);
         $store = new NotificationProjectionStore($this->db);
         $enqueue = new NotificationEnqueue($store, $this->vault);
         $settings = \Tablo\SqlRows::required($store->one('SELECT installation_id, revision, activation_id, enabled, unavailable, recovery, version_lag,
@@ -39,10 +40,15 @@ final class NotificationProjector
             (new HealthNotification($store, $enqueue))->accepted($context,$state);
             (new LagNotification($store, $enqueue))->accepted($context,$state);
         }
-        $store->execute('INSERT INTO notification_checkpoints (site_id,last_history_id,config_revision,state) VALUES (?,?,?,?)
+        $sqlite = 'INSERT INTO notification_checkpoints (site_id,last_history_id,config_revision,state) VALUES (?,?,?,?)
             ON CONFLICT(site_id) DO UPDATE SET last_history_id = excluded.last_history_id,
-            config_revision = excluded.config_revision, state = excluded.state',
-            [$row['site_id'],$historyId,$row['config_revision'],json_encode($state,JSON_THROW_ON_ERROR)]);
+            config_revision = excluded.config_revision, state = excluded.state';
+        $server = 'INSERT INTO notification_checkpoints (site_id,last_history_id,config_revision,state) VALUES (?,?,?,?)
+            ON DUPLICATE KEY UPDATE last_history_id = ?, config_revision = ?, state = ?';
+        $encoded = json_encode($state, JSON_THROW_ON_ERROR);
+        $values = [$row['site_id'], $historyId, $row['config_revision'], $encoded];
+        if (DatabaseSession::server($this->db)) { $values = [...$values, $historyId, $row['config_revision'], $encoded]; }
+        $store->execute(ServerDialect::choose($this->db, $sqlite, $server), $values);
     }
 
 

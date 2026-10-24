@@ -1,0 +1,55 @@
+# Fresh isolated MariaDB service; provisioning and maintenance ordering match
+# compose.mysql.yaml. Use MariaDB's own client in the private readiness options.
+services:
+  database:
+    image: docker.io/library/mariadb@sha256:f2f5e00999bd335343e09091e27e39c9386eb1822efcd0e0bac40b0003fa47e3
+    platform: linux/amd64
+    environment:
+      MARIADB_ROOT_PASSWORD_FILE: /run/secrets/database-root
+      MARIADB_ROOT_HOST: localhost
+    command: ["mariadbd", "--ssl-ca=/run/secrets/database-ca", "--ssl-cert=/run/secrets/database-cert", "--ssl-key=/run/secrets/database-key", "--require-secure-transport=ON"]
+    volumes:
+      - mariadb-data:/var/lib/mysql
+      - "${TABLO_SERVER_INIT_SQL:?provide private administrative provisioning SQL}:/docker-entrypoint-initdb.d/10-tablo.sql:ro"
+    secrets: [database-root, database-ca, database-cert, database-key, database-readiness]
+    healthcheck:
+      test: ["CMD", "mariadb", "--defaults-extra-file=/run/secrets/database-readiness", "--batch", "--skip-column-names", "--execute=SELECT 1"]
+      interval: 5s
+      timeout: 5s
+      start_period: 30s
+      retries: 30
+  migrate:
+    profiles: [maintenance]
+    build: .
+    image: tablo-server-local
+    user: www-data
+    command: ["php", "bin/database.php", "--init", "--receipt", "/var/www/tablo/storage/server-init.json"]
+    depends_on:
+      database: {condition: service_healthy}
+    healthcheck: {disable: true}
+    restart: "no"
+    environment:
+      TABLO_DB_DRIVER: mariadb
+      TABLO_DB: ""
+      TABLO_DB_NAME: "${TABLO_DB_NAME:?provide catalog}"
+      TABLO_DB_HOST: database
+      TABLO_DB_PORT: "3306"
+      TABLO_DB_MIGRATE_USER: "${TABLO_DB_MIGRATE_USER:?provide migrator account}"
+      TABLO_DB_MIGRATE_PASSWORD: "${TABLO_DB_MIGRATE_PASSWORD:?provide private migrator password}"
+      TABLO_DB_METADATA_USER: "${TABLO_DB_METADATA_USER:?provide metadata account}"
+      TABLO_DB_METADATA_PASSWORD: "${TABLO_DB_METADATA_PASSWORD:?provide private metadata password}"
+      TABLO_DB_TLS: verify
+      TABLO_DB_TLS_CA: /run/secrets/database-ca
+      TABLO_TOKEN_KEY_FILE: /run/secrets/tablo-key
+    secrets: [database-ca, tablo-key]
+    volumes: ["maintenance-receipts:/var/www/tablo/storage"]
+secrets:
+  database-root: {file: "${TABLO_SERVER_ROOT_PASSWORD_FILE:?provide private root password file}"}
+  database-ca: {file: "${TABLO_SERVER_CA_FILE:?provide issuing CA}"}
+  database-cert: {file: "${TABLO_SERVER_CERT_FILE:?certificate SAN must include database}"}
+  database-key: {file: "${TABLO_SERVER_CERT_KEY_FILE:?provide server TLS key}"}
+  database-readiness: {file: "${TABLO_SERVER_READINESS_FILE:?provide private authenticated client options}"}
+  tablo-key: {file: "${TABLO_SERVER_KEY_FILE:?provide existing raw32-byte installation key}"}
+volumes:
+  mariadb-data:
+  maintenance-receipts:

@@ -10,7 +10,7 @@ final class SubprocessFailure
 {
     public static function raise(SubprocessState $state, string $stage, Throwable $cause): never
     {
-        $state->event('failure', ['stage' => $stage, 'type' => $cause::class]);
+        $state->event('failure', ['failure_stage' => $stage, 'type' => $cause::class]);
         $state->directory->retainFailure($cause);
         SubprocessClosure::close($state, $cause);
         $message = match ($stage) {

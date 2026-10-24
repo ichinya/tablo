@@ -31,7 +31,7 @@ final class NotificationDelivery
             $result=($this->supervisor??new WebhookSupervisor())->attempt($request['endpoint'],$request['bearer'],$request['json'],$stop);
             if (!$result['stopped']) {
                 self::$blockedLocks[]=$lock;
-                $this->db->exec('UPDATE notification_settings SET blocked=1 WHERE id=1');
+                ServerWriterAdmission::single($this->db, function (): void { $this->db->exec('UPDATE notification_settings SET blocked=1 WHERE id=1'); });
                 return ['code'=>'stop-unverified'];
             }
             try { if (!$outbox->acknowledge($claim,$result,$now??time())) { return ['code'=>'stale-ack']; } }

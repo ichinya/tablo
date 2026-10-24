@@ -9,6 +9,7 @@ final class SiteKeyState
 {
     public static function hasEstablishedKeyState(PDO $db): bool
     {
+        if (DatabaseSession::server($db)) { return true; }
         // Direct repository construction also supports genuine pre-migration fixtures.
         // Inspect only known physical columns; a missing table is not a lost key.
         foreach ([['git_tokens', 'encrypted_token', "encrypted_token <> ''"],

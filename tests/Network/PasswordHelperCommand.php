@@ -16,7 +16,7 @@ final class PasswordHelperCommand
     /** @return list<string> */
     public static function forHost(string $shell, string $encoding, string $scenario, ?string $observationPath = null): array
     {
-        return [$shell, '-NoProfile', '-ExecutionPolicy', 'Bypass', '-File',
+        return [$shell, '-NoProfile', '-NonInteractive', '-ExecutionPolicy', 'Bypass', '-File',
                         dirname(__DIR__) . '/fixtures/password-helper-input.ps1', '-Helper',
                         dirname(__DIR__, levels: 2) . '/tools/admin-password.ps1', '-Php', PHP_BINARY,
                         '-HostEncoding', $encoding, '-Scenario', $scenario,

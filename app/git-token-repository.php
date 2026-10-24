@@ -23,7 +23,7 @@ final class GitTokenRepository
         // Only metadata is exposed to forms; secrets stay in the vault.
         return SqlRows::all(\Tablo\SqlStatement::checked($this->db->query('SELECT t.id, t.name, t.provider, t.created_at, t.updated_at,
             (SELECT COUNT(*) FROM sites s WHERE s.git_token_id = t.id) AS site_count
-            FROM git_tokens t ORDER BY t.provider, t.name COLLATE NOCASE, t.id'))->fetchAll(), static function (array $row): array {
+            FROM git_tokens t ORDER BY t.provider, ' . ServerDialect::choose($this->db, 't.name COLLATE NOCASE', 't.name_key') . ', t.id'))->fetchAll(), static function (array $row): array {
                 $row = SqlGitTokensCreatedAtIdNameRow::checked($row);
                 $row['site_count'] = SqlColumn::integer($row, 'site_count');
                 return $row;
@@ -52,38 +52,19 @@ final class GitTokenRepository
 
     public function save(#[\SensitiveParameter] array $input, ?int $id = null): int
     {
-        $this->vault->assertAvailable(KeyRequirement::forDatabase($this->db));
-        $existing = $id === null ? null : $this->find($id);
-        if ($id !== null && !$existing) { throw new \OutOfBoundsException('Токен не найден.'); }
-        [$name,$provider,$value] = SavedGitTokenInput::parse($input,$existing);
-        $encrypted = $value !== '' ? $this->vault->encrypt($value) : null;
-        $this->db->beginTransaction();
-        try {
-            if ($id === null) {
-                \Tablo\SqlStatement::checked($this->db->prepare('INSERT INTO git_tokens (name, provider, encrypted_token) VALUES (?, ?, ?)'))
-                    ->execute([$name, $provider, $encrypted]);
-                $id = (int) $this->db->lastInsertId();
-            }
-            if ($existing !== null) {
-                (new SavedGitTokenUpdate($this->db))->update($name,$provider,$encrypted,$id);
-            }
-            $this->db->commit();
-            return $id;
-        } catch (\Throwable $e) {
-            $this->db->rollBack();
-            if ($e instanceof \PDOException && $e->getCode() === '23000') {
-                throw ValidationException::field(field: 'name', message: 'Токен с таким названием уже существует у этого провайдера.');
-            }
-            throw $e;
-        }
+        $save = new ServerTokenSave($this->db, $this, $this->vault);
+        return ServerWriterAdmission::single($this->db, static fn (): int => $save->save($input, $id));
     }
 
     public function delete(int $id): void
     {
+        if (DatabaseSession::server($this->db) && !WriteTransaction::owns($this->db)) {
+            WriteTransaction::run($this->db, function () use ($id): void { $this->delete($id); }); return;
+        }
         try {
             \Tablo\SqlStatement::checked($this->db->prepare('DELETE FROM git_tokens WHERE id = ?'))->execute([$id]);
         } catch (\PDOException $e) {
-            if ($e->getCode() === '23000') {
+            if (DatabaseSession::server($this->db) ? ($e->errorInfo[1] ?? null) === 1451 : $e->getCode() === '23000') {
                 throw ValidationException::field(field: 'token', message: 'Токен используется в проектах. Сначала выберите для них другой токен.');
             }
             throw $e;

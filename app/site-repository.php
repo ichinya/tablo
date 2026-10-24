@@ -103,36 +103,15 @@ final class SiteRepository extends SiteCredentialAccess
 
     public function save(#[\SensitiveParameter] array $input, ?int $id = null): int
     {
-        $this->assertWorkerKeyAvailable();
-        $data = SiteInput::normalize($input);
-        $existing = $id === null ? null : $this->find($id);
-        if ($id !== null && $existing === null) {
-            throw new \OutOfBoundsException('Сайт не найден.');
-        }
-        $token = TokenInput::validateToken($input['github_token'] ?? '');
-        $data['git_token_id'] = $this->selectedToken($input, $existing);
-        if ($data['git_token_id'] !== null && $token !== '') {
-            throw ValidationException::field(field: 'github_token', message: 'Выберите сохранённый токен или введите свой.');
-        }
-        $data = [...$data, ...SiteCredentialInput::prepare($this->tokens,$input,$existing,$data['git_token_id'],$token)];
-        $fields = array_keys($data);
-        if ($id === null) {
-            $sql = 'INSERT INTO sites (' . implode(', ', $fields) . ') VALUES (' . implode(', ', array_fill(0, count($fields), value: '?')) . ')';
-            $this->writes->executeBound($sql, array_values($data));
-            return (int) $this->db->lastInsertId();
-        }
-        $sql = 'UPDATE sites SET ' . implode(', ', array_map(static fn ($f) => "{$f} = ?", $fields)) . ',
-            online = NULL, health_error_code = NULL, health_http_status = NULL,
-            deployed_version = NULL, deployed_commit = NULL, latest_release = NULL,
-            latest_commit = NULL, open_issues = NULL, open_prs = NULL, response_time_ms = NULL,
-            last_error = NULL, checked_at = NULL, config_revision = config_revision + 1,
-            updated_at = strftime(\'%Y-%m-%dT%H:%M:%SZ\', \'now\') WHERE id = ?';
-        $this->writes->executeBound($sql, [...array_values($data), $id]);
-        return $id;
+        $save = new ServerSiteSave($this->db, $this, $this->tokens, $this->writes);
+        return ServerWriterAdmission::single($this->db, static fn (): int => $save->save($input, $id));
     }
 
     public function delete(int $id): void
     {
+        if (DatabaseSession::server($this->db) && !WriteTransaction::owns($this->db)) {
+            WriteTransaction::run($this->db, function () use ($id): void { $this->delete($id); }); return;
+        }
         \Tablo\SqlStatement::checked($this->db->prepare('DELETE FROM sites WHERE id = ?'))->execute([$id]);
     }
 

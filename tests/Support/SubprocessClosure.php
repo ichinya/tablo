@@ -20,6 +20,7 @@ final class SubprocessClosure
                     $state->event('terminate-direct-child', ['signal' => $signal,
                         'qualification' => PHP_OS_FAMILY === 'Windows' ? 'numeric termination request; not POSIX signal proof' : 'POSIX termination request']);
                     $requested = proc_terminate($state->ownedProcess(), $signal);
+                    $state->event('termination-request-result', ['signal' => $signal, 'accepted' => $requested]);
                     $state->evidence?->termination($state, $signal, $requested);
                     $deadline = microtime(true) + 2;
                     while (SubprocessObservation::running($state) && microtime(true) < $deadline) { usleep(20_000); }
@@ -28,7 +29,7 @@ final class SubprocessClosure
                 if (SubprocessObservation::running($state)) { throw new RuntimeException('Direct test child closure unconfirmed'); }
                 $exit = proc_close($state->ownedProcess());
                 $state->event('proc-close', ['native_exit_code' => $exit]);
-                if ($exit !== -1) { $state->exitCode ??= $exit; }
+                if ($exit !== -1 && !SubprocessObservation::stopped($state)['signaled']) { $state->exitCode ??= $exit; }
                 $state->process = null;
                 $state->directory->releaseProcess();
             }

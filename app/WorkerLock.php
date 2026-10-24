@@ -9,9 +9,14 @@ use RuntimeException;
 final class WorkerLock
 {
     private mixed $handle = null;
+    private ?ServerLock $serverLock = null;
 
     public function acquire(PDO $db): bool
     {
+        if (DatabaseSession::server($db)) {
+            $this->serverLock ??= new ServerLock();
+            return $this->serverLock->acquire($db, 'worker');
+        }
         $statement = \Tablo\SqlStatement::checked($db->query('PRAGMA main.database_list'));
         try { $databases = \Tablo\SqlRows::all($statement->fetchAll(PDO::FETCH_ASSOC), \Tablo\SqlFileNameSeqRow::checked(...)); }
         finally { $statement->closeCursor(); }
@@ -46,6 +51,7 @@ final class WorkerLock
 
     public function close(): void
     {
+        if ($this->serverLock !== null) { $this->serverLock->close(); $this->serverLock = null; }
         if (is_resource($this->handle)) { fclose($this->handle); }
         $this->handle = null;
         // Never remove or replace the stable lock inode, including on normal stop.

@@ -8,7 +8,8 @@ function read_api_rows(\PDO $db, string $afterId, int $limit): array
 {
     ReadApiRequest::decimal($afterId);
     if ($limit < 1 || $limit > 100) { throw new \InvalidArgumentException('Invalid request.'); }
-    $statement = SqlStatement::checked($db->prepare('SELECT ' . ReadApiRepository::projection() . ' FROM main.sites WHERE main.sites.id > :after_id ORDER BY main.sites.id ASC LIMIT :limit_plus_one'));
+    $table = ServerDialect::choose($db, 'main.sites', 'sites');
+    $statement = SqlStatement::checked($db->prepare('SELECT ' . ReadApiRepository::projectionFor($db) . ' FROM ' . $table . ' WHERE ' . $table . '.id > :after_id ORDER BY ' . $table . '.id ASC LIMIT :limit_plus_one'));
     try {
         $statement->bindValue(':after_id', (int) $afterId, \PDO::PARAM_INT);
         $statement->bindValue(':limit_plus_one', $limit + 1, \PDO::PARAM_INT);
@@ -20,7 +21,7 @@ function read_api_rows(\PDO $db, string $afterId, int $limit): array
 function read_api_row(\PDO $db, string $id): ?array
 {
     ReadApiRequest::decimal($id, minimum: '1');
-    $statement = SqlStatement::checked($db->prepare('SELECT ' . ReadApiRepository::projection() . ' FROM main.sites WHERE id = :id LIMIT 1'));
+    $statement = SqlStatement::checked($db->prepare('SELECT ' . ReadApiRepository::projectionFor($db) . ' FROM ' . ServerDialect::choose($db, 'main.sites', 'sites') . ' WHERE id = :id LIMIT 1'));
     try {
         $statement->bindValue(':id', (int) $id, \PDO::PARAM_INT); $statement->execute();
         /** @var array|false $row Native associative SELECT result or no row. */
@@ -294,6 +295,7 @@ function read_api_authentication_shape(\PDO $db): void
     {
         ReadApiSchemaAdmission::table($db, 'users', ['id' => 'INTEGER', 'password_hash' => 'TEXT']);
         ReadApiSchemaAdmission::table($db, 'read_api_token', ['id' => 'INTEGER', 'secret_hash' => 'TEXT', 'administrator_fingerprint' => 'TEXT', 'created_at' => 'TEXT']);
+        if (DatabaseSession::server($db)) { return; }
         $statement = SqlStatement::checked($db->query("SELECT substr(sql,1,4097) FROM main.sqlite_schema WHERE name='read_api_token' AND type='table'"));
         try {
             /** @var string|null|false $sql Native schema SQL or no-row sentinel. */
@@ -315,6 +317,7 @@ function read_api_sites_shape(\PDO $db): void
 /** @param array<string, string> $required */
 function read_api_table_shape(\PDO $db, string $table, array $required): void
     {
+        if (DatabaseSession::server($db)) { read_api_server_shape($db, $table, array_keys($required)); return; }
         read_api_table_object($db, $table);
         $statement = SqlStatement::checked($db->prepare("SELECT substr(name,1,65) AS name,substr(type,1,33) AS type,pk,hidden FROM pragma_table_xinfo(:name,'main') LIMIT 129"));
         try { $statement->execute([':name' => $table]); $rows = SqlRows::all($statement->fetchAll(\PDO::FETCH_ASSOC), static fn (array $row): array => $row); }
@@ -329,6 +332,44 @@ function read_api_table_shape(\PDO $db, string $table, array $required): void
         if ($keys !== ['id'] || array_diff_assoc($required, $found) !== []) { throw new \RuntimeException('Service unavailable.'); }
     }
 
+
+/** Exact selected-server projection admission lives beside the existing SQLite reader admission.
+ * @param list<string> $required */
+function read_api_server_shape(\PDO $db, string $name, array $required): void
+{
+    $table = read_api_server_table($db, $name);
+    $found = read_api_server_columns($db, $name);
+    $expected = array_column($table['columns'], 'type', 'name');
+    foreach ($required as $column) {
+        $type = $expected[$column] ?? null;
+        if ($type === null || ($found[$column] ?? null) !== $type) { throw new DatabaseFailure('schema'); }
+    }
+}
+
+/** @return \Tablo\ServerSchema::Table */
+function read_api_server_table(\PDO $db, string $name): array
+{
+    if (!in_array($name, ['users', 'read_api_token', 'sites'], strict: true)) { throw new DatabaseFailure('schema'); }
+    $tables = array_filter(ServerSchema::layout($db)['tables'], static fn (array $table): bool => $table['name'] === $name);
+    $table = array_values($tables)[0] ?? throw new DatabaseFailure('schema');
+    $objects = ServerSchema::rows($db, 'SELECT TABLE_TYPE AS kind, ENGINE AS engine, TABLE_COLLATION AS collation FROM information_schema.TABLES WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = ?', [$name]);
+    if (count($objects) !== 1 || ($objects[0]['kind'] ?? null) !== 'BASE TABLE' || ($objects[0]['engine'] ?? null) !== 'InnoDB'
+        || ($objects[0]['collation'] ?? null) !== DatabaseSession::collation($db)) { throw new DatabaseFailure('schema'); }
+    return $table;
+}
+
+/** @return array<string, string> */
+function read_api_server_columns(\PDO $db, string $name): array
+{
+    $columns = ServerSchema::rows($db, 'SELECT COLUMN_NAME AS name, COLUMN_TYPE AS type, COLUMN_KEY AS key_kind FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = ?', [$name]);
+    $found = [];
+    foreach ($columns as $column) {
+        if (!is_string($column['name'] ?? null) || !is_string($column['type'] ?? null)) { throw new DatabaseFailure('schema'); }
+        $found[$column['name']] = $column['type'] === 'bigint(20)' ? 'bigint' : $column['type'];
+        if ($column['name'] === 'id' && ($column['key_kind'] ?? null) !== 'PRI') { throw new DatabaseFailure('schema'); }
+    }
+    return $found;
+}
 
 function read_api_serve(): void
     {
@@ -372,10 +413,13 @@ function read_api_dispatch(#[\SensitiveParameter] array $server): ReadApiRespons
 function read_api_response(#[\SensitiveParameter] string $token, #[\SensitiveParameter] array $server): ReadApiResponse
     {
         $db = ReadApiConnection::open();
-        $db->exec('BEGIN');
+        $serverEngine = DatabaseSession::server($db);
+        $db->exec($serverEngine ? 'START TRANSACTION WITH CONSISTENT SNAPSHOT, READ ONLY' : 'BEGIN');
+        $primary = null;
         try {
             // Pin schema admission to the same snapshot as authentication and site reads.
-            if (SchemaVersion::schemaVersion($db) !== Database::CURRENT_SCHEMA_VERSION) { throw new \RuntimeException('Service unavailable.'); }
+            if ($serverEngine) { ServerSessionAdmission::pinReader($db); }
+            if (!$serverEngine && SchemaVersion::schemaVersion($db) !== Database::CURRENT_SCHEMA_VERSION) { throw new \RuntimeException('Service unavailable.'); }
             ReadApiSchemaAdmission::authentication($db);
             if (!(new ReadApiTokenRepository($db))->authenticate($token)) { return ReadApiResponse::error('unauthorized'); }
             $body = file_get_contents('php://input', length: 1);
@@ -389,7 +433,11 @@ function read_api_response(#[\SensitiveParameter] string $token, #[\SensitivePar
                 return $detail === null ? ReadApiResponse::error('not_found') : ReadApiResponse::success($detail);
             }
             return ReadApiResponse::success(read_api_sites($db, $request->afterId, $request->limit, $now));
-        } finally { $db->exec('ROLLBACK'); }
+        } catch (\Throwable $error) { $primary = $error; throw $error; }
+        finally {
+            try { $db->exec('ROLLBACK'); }
+            catch (\Throwable $rollback) { if ($primary === null) { DatabaseFailure::rethrow($db, $rollback); } }
+        }
     }
 
 /** @return array{api_version: int, generated_at: string, data: list<\Tablo\ApiSiteDto::Dto>, page: array{next_after_id: ?string}} */

@@ -10,6 +10,9 @@ final class NotificationAcknowledgement
     /** @param Claim $claimed */
     public function acknowledge(#[\SensitiveParameter] array $claimed, array $result, int $now): bool
     {
+        if (DatabaseSession::server($this->db) && !WriteTransaction::owns($this->db)) {
+            return WriteTransaction::run($this->db, fn (): bool => $this->acknowledge($claimed, $result, $now));
+        }
         $result = NotificationResult::checked($result);
         $slot=$claimed['slot'];
         $success=$result['code']==='sent';

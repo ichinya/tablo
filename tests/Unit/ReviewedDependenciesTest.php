@@ -25,14 +25,7 @@ final class ReviewedDependenciesTest
         foreach (array_keys(\required_reviewed_dependencies()) as $path) {
             $destination = $directory->path . '/' . $path;
             if (!is_dir(dirname($destination))) { mkdir(dirname($destination), permissions: 0o700, recursive: true); }
-            copy($root . '/' . $path, $destination);
-            if (!is_dir(dirname($directory->path . '/' . $path))) {
-                mkdir(dirname($directory->path . '/' . $path), permissions: 0o700, recursive: true);
-            }
-            copy($root . '/' . $path, $directory->path . '/' . $path);
-        }
-        foreach (['reviewed-dependencies.php', 'capture-reviewed-dependencies.php'] as $file) {
-            copy($root . '/tools/' . $file, $directory->path . '/tools/' . $file);
+            reviewed_dependencies_fixture_source($root, $path, $destination);
         }
     }
 
@@ -51,7 +44,7 @@ final class ReviewedDependenciesTest
         try {
             self::fixture($directory);
             self::refusal($directory->path, 'Missing project-local');
-            $command = [PHP_BINARY, $directory->path . '/tools/capture-reviewed-dependencies.php'];
+            $command = [PHP_BINARY, '-n', $directory->path . '/tools/capture-reviewed-dependencies.php'];
             Assert::same(Subprocess::run($command, $directory, [])['exit_code'], 0);
             $path = $directory->path . '/contracts/reviewed-dependencies.json';
             $captured = file_get_contents($path);
@@ -76,7 +69,7 @@ final class ReviewedDependenciesTest
         $directory = new TemporaryDirectory('tablo-reviewed-manifest-');
         try {
             self::fixture($directory);
-            Assert::same(Subprocess::run([PHP_BINARY, $directory->path . '/tools/capture-reviewed-dependencies.php'], $directory, [])['exit_code'], 0);
+            Assert::same(Subprocess::run([PHP_BINARY, '-n', $directory->path . '/tools/capture-reviewed-dependencies.php'], $directory, [])['exit_code'], 0);
             $path = $directory->path . '/contracts/reviewed-dependencies.json';
             $original = \Tablo\RequiredFile::bytes(file_get_contents($path));
             $manifest = \Tablo\JsonRecord::checked(json_decode($original, associative: true, depth: 64, flags: JSON_THROW_ON_ERROR));
@@ -101,5 +94,21 @@ final class ReviewedDependenciesTest
             file_put_contents($path, $original);
             \check_reviewed_dependencies($directory->path);
         } finally { $directory->close(); }
+    }
+}
+
+/** These fixtures exercise every catalog path's integrity, ownership and coverage, without executing its application code.
+ * Only the actual capture/guard bootstrap needs executable project bytes. */
+function reviewed_dependencies_fixture_source(string $root, string $path, string $destination): void
+{
+    $bootstrap = ['tools/capture-reviewed-dependencies.php', 'tools/reviewed-dependencies.php', 'tools/reviewed-dependency-map.json',
+        'tools/ReviewedDependencyManifest.php', 'tools/ReviewedDependencyCatalog.php', 'tools/ReviewedDependencyEntry.php',
+        'tools/ReviewedDependencyCoverage.php', 'tools/MagoSource.php', 'app/RequiredFile.php'];
+    if (in_array($path, $bootstrap, strict: true)) {
+        if (!copy($root . '/' . $path, $destination)) { throw new RuntimeException('Cannot copy reviewed fixture bootstrap.'); }
+        return;
+    }
+    if (file_put_contents($destination, data: "<?php\n// Fixed public integrity fixture bytes.\n") === false) {
+        throw new RuntimeException('Cannot create reviewed integrity fixture.');
     }
 }

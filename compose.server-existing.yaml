@@ -1,0 +1,45 @@
+# Existing preprovisioned, initialized or explicitly migrated server catalog.
+# Run maintenance separately before starting this application/worker pair.
+x-runtime: &runtime
+  build: .
+  image: tablo-server-local
+  volumes:
+    - server-local-storage:/var/www/tablo/storage
+  secrets:
+    - tablo-key
+    - database-ca
+  environment: &database-environment
+    TABLO_DB_DRIVER: "${TABLO_DB_DRIVER:?select mysql or mariadb}"
+    TABLO_DB: ""
+    TABLO_DB_NAME: "${TABLO_DB_NAME:?provide catalog}"
+    TABLO_DB_HOST: "${TABLO_DB_HOST:?provide verified hostname}"
+    TABLO_DB_PORT: "${TABLO_DB_PORT:-3306}"
+    TABLO_DB_USER: "${TABLO_DB_USER:?provide writer account}"
+    TABLO_DB_PASSWORD: "${TABLO_DB_PASSWORD:?provide private writer password}"
+    TABLO_DB_READ_USER: "${TABLO_DB_READ_USER:?provide reader account}"
+    TABLO_DB_READ_PASSWORD: "${TABLO_DB_READ_PASSWORD:?provide private reader password}"
+    TABLO_DB_METADATA_USER: "${TABLO_DB_METADATA_USER:?provide metadata account}"
+    TABLO_DB_METADATA_PASSWORD: "${TABLO_DB_METADATA_PASSWORD:?provide private metadata password}"
+    TABLO_DB_TLS: verify
+    TABLO_DB_TLS_CA: /run/secrets/database-ca
+    TABLO_TOKEN_KEY_FILE: /run/secrets/tablo-key
+services:
+  tablo:
+    <<: *runtime
+    ports: ["127.0.0.1:8099:80"]
+  tablo-worker:
+    <<: *runtime
+    user: www-data
+    command: ["php", "bin/worker.php"]
+    init: true
+    healthcheck: {disable: true}
+    stop_signal: SIGTERM
+    stop_grace_period: 30s
+    restart: "on-failure:3"
+secrets:
+  tablo-key:
+    file: "${TABLO_SERVER_KEY_FILE:?provide existing raw32-byte key}"
+  database-ca:
+    file: "${TABLO_SERVER_CA_FILE:?provide issuing CA}"
+volumes:
+  server-local-storage:
