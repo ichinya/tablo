@@ -8,7 +8,7 @@
                 "Composer verify",
                 "Reviewed dependency capture"
             ],
-            "fingerprint": "sha256:2d21ccee4516067feddf6bd86d838961aee2345d21353c651a91432e10f52c2e"
+            "fingerprint": "sha256:3576b5e4f7acece81b06c520180ddcafbb075c1a85a061ab0e8e56bc52a1a2d0"
         },
         {
             "path": "tools/reviewed-dependencies.php",
@@ -3386,7 +3386,8 @@
                 "Composer verify",
                 "app/DatabaseTransferManifest.php",
                 "app/ServerColumnAdmission.php",
-                "app/ServerSchema.php"
+                "app/ServerSchema.php",
+                "tools/ServerFixtureCatalog.php"
             ],
             "fingerprint": "sha256:4b3659e1759e260a796fe89cdd71ffb99aff442c9573ce0bd195ab51a9f3f0d3"
         },
@@ -3400,7 +3401,7 @@
                 "app/ServerSchemaDescriptor.php",
                 "tests/Server/EngineMigrationPreviousTest.php"
             ],
-            "fingerprint": "sha256:e1f925552613b6027c566ce85b460e69efad9c42a554f8c989a6aa569af5c23a"
+            "fingerprint": "sha256:898e673f4342aa7e3a2eb7ef685f82c93fa7d9ad951ab0deac86e4de3b7dfe08"
         },
         {
             "path": "app/ServerSchemaState.php",
@@ -5824,7 +5825,8 @@
             "owner": "Frozen pre-record MariaDB11.4 layout compatibility oracle; tests only",
             "consumers": [
                 "tests/Server/EngineConstraintsTest.php",
-                "tests/Server/EngineMigrationPreviousTest.php"
+                "tests/Server/EngineMigrationPreviousTest.php",
+                "tests/Unit/ServerMetadataPrivilegesTest.php"
             ],
             "fingerprint": "sha256:ed9fb39e4c0a1c74461d0c19af6ef6cae5db581d7531a58e5e6ec4e5a776c704"
         },
@@ -5833,7 +5835,8 @@
             "owner": "Frozen pre-record MySQL8.4 layout compatibility oracle; tests only",
             "consumers": [
                 "tests/Server/EngineConstraintsTest.php",
-                "tests/Server/EngineMigrationPreviousTest.php"
+                "tests/Server/EngineMigrationPreviousTest.php",
+                "tests/Unit/ServerMetadataPrivilegesTest.php"
             ],
             "fingerprint": "sha256:c38753d3032251af4cfaff02729aaef222c34fb929f690c1fc45964d9400a01e"
         },
@@ -8033,7 +8036,7 @@
                 "Composer verify:server",
                 "Standalone frozen logical9 fixture materialization (source grant pending)"
             ],
-            "fingerprint": "sha256:5d7eb6b5aec3c4dfafdd2bb6fac2ff4fd4569e06d4b4f3b0b5c060a9a56b8f42"
+            "fingerprint": "sha256:f91bb398e8eeb8b38fe298552bf6bae38e82588227be0e1002d967916f847fda"
         },
         {
             "path": "tests/Server/EngineMigrationProcessTest.php",
@@ -10672,7 +10675,7 @@
                 "Composer analyze",
                 "Composer verify"
             ],
-            "fingerprint": "sha256:d7e14e7a7fb81b335b9a55071aeef754ca6b36f695f306b0590f2f8e1919ca21"
+            "fingerprint": "sha256:6a9305b895685e14444c54d3ed1cd9e5e567ac8e0d6bae1b50e02202fef7225a"
         },
         {
             "path": "tests/Unit/SqlStatementTest.php",
@@ -11252,7 +11255,7 @@
                 "tests/Server/EngineObserverAuditTest.php",
                 "tests/Server/EngineMetadataAdmissionTest.php"
             ],
-            "fingerprint": "sha256:b6d1afaa948e5f48be4a6b23c0d64f97a65469a6d6b63f205df555b0d40870ac"
+            "fingerprint": "sha256:0d21e90c103051a9e34e5243322ea6fe6f52e8bd769247b0c88263c6b8d38a73"
         },
         {
             "path": "tools/server-cell.php",

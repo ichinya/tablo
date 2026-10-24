@@ -6,6 +6,7 @@ namespace Tablo\Tools;
 use RuntimeException;
 use Tablo\JsonRecord;
 use Tablo\RequiredFile;
+use Tablo\ServerSchemaDescriptor;
 use Tablo\SqlColumn;
 use Tablo\Tests\Support\Subprocess;
 use Tablo\Tests\Support\SubprocessReceipt;
@@ -254,9 +255,8 @@ function server_fixture_catalog_execute(array $context, #[\SensitiveParameter] s
 /** @return list<\Tablo\ServerSchema::Table> */
 function server_fixture_catalog_tables(string $engine): array
 {
-    $name = match ($engine) { 'mysql' => 'mysql84', 'mariadb' => 'mariadb114', default => throw new RuntimeException('Exact fixture engine absent.') };
-    /** @var \Tablo\ServerSchema::Layout $layout Only the reviewed source descriptor supplies fixed identifiers. */
-    $layout = json_decode(RequiredFile::bytes(file_get_contents(dirname(__DIR__) . '/database/' . $name . '-layout.json')), associative: true, flags: JSON_THROW_ON_ERROR);
+    if (!in_array($engine, ['mysql', 'mariadb'], strict: true)) { throw new RuntimeException('Exact fixture engine absent.'); }
+    $layout = ServerSchemaDescriptor::forEngine($engine);
     if (count($layout['tables']) !== 18) { throw new RuntimeException('Fixed eighteen scaffold names absent.'); }
     foreach ($layout['tables'] as $table) {
         foreach ([$table['name'], ...array_column($table['columns'], 'name')] as $identifier) {

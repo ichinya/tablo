@@ -2773,7 +2773,8 @@
       "Composer verify",
       "app/DatabaseTransferManifest.php",
       "app/ServerColumnAdmission.php",
-      "app/ServerSchema.php"
+      "app/ServerSchema.php",
+      "tools/ServerFixtureCatalog.php"
     ]
   },
   "app/ServerSchemaRecords.php": {
@@ -4741,14 +4742,16 @@
     "owner": "Frozen pre-record MariaDB11.4 layout compatibility oracle; tests only",
     "consumers": [
       "tests/Server/EngineConstraintsTest.php",
-      "tests/Server/EngineMigrationPreviousTest.php"
+      "tests/Server/EngineMigrationPreviousTest.php",
+      "tests/Unit/ServerMetadataPrivilegesTest.php"
     ]
   },
   "tests/fixtures/server-layouts/v10/mysql84-layout.json": {
     "owner": "Frozen pre-record MySQL8.4 layout compatibility oracle; tests only",
     "consumers": [
       "tests/Server/EngineConstraintsTest.php",
-      "tests/Server/EngineMigrationPreviousTest.php"
+      "tests/Server/EngineMigrationPreviousTest.php",
+      "tests/Unit/ServerMetadataPrivilegesTest.php"
     ]
   },
   "tests/fixtures/session-automatic.php": {

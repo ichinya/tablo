@@ -48,9 +48,23 @@ final class ServerSchemaRecords
      * @param resource $stream */
     private static function record($stream): array
     {
-        $line = NativeWarning::ignore(static fn () => fgets($stream, length: 131_073));
-        if ($line === false || !str_ends_with($line, "\n")) { throw new DatabaseFailure('schema'); }
+        $line = server_schema_records_line($stream);
         return JsonRecord::checked(json_decode($line, associative: true, flags: JSON_THROW_ON_ERROR));
+    }
+}
+
+/** @internal Assemble one bounded frame using small fixed fgets requests.
+ * @param resource $stream */
+function server_schema_records_line($stream): string
+{
+    $line = '';
+    while (true) {
+        $chunk = NativeWarning::ignore(static fn () => fgets($stream, length: 4096));
+        if ($chunk === false || $chunk === '' || strlen($chunk) > 131_072 - strlen($line)) { throw new DatabaseFailure('schema'); }
+        $complete = str_ends_with($chunk, "\n");
+        $line .= $chunk;
+        unset($chunk);
+        if ($complete) { return $line; }
     }
 }
 

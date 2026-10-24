@@ -87,8 +87,8 @@ function metadata_checks_direct_role(MetadataPrivilegesPdo $db, DatabaseConfigur
 /** @return \Tablo\ServerSchema::Table */
 function metadata_checks_table(string $engine, string $name = 'tablo_migration_journal'): array
 {
-    /** @var \Tablo\ServerSchema::Layout $layout Public descriptor fixture. */
-    $layout = json_decode(\Tablo\RequiredFile::bytes(file_get_contents(dirname(__DIR__, levels: 2) . '/database/' . ($engine === 'mysql' ? 'mysql84' : 'mariadb114') . '-layout.json')),
+    /** @var \Tablo\ServerSchema::Layout $layout Independent frozen pre-record descriptor oracle. */
+    $layout = json_decode(\Tablo\RequiredFile::bytes(file_get_contents(dirname(__DIR__, levels: 2) . '/tests/fixtures/server-layouts/v10/' . ($engine === 'mysql' ? 'mysql84' : 'mariadb114') . '-layout.json')),
         associative: true, flags: JSON_THROW_ON_ERROR);
     foreach ($layout['tables'] as $table) { if ($table['name'] === $name) { return $table; } }
     throw new \RuntimeException('Missing public table descriptor.');

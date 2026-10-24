@@ -454,6 +454,32 @@ JSON;
     $failure = null;
     try { engine_schema_descriptor_record($decoder, ' ' . $limit); } catch (\Tablo\DatabaseFailure $error) { $failure = $error; }
     engine_schema_descriptor_refusal($failure);
+    engine_schema_descriptor_chunk_boundaries($decoder);
+}
+
+/** Frame terminators and UTF-8 may cross the 4,095-byte fgets payload boundary. */
+function engine_schema_descriptor_chunk_boundaries(\ReflectionMethod $decoder): void
+{
+    $line = '{"tables":[{"name":"boundary"}]}'; $expected = ['tables' => [['name' => 'boundary']]];
+    foreach ([4093, 4094, 4095, 4096, 8188, 8189, 8190, 8191] as $bodyBytes) {
+        $body = $line . str_repeat(' ', times: $bodyBytes - strlen($line));
+        foreach (["\n", "\r\n"] as $terminator) { Assert::same(engine_schema_descriptor_record($decoder, $body . $terminator), $expected); }
+    }
+    $prefix = '{"tables":[{"name":"';
+    $utf8 = $prefix . str_repeat('x', times: 4094 - strlen($prefix)) . "é\"}]}\n";
+    Assert::same(engine_schema_descriptor_record($decoder, $utf8), JsonRecord::checked(json_decode($utf8, associative: true, flags: JSON_THROW_ON_ERROR)));
+    $body = $line . str_repeat(' ', times: 4094 - strlen($line));
+    $failure = null;
+    try { engine_schema_descriptor_record($decoder, $body . "\r"); } catch (\Tablo\DatabaseFailure $error) { $failure = $error; }
+    engine_schema_descriptor_refusal($failure);
+    $stream = fopen('php://memory', mode: 'w+b');
+    if ($stream === false) { throw new \RuntimeException('Cannot open paired record fixture.'); }
+    try {
+        fwrite($stream, $body . "\r\n" . $line . "\n"); rewind($stream);
+        Assert::same(JsonRecord::checked($decoder->invoke(null, $stream)), $expected);
+        Assert::same(JsonRecord::checked($decoder->invoke(null, $stream)), $expected);
+        Assert::same(fgetc($stream), false);
+    } finally { fclose($stream); }
 }
 
 /** @param list<array> $tables */
