@@ -6,9 +6,7 @@ namespace Tablo;
 use PDO;
 
 /**
- * @phpstan-import-type Table from ServerSchema
- * @phpstan-import-type Column from ServerSchema
- * @phpstan-import-type Layout from ServerSchema
+ * @phpstan-import-type ExpectedTable from ServerSchema as Table
  */
 final class ServerTableAdmission
 {
@@ -26,18 +24,37 @@ final class ServerTableAdmission
     {
         $session = DatabaseSession::get($db); $owned = false;
         try {
-            $layout = ServerSchema::layout($db);
-            $tables = array_values(array_filter($layout['tables'], static fn (array $table): bool => $version === 10 || $table['name'] !== 'read_api_token'));
+            $allTables = server_table_admission_tables(ServerSchema::layout($db));
+            $tables = array_values(array_filter($allTables, static fn (array $table): bool => $version === 10 || $table['name'] !== 'read_api_token'));
             $expected = array_column($tables, 'name'); sort($expected, SORT_STRING);
             if ($version === 10 && $session?->configuration->engine === 'mariadb'
                 && in_array($session->configuration->role, ['writer', 'control'], strict: true) && $session->metadataObservation === null) {
                 // One admission owns one fresh observation; a factory snapshot stays borrowed.
-                $session->metadataObservation = ServerMetadataAdmission::observe($session->configuration, $version, expectedTables: $layout['tables']); $owned = true;
+                $session->metadataObservation = ServerMetadataAdmission::observe($session->configuration, $version, expectedTables: $allTables); $owned = true;
             }
-            if (ServerMetadataAdmission::objects($db, $version, expectedTables: $layout['tables']) !== $expected) { self::refuse(); }
+            if (ServerMetadataAdmission::objects($db, $version, expectedTables: $allTables) !== $expected) { self::refuse(); }
             foreach ($tables as $table) { ServerTableAdmission::verify($db, $table); }
         } finally { if ($owned && $session !== null) { $session->metadataObservation = null; } }
     }
+
     private static function refuse(): never { throw new DatabaseFailure('schema'); }
 
+}
+
+/** @internal Project only after the complete descriptor and every CREATE checksum have been validated.
+ * @param \Tablo\ServerSchema::Layout $layout
+ * @return list<\Tablo\ServerSchema::AdmissionTable> */
+function server_table_admission_tables(array $layout): array
+{
+    $tables = $layout['tables']; unset($layout);
+    $projected = [];
+    foreach (array_keys($tables) as $key) {
+        if (!array_key_exists($key, $tables)) { throw new DatabaseFailure('schema'); }
+        $table = $tables[$key];
+        $projected[] = ['name' => $table['name'], 'columns' => $table['columns'], 'primary' => $table['primary'],
+            'checks' => $table['checks'], 'indexes' => $table['indexes'], 'foreign' => $table['foreign']];
+        unset($tables[$key], $table);
+    }
+    unset($tables);
+    return $projected;
 }

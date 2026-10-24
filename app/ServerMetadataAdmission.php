@@ -7,10 +7,10 @@ use PDO;
 
 /** Transient, explicitly privileged observation under the documented quiescent DDL lifecycle.
  * Optional expectedTables is internal invocation reuse of the complete, unfiltered
- * ServerSchema::layout($selectedPdo)['tables'] after source validation. It must never
- * come from SQL, an archive, environment or a report; it is not stored on a session.
+ * ServerSchema::layout($selectedPdo)['tables'] or its admission projection, after source validation.
+ * It must never come from SQL, an archive, environment or a report; it is not stored on a session.
  * @phpstan-import-type Objects from ServerMetadataInventory
- * @phpstan-import-type Table from ServerSchema
+ * @phpstan-import-type ExpectedTable from ServerSchema as Table
  * @phpstan-type Observation array{server: array<string, int|string>, account: string, objects: Objects, installation: list<array>, checks: array<string, array<string, string>>}
  */
 final class ServerMetadataAdmission
@@ -76,15 +76,15 @@ final class ServerMetadataAdmission
 }
 
 /** Internal fallback preserves the null path; supplied tables were validated in this invocation.
- * @param list<\Tablo\ServerSchema::Table>|null $expectedTables
- * @return list<\Tablo\ServerSchema::Table> */
+ * @param list<\Tablo\ServerSchema::ExpectedTable>|null $expectedTables
+ * @return list<\Tablo\ServerSchema::ExpectedTable> */
 function server_metadata_expected_tables(PDO $db, ?array $expectedTables): array
 {
     return $expectedTables ?? ServerSchema::layout($db)['tables'];
 }
 
 /** Complete writer and control admission need privileged CHECK visibility. Migrators read their own post-DDL metadata.
- * @param list<\Tablo\ServerSchema::Table>|null $expectedTables Complete source tables already validated in this invocation, never external data.
+ * @param list<\Tablo\ServerSchema::ExpectedTable>|null $expectedTables Complete source tables already validated in this invocation, never external data.
  * @return array<string, array<string, string>> */
 function server_metadata_check_observation(PDO $db, DatabaseConfiguration $configuration, ?int $version, ?array $expectedTables = null): array
 {

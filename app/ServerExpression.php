@@ -14,7 +14,7 @@ final class ServerExpression
         return JsonEncoding::encode($tree);
     }
 
-    /** @param \Tablo\ServerSchema::Table $expectedTable */
+    /** @param \Tablo\ServerSchema::ExpectedTable $expectedTable */
     public static function canonicalMysqlCheck(string $decodedSql, array $expectedTable): string
     {
         $tokens = ServerExpressionTokens::mysqlCheckTokens($decodedSql);

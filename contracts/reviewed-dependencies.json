@@ -3073,7 +3073,7 @@
                 "tests/Server/EngineMigrationAdmissionTest.php",
                 "tests/Server/EngineCheckAdmissionTest.php"
             ],
-            "fingerprint": "sha256:47e5f7e7cd91ff02b7b2fc986b205fa1c084cb561d33cb38de10db58c0645b83"
+            "fingerprint": "sha256:3928a314ff041a7311997d79b9e3e350fe708cbc7b907ff8957900d481466cdf"
         },
         {
             "path": "app/ServerColumnAdmission.php",
@@ -3084,7 +3084,7 @@
                 "Composer verify",
                 "app/ServerTableAdmission.php"
             ],
-            "fingerprint": "sha256:a1d85c7bb27c859f12fdb3c2bbdcb26d669844c59a53fe610ccb4b3a6a308b1a"
+            "fingerprint": "sha256:f93b00991da9f602c026f978c3adb5b6264bfb094de5717b7e495db4694229ba"
         },
         {
             "path": "app/ServerCredentials.php",
@@ -3135,7 +3135,7 @@
                 "tests/Server/EngineConstraintsTest.php",
                 "tests/Server/EngineConfigurationTest.php"
             ],
-            "fingerprint": "sha256:65465be3df5be3cdb15f38fef357c3f9f39a487a75a93f179661a7f7c434dadc"
+            "fingerprint": "sha256:f71150c5ed8344a3190e7a623e709721883464d30bb446f55d62679ee6309c3b"
         },
         {
             "path": "app/ServerExpressionAtom.php",
@@ -3183,7 +3183,7 @@
                 "app/ServerTableAdmission.php",
                 "tests/Server/EngineBoundaryAdmissionTest.php"
             ],
-            "fingerprint": "sha256:928f2b90f7b62077bcbdb03579b7774aaec56f9ee80e5e3f7de840deb5adfb5c"
+            "fingerprint": "sha256:6d26c4bc2c2b409ae8d7c89bf1756f983667c7ffd0ea87c611ac938dddc6f0a5"
         },
         {
             "path": "app/ServerIndexAdmission.php",
@@ -3194,7 +3194,7 @@
                 "Composer verify",
                 "app/ServerTableAdmission.php"
             ],
-            "fingerprint": "sha256:a8ed51a477a098d3ac8ee517e1d75686c59707e64eb1520c4997cbaea81f63cd"
+            "fingerprint": "sha256:66efe0501e59b2f81f795f1bc53386f732996c52aeb7240a718e0833d0cb7b6b"
         },
         {
             "path": "app/ServerKeyIdentity.php",
@@ -3375,7 +3375,7 @@
                 "app/ServerMetadataAdmission.php",
                 "tests/Server/EngineMetadataAdmissionTest.php"
             ],
-            "fingerprint": "sha256:6e03f74b64cd1f65e7045e89970a07b8e97d64c1b5fa2bd942e377bac088d48f"
+            "fingerprint": "sha256:b30171d4215a2e928790fd4aad7a2c47136388af1b49087e10747cf288edc0d5"
         },
         {
             "path": "app/ServerSchemaDescriptor.php",
@@ -3463,7 +3463,7 @@
                 "Composer verify",
                 "app/ServerSchema.php"
             ],
-            "fingerprint": "sha256:9baffc177c794cf09ce30eefd0e310b0c1226f734cbde4554726c14c97f1d8c7"
+            "fingerprint": "sha256:7de20ac0da7a579686261410aef7160993b54f6bf76b4b35f76c4a1de0c69503"
         },
         {
             "path": "app/ServerTls.php",
@@ -8025,7 +8025,7 @@
                 "Composer verify:server",
                 "Standalone frozen logical9 fixture materialization (source grant pending)"
             ],
-            "fingerprint": "sha256:6a46efc71abd328e4024bf00bd7bda68af1b93f3a04c7ba0abda77949d90826d"
+            "fingerprint": "sha256:bd184d68323c6af9eb869f2827952c5b169b8c0c7171885c2d3c49d561d81354"
         },
         {
             "path": "tests/Server/EngineMigrationProcessTest.php",
@@ -11426,7 +11426,7 @@
                 "tests/Server/EngineMetadataAdmissionTest.php",
                 "tests/Support/EngineBoundaryProbe.php"
             ],
-            "fingerprint": "sha256:d5cc6e89e45222c99b20adb2d8b06120c9b932f20d7e340c4d0a5192779ba2d6"
+            "fingerprint": "sha256:92301775c8a92fdf38a0429ff697f57d41ccab7cddf86cedb14919579312a45e"
         },
         {
             "path": "tests/Server/EngineMetadataAdmissionTest.php",

@@ -6,7 +6,7 @@ namespace Tablo;
 use PDO;
 
 /**
- * @phpstan-import-type Table from ServerSchema
+ * @phpstan-import-type ExpectedTable from ServerSchema as Table
  * @phpstan-import-type Column from ServerSchema
  * @phpstan-import-type Layout from ServerSchema
  */

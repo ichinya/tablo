@@ -267,6 +267,7 @@ function engine_schema_descriptor_records_contract(): void
             engine_schema_descriptor_framing($loader, $bytes, $engine);
             engine_schema_descriptor_integrity($loader, $bytes, $engine);
             engine_schema_descriptor_io($loader, $bytes, $engine);
+            engine_schema_admission_projection_contract($engine);
         }
         $missing = null;
         try { $loader->invoke(null, dirname(__DIR__) . '/fixtures/server-layouts/v10/absent-layout.jsonl', 'mysql'); }
@@ -284,6 +285,37 @@ function engine_schema_descriptor_engine_selection(): void
         try { \Tablo\ServerSchemaDescriptor::forEngine($engine); } catch (\Tablo\DatabaseFailure $error) { $failure = $error; }
         Assert::same($failure?->category, 'configuration'); Assert::same($failure?->getPrevious(), null);
     }
+}
+
+/** The actual admission projection preserves all required data without changing a public full graph. */
+function engine_schema_admission_projection_contract(string $engine): void
+{
+    $layout = \Tablo\ServerSchemaDescriptor::forEngine($engine);
+    $golden = engine_schema_descriptor_golden($engine);
+    Assert::same($layout, $golden);
+    $before = \Tablo\JsonEncoding::encode($layout);
+    Assert::true(class_exists(\Tablo\ServerTableAdmission::class), 'the admission class loads its internal projection function');
+    $projection = new \ReflectionFunction(\Tablo\server_table_admission_tables(...));
+    $tables = JsonRecord::checked($projection->invoke($layout));
+    Assert::same(array_keys($tables), array_keys($layout['tables'])); Assert::same(count($tables), 18);
+    $names = array_map(static fn (mixed $table): string => SqlColumn::string(JsonRecord::checked($table), 'name'), $tables);
+    Assert::same($names, array_column($layout['tables'], 'name'));
+    Assert::same(array_slice($names, offset: 0, length: 3), ['tablo_migration_journal', 'tablo_database_state', 'tablo_writer_guard']);
+    Assert::true(in_array('read_api_token', $names, strict: true), 'metadata admission keeps the unfiltered source list');
+    foreach ($layout['tables'] as $index => $table) {
+        $actual = JsonRecord::checked($tables[$index] ?? null);
+        $expected = $table; unset($expected['create'], $expected['checksum']);
+        Assert::same(array_keys($actual), ['name', 'columns', 'primary', 'checks', 'indexes', 'foreign']);
+        Assert::same($actual, $expected, 'every admission value, native type and order must be preserved');
+        Assert::false(array_key_exists('create', $actual)); Assert::false(array_key_exists('checksum', $actual));
+    }
+    foreach ([9 => 17, 10 => 18] as $version => $count) {
+        $selected = array_values(array_filter($names, static fn (string $name): bool => $version === 10 || $name !== 'read_api_token'));
+        $full = array_values(array_filter($layout['tables'], static fn (array $table): bool => $version === 10 || $table['name'] !== 'read_api_token'));
+        Assert::same(count($selected), $count); Assert::same($selected, array_column($full, 'name'));
+    }
+    Assert::same($layout, $golden); Assert::same(\Tablo\JsonEncoding::encode($layout), $before);
+    Assert::same(\Tablo\ServerSchemaDescriptor::forEngine($engine), $golden);
 }
 
 function engine_schema_descriptor_manifest_contract(): void

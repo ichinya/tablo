@@ -8,7 +8,9 @@ use PDO;
 /**
  * The two checked-in descriptors are the complete finite server formats, never arbitrary input.
  * @phpstan-type Column array{name: string, type: string, nullable: bool, default: ?string, auto?: bool, generated?: string}
+ * @phpstan-type AdmissionTable array{name: string, columns: list<Column>, primary: list<string>, checks: list<array{name: string, expression: string}>, indexes: list<array{name: string, columns: list<string>, unique: bool}>, foreign: list<array{column: string, table: string, target: string, onDelete: string, onUpdate: string}>}
  * @phpstan-type Table array{name: string, columns: list<Column>, primary: list<string>, checks: list<array{name: string, expression: string}>, indexes: list<array{name: string, columns: list<string>, unique: bool}>, foreign: list<array{column: string, table: string, target: string, onDelete: string, onUpdate: string}>, create: string, checksum: string}
+ * @phpstan-type ExpectedTable Table|AdmissionTable
  * @phpstan-type Layout array{format: int, engine: string, logicalVersion: int, syntheticPredecessor: int, collation: string, tables: list<Table>}
  */
 final class ServerSchema

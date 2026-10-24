@@ -6,7 +6,7 @@ namespace Tablo;
 use PDO;
 
 /**
- * @phpstan-import-type Table from ServerSchema
+ * @phpstan-import-type ExpectedTable from ServerSchema as Table
  * @phpstan-import-type Column from ServerSchema
  * @phpstan-import-type Layout from ServerSchema
  */
@@ -45,7 +45,7 @@ final class ServerCheckAdmission
 
 }
 
-/** @param \Tablo\ServerSchema::Table $table
+/** @param \Tablo\ServerSchema::ExpectedTable $table
  * @return array<string, string> */
 function server_check_admission_clauses(PDO $db, array $table): array
 {
