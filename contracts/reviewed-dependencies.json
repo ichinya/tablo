@@ -8,7 +8,7 @@
                 "Composer verify",
                 "Reviewed dependency capture"
             ],
-            "fingerprint": "sha256:3576b5e4f7acece81b06c520180ddcafbb075c1a85a061ab0e8e56bc52a1a2d0"
+            "fingerprint": "sha256:23c043734abf27d83b66849a4b33f36dcdc17b852fae85c0bf550845e65dc140"
         },
         {
             "path": "tools/reviewed-dependencies.php",
@@ -2152,7 +2152,7 @@
                 "Composer lint",
                 "Composer verify",
                 "Composer analyze",
-                "app/ServerSchemaRecords.php"
+                "app/ServerSchemaDescriptor.php"
             ],
             "fingerprint": "sha256:40cb057b8f05dd3712588d903f96365763613223a392e364f45d5b40d79d1970"
         },
@@ -3379,7 +3379,7 @@
         },
         {
             "path": "app/ServerSchemaDescriptor.php",
-            "owner": "Tablo\\ServerSchemaDescriptor",
+            "owner": "Tablo\\ServerSchemaDescriptor and internal finite framing checks",
             "consumers": [
                 "Composer lint",
                 "Composer analyze",
@@ -3387,21 +3387,10 @@
                 "app/DatabaseTransferManifest.php",
                 "app/ServerColumnAdmission.php",
                 "app/ServerSchema.php",
-                "tools/ServerFixtureCatalog.php"
-            ],
-            "fingerprint": "sha256:4b3659e1759e260a796fe89cdd71ffb99aff442c9573ce0bd195ab51a9f3f0d3"
-        },
-        {
-            "path": "app/ServerSchemaRecords.php",
-            "owner": "Tablo\\ServerSchemaRecords and internal finite framing checks",
-            "consumers": [
-                "Composer lint",
-                "Composer analyze",
-                "Composer verify",
-                "app/ServerSchemaDescriptor.php",
+                "tools/ServerFixtureCatalog.php",
                 "tests/Server/EngineMigrationPreviousTest.php"
             ],
-            "fingerprint": "sha256:898e673f4342aa7e3a2eb7ef685f82c93fa7d9ad951ab0deac86e4de3b7dfe08"
+            "fingerprint": "sha256:05059c6809ef8151fb379b67e87426b8568657d532e5374ba8e093e82f75ee5d"
         },
         {
             "path": "app/ServerSchemaState.php",
@@ -5186,23 +5175,23 @@
         },
         {
             "path": "database/mariadb114-layout.jsonl",
-            "owner": "Authoritative finite MariaDB11.4 metadata1 logical9/10 field records",
+            "owner": "Authoritative finite MariaDB11.4 metadata1 logical9/10 table records",
             "consumers": [
                 "Tablo\\ServerSchemaDescriptor",
                 "Selected-engine admission and explicit maintenance",
                 "Native constraints and migration tests"
             ],
-            "fingerprint": "sha256:35487397cbd3de84a232bdf3e4cc28d6f63b35961f01be20e527c080eb0761c5"
+            "fingerprint": "sha256:b8036e42aadae6f827a306a65f0c0efd537cf5cb9489df193f06716b1325ee6b"
         },
         {
             "path": "database/mysql84-layout.jsonl",
-            "owner": "Authoritative finite MySQL8.4 metadata1 logical9/10 field records",
+            "owner": "Authoritative finite MySQL8.4 metadata1 logical9/10 table records",
             "consumers": [
                 "Tablo\\ServerSchemaDescriptor",
                 "Selected-engine admission and explicit maintenance",
                 "Native constraints and migration tests"
             ],
-            "fingerprint": "sha256:ac4ee75e3ce938aca1fb79ddaa90864050bd5f8e5e56328c6233bde4311c49c3"
+            "fingerprint": "sha256:f5784f76e26c9325cb93f228f5fdb03c0fbf0651227d0301b313dc569902faa0"
         },
         {
             "path": "deploy/database-engines.json",
@@ -5251,7 +5240,7 @@
                 "tools/server-supervisor-linux-qualify.cjs",
                 "tools/server-linux-prepare.cjs"
             ],
-            "fingerprint": "sha256:ac48e29dc8b8b7627cf46aad293a7cd2460eda6642a8911bdc92963f7e0b236a"
+            "fingerprint": "sha256:fe76591c39a7ae8d7378d38d72eb87433a4a444c45acbf4f000358f9130589d8"
         },
         {
             "path": "docs/read-api.md",
@@ -8036,7 +8025,7 @@
                 "Composer verify:server",
                 "Standalone frozen logical9 fixture materialization (source grant pending)"
             ],
-            "fingerprint": "sha256:f91bb398e8eeb8b38fe298552bf6bae38e82588227be0e1002d967916f847fda"
+            "fingerprint": "sha256:6a46efc71abd328e4024bf00bd7bda68af1b93f3a04c7ba0abda77949d90826d"
         },
         {
             "path": "tests/Server/EngineMigrationProcessTest.php",

@@ -156,10 +156,10 @@ fixture; it is not a claim that an older server release was deployed. SQLite's
 existing historical versions and schema number 10 remain unchanged.
 
 Developer source format: each `database/*-layout.jsonl` is the selected engine's
-sole runtime descriptor. It contains one `records=1` scalar-layout header and
-18 groups of eight fields in `name, columns, primary, checks, indexes, foreign,
-create, checksum` order. Each complete field is native JSON inside
-`{"tables":[{"field":value}]}`, preserving the original decoder depth and flags.
+sole runtime descriptor. It contains one `records=2` scalar-layout header and
+18 complete-table records with fields in `name, columns, primary, checks, indexes,
+foreign, create, checksum` order. Each complete table is native JSON inside
+`{"tables":[{...}]}`, preserving the original decoder depth and flags.
 The reader assembles the entire graph before checking engine, 18 tables and every
 CREATE checksum; public layout values/order and logical-9/10 digests are unchanged.
 Records require LF or CRLF terminators, including the last record, and at most
@@ -170,6 +170,8 @@ replaces old JSON parse-offset behavior. Old JSON bytes under
 `tests/fixtures/server-layouts/v10/` are test-only compatibility oracles, excluded
 from the Docker context; they are never a runtime fallback or cache. Source
 streaming alone does not establish the release memory or timing qualification.
+Complete-table framing reduces native decodes from 145 to 19, but its larger input
+frame overlaps a larger decoded table; no memory or timing benefit is established.
 The fixed transfer manifest shares this reader through internal constant-engine
 selection. Its existing reduced-projection cache is unchanged; its first source
 read now also refuses malformed framing and any bad CREATE checksum before

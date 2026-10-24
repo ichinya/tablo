@@ -246,7 +246,7 @@ function engine_schema_descriptor_records_contract(): void
             Assert::same(hash_file('sha256', $root . '/tests/fixtures/server-layouts/v10/' . $stem . '-layout.json'), $rawHash);
             $golden = engine_schema_descriptor_golden($engine);
             $bytes = \Tablo\RequiredFile::bytes(file_get_contents($root . '/database/' . $stem . '-layout.jsonl'));
-            Assert::same(count(explode("\n", $bytes)), 146);
+            Assert::same(count(explode("\n", $bytes)), 20);
             Assert::same($loader->invoke(null, $root . '/database/' . $stem . '-layout.jsonl', $engine), $golden);
             Assert::same(\Tablo\ServerSchemaDescriptor::forEngine($engine), $golden);
             $loaded = engine_schema_descriptor_source($loader, $bytes, $engine);
@@ -336,10 +336,10 @@ function engine_schema_descriptor_framing(\ReflectionMethod $loader, string $byt
 {
     $lines = explode("\n", $bytes); Assert::same(array_pop($lines), '');
     if (!array_key_exists(0, $lines) || !array_key_exists(1, $lines) || !array_key_exists(2, $lines)) { throw new \RuntimeException('Incomplete framing fixture.'); }
-    $header = $lines[0]; $first = $lines[1]; $second = $lines[2];
+    $header = $lines[0]; $first = $lines[1];
     foreach ([substr($bytes, offset: 0, length: -1), "\xEF\xBB\xBF" . $bytes, "\n" . $bytes, $bytes . "\n", $bytes . "\0",
         $header . "\n", implode("\n", array_slice($lines, offset: 1)) . "\n", substr($bytes, offset: 0, length: -80),
-        str_replace('"records":1', replace: '"records":2', subject: $bytes), str_replace('"format":1', replace: '"format":"1"', subject: $bytes),
+        str_replace('"records":2', replace: '"records":1', subject: $bytes), str_replace('"format":1', replace: '"format":"1"', subject: $bytes),
         str_replace("\n", replace: "\r", subject: $bytes)] as $broken) {
         $result = engine_schema_descriptor_source($loader, $broken, $engine);
         engine_schema_descriptor_refusal($result['failure']); Assert::null($result['layout']);
@@ -349,12 +349,16 @@ function engine_schema_descriptor_framing(\ReflectionMethod $loader, string $byt
         $changed = $lines; $changed[1] = $record;
         engine_schema_descriptor_refusal(engine_schema_descriptor_source($loader, implode("\n", $changed) . "\n", $engine)['failure']);
     }
-    $changed = $lines; $changed[1] = $second; $changed[2] = $first;
+    $table = \Tablo\server_schema_descriptor_table(JsonRecord::checked(json_decode($first, associative: true, flags: JSON_THROW_ON_ERROR)));
+    $changed = $lines; $changed[1] = \Tablo\JsonEncoding::encode(['tables' => [array_reverse($table, preserve_keys: true)]]);
     engine_schema_descriptor_refusal(engine_schema_descriptor_source($loader, implode("\n", $changed) . "\n", $engine)['failure']);
-    $changed = $lines; $changed[2] = $first;
+    $missing = $table; unset($missing['checks']);
+    $changed = $lines; $changed[1] = \Tablo\JsonEncoding::encode(['tables' => [$missing]]);
     engine_schema_descriptor_refusal(engine_schema_descriptor_source($loader, implode("\n", $changed) . "\n", $engine)['failure']);
-    foreach ([str_replace('{"records":1,"layout":', replace: '{"unknown":0,"records":1,"layout":', subject: $bytes),
-        str_replace('{"records":1,"layout":', replace: '{"layout":', subject: $bytes),
+    $changed = $lines; $changed[1] = \Tablo\JsonEncoding::encode(['tables' => [$table + ['unknown' => null]]]);
+    engine_schema_descriptor_refusal(engine_schema_descriptor_source($loader, implode("\n", $changed) . "\n", $engine)['failure']);
+    foreach ([str_replace('{"records":2,"layout":', replace: '{"unknown":0,"records":2,"layout":', subject: $bytes),
+        str_replace('{"records":2,"layout":', replace: '{"layout":', subject: $bytes),
         str_replace('"format":1,"engine":', replace: '"engine":', subject: $bytes)] as $broken) {
         engine_schema_descriptor_refusal(engine_schema_descriptor_source($loader, $broken, $engine)['failure']);
     }
@@ -365,7 +369,9 @@ function engine_schema_descriptor_integrity(\ReflectionMethod $loader, string $b
 {
     $lines = explode("\n", $bytes);
     foreach ([0, 8, 17] as $table) {
-        $changed = $lines; $changed[1 + $table * 8 + 7] = '{"tables":[{"checksum":"' . str_repeat('0', times: 64) . '"}]}';
+        $changed = $lines; $frame = JsonRecord::checked(json_decode($lines[1 + $table] ?? '', associative: true, flags: JSON_THROW_ON_ERROR));
+        $value = \Tablo\server_schema_descriptor_table($frame); $value['checksum'] = str_repeat('0', times: 64);
+        $changed[1 + $table] = \Tablo\JsonEncoding::encode(['tables' => [$value]]);
         $broken = implode("\n", $changed);
         $result = engine_schema_descriptor_source($loader, $broken, $engine);
         engine_schema_descriptor_refusal($result['failure']); Assert::null($result['layout']);
@@ -404,11 +410,11 @@ function engine_schema_descriptor_io(\ReflectionMethod $loader, string $bytes, s
 }
 
 /** @return array */
-function engine_schema_descriptor_record(\ReflectionMethod $decoder, string $bytes): array
+function engine_schema_descriptor_record(\ReflectionFunction $decoder, string $bytes): array
 {
     $stream = fopen('php://memory', mode: 'w+b');
     if ($stream === false) { throw new \RuntimeException('Cannot open pure record fixture.'); }
-    try { fwrite($stream, $bytes); rewind($stream); return JsonRecord::checked($decoder->invoke(null, $stream)); }
+    try { fwrite($stream, $bytes); rewind($stream); return JsonRecord::checked($decoder->invoke($stream)); }
     finally { fclose($stream); }
 }
 
@@ -423,52 +429,79 @@ function engine_schema_descriptor_field_value(array $record, string $field): mix
 
 function engine_schema_descriptor_native_values(): void
 {
-    $decoder = new \ReflectionMethod(\Tablo\ServerSchemaRecords::class, 'record');
+    $decoder = new \ReflectionFunction(\Tablo\server_schema_descriptor_record(...));
     $special = <<<'JSON'
 "quote\" slash\/ backslash\\ control\u0000\r\n\t Caf\u00e9 \ud83e\uddea"
 JSON;
     foreach (['null', 'false', 'true', '0', '1', '-1', '1.0', '1.5', '-0.0', '1e2', '"1"', '""', '[]', '{}',
         '{"3":"three","1":"one"}', '[null,false,true,0,"1",[],{"nested":[]}]', $special] as $value) {
-        $line = '{"tables":[{"columns":' . $value . '}]}';
+        $line = engine_schema_descriptor_table_record('columns', $value);
         $decoded = engine_schema_descriptor_record($decoder, $line . "\n");
         $reference = JsonRecord::checked(json_decode($line, associative: true, flags: JSON_THROW_ON_ERROR));
         Assert::same($decoded, $reference);
-        Assert::same(\Tablo\server_schema_records_field($decoded, field: 'columns'), engine_schema_descriptor_field_value($reference, field: 'columns'));
+        Assert::same(\Tablo\server_schema_descriptor_table($decoded), JsonRecord::checked(JsonRecord::checked($reference['tables'] ?? null)[0] ?? null));
+        Assert::same(engine_schema_descriptor_field_value($decoded, field: 'columns'), engine_schema_descriptor_field_value($reference, field: 'columns'));
     }
     $boundary = false;
     foreach (['columns', 'primary', 'checks', 'indexes', 'foreign'] as $field) {
         foreach ([15, 16, 17, 507, 508, 509, 510, 511, 512, 513] as $depth) {
             $value = str_repeat('[', $depth) . '0' . str_repeat(']', $depth);
-            $line = '{"tables":[{"' . $field . '":' . $value . '}]}';
-            $reference = engine_schema_checksum_outcome(static fn () => engine_schema_descriptor_field_value(JsonRecord::checked(json_decode('{"format":1,"tables":[{"' . $field . '":' . $value . '}]}', associative: true, flags: JSON_THROW_ON_ERROR)), $field));
-            $actual = engine_schema_checksum_outcome(static fn () => engine_schema_descriptor_field_value(engine_schema_descriptor_record($decoder, $line . "\n"), $field));
+            $line = engine_schema_descriptor_table_record($field, $value);
+            $reference = engine_schema_checksum_outcome(static fn () => engine_schema_descriptor_field_value(JsonRecord::checked(json_decode('{"format":1,' . substr($line, offset: 1), associative: true, flags: JSON_THROW_ON_ERROR)), $field));
+            $actual = engine_schema_checksum_outcome(static fn () => \Tablo\server_schema_descriptor_table(engine_schema_descriptor_record($decoder, $line . "\n"))[$field] ?? null);
             Assert::same($actual, $reference);
             $unwrapped = engine_schema_checksum_outcome(static fn () => json_decode('{"' . $field . '":' . $value . '}', associative: true, flags: JSON_THROW_ON_ERROR));
             if ($reference['error'] === JSON_ERROR_DEPTH && $unwrapped['error'] === null) { $boundary = true; }
         }
     }
     Assert::true($boundary, 'unwrapped native JSON must expose a depth-boundary counterexample');
-    $line = '{"tables":[{"name":"limit"}]}';
-    $limit = $line . str_repeat(' ', 131_071 - strlen($line)) . "\n";
-    Assert::same(engine_schema_descriptor_record($decoder, $limit), ['tables' => [['name' => 'limit']]]);
+    $line = engine_schema_descriptor_table_record('name', value: '"limit"');
+    $limit = $line . str_repeat(' ', times: engine_schema_descriptor_padding(131_071, $line)) . "\n";
+    Assert::same(strlen($limit), 131_072);
+    Assert::same(engine_schema_descriptor_record($decoder, $limit), JsonRecord::checked(json_decode($line, associative: true, flags: JSON_THROW_ON_ERROR)));
     $failure = null;
     try { engine_schema_descriptor_record($decoder, ' ' . $limit); } catch (\Tablo\DatabaseFailure $error) { $failure = $error; }
     engine_schema_descriptor_refusal($failure);
     engine_schema_descriptor_chunk_boundaries($decoder);
 }
 
-/** Frame terminators and UTF-8 may cross the 4,095-byte fgets payload boundary. */
-function engine_schema_descriptor_chunk_boundaries(\ReflectionMethod $decoder): void
+/** Complete table framing retains every field's native JSON spelling and depth. */
+function engine_schema_descriptor_table_record(string $field, string $value): string
 {
-    $line = '{"tables":[{"name":"boundary"}]}'; $expected = ['tables' => [['name' => 'boundary']]];
+    $fields = ['name' => '"native"', 'columns' => '[]', 'primary' => '[]', 'checks' => '[]', 'indexes' => '[]', 'foreign' => '[]', 'create' => '""', 'checksum' => '""'];
+    if (!array_key_exists($field, $fields)) { throw new \RuntimeException('Unknown native table fixture field.'); }
+    $fields[$field] = $value; $members = [];
+    foreach ($fields as $name => $native) { $members[] = '"' . $name . '":' . $native; }
+    return '{"tables":[{' . implode(',', $members) . '}]}';
+}
+
+/** @return int<0, max> */
+function engine_schema_descriptor_padding(int $length, string $prefix): int
+{
+    $padding = $length - strlen($prefix);
+    if ($padding < 0) { throw new \RuntimeException('Native table fixture exceeds its boundary.'); }
+    return $padding;
+}
+
+/** Frame terminators and UTF-8 may cross the 4,095-byte fgets payload boundary. */
+function engine_schema_descriptor_chunk_boundaries(\ReflectionFunction $decoder): void
+{
+    $line = engine_schema_descriptor_table_record('name', value: '"boundary"');
+    $expected = JsonRecord::checked(json_decode($line, associative: true, flags: JSON_THROW_ON_ERROR));
     foreach ([4093, 4094, 4095, 4096, 8188, 8189, 8190, 8191] as $bodyBytes) {
-        $body = $line . str_repeat(' ', times: $bodyBytes - strlen($line));
-        foreach (["\n", "\r\n"] as $terminator) { Assert::same(engine_schema_descriptor_record($decoder, $body . $terminator), $expected); }
+        $body = $line . str_repeat(' ', times: engine_schema_descriptor_padding($bodyBytes, $line));
+        Assert::same(strlen($body), $bodyBytes);
+        foreach (["\n", "\r\n"] as $terminator) {
+            Assert::same(strlen($body . $terminator), $bodyBytes + strlen($terminator));
+            Assert::same(engine_schema_descriptor_record($decoder, $body . $terminator), $expected);
+        }
     }
     $prefix = '{"tables":[{"name":"';
-    $utf8 = $prefix . str_repeat('x', times: 4094 - strlen($prefix)) . "é\"}]}\n";
+    $utf8 = engine_schema_descriptor_table_record('name', '"' . str_repeat('x', times: engine_schema_descriptor_padding(4094, $prefix)) . 'é"') . "\n";
+    Assert::same(strpos($utf8, needle: 'é'), 4094);
     Assert::same(engine_schema_descriptor_record($decoder, $utf8), JsonRecord::checked(json_decode($utf8, associative: true, flags: JSON_THROW_ON_ERROR)));
-    $body = $line . str_repeat(' ', times: 4094 - strlen($line));
+    $body = $line . str_repeat(' ', times: engine_schema_descriptor_padding(4094, $line));
+    Assert::same(strlen($body), 4094);
     $failure = null;
     try { engine_schema_descriptor_record($decoder, $body . "\r"); } catch (\Tablo\DatabaseFailure $error) { $failure = $error; }
     engine_schema_descriptor_refusal($failure);
@@ -476,8 +509,8 @@ function engine_schema_descriptor_chunk_boundaries(\ReflectionMethod $decoder): 
     if ($stream === false) { throw new \RuntimeException('Cannot open paired record fixture.'); }
     try {
         fwrite($stream, $body . "\r\n" . $line . "\n"); rewind($stream);
-        Assert::same(JsonRecord::checked($decoder->invoke(null, $stream)), $expected);
-        Assert::same(JsonRecord::checked($decoder->invoke(null, $stream)), $expected);
+        Assert::same(JsonRecord::checked($decoder->invoke($stream)), $expected);
+        Assert::same(JsonRecord::checked($decoder->invoke($stream)), $expected);
         Assert::same(fgetc($stream), false);
     } finally { fclose($stream); }
 }

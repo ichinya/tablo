@@ -30,7 +30,7 @@ final class ServerSchemaDescriptor
     /** @return Layout */
     private static function sourceLayout(#[\SensitiveParameter] string $path, string $engine): array
     {
-        return server_schema_descriptor_layout(ServerSchemaRecords::read($path), $engine);
+        return server_schema_descriptor_layout(server_schema_descriptor_read($path), $engine);
     }
 
     public static function checksum(PDO $db, int $version = 10): string
@@ -78,6 +78,84 @@ final class ServerSchemaDescriptor
     }
     private static function refuse(): never { throw new DatabaseFailure('schema'); }
 
+}
+
+/** @internal Read the single finite source and positively close before publishing its graph. */
+function server_schema_descriptor_read(#[\SensitiveParameter] string $path): array
+{
+    $stream = null; $layout = null; $primary = null;
+    try {
+        $stream = NativeWarning::ignore(static fn () => fopen($path, mode: 'rb'));
+        if ($stream === false) { throw new DatabaseFailure('schema'); }
+        $layout = server_schema_descriptor_parse($stream);
+    } catch (\Throwable) { $primary = new DatabaseFailure('schema'); }
+    finally { $closed = server_schema_descriptor_close($stream); }
+    if ($primary !== null) { throw $primary; }
+    if (!$closed || $layout === null) { throw new DatabaseFailure('schema'); }
+    return $layout;
+}
+
+/** @internal
+ * @param resource|false|null $stream */
+function server_schema_descriptor_close($stream): bool
+{
+    if (!is_resource($stream)) { return true; }
+    try { return NativeWarning::ignore(static fn () => fclose($stream)); }
+    catch (\Throwable) { return false; }
+}
+
+/** @internal
+ * @param resource $stream */
+function server_schema_descriptor_parse($stream): array
+{
+    $layout = server_schema_descriptor_header(server_schema_descriptor_record($stream));
+    $layout['tables'] = [];
+    for ($index = 0; $index < 18; $index++) {
+        $layout['tables'][] = server_schema_descriptor_table(server_schema_descriptor_record($stream));
+    }
+    if (NativeWarning::ignore(static fn () => fgetc($stream)) !== false || !feof($stream)) { throw new DatabaseFailure('schema'); }
+    return $layout;
+}
+
+/** @internal Each table retains the original root/tables/table depth and native decoder flags.
+ * @param resource $stream */
+function server_schema_descriptor_record($stream): array
+{
+    $line = '';
+    while (true) {
+        $chunk = NativeWarning::ignore(static fn () => fgets($stream, length: 4096));
+        if ($chunk === false || $chunk === '' || strlen($chunk) > 131_072 - strlen($line)) { throw new DatabaseFailure('schema'); }
+        $complete = str_ends_with($chunk, "\n");
+        $line .= $chunk;
+        unset($chunk);
+        if ($complete) { return JsonRecord::checked(json_decode($line, associative: true, flags: JSON_THROW_ON_ERROR)); }
+    }
+}
+
+/** @internal Validate the decoded header before any graph assembly. */
+function server_schema_descriptor_header(array $header): array
+{
+    if (array_keys($header) !== ['records', 'layout'] || ($header['records'] ?? null) !== 2) { throw new DatabaseFailure('schema'); }
+    $layout = JsonRecord::checked($header['layout'] ?? null);
+    if (array_keys($layout) !== ['format', 'engine', 'logicalVersion', 'syntheticPredecessor', 'collation']) { throw new DatabaseFailure('schema'); }
+    foreach (['format', 'logicalVersion', 'syntheticPredecessor'] as $field) {
+        if (!is_int($layout[$field] ?? null)) { throw new DatabaseFailure('schema'); }
+    }
+    foreach (['engine', 'collation'] as $field) {
+        if (!is_string($layout[$field] ?? null)) { throw new DatabaseFailure('schema'); }
+    }
+    return $layout;
+}
+
+/** @internal Preserve one complete native table after checking its ordered frame. */
+function server_schema_descriptor_table(array $record): array
+{
+    if (array_keys($record) !== ['tables']) { throw new DatabaseFailure('schema'); }
+    $tables = JsonRecord::checked($record['tables'] ?? null);
+    if (array_keys($tables) !== [0]) { throw new DatabaseFailure('schema'); }
+    $table = JsonRecord::checked($tables[0] ?? null);
+    if (array_keys($table) !== ['name', 'columns', 'primary', 'checks', 'indexes', 'foreign', 'create', 'checksum']) { throw new DatabaseFailure('schema'); }
+    return $table;
 }
 
 /** @internal Original whole-graph integrity policy, applied only after complete record parsing.
