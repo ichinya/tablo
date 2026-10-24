@@ -145,6 +145,7 @@ function engine_transfer_archive_lines(array $table, array $sites): void
         }
         engine_transfer_archive_authentication($directory->path, $table, $lines[0], $lines[1]);
         engine_transfer_archive_framing($directory->path, $table, $lines[0], $lines[1]);
+        engine_transfer_archive_numeric_object($directory->path, $table, $rows[0]);
         engine_transfer_archive_completion($directory->path, $table, $rows[0], $lines[0], $lines[1]);
         engine_transfer_archive_large($directory->path, $sites);
     } finally { $directory->close(); }
@@ -214,6 +215,17 @@ function engine_transfer_archive_framing(string $directory, array $table, string
         $receipt = engine_transfer_archive_fixture($directory, $table, [$bytes], [$count]);
         engine_transfer_archive_refuses($directory, $table, $receipt, $escaped, $failure);
     }
+}
+
+/** The typed decoder accepts these numeric keys; exact wire re-encoding must still refuse the object.
+ * @param \Tablo\DatabaseTransferManifest::Table $table
+ * @param \Tablo\DatabaseTransferRows::Values $values */
+function engine_transfer_archive_numeric_object(string $directory, array $table, array $values): void
+{
+    $object = JsonEncoding::encode((object) DatabaseTransferRows::encode($values));
+    Assert::same(DatabaseTransferRows::decode(JsonRecord::decode($object), $table), $values);
+    $receipt = engine_transfer_archive_fixture($directory, $table, [$object . "\n"], [1]);
+    engine_transfer_archive_refuses($directory, $table, $receipt, expectedRows: 0);
 }
 
 /** @param \Tablo\DatabaseTransferManifest::Table $table

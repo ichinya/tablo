@@ -233,8 +233,6 @@ function server_verify_failure_callback(string $root, array $selection, array $s
             'diagnostic' => \Tablo\Tools\server_native_failure($root, $bytes, $selection['identity'], $selection['publicSources'])];
         $memory = \Tablo\Tools\server_native_memory_failure($root, $bytes, $selection['identity'], $selection['publicSources']);
         if ($memory !== null) { $record['memoryDiagnostic'] = $memory; }
-        $checkpoint = \Tablo\Tools\server_native_memory_checkpoint_failure($root, $bytes, $selection['identity'], $selection['publicSources']);
-        if ($checkpoint !== null) { $record['checkpointDiagnostic'] = $checkpoint; }
         server_verify_progress($root, $selection['lane'], $selection['index'] + 1, $record);
     };
 }

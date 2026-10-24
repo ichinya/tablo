@@ -242,10 +242,7 @@ function engine_transfer_working_data(): void
         Assert::same($result['nativeBufferedSource'] ?? null, false);
         $used = \Tablo\SqlColumn::integer($result, 'peakPhpWorkingBytes');
         Assert::true($used > 0);
-        $checkpoint = \Tablo\SqlColumn::string($result, 'temporaryPeakCheckpoint');
-        if (!in_array($checkpoint, ['SETUP', 'FORWARD_EXPORT', 'NATIVE_IMPORT', 'NATIVE_VERIFY', 'READER_OPEN', 'REVERSE_EXPORT',
-            'SQLITE_IMPORT', 'FINAL_VERIFY', 'INTEGRITY', 'UNKNOWN'], strict: true)) { throw new \RuntimeException('Temporary memory checkpoint refused.'); }
-        Assert::true($used <= 2_097_152, 'Complete measured helper, including cold transfer metadata, exceeds2MiB; peakPhpWorkingBytes=' . $used . '; temporaryPeakCheckpoint=' . $checkpoint);
+        Assert::true($used <= 2_097_152, 'Complete measured helper, including cold transfer metadata, exceeds2MiB; peakPhpWorkingBytes=' . $used);
         Assert::same($result['allTypedDigestsPreserved'] ?? null, true);
         \Tablo\Tests\Support\SessionEvidence::record('transfer-working-memory', ['status' => 'passed', 'payloadBytes' => 11_520_000,
             'tables' => 15, 'peakPhpWorkingBytes' => $used, 'nativeBufferedSource' => false,

@@ -185,99 +185,19 @@ function engine_verification_failed_memory(): void
     engine_verification_memory_messages($base, $project);
     engine_verification_memory_origins($root, $base, $project);
     engine_verification_memory_envelope($root, $identity, $base, $project);
-    engine_verification_failed_checkpoint($root, $identity, $base);
 }
 
 /** Use the installed assertion formatter; only its synthetic caller frame is supplied explicitly. */
-function engine_verification_memory_report(string $root, int $used, ?string $checkpoint = null): array
+function engine_verification_memory_report(string $root, int $used): array
 {
-    $failure = null; $message = 'Complete measured helper, including cold transfer metadata, exceeds2MiB; peakPhpWorkingBytes=' . $used;
-    if ($checkpoint !== null) { $message .= '; temporaryPeakCheckpoint=' . $checkpoint; }
-    try { Assert::true($used <= 2_097_152, $message); }
+    $failure = null;
+    try { Assert::true($used <= 2_097_152, 'Complete measured helper, including cold transfer metadata, exceeds2MiB; peakPhpWorkingBytes=' . $used); }
     catch (\Testo\Assert\State\Assertion\ComparisonFailure $error) { $failure = $error; unset($error); }
     if ($failure === null) { throw new \RuntimeException('Expected synthetic upper-memory assertion.'); }
     return ['status' => 'failed', 'failures' => [['test' => 'Tablo\\Tests\\Server\\EngineTransferTest::completeNativeRoundTripOverEightMiBUsesAtMostTwoMiBOfPhpWorkingData',
         'status' => 'failed', 'exception' => $failure::class, 'message' => $failure->getMessage(), 'file' => $failure->getFile(), 'line' => $failure->getLine(),
         'trace' => ['#0 ' . $root . '/tests/Server/EngineTransferTest.php:245: Testo\\Assert::true()', '#1 PRIVATE_MEMORY_MESSAGE_SQL_SECRET_HISTORY'],
         'output' => [['content' => 'PRIVATE_MEMORY_MESSAGE_SQL_SECRET_HISTORY']]]]];
-}
-
-function engine_verification_failed_checkpoint(string $root, string $identity, array $original): void
-{
-    $project = static fn (array $report): ?array => \Tablo\Tools\server_native_memory_checkpoint_failure($root, \Tablo\JsonEncoding::encode($report), $identity, ['tests/Server/EngineTransferTest.php']);
-    Assert::null($project($original));
-    foreach (['SETUP', 'FORWARD_EXPORT', 'NATIVE_IMPORT', 'NATIVE_VERIFY', 'READER_OPEN', 'REVERSE_EXPORT',
-        'SQLITE_IMPORT', 'FINAL_VERIFY', 'INTEGRITY', 'UNKNOWN'] as $checkpoint) {
-        $report = engine_verification_memory_report($root, used: 4_194_304, checkpoint: $checkpoint); $before = $report;
-        $actual = $project($report);
-        Assert::same($actual, ['schema' => 'tablo/server-native-memory-checkpoint-diagnostic/v1',
-            'scope' => 'instrumented-cold-roundtrip-first-final-peak-checkpoint', 'rootCause' => 'UNKNOWN', 'checkpoint' => $checkpoint]);
-        $bytes = \Tablo\JsonEncoding::encode($report); $sources = ['tests/Server/EngineTransferTest.php'];
-        Assert::same(\Tablo\Tools\server_native_memory_failure($root, $bytes, $identity, $sources),
-            \Tablo\Tools\server_native_memory_failure($root, \Tablo\JsonEncoding::encode($original), $identity, $sources));
-        Assert::same(\Tablo\Tools\server_native_failure($root, $bytes, $identity, $sources),
-            \Tablo\Tools\server_native_failure($root, \Tablo\JsonEncoding::encode($original), $identity, $sources));
-        Assert::same($report, $before);
-        Assert::false(str_contains(\Tablo\JsonEncoding::encode($actual), 'PRIVATE_MEMORY_MESSAGE_SQL_SECRET_HISTORY'));
-        Assert::false(str_contains(\Tablo\JsonEncoding::encode($actual), $root));
-        Assert::true(strlen(\Tablo\JsonEncoding::encode($actual)) < 256);
-    }
-    $base = engine_verification_memory_report($root, used: 4_194_304, checkpoint: 'NATIVE_IMPORT');
-    foreach ([2_097_153, 268_435_456] as $used) {
-        Assert::same($project(engine_verification_memory_report($root, $used, checkpoint: 'NATIVE_IMPORT')), $project($base));
-    }
-    engine_verification_memory_messages($base, $project);
-    engine_verification_memory_origins($root, $base, $project);
-    engine_verification_checkpoint_envelope($root, $identity, $base, $project);
-    engine_verification_checkpoint_labels($base, $project);
-    engine_verification_checkpoint_selection();
-}
-
-/** @param \Closure(array): ?array $project */
-function engine_verification_checkpoint_labels(array $report, \Closure $project): void
-{
-    $failure = engine_verification_memory_case($report); $message = \Tablo\SqlColumn::string($failure, 'message');
-    foreach (['', 'setup', 'FOREIGN', '1', 'NATIVE_IMPORT ', ' NATIVE_IMPORT', "NATIVE_IMPORT\n", "NATIVE_IMPORT\0",
-        '../PRIVATE_MEMORY_MESSAGE_SQL_SECRET_HISTORY', str_repeat('X', times: 33), 'NATIVE_IMPORT; temporaryPeakCheckpoint=SETUP'] as $invalid) {
-        $bad = $report; $bad['failures'] = [array_replace($failure, ['message' => str_replace('NATIVE_IMPORT', replace: $invalid, subject: $message)])];
-        Assert::null($project($bad));
-        Assert::null(\Tablo\Tools\server_native_memory_bytes(\Tablo\SqlColumn::string(engine_verification_memory_case($bad), 'message')));
-    }
-}
-
-/** @param \Closure(array): ?array $project */
-function engine_verification_checkpoint_envelope(string $root, string $identity, array $report, \Closure $project): void
-{
-    $failure = engine_verification_memory_case($report); $bytes = \Tablo\JsonEncoding::encode($report);
-    foreach ([['status' => 'passed', 'failures' => [$failure]], ['status' => 'failed', 'failures' => []],
-        ['status' => 'failed', 'failures' => [$failure, $failure]], ['status' => 'failed', 'failures' => ['key' => $failure]],
-        ['status' => 'failed', 'failures' => [null]]] as $bad) { Assert::null($project($bad)); }
-    $source = 'tests/Server/EngineTransferTest.php'; $padding = 1_048_576 - strlen($bytes);
-    if ($padding < 0) { throw new \RuntimeException('Synthetic checkpoint report exceeds its fixture bound.'); }
-    $raw = /** @param array<int|string, string> $sources */ static fn (string $wire, array $sources): ?array => \Tablo\Tools\server_native_memory_checkpoint_failure($root, $wire, $identity, $sources);
-    foreach (['', '{', $bytes . 'false', "\xef\xbb\xbf" . $bytes, $bytes . str_repeat(' ', times: $padding + 1),
-        substr($bytes, offset: 0, length: -1) . ',"deep":' . str_repeat('[', times: 33) . '0' . str_repeat(']', times: 33) . '}'] as $wire) { Assert::null($raw($wire, [$source])); }
-    Assert::same($raw($bytes . str_repeat(' ', times: $padding), [$source]), $project($report));
-    Assert::same($raw($bytes, array_fill(0, count: 2048, value: $source)), $project($report));
-    foreach ([[], ['key' => $source], array_fill(0, count: 2049, value: $source)] as $sources) { Assert::null($raw($bytes, $sources)); }
-    Assert::null($raw(\Tablo\JsonEncoding::encode($report + ['publicSources' => [$source]]), []));
-    Assert::null(\Tablo\Tools\server_native_memory_checkpoint_failure($root, $bytes, identity: 'foreign', publicSources: [$source]));
-}
-
-function engine_verification_checkpoint_selection(): void
-{
-    foreach (['SETUP', 'FORWARD_EXPORT', 'NATIVE_IMPORT', 'NATIVE_VERIFY', 'READER_OPEN', 'REVERSE_EXPORT',
-        'SQLITE_IMPORT', 'FINAL_VERIFY', 'INTEGRITY'] as $index => $checkpoint) {
-        $values = array_fill(0, count: 9, value: 1);
-        for ($position = $index; $position < 9; $position++) { $values[$position] = 2; }
-        Assert::same(\Tablo\Tools\server_native_memory_checkpoint(peak: 2, checkpoints: $values), $checkpoint);
-    }
-    Assert::same(\Tablo\Tools\server_native_memory_checkpoint(peak: 2, checkpoints: array_fill(0, count: 9, value: 2)), 'SETUP');
-    Assert::same(\Tablo\Tools\server_native_memory_checkpoint(peak: 2, checkpoints: array_fill(0, count: 9, value: 1)), 'UNKNOWN');
-    foreach ([[], array_fill(0, count: 8, value: 2), array_fill(0, count: 10, value: 2), ['key' => 2]] as $invalid) {
-        Assert::same(\Tablo\Tools\server_native_memory_checkpoint(peak: 2, checkpoints: $invalid), 'UNKNOWN');
-    }
-    Assert::same(\Tablo\Tools\server_native_memory_checkpoint(peak: 0, checkpoints: array_fill(0, count: 9, value: 0)), 'UNKNOWN');
 }
 
 function engine_verification_memory_case(array $report): array

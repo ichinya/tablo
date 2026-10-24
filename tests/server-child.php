@@ -112,55 +112,25 @@ function tablo_engine_transfer_working_data_actor(string $case): void
     $source = new PDO('sqlite:' . $root . '/source.sqlite', options: [PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION, PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC]);
     $source->exec('PRAGMA query_only = ON');
     $payloadBytes = \Tablo\DatabaseTransferSequence::scalar($source, 'SELECT SUM(length(CAST(last_error AS BLOB))) AS value FROM sites');
-    $setupPeak = memory_get_peak_usage(false);
     $digest = \Tablo\DatabaseTransfer::export($source, $fixture->vault, $root . '/archive', $root . '/export.sqlite', offline: true);
-    $forwardExportPeak = memory_get_peak_usage(false);
     $imported = \Tablo\DatabaseTransfer::importServer($fixture->maintenance(), $fixture->vault, $root . '/archive', $root . '/import.sqlite', offline: true);
-    $nativeImportPeak = memory_get_peak_usage(false);
     $server = $fixture->database();
     $verified = \Tablo\DatabaseTransfer::verify($server, $fixture->vault, $root . '/archive', $root . '/verify.sqlite');
-    $nativeVerifyPeak = memory_get_peak_usage(false);
     $reader = \Tablo\DatabaseConnectionFactory::open(\Tablo\DatabaseConfiguration::fromEnvironment(environment: $fixture->environment()), mode: 'transfer-source', vault: $fixture->vault);
     $buffered = tablo_engine_transfer_unbuffered($reader);
-    $readerOpenPeak = memory_get_peak_usage(false);
     $reverse = \Tablo\DatabaseTransfer::export($reader, $fixture->vault, $root . '/reverse', $root . '/reverse-export.sqlite', offline: true);
-    $reverseExportPeak = memory_get_peak_usage(false);
     $reimported = \Tablo\DatabaseTransfer::importSqlite($fixture->vault, $root . '/reverse', $root . '/staging.sqlite', $root . '/target.sqlite', offline: true);
-    $sqliteImportPeak = memory_get_peak_usage(false);
     $target = new PDO('sqlite:' . $root . '/target.sqlite', options: [PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION, PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC]);
     $final = \Tablo\DatabaseTransfer::verify($target, $fixture->vault, $root . '/archive', $root . '/final-verify.sqlite');
-    $finalVerifyPeak = memory_get_peak_usage(false);
     if ([$imported, $verified, $final] !== [$digest, $digest, $digest] || $reimported !== $reverse || $buffered !== false) {
         throw new RuntimeException('Complete typed transfer integrity or unbuffered source refused.');
     }
-    $integrityPeak = memory_get_peak_usage(false);
     $peak = memory_get_peak_usage(false); $working = $peak - $baseline;
-    // TEMPORARY diagnostic: added VM slots can affect this instrumented measurement. Restore before acceptance.
-    $result = tablo_engine_transfer_working_data_result([$payloadBytes, $baseline, $peak, $working, $buffered], [$setupPeak, $forwardExportPeak, $nativeImportPeak,
-            $nativeVerifyPeak, $readerOpenPeak, $reverseExportPeak, $sqliteImportPeak, $finalVerifyPeak, $integrityPeak]);
-    $source = null; $server = null; $reader = null; $target = null;
-    tablo_engine_transfer_working_data_output($result, $fixture);
-}
-
-/** Post-capture result construction cannot change the saved peak integer.
- * @param array{int, int, int, int, bool} $measurement Payload bytes, baseline, saved peak, working bytes, buffering.
- * @param list<int> $checkpoints
- * @return array<string, mixed> */
-function tablo_engine_transfer_working_data_result(array $measurement, array $checkpoints): array
-{
-    require_once dirname(__DIR__) . '/tools/ServerTestEvidence.php';
-    $checkpoint = \Tablo\Tools\server_native_memory_checkpoint($measurement[2], $checkpoints);
-    return ['status' => 'passed', 'tables' => count(\Tablo\DatabaseTransferManifest::TABLES), 'payloadBytes' => $measurement[0],
-        'baselinePhpBytes' => $measurement[1], 'peakPhpBytes' => $measurement[2], 'peakPhpWorkingBytes' => $measurement[3],
-        'temporaryPeakCheckpoint' => $checkpoint, 'nativeBufferedSource' => $measurement[4], 'allTypedDigestsPreserved' => true,
+    $result = ['status' => 'passed', 'tables' => count(\Tablo\DatabaseTransferManifest::TABLES), 'payloadBytes' => $payloadBytes,
+        'baselinePhpBytes' => $baseline, 'peakPhpBytes' => $peak, 'peakPhpWorkingBytes' => $working,
+        'nativeBufferedSource' => $buffered, 'allTypedDigestsPreserved' => true,
         'metricScope' => 'PHP used-memory peak from after autoload before any fixture/admission/helper warmup through complete roundtrip; external native allocator RSS is not this metric'];
-}
-
-/** Post-capture closure and output retain their original order after PDO locals are released.
- * @param array<string, mixed> $result */
-function tablo_engine_transfer_working_data_output(array $result, \Tablo\Tests\Support\EngineFixture $fixture): void
-{
-    $fixture->close();
+    $source = null; $server = null; $reader = null; $target = null; $fixture->close();
     fwrite(STDOUT, \Tablo\JsonEncoding::encode($result) . "\n");
 }
 

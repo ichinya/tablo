@@ -54,7 +54,10 @@ function database_transfer_verification_scratch(PDO $scratch, #[\SensitiveParame
 {
     foreach (DatabaseTransferManifest::tables() as $index => $table) {
         $receipt = $header['tables'][$index] ?? throw new DatabaseFailure('schema');
-        foreach (DatabaseTransferArchive::read($directory, $table, $receipt) as $values) { DatabaseTransferPreflight::row($scratch, $table, $values); }
+        foreach (DatabaseTransferArchive::read($directory, $table, $receipt) as $values) {
+            DatabaseTransferPreflight::row($scratch, $table, $values);
+            unset($values);
+        }
         DatabaseTransferPreflight::rowEnvelope($scratch, $table);
     }
     DatabaseTransferPreflight::quiescent($scratch);
@@ -69,7 +72,10 @@ function database_transfer_verification_scratch(PDO $scratch, #[\SensitiveParame
 function database_transfer_verification_table(PDO $db, array $table, array $receipt): void
 {
     $rows = 0; $hash = hash_init('sha256');
-    foreach (DatabaseTransferRows::read($db, $table) as $values) { $rows++; hash_update($hash, JsonEncoding::encode(DatabaseTransferRows::encode($values)) . "\n"); }
+    foreach (DatabaseTransferRows::read($db, $table) as $values) {
+        $rows++; hash_update($hash, JsonEncoding::encode(DatabaseTransferRows::encode($values)) . "\n");
+        unset($values);
+    }
     if ([$rows, hash_final($hash)] !== [$receipt['rows'], $receipt['sha256']]) { throw new DatabaseFailure('schema'); }
 }
 

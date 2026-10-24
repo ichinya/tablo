@@ -42,34 +42,15 @@ function server_native_failure(string $root, #[\SensitiveParameter] string $byte
  * @return array{schema: string, unit: string, scope: string, rootCause: string, peakPhpWorkingBytes: int}|null */
 function server_native_memory_failure(string $root, #[\SensitiveParameter] string $bytes, string $identity, array $publicSources): ?array
 {
-    $value = server_native_memory_value($root, $bytes, $identity, $publicSources);
-    if ($value === null) { return null; }
-    return ['schema' => 'tablo/server-native-memory-diagnostic/v1', 'unit' => 'bytes',
-        'scope' => 'complete-cold-roundtrip-php-working-data', 'rootCause' => 'UNKNOWN', 'peakPhpWorkingBytes' => $value['bytes']];
-}
-
-/** Temporary instrumented interval only, never an allocation site or uninstrumented peak claim.
- * @param array<int|string, string> $publicSources Frozen owner catalog.
- * @return array{schema: string, scope: string, rootCause: string, checkpoint: string}|null */
-function server_native_memory_checkpoint_failure(string $root, #[\SensitiveParameter] string $bytes, string $identity, array $publicSources): ?array
-{
-    $value = server_native_memory_value($root, $bytes, $identity, $publicSources);
-    if ($value === null || $value['checkpoint'] === null) { return null; }
-    return ['schema' => 'tablo/server-native-memory-checkpoint-diagnostic/v1',
-        'scope' => 'instrumented-cold-roundtrip-first-final-peak-checkpoint', 'rootCause' => 'UNKNOWN', 'checkpoint' => $value['checkpoint']];
-}
-
-/** Shared nullable boundary preserves the original identity, origin and bounded report guards.
- * @param array<int|string, string> $publicSources
- * @return array{bytes: int, checkpoint: ?string}|null */
-function server_native_memory_value(string $root, #[\SensitiveParameter] string $bytes, string $identity, array $publicSources): ?array
-{
     try {
         if (strlen($bytes) > 1_048_576 || !array_is_list($publicSources) || count($publicSources) > 2048
             || $identity !== 'Tablo\\Tests\\Server\\EngineTransferTest::completeNativeRoundTripOverEightMiBUsesAtMostTwoMiBOfPhpWorkingData') { return null; }
         $failure = server_native_memory_report($bytes, $identity);
         if ($failure === null || !server_native_memory_origin($root, $failure, $publicSources)) { return null; }
-        return server_native_memory_message($failure['message'] ?? null);
+        $value = server_native_memory_bytes($failure['message'] ?? null);
+        if ($value === null) { return null; }
+        return ['schema' => 'tablo/server-native-memory-diagnostic/v1', 'unit' => 'bytes',
+            'scope' => 'complete-cold-roundtrip-php-working-data', 'rootCause' => 'UNKNOWN', 'peakPhpWorkingBytes' => $value];
     } catch (\Throwable) { return null; }
 }
 
@@ -106,37 +87,10 @@ function server_native_memory_origin(string $root, #[\SensitiveParameter] array 
 
 function server_native_memory_bytes(#[\SensitiveParameter] mixed $message): ?int
 {
-    return server_native_memory_message($message)['bytes'] ?? null;
-}
-
-/** Only the original complete message or the exact temporary finite extension is admitted.
- * @return array{bytes: int, checkpoint: ?string}|null */
-function server_native_memory_message(#[\SensitiveParameter] mixed $message): ?array
-{
     $match = [];
-    if (!is_string($message) || preg_match('/\AFailed assertion that `false` is exactly `true`: expected `true`, got `false`\.\nMeaning: Complete measured helper, including cold transfer metadata, exceeds2MiB; peakPhpWorkingBytes=([1-9][0-9]{0,8})(?:; temporaryPeakCheckpoint=([A-Z_]{1,32}))?\z/D', $message, $match) !== 1) { return null; }
+    if (!is_string($message) || preg_match('/\AFailed assertion that `false` is exactly `true`: expected `true`, got `false`\.\nMeaning: Complete measured helper, including cold transfer metadata, exceeds2MiB; peakPhpWorkingBytes=([1-9][0-9]{0,8})\z/D', $message, $match) !== 1) { return null; }
     $value = (int) \Tablo\RegexCapture::text($match, 1);
-    if ($value <= 2_097_152 || $value > 268_435_456) { return null; }
-    $checkpoint = array_key_exists(2, $match) ? \Tablo\RegexCapture::text($match, 2) : null;
-    if ($checkpoint !== null && !in_array($checkpoint, [...server_native_memory_checkpoint_labels(), 'UNKNOWN'], strict: true)) { return null; }
-    return ['bytes' => $value, 'checkpoint' => $checkpoint];
-}
-
-/** Called only after the actor's final peak was saved; first equal cumulative snapshot wins ties.
- * @param array<int|string, int> $checkpoints */
-function server_native_memory_checkpoint(int $peak, array $checkpoints): string
-{
-    if ($peak < 1 || !array_is_list($checkpoints) || count($checkpoints) !== 9) { return 'UNKNOWN'; }
-    foreach ($checkpoints as $index => $value) {
-        if ($value === $peak) { return server_native_memory_checkpoint_labels()[$index] ?? 'UNKNOWN'; }
-    }
-    return 'UNKNOWN';
-}
-
-/** @return list<string> */
-function server_native_memory_checkpoint_labels(): array
-{
-    return ['SETUP', 'FORWARD_EXPORT', 'NATIVE_IMPORT', 'NATIVE_VERIFY', 'READER_OPEN', 'REVERSE_EXPORT', 'SQLITE_IMPORT', 'FINAL_VERIFY', 'INTEGRITY'];
+    return $value > 2_097_152 && $value <= 268_435_456 ? $value : null;
 }
 
 /** Only a repository-relative PHP source and line survive; no message, frame text or origin is opened.

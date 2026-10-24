@@ -70,7 +70,7 @@ final class DatabaseTransferRows
 function database_transfer_rows_read(PDO $db, array $table): \Generator
 {
     $columns = DatabaseTransferManifest::columns($table);
-    $projection = implode(',', array_map(static fn (array $column): string => '`' . $column['name'] . '`', $columns));
+    $projection = database_transfer_rows_projection($columns);
     $order = implode(',', array_map(static fn (string $name): string => '`' . $name . '`', $table['primary']));
     $server = DatabaseSession::server($db);
     DatabaseTransferPreflight::rowEnvelope($db, $table);
@@ -100,8 +100,16 @@ function database_transfer_rows_read(PDO $db, array $table): \Generator
                 $cursor[] = $value;
             }
         } finally { $statement->closeCursor(); }
+        unset($statement, $fetched, $row);
         yield $values;
+        unset($values);
     } while (true);
+}
+
+/** @param list<\Tablo\DatabaseTransferManifest::Column> $columns */
+function database_transfer_rows_projection(array $columns): string
+{
+    return implode(',', array_map(static fn (array $column): string => '`' . $column['name'] . '`', $columns));
 }
 
 

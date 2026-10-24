@@ -131,8 +131,10 @@ function database_transfer_chunk_read(#[\SensitiveParameter] string $directory, 
         $offset = 0;
         while (($end = strpos($bytes, needle: "\n", offset: $offset)) !== false) {
             $line = substr($bytes, $offset, $end - $offset); $offset = $end + 1;
-            $rows++; yield DatabaseTransferRows::line($line, $table);
+            $rows++; $values = DatabaseTransferRows::line($line, $table);
             unset($line);
+            yield $values;
+            unset($values);
         }
         unset($bytes);
     }
