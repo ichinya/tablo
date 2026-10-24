@@ -7878,7 +7878,7 @@
                 "Tablo\\Tests\\Support\\EngineProcess",
                 "Native selected-engine login race"
             ],
-            "fingerprint": "sha256:d83443857f36f10a62da62549e5f4b65958f8c5ecc2f93db264c6c7c4c560760"
+            "fingerprint": "sha256:161295d5ff4abd2e928a3e273efd28ba37e794e3588dc0c0e3b5f658667fb95f"
         },
         {
             "path": "tests/Server/EngineAutoIdentityTest.php",
@@ -8124,7 +8124,7 @@
                 "Composer analyze",
                 "Composer verify:server"
             ],
-            "fingerprint": "sha256:6a4ac3fcba996a48521bbf508a99588928dfd928f88db616153782916c8a6534"
+            "fingerprint": "sha256:43267fbc8fbb371638951a853a47478e694064b67089598a02f9af44f498725c"
         },
         {
             "path": "tests/Server/EngineVerificationTest.php",
@@ -8134,7 +8134,7 @@
                 "Composer analyze",
                 "Composer verify:server"
             ],
-            "fingerprint": "sha256:faa8ab78aac5eb9d6a674a780c0a4c1af14d0cb8f500986e74ebe3c204c78f45"
+            "fingerprint": "sha256:6092d2e042a17c71430d6564cf817503a9dfd8467b6f65d98ecbeb079cbe46b9"
         },
         {
             "path": "tests/Server/EngineWatermarkTest.php",
@@ -11062,7 +11062,7 @@
                 "Composer lint",
                 "Composer analyze"
             ],
-            "fingerprint": "sha256:27c85673c8e19f651622116989ec27a472186335786efdd2e852874a12465cf7"
+            "fingerprint": "sha256:1947d201686cc6f5ac00a383bbf1bfd352b2c64deed30bae5ff319d3a47e6b83"
         },
         {
             "path": "tools/verify-server.php",
@@ -11074,7 +11074,7 @@
                 "Composer analyze",
                 "tools/server-supervisor.cjs"
             ],
-            "fingerprint": "sha256:245685aa48218f67b0f655dfcf6bab30ab71c3f4a9a087b8027c5f9e93ed9acd"
+            "fingerprint": "sha256:333a61d9913b6f21f2f104b32d763ccdbe3290ec49c9e0c5cc17940d4650873f"
         },
         {
             "path": "tools/verify.php",
