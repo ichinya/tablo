@@ -110,7 +110,8 @@ function engine_metadata_cross_catalog(): void
         try { ServerMetadataAdmission::bind($db, $peerObservation); } catch (DatabaseFailure $error) { $binding = $error; }
         Assert::same($binding?->category, 'schema'); Assert::same($binding?->getPrevious(), null);
         $environment = $fixture->environment(); $environment['TABLO_DB_METADATA_USER'] = $peer->environment()['TABLO_DB_METADATA_USER'] ?? throw new \RuntimeException('Owned peer metadata identity absent.');
-        engine_metadata_refuses($environment, category: 'schema');
+        // The peer metadata account cannot select this catalog; connection denial precedes profile admission.
+        engine_metadata_refuses($environment, category: 'unavailable');
         Assert::same(engine_metadata_snapshot($db), $before); Assert::same(engine_metadata_snapshot($other), $peerBefore);
     } finally { $fixture->close(); $peer->close(); }
 }

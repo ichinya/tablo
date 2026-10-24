@@ -11402,7 +11402,7 @@
                 "Composer verify:server",
                 "All native binding admission prerequisites"
             ],
-            "fingerprint": "sha256:ebda7262ae80eeb23db8480f3840303a6e087dbb018ae6633ee3149ba3a8b547"
+            "fingerprint": "sha256:c3e2b148541d0a9224f471482fb510d8e84f1c7be2908f79b1412c0485e19712"
         },
         {
             "path": "tools/server-supervisor-linux.c",
