@@ -83,6 +83,7 @@ final class EngineTransferAdmissionTest
             Assert::same($failure?->category, 'schema');
         }
         engine_transfer_archive_lines($table, $sites);
+        engine_transfer_archive_writing($table, $sites);
     }
 
     #[Test]
@@ -368,4 +369,137 @@ function engine_transfer_archive_site(array $table, int $id): array
         $values[] = DatabaseTransferRows::value($record[$column['name']], $column);
     }
     return $values;
+}
+
+/** @param \Tablo\DatabaseTransferManifest::Table $small
+ * @param \Tablo\DatabaseTransferManifest::Table $sites */
+function engine_transfer_archive_writing(array $small, array $sites): void
+{
+    $directory = new TemporaryDirectory('tablo-transfer-chunk-writer-');
+    try {
+        engine_transfer_archive_write_case($directory->path . '/empty', $small, rows: [], partitions: []);
+        $rows = [];
+        for ($id = 1; $id <= 129; $id++) { $rows[] = ['key-' . str_pad((string) $id, length: 3, pad_string: '0', pad_type: STR_PAD_LEFT), 1, 2]; }
+        engine_transfer_archive_write_case($directory->path . '/row-boundary', $small, $rows,
+            [array_slice($rows, offset: 0, length: 128), [$rows[128] ?? throw new \RuntimeException('Synthetic boundary row absent.')]]);
+        $large = [engine_transfer_archive_site($sites, id: 1), engine_transfer_archive_site($sites, id: 2), engine_transfer_archive_site($sites, id: 3)];
+        engine_transfer_archive_write_case($directory->path . '/byte-boundary', $sites, $large, [array_slice($large, offset: 0, length: 2), [$large[2]]]);
+        engine_transfer_archive_budget_case($directory->path . '/zero-budget', $small, [['first', 1, 2]], limit: 0, expectedRows: 0);
+        engine_transfer_archive_budget_case($directory->path . '/one-budget', $sites, $large, limit: 1, expectedRows: 2);
+        engine_transfer_archive_write_collision($directory->path . '/collision', $small);
+        engine_transfer_archive_write_failure($directory->path . '/row-failure', $small);
+    } finally { $directory->close(); }
+}
+
+/** @param \Tablo\DatabaseTransferManifest::Table $table
+ * @param list<\Tablo\DatabaseTransferRows::Values> $rows */
+function engine_transfer_archive_database(array $table, array $rows = []): \PDO
+{
+    $db = \Tablo\SchemaReference::reference(10, ['endpoint' => true]);
+    $db->exec('PRAGMA foreign_keys = ON');
+    foreach ($rows as $values) { DatabaseTransferRows::insert($db, $table, $values); }
+    return $db;
+}
+
+/** @param \Tablo\DatabaseTransferManifest::Table $table
+ * @param list<\Tablo\DatabaseTransferRows::Values> $rows
+ * @param list<list<\Tablo\DatabaseTransferRows::Values>> $partitions */
+function engine_transfer_archive_write_case(string $directory, array $table, array $rows, array $partitions): void
+{
+    Assert::true(mkdir($directory, permissions: 0o700));
+    $source = engine_transfer_archive_database($table, $rows);
+    $measured = DatabaseTransferArchive::measure($source, engine_transfer_archive_database($table), $table, remainingChunks: count($partitions));
+    $written = DatabaseTransferArchive::write($source, engine_transfer_archive_database($table), $table, $directory, remainingChunks: count($partitions));
+    Assert::same($written, $measured);
+    Assert::same($written, engine_transfer_archive_expected($directory, $table['name'], $partitions));
+    Assert::same(iterator_to_array(DatabaseTransferArchive::read($directory, $table, $written)), $rows);
+    Assert::same(engine_transfer_archive_visit($directory, $table, $written), $rows);
+    Assert::false(file_exists($directory . '/' . $table['name'] . '.' . count($partitions) . '.jsonl'));
+}
+
+/** Expected partitions are explicit test inputs, independent of the writer's boundary algorithm.
+ * @param list<list<\Tablo\DatabaseTransferRows::Values>> $partitions
+ * @return \Tablo\DatabaseTransferArchive::Receipt */
+function engine_transfer_archive_expected(string $directory, string $name, array $partitions): array
+{
+    $chunks = []; $rows = 0; $hash = hash_init('sha256');
+    foreach ($partitions as $index => $partition) {
+        $bytes = implode('', array_map(engine_transfer_archive_line(...), $partition));
+        $path = $directory . '/' . $name . '.' . $index . '.jsonl';
+        Assert::same(RequiredFile::bytes(file_get_contents($path)), $bytes);
+        engine_transfer_archive_permissions($path);
+        $chunks[] = ['rows' => count($partition), 'bytes' => strlen($bytes), 'sha256' => hash('sha256', $bytes)];
+        $rows += count($partition); hash_update($hash, $bytes);
+    }
+    return ['name' => $name, 'rows' => $rows, 'sha256' => hash_final($hash), 'chunks' => $chunks];
+}
+
+function engine_transfer_archive_permissions(string $path): void
+{
+    if (PHP_OS_FAMILY === 'Windows') { return; }
+    $permissions = fileperms($path);
+    if ($permissions === false) { throw new \RuntimeException('Synthetic chunk permissions unavailable.'); }
+    Assert::same($permissions & 0o777, 0o600);
+}
+
+/** @param \Tablo\DatabaseTransferManifest::Table $table
+ * @param list<\Tablo\DatabaseTransferRows::Values> $rows */
+function engine_transfer_archive_budget_case(string $directory, array $table, array $rows, int $limit, int $expectedRows): void
+{
+    Assert::true(mkdir($directory, permissions: 0o700));
+    $source = engine_transfer_archive_database($table, $rows);
+    foreach (['write', 'measure'] as $operation) {
+        $scratch = engine_transfer_archive_database($table); $caught = null;
+        try {
+            if ($operation === 'write') { DatabaseTransferArchive::write($source, $scratch, $table, $directory, remainingChunks: $limit); }
+            if ($operation === 'measure') { DatabaseTransferArchive::measure($source, $scratch, $table, remainingChunks: $limit); }
+        } catch (DatabaseFailure $error) { $caught = $error; }
+        Assert::same($caught?->category, 'schema'); Assert::same($caught?->getPrevious(), null);
+        Assert::same(engine_transfer_archive_count($scratch, $table['name']), $expectedRows);
+    }
+    Assert::same(file_exists($directory . '/' . $table['name'] . '.0.jsonl'), $expectedRows !== 0);
+    Assert::false(file_exists($directory . '/' . $table['name'] . '.1.jsonl'));
+    if ($expectedRows !== 0) {
+        $expected = implode('', array_map(engine_transfer_archive_line(...), array_slice($rows, offset: 0, length: $expectedRows)));
+        Assert::same(RequiredFile::bytes(file_get_contents($directory . '/' . $table['name'] . '.0.jsonl')), $expected);
+    }
+}
+
+function engine_transfer_archive_count(\PDO $db, string $table): int
+{
+    return \Tablo\DatabaseInteger::checked(\Tablo\SqlStatement::checked($db->query('SELECT COUNT(*) FROM `' . $table . '`'))->fetchColumn());
+}
+
+/** @param \Tablo\DatabaseTransferManifest::Table $table */
+function engine_transfer_archive_write_collision(string $directory, array $table): void
+{
+    Assert::true(mkdir($directory, permissions: 0o700));
+    $path = $directory . '/' . $table['name'] . '.0.jsonl';
+    DatabaseTransferArchive::privateFile($path, 'occupied');
+    $source = engine_transfer_archive_database($table, [['first', 1, 2], ['second', 3, 4]]);
+    $scratch = engine_transfer_archive_database($table); $caught = null;
+    try { DatabaseTransferArchive::write($source, $scratch, $table, $directory); }
+    catch (DatabaseFailure $error) { $caught = $error; }
+    Assert::same($caught?->category, 'configuration'); Assert::same($caught?->getPrevious(), null);
+    Assert::same(RequiredFile::bytes(file_get_contents($path)), 'occupied');
+    Assert::same(engine_transfer_archive_count($scratch, $table['name']), 1);
+}
+
+/** @param \Tablo\DatabaseTransferManifest::Table $table */
+function engine_transfer_archive_write_failure(string $directory, array $table): void
+{
+    Assert::true(mkdir($directory, permissions: 0o700));
+    $rows = [['first', 1, 2], ['second', 3, 4]];
+    $source = engine_transfer_archive_database($table, $rows);
+    $scratch = engine_transfer_archive_database($table, [$rows[1]]); $caught = null;
+    $streams = count(get_resources(type: 'stream'));
+    try { DatabaseTransferArchive::write($source, $scratch, $table, $directory); }
+    catch (\PDOException $error) { $caught = $error; }
+    Assert::same($caught?->getCode(), '23000');
+    Assert::same(count(get_resources(type: 'stream')), $streams);
+    $path = $directory . '/' . $table['name'] . '.0.jsonl';
+    Assert::same(RequiredFile::bytes(file_get_contents($path)), engine_transfer_archive_line($rows[0]));
+    Assert::same(engine_transfer_archive_count($scratch, $table['name']), 2);
+    engine_transfer_archive_permissions($path);
+    Assert::false(file_exists($directory . '/manifest.json'));
 }

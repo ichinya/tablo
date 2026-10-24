@@ -13,6 +13,8 @@ use PDO;
  * @phpstan-type Chunk array{rows: int, bytes: int, sha256: string}
  *
  * @phpstan-type Receipt array{name: string, rows: int, sha256: string, chunks: list<Chunk>}
+ *
+ * @phpstan-type WriteChunk array{handle: resource|null, bytes: int, rows: int, hash: \HashContext}
  */
 final class DatabaseTransferArchive
 {
@@ -83,30 +85,69 @@ function database_transfer_archive_measure(PDO $source, PDO $scratch, array $tab
 function database_transfer_archive_stream(PDO $source, PDO $scratch, array $table, #[\SensitiveParameter] ?string $directory, int $remainingChunks): array
 {
     if ($remainingChunks < 0 || $remainingChunks > DatabaseTransferManifest::MAX_CHUNKS) { throw new DatabaseFailure('configuration'); }
-    $chunks = []; $data = ''; $rows = 0; $chunkRows = 0;
-    $hash = hash_init('sha256');
-    foreach (DatabaseTransferRows::read($source, $table) as $values) {
-        $line = JsonEncoding::encode(DatabaseTransferRows::encode($values)) . "\n";
-        if (strlen($line) > DatabaseTransferManifest::CHUNK_BYTES) { throw new DatabaseFailure('schema'); }
-        if ($chunkRows === DatabaseTransferManifest::CHUNK_ROWS || strlen($data) + strlen($line) > DatabaseTransferManifest::CHUNK_BYTES) {
-            $chunks[] = database_transfer_archive_chunk($directory, $table['name'], count($chunks), $data, $chunkRows); $data = ''; $chunkRows = 0;
+    $chunks = []; $rows = 0; $chunk = database_transfer_archive_pending_chunk(); $hash = hash_init('sha256');
+    try {
+        foreach (DatabaseTransferRows::read($source, $table) as $values) {
+            $line = JsonEncoding::encode(DatabaseTransferRows::encode($values)) . "\n";
+            if (strlen($line) > DatabaseTransferManifest::CHUNK_BYTES) { throw new DatabaseFailure('schema'); }
+            if ($chunk['rows'] === DatabaseTransferManifest::CHUNK_ROWS || $chunk['bytes'] + strlen($line) > DatabaseTransferManifest::CHUNK_BYTES) {
+                $chunks[] = database_transfer_archive_chunk($chunk); $chunk = database_transfer_archive_pending_chunk();
+            }
+            if ($chunk['rows'] === 0 && count($chunks) >= $remainingChunks) { throw new DatabaseFailure('schema'); }
+            DatabaseTransferPreflight::row($scratch, $table, $values);
+            database_transfer_archive_append($chunk, $directory, $table['name'], count($chunks), $line);
+            $rows++; hash_update($hash, $line);
+            unset($line, $values);
         }
-        if ($chunkRows === 0 && count($chunks) >= $remainingChunks) { throw new DatabaseFailure('schema'); }
-        DatabaseTransferPreflight::row($scratch, $table, $values);
-        $data .= $line; $chunkRows++; $rows++; hash_update($hash, $line);
-        unset($line);
+        if ($chunk['rows'] !== 0) { $chunks[] = database_transfer_archive_chunk($chunk); }
+        return ['name' => $table['name'], 'rows' => $rows, 'sha256' => hash_final($hash), 'chunks' => $chunks];
+    } finally {
+        // Failure can leave a partial private chunk; close it without masking the primary failure.
+        $handle = $chunk['handle'];
+        if (is_resource($handle)) { NativeWarning::ignore(static fn (): bool => fclose($handle)); }
     }
-    if ($chunkRows !== 0) { $chunks[] = database_transfer_archive_chunk($directory, $table['name'], count($chunks), $data, $chunkRows); }
-    return ['name' => $table['name'], 'rows' => $rows, 'sha256' => hash_final($hash), 'chunks' => $chunks];
 }
 
 
-/**
- * @return \Tablo\DatabaseTransferArchive::Chunk */
-function database_transfer_archive_chunk(#[\SensitiveParameter] ?string $directory, string $table, int $index, #[\SensitiveParameter] string $data, int $rows): array
+/** @return \Tablo\DatabaseTransferArchive::WriteChunk */
+function database_transfer_archive_pending_chunk(): array
 {
-    if ($directory !== null) { database_transfer_chunk_private_file(DatabaseTransferManifest::path($directory, $table . '.' . $index . '.jsonl'), $data); }
-    return ['rows' => $rows, 'bytes' => strlen($data), 'sha256' => hash('sha256', $data)];
+    return ['handle' => null, 'bytes' => 0, 'rows' => 0, 'hash' => hash_init('sha256')];
+}
+
+/** @param \Tablo\DatabaseTransferArchive::WriteChunk $chunk */
+function database_transfer_archive_append(#[\SensitiveParameter] array &$chunk, #[\SensitiveParameter] ?string $directory, string $table, int $index, #[\SensitiveParameter] string $line): void
+{
+    if ($directory !== null) {
+        $handle = $chunk['handle'] ?? database_transfer_archive_open($chunk, $directory, $table, $index);
+        if (fwrite($handle, $line) !== strlen($line)) { throw new DatabaseFailure('unavailable'); }
+    }
+    $chunk['bytes'] += strlen($line); $chunk['rows']++; hash_update($chunk['hash'], $line);
+}
+
+/** @param \Tablo\DatabaseTransferArchive::WriteChunk $chunk
+ * @return resource */
+function database_transfer_archive_open(#[\SensitiveParameter] array &$chunk, #[\SensitiveParameter] string $directory, string $table, int $index): mixed
+{
+    $path = DatabaseTransferManifest::path($directory, $table . '.' . $index . '.jsonl');
+    $handle = NativeWarning::ignore(static fn () => fopen($path, mode: 'xb'));
+    if (!is_resource($handle)) { throw new DatabaseFailure('configuration'); }
+    $chunk['handle'] = $handle;
+    if (!chmod($path, permissions: 0o600)) { throw new DatabaseFailure('unavailable'); }
+    return $handle;
+}
+
+/** @param \Tablo\DatabaseTransferArchive::WriteChunk $chunk
+ * @return \Tablo\DatabaseTransferArchive::Chunk */
+function database_transfer_archive_chunk(#[\SensitiveParameter] array &$chunk): array
+{
+    $handle = $chunk['handle'];
+    if ($handle !== null) {
+        if (!fflush($handle) || !fsync($handle)) { throw new DatabaseFailure('unavailable'); }
+        if (!NativeWarning::ignore(static fn (): bool => fclose($handle))) { throw new DatabaseFailure('unavailable'); }
+        $chunk['handle'] = null;
+    }
+    return ['rows' => $chunk['rows'], 'bytes' => $chunk['bytes'], 'sha256' => hash_final($chunk['hash'])];
 }
 
 function database_transfer_chunk_private_file(#[\SensitiveParameter] string $path, #[\SensitiveParameter] string $bytes): void
