@@ -3392,7 +3392,7 @@
                 "tools/ServerFixtureCatalog.php",
                 "tests/Server/EngineMigrationPreviousTest.php"
             ],
-            "fingerprint": "sha256:a95b1c75e975f97f557908a691322a2077191f6b02d41bfe0bde910623f58449"
+            "fingerprint": "sha256:666af54ac5175e1ba9e183f8ed54e8239b3dc39e25ec067aa12d1fafa1a6aee6"
         },
         {
             "path": "app/ServerSchemaState.php",
