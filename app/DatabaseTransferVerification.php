@@ -71,8 +71,9 @@ function database_transfer_verification_scratch(PDO $scratch, #[\SensitiveParame
 function database_transfer_verification_table(PDO $db, array $table, array $receipt): void
 {
     $rows = 0; $hash = hash_init('sha256');
+    $sink = static function (#[\SensitiveParameter] string $fragment) use ($hash): void { hash_update($hash, $fragment); };
     foreach (DatabaseTransferRows::read($db, $table) as $values) {
-        $rows++; hash_update($hash, JsonEncoding::encode(DatabaseTransferRows::encode($values)) . "\n");
+        $rows++; DatabaseTransferRows::emit($values, $sink);
         unset($values);
     }
     if ([$rows, hash_final($hash)] !== [$receipt['rows'], $receipt['sha256']]) { throw new DatabaseFailure('schema'); }

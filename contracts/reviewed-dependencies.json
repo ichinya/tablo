@@ -773,7 +773,7 @@
                 "app/DatabaseTransferManifest.php",
                 "app/DatabaseTransferVerification.php"
             ],
-            "fingerprint": "sha256:f3a0859da9361016cc5ce9bf5db6cac57d5ccbf4eb965d8f99c4b82a9127a57d"
+            "fingerprint": "sha256:210f52c090b7f4b2ef87245b2bed6b2f9c100171623f184cfeb33175cea45c55"
         },
         {
             "path": "app/DatabaseTransferImport.php",
@@ -836,7 +836,7 @@
                 "tests/Server/EngineTransferAdmissionTest.php",
                 "tests/Server/EngineTransferEnvelopeTest.php"
             ],
-            "fingerprint": "sha256:8a811cae23122a50d0d3fb1f0676cfdf964dcaae5dff99fa22f2d66b1854d162"
+            "fingerprint": "sha256:ca8386fcb15d89809d238cdb06f36717adfffcbf1cb26b70da2f65e59f6901cd"
         },
         {
             "path": "app/DatabaseTransferSequence.php",
@@ -880,7 +880,7 @@
                 "tests/Server/EngineTransferTest.php",
                 "tests/Server/EngineTransferEnvelopeTest.php"
             ],
-            "fingerprint": "sha256:f2ceb5bf91a4793c81b651f375714c64f0102461eae91a9ac531851fbb23de4c"
+            "fingerprint": "sha256:06bafd384c8f477c2ec1050115bd5ddf4b9a8bfc7c06ff9ff27b0e22ee8f7849"
         },
         {
             "path": "app/DeploymentFields.php",
@@ -8092,7 +8092,7 @@
                 "Composer verify:server",
                 "Transfer native binding selectors"
             ],
-            "fingerprint": "sha256:3b5269853d6518877bd712eaa02303fa8940d6bb5b3c31189598a364ba75d1f3"
+            "fingerprint": "sha256:c03cf30c584cedbb932a671a4a1ddd9bceef2f73bcbf252ddfdf7cd608115d10"
         },
         {
             "path": "tests/Server/EngineTransferEnvelopeTest.php",

@@ -156,6 +156,7 @@ function engine_transfer_archive_lines(array $table, array $sites): void
         engine_transfer_archive_callback($directory->path, $table, $rows, $lines);
         engine_transfer_codec_lines($table, $sites);
         engine_transfer_codec_boundaries();
+        engine_transfer_codec_emission();
         engine_transfer_codec_descriptors();
         engine_transfer_codec_precedence($table);
         engine_transfer_archive_reader_bounds($directory->path, $table, $sites);
@@ -420,6 +421,69 @@ function engine_transfer_codec_reference_encode(array $values): array
     return array_map(static fn (int|string|null $value): array => match (true) {
         $value === null => ['null'], is_int($value) => ['integer', (string) $value], default => ['bytes', base64_encode($value)],
     }, $values);
+}
+
+function engine_transfer_codec_emission(): void
+{
+    foreach ([[], [null], [''], [PHP_INT_MIN, 0, PHP_INT_MAX], ["opaque:\0\xFF/\\\"\r\n", null, 1]] as $values) {
+        engine_transfer_codec_emit_parity($values);
+    }
+    foreach ([0, 1, 2, 3071, 3072, 3073, 6143, 6144, 6145, 90_000] as $length) {
+        $repetitions = intdiv($length, num2: 7) + 1;
+        if ($repetitions < 0) { throw new \RuntimeException('Negative synthetic emitter repetition count.'); }
+        $raw = substr(str_repeat("\0\xFF/\\\"\r\n", times: $repetitions), offset: 0, length: $length);
+        engine_transfer_codec_emit_parity([$raw]);
+    }
+    foreach ([str_repeat("\xFF", times: 6145), str_repeat('a', times: 3071) . "\xF0\x9F\x98\x80",
+        str_repeat('b', times: 3070) . "\xE2\x82\xAC", str_repeat('c', times: 3071) . "\xC3\xA9"] as $raw) {
+        engine_transfer_codec_emit_parity([$raw, null, PHP_INT_MAX]);
+    }
+    engine_transfer_codec_emit_false();
+    foreach ([new \RuntimeException('Synthetic emitter failure.'), new \Error('Synthetic emitter error.')] as $failure) {
+        engine_transfer_codec_emit_failure($failure);
+    }
+}
+
+/** @param \Tablo\DatabaseTransferRows::Values $values */
+function engine_transfer_codec_emit_parity(array $values): void
+{
+    $expected = JsonEncoding::encode(engine_transfer_codec_reference_encode($values)) . "\n";
+    $wire = ''; $bytes = 0; $maximum = 0; $hash = hash_init('sha256');
+    DatabaseTransferRows::emit($values, static function (string $fragment) use (&$wire, &$bytes, &$maximum, $hash): void {
+        $wire .= $fragment; $bytes += strlen($fragment); $maximum = max($maximum, strlen($fragment));
+        hash_update($hash, $fragment);
+    });
+    Assert::same($wire, $expected); Assert::same($bytes, strlen($expected));
+    Assert::same(hash_final($hash), hash('sha256', $expected)); Assert::true($maximum <= 8192);
+}
+
+function engine_transfer_codec_emit_false(): void
+{
+    $values = ['', null, PHP_INT_MIN, str_repeat("\xFF", times: 3073)]; $wire = ''; $calls = 0;
+    DatabaseTransferRows::emit($values, static function (string $fragment) use (&$wire, &$calls): bool {
+        $wire .= $fragment; $calls++; return false;
+    });
+    Assert::same($wire, JsonEncoding::encode(engine_transfer_codec_reference_encode($values)) . "\n");
+    Assert::true(engine_transfer_codec_emit_calls($calls) > 3);
+}
+
+function engine_transfer_codec_emit_failure(\Throwable $failure): void
+{
+    $calls = 0; $caught = null;
+    try {
+        DatabaseTransferRows::emit([str_repeat("\xFF", times: 6145)], static function (string $_fragment) use (&$calls, $failure): void {
+            $calls++;
+            if ($calls === 4) { throw $failure; }
+        });
+    } catch (\Throwable $error) { $caught = $error; }
+    Assert::same($caught, $failure); Assert::same(engine_transfer_codec_emit_calls($calls), 4);
+}
+
+/** Validate the completed callback observation without assuming a static invocation count. */
+function engine_transfer_codec_emit_calls(mixed $calls): int
+{
+    if (!is_int($calls)) { throw new \RuntimeException('Invalid synthetic emitter callback count.'); }
+    return $calls;
 }
 
 /** @return \Tablo\DatabaseTransferManifest::Table */

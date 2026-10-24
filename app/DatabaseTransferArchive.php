@@ -90,16 +90,17 @@ function database_transfer_archive_stream(PDO $source, PDO $scratch, array $tabl
     $chunks = []; $rows = 0; $chunk = database_transfer_archive_pending_chunk(); $hash = hash_init('sha256');
     try {
         foreach (DatabaseTransferRows::read($source, $table) as $values) {
-            $line = JsonEncoding::encode(DatabaseTransferRows::encode($values)) . "\n";
-            if (strlen($line) > DatabaseTransferManifest::CHUNK_BYTES) { throw new DatabaseFailure('schema'); }
-            if ($chunk['rows'] === DatabaseTransferManifest::CHUNK_ROWS || $chunk['bytes'] + strlen($line) > DatabaseTransferManifest::CHUNK_BYTES) {
+            $lineBytes = database_transfer_archive_line_bytes($values);
+            if ($lineBytes > DatabaseTransferManifest::CHUNK_BYTES) { throw new DatabaseFailure('schema'); }
+            if ($chunk['rows'] === DatabaseTransferManifest::CHUNK_ROWS || $chunk['bytes'] + $lineBytes > DatabaseTransferManifest::CHUNK_BYTES) {
                 $chunks[] = database_transfer_archive_chunk($chunk); $chunk = database_transfer_archive_pending_chunk();
             }
             if ($chunk['rows'] === 0 && count($chunks) >= $remainingChunks) { throw new DatabaseFailure('schema'); }
             DatabaseTransferPreflight::row($scratch, $table, $values);
-            database_transfer_archive_append($chunk, $directory, $table['name'], count($chunks), $line);
-            $rows++; hash_update($hash, $line);
-            unset($line, $values);
+            $handle = $directory === null ? null : ($chunk['handle'] ?? database_transfer_archive_open($chunk, $directory, $table['name'], count($chunks)));
+            database_transfer_archive_append($chunk, $hash, $values, $lineBytes, $handle);
+            $rows++;
+            unset($values);
         }
         if ($chunk['rows'] !== 0) { $chunks[] = database_transfer_archive_chunk($chunk); }
         return ['name' => $table['name'], 'rows' => $rows, 'sha256' => hash_final($hash), 'chunks' => $chunks];
@@ -117,14 +118,60 @@ function database_transfer_archive_pending_chunk(): array
     return ['handle' => null, 'bytes' => 0, 'rows' => 0, 'hash' => hash_init('sha256')];
 }
 
-/** @param \Tablo\DatabaseTransferArchive::WriteChunk $chunk */
-function database_transfer_archive_append(#[\SensitiveParameter] array &$chunk, #[\SensitiveParameter] ?string $directory, string $table, int $index, #[\SensitiveParameter] string $line): void
+/** @param \Tablo\DatabaseTransferRows::Values $values */
+function database_transfer_archive_line_bytes(#[\SensitiveParameter] array $values): int
 {
-    if ($directory !== null) {
-        $handle = $chunk['handle'] ?? database_transfer_archive_open($chunk, $directory, $table, $index);
-        if (fwrite($handle, $line) !== strlen($line)) { throw new DatabaseFailure('unavailable'); }
+    $bytes = 0;
+    DatabaseTransferRows::emit($values, static function (#[\SensitiveParameter] string $fragment) use (&$bytes): void { $bytes += strlen($fragment); });
+    return $bytes;
+}
+
+/** @param \Tablo\DatabaseTransferArchive::WriteChunk $chunk
+ * @param \Tablo\DatabaseTransferRows::Values $values
+ * @param resource|null $handle */
+function database_transfer_archive_append(#[\SensitiveParameter] array &$chunk, \HashContext $hash, #[\SensitiveParameter] array $values, int $lineBytes, #[\SensitiveParameter] mixed $handle): void
+{
+    database_transfer_archive_emit_row($values, $handle, $chunk['hash'], $hash);
+    $chunk['bytes'] += $lineBytes; $chunk['rows']++;
+}
+
+/** @param \Tablo\DatabaseTransferRows::Values $values
+ * @param resource|null $handle */
+function database_transfer_archive_emit_row(#[\SensitiveParameter] array $values, #[\SensitiveParameter] mixed $handle, \HashContext $chunkHash, \HashContext $hash): void
+{
+    if ($handle === null) {
+        DatabaseTransferRows::emit($values, static function (#[\SensitiveParameter] string $fragment) use ($chunkHash, $hash): void {
+            hash_update($chunkHash, $fragment); hash_update($hash, $fragment);
+        });
+        return;
     }
-    $chunk['bytes'] += strlen($line); $chunk['rows']++; hash_update($chunk['hash'], $line);
+    database_transfer_archive_buffered_row($values, $handle, $chunkHash, $hash);
+}
+
+/** @param \Tablo\DatabaseTransferRows::Values $values
+ * @param resource $handle */
+function database_transfer_archive_buffered_row(#[\SensitiveParameter] array $values, #[\SensitiveParameter] mixed $handle, \HashContext $chunkHash, \HashContext $hash): void
+{
+    $buffer = '';
+    DatabaseTransferRows::emit($values, static function (#[\SensitiveParameter] string $fragment) use (&$buffer, $handle, $chunkHash, $hash): void {
+        $offset = 0; $length = strlen($fragment);
+        while ($offset < $length) {
+            $bytes = min(16_384 - strlen($buffer), $length - $offset);
+            $buffer .= substr($fragment, $offset, $bytes); $offset += $bytes;
+            if (strlen($buffer) === 16_384) {
+                database_transfer_archive_flush($handle, $buffer, $chunkHash, $hash); $buffer = '';
+            }
+        }
+    });
+    // Finish every complete row before advancing to the next row's preflight.
+    if ($buffer !== '') { database_transfer_archive_flush($handle, $buffer, $chunkHash, $hash); }
+}
+
+/** @param resource $handle */
+function database_transfer_archive_flush(#[\SensitiveParameter] mixed $handle, #[\SensitiveParameter] string $buffer, \HashContext $chunkHash, \HashContext $hash): void
+{
+    if (fwrite($handle, $buffer) !== strlen($buffer)) { throw new DatabaseFailure('unavailable'); }
+    hash_update($chunkHash, $buffer); hash_update($hash, $buffer);
 }
 
 /** @param \Tablo\DatabaseTransferArchive::WriteChunk $chunk
