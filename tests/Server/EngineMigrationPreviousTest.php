@@ -294,9 +294,8 @@ function engine_schema_admission_projection_contract(string $engine): void
     $golden = engine_schema_descriptor_golden($engine);
     Assert::same($layout, $golden);
     $before = \Tablo\JsonEncoding::encode($layout);
-    Assert::true(class_exists(\Tablo\ServerTableAdmission::class), 'the admission class loads its internal projection function');
-    $projection = new \ReflectionFunction(\Tablo\server_table_admission_tables(...));
-    $tables = JsonRecord::checked($projection->invoke($layout));
+    $tables = \Tablo\ServerSchemaDescriptor::admissionTables($layout);
+    Assert::same(\Tablo\ServerSchemaDescriptor::admissionTables(\Tablo\ServerSchemaDescriptor::forEngine($engine)), $tables);
     Assert::same(array_keys($tables), array_keys($layout['tables'])); Assert::same(count($tables), 18);
     $names = array_map(static fn (mixed $table): string => SqlColumn::string(JsonRecord::checked($table), 'name'), $tables);
     Assert::same($names, array_column($layout['tables'], 'name'));

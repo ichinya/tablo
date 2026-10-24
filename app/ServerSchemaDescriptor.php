@@ -9,6 +9,7 @@ use PDO;
  * @phpstan-import-type Table from ServerSchema
  * @phpstan-import-type Column from ServerSchema
  * @phpstan-import-type Layout from ServerSchema
+ * @phpstan-import-type AdmissionTable from ServerSchema
  */
 final class ServerSchemaDescriptor
 {
@@ -17,6 +18,14 @@ final class ServerSchemaDescriptor
     {
         $engine = DatabaseSession::get($db)?->configuration->engine;
         return self::forEngine($engine);
+    }
+
+    /** @internal Project only a fully validated source layout for table and metadata admission.
+     * @param Layout $layout
+     * @return list<AdmissionTable> */
+    public static function admissionTables(array $layout): array
+    {
+        return server_table_admission_tables($layout);
     }
 
     /** @internal Shared finite source for server admission and the fixed transfer projection.
@@ -78,6 +87,24 @@ final class ServerSchemaDescriptor
     }
     private static function refuse(): never { throw new DatabaseFailure('schema'); }
 
+}
+
+/** @internal Project only after the complete descriptor and every CREATE checksum have been validated.
+ * @param \Tablo\ServerSchema::Layout $layout
+ * @return list<\Tablo\ServerSchema::AdmissionTable> */
+function server_table_admission_tables(array $layout): array
+{
+    $tables = $layout['tables']; unset($layout);
+    $projected = [];
+    foreach (array_keys($tables) as $key) {
+        if (!array_key_exists($key, $tables)) { throw new DatabaseFailure('schema'); }
+        $table = $tables[$key];
+        $projected[] = ['name' => $table['name'], 'columns' => $table['columns'], 'primary' => $table['primary'],
+            'checks' => $table['checks'], 'indexes' => $table['indexes'], 'foreign' => $table['foreign']];
+        unset($tables[$key], $table);
+    }
+    unset($tables);
+    return $projected;
 }
 
 /** @internal Read the single finite source and positively close before publishing its graph. */

@@ -75,12 +75,12 @@ final class ServerMetadataAdmission
     }
 }
 
-/** Internal fallback preserves the null path; supplied tables were validated in this invocation.
+/** Internal fallback projects the validated default layout; supplied tables are returned unchanged.
  * @param list<\Tablo\ServerSchema::ExpectedTable>|null $expectedTables
  * @return list<\Tablo\ServerSchema::ExpectedTable> */
 function server_metadata_expected_tables(PDO $db, ?array $expectedTables): array
 {
-    return $expectedTables ?? ServerSchema::layout($db)['tables'];
+    return $expectedTables ?? ServerSchemaDescriptor::admissionTables(ServerSchema::layout($db));
 }
 
 /** Complete writer and control admission need privileged CHECK visibility. Migrators read their own post-DDL metadata.

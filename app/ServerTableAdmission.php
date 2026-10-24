@@ -24,7 +24,7 @@ final class ServerTableAdmission
     {
         $session = DatabaseSession::get($db); $owned = false;
         try {
-            $allTables = server_table_admission_tables(ServerSchema::layout($db));
+            $allTables = ServerSchemaDescriptor::admissionTables(ServerSchema::layout($db));
             $tables = array_values(array_filter($allTables, static fn (array $table): bool => $version === 10 || $table['name'] !== 'read_api_token'));
             $expected = array_column($tables, 'name'); sort($expected, SORT_STRING);
             if ($version === 10 && $session?->configuration->engine === 'mariadb'
@@ -39,22 +39,4 @@ final class ServerTableAdmission
 
     private static function refuse(): never { throw new DatabaseFailure('schema'); }
 
-}
-
-/** @internal Project only after the complete descriptor and every CREATE checksum have been validated.
- * @param \Tablo\ServerSchema::Layout $layout
- * @return list<\Tablo\ServerSchema::AdmissionTable> */
-function server_table_admission_tables(array $layout): array
-{
-    $tables = $layout['tables']; unset($layout);
-    $projected = [];
-    foreach (array_keys($tables) as $key) {
-        if (!array_key_exists($key, $tables)) { throw new DatabaseFailure('schema'); }
-        $table = $tables[$key];
-        $projected[] = ['name' => $table['name'], 'columns' => $table['columns'], 'primary' => $table['primary'],
-            'checks' => $table['checks'], 'indexes' => $table['indexes'], 'foreign' => $table['foreign']];
-        unset($tables[$key], $table);
-    }
-    unset($tables);
-    return $projected;
 }

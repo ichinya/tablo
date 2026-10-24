@@ -2773,7 +2773,9 @@
       "Composer verify",
       "app/DatabaseTransferManifest.php",
       "app/ServerColumnAdmission.php",
+      "app/ServerMetadataAdmission.php",
       "app/ServerSchema.php",
+      "app/ServerTableAdmission.php",
       "tools/ServerFixtureCatalog.php",
       "tests/Server/EngineMigrationPreviousTest.php"
     ]

@@ -172,6 +172,11 @@ from the Docker context; they are never a runtime fallback or cache. Source
 streaming alone does not establish the release memory or timing qualification.
 Complete-table framing reduces native decodes from 145 to 19, but its larger input
 frame overlaps a larger decoded table; no memory or timing benefit is established.
+Table admission and default metadata admission share one six-field projection:
+`name, columns, primary, checks, indexes, foreign`. Both paths load and validate
+the complete 18-table source, including every CREATE checksum and positive stream
+closure, before projection and existing version selection. Validated tables supplied
+to metadata admission are returned unchanged.
 The fixed transfer manifest shares this reader through internal constant-engine
 selection. Its existing reduced-projection cache is unchanged; its first source
 read now also refuses malformed framing and any bad CREATE checksum before
