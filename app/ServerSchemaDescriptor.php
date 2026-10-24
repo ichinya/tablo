@@ -16,17 +16,21 @@ final class ServerSchemaDescriptor
     public static function layout(PDO $db): array
     {
         $engine = DatabaseSession::get($db)?->configuration->engine;
+        return self::forEngine($engine);
+    }
+
+    /** @internal Shared finite source for server admission and the fixed transfer projection.
+     * @return Layout */
+    public static function forEngine(?string $engine): array
+    {
         $file = match ($engine) { 'mysql' => 'mysql84', 'mariadb' => 'mariadb114', default => throw new DatabaseFailure('configuration') };
-        $bytes = file_get_contents(dirname(__DIR__) . '/database/' . $file . '-layout.json');
-        if ($bytes === false) { self::refuse(); }
-        /** @var Layout $layout Checked-in source with a fixed format, not an imported schema description. */
-        $layout = json_decode($bytes, associative: true, flags: JSON_THROW_ON_ERROR);
-        if ($layout['format'] !== 1 || $layout['engine'] !== $engine || count($layout['tables']) !== 18) { self::refuse(); }
-        foreach ($layout['tables'] as $table) {
-            if (hash_equals($table['checksum'], hash('sha256', $table['create']))) { continue; }
-            self::refuse();
-        }
-        return $layout;
+        return self::sourceLayout(dirname(__DIR__) . '/database/' . $file . '-layout.jsonl', $engine);
+    }
+
+    /** @return Layout */
+    private static function sourceLayout(#[\SensitiveParameter] string $path, string $engine): array
+    {
+        return server_schema_descriptor_layout(ServerSchemaRecords::read($path), $engine);
     }
 
     public static function checksum(PDO $db, int $version = 10): string
@@ -74,6 +78,21 @@ final class ServerSchemaDescriptor
     }
     private static function refuse(): never { throw new DatabaseFailure('schema'); }
 
+}
+
+/** @internal Original whole-graph integrity policy, applied only after complete record parsing.
+ * @return \Tablo\ServerSchema::Layout */
+function server_schema_descriptor_layout(array $layout, string $engine): array
+{
+    $tables = JsonRecord::checked($layout['tables'] ?? null);
+    if (($layout['format'] ?? null) !== 1 || ($layout['engine'] ?? null) !== $engine || count($tables) !== 18) { throw new DatabaseFailure('schema'); }
+    foreach (array_keys($tables) as $key) {
+        $table = JsonRecord::checked($tables[$key] ?? null);
+        if (!is_string($table['checksum'] ?? null) || !is_string($table['create'] ?? null)
+            || !hash_equals($table['checksum'], hash('sha256', $table['create']))) { throw new DatabaseFailure('schema'); }
+    }
+    /** @var \Tablo\ServerSchema::Layout $layout Checked-in finite graph after framing and original full-graph integrity checks. */
+    return $layout;
 }
 
 /** Compare only source-proven MySQL printers for the descriptor's printable ASCII string literals.

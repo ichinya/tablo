@@ -155,6 +155,26 @@ supported logical-9 predecessor is a synthetic fourteen-domain-table compatibili
 fixture; it is not a claim that an older server release was deployed. SQLite's
 existing historical versions and schema number 10 remain unchanged.
 
+Developer source format: each `database/*-layout.jsonl` is the selected engine's
+sole runtime descriptor. It contains one `records=1` scalar-layout header and
+18 groups of eight fields in `name, columns, primary, checks, indexes, foreign,
+create, checksum` order. Each complete field is native JSON inside
+`{"tables":[{"field":value}]}`, preserving the original decoder depth and flags.
+The reader assembles the entire graph before checking engine, 18 tables and every
+CREATE checksum; public layout values/order and logical-9/10 digests are unchanged.
+Records require LF or CRLF terminators, including the last record, and at most
+131,072 bytes each including the terminator; extra or malformed framing is refused.
+Missing/unreadable/invalid sources produce a fresh sanitized `schema` failure with
+no source path, payload or previous exception. This private framing deliberately
+replaces old JSON parse-offset behavior. Old JSON bytes under
+`tests/fixtures/server-layouts/v10/` are test-only compatibility oracles, excluded
+from the Docker context; they are never a runtime fallback or cache. Source
+streaming alone does not establish the release memory or timing qualification.
+The fixed transfer manifest shares this reader through internal constant-engine
+selection. Its existing reduced-projection cache is unchanged; its first source
+read now also refuses malformed framing and any bad CREATE checksum before
+constructing the projection, where the old separate JSON reader ignored them.
+
 MySQL/MariaDB DDL can commit implicitly. The durable journal records intent, exact
 before/after predicates and completion for each individual DDL step. A whole batch
 does not roll back atomically. Resume only a recognized plan with the original

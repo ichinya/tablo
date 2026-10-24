@@ -175,9 +175,13 @@ final class EngineMigrationPreviousTest
 
 function engine_schema_checksum_public_equivalence(PDO $db): void
 {
+    $layout = ServerSchema::layout($db);
+    $golden = engine_schema_descriptor_golden($layout['engine']);
+    Assert::same($layout, $golden);
     foreach ([9, 10] as $version) {
-        $reference = hash('sha256', \Tablo\JsonEncoding::encode(array_values(array_filter(ServerSchema::layout($db)['tables'],
+        $reference = hash('sha256', \Tablo\JsonEncoding::encode(array_values(array_filter($golden['tables'],
             static fn (array $table): bool => $version === 10 || $table['name'] !== 'read_api_token'))));
+        Assert::same($reference, engine_schema_descriptor_digest($layout['engine'], $version));
         Assert::same(ServerSchema::checksum($db, $version), $reference);
     }
     Assert::same(ServerSchema::checksum($db), ServerSchema::checksum($db, version: 10));
@@ -196,6 +200,260 @@ function engine_schema_checksum_streaming_contract(): void
     engine_schema_checksum_chunks($method);
     engine_schema_checksum_depth($method);
     engine_schema_checksum_encoding_failures($method);
+    engine_schema_descriptor_records_contract();
+}
+
+/** Frozen old JSON is a test oracle only; the application never opens this directory.
+ * @return \Tablo\ServerSchema::Layout */
+function engine_schema_descriptor_golden(string $engine): array
+{
+    $stem = match ($engine) { 'mysql' => 'mysql84', 'mariadb' => 'mariadb114', default => throw new \RuntimeException('Unknown descriptor fixture.') };
+    /** @var \Tablo\ServerSchema::Layout $layout */
+    $layout = json_decode(\Tablo\RequiredFile::bytes(file_get_contents(dirname(__DIR__) . '/fixtures/server-layouts/v10/' . $stem . '-layout.json')),
+        associative: true, flags: JSON_THROW_ON_ERROR);
+    Assert::same($layout['engine'], $engine);
+    return $layout;
+}
+
+function engine_schema_descriptor_digest(string $engine, int $version): string
+{
+    $digests = engine_schema_descriptor_digests($engine);
+    if (!array_key_exists($version, $digests)) { throw new \RuntimeException('Missing immutable descriptor digest.'); }
+    return $digests[$version];
+}
+
+/** @return array{9: string, 10: string} */
+function engine_schema_descriptor_digests(string $engine): array
+{
+    return match ($engine) {
+        'mysql' => [9 => '4aea292a93b941e03fde9425fe9171d5aed0f640749d6db5264be27737c5402a', 10 => 'eb552f693d4a62a35471699b5028e0071400981e0bffcf04cfc236e904fb870c'],
+        'mariadb' => [9 => '94a0924d22edc7a4beed0df471a22d9d155241fc5d8b46508719a6b0f47d7eea', 10 => 'ee419c2eca38b465fcc40416e6e749e09043bd5e623c1dab0513ceea0b2f9893'],
+        default => throw new \RuntimeException('Unknown descriptor digest fixture.'),
+    };
+}
+
+/** Pure codec/integrity contracts retain the existing test identities and never open PDO. */
+function engine_schema_descriptor_records_contract(): void
+{
+    $loader = new \ReflectionMethod(\Tablo\ServerSchemaDescriptor::class, 'sourceLayout');
+    $checksum = new \ReflectionMethod(\Tablo\ServerSchemaDescriptor::class, 'checksumTables');
+    Assert::true(stream_wrapper_register('tabloschemafixture', EngineSchemaDescriptorStream::class));
+    try {
+        engine_schema_descriptor_engine_selection();
+        foreach (['mysql' => ['mysql84', 'c38753d3032251af4cfaff02729aaef222c34fb929f690c1fc45964d9400a01e'],
+            'mariadb' => ['mariadb114', 'ed9fb39e4c0a1c74461d0c19af6ef6cae5db581d7531a58e5e6ec4e5a776c704']] as $engine => [$stem, $rawHash]) {
+            $root = dirname(__DIR__, levels: 2);
+            Assert::same(hash_file('sha256', $root . '/tests/fixtures/server-layouts/v10/' . $stem . '-layout.json'), $rawHash);
+            $golden = engine_schema_descriptor_golden($engine);
+            $bytes = \Tablo\RequiredFile::bytes(file_get_contents($root . '/database/' . $stem . '-layout.jsonl'));
+            Assert::same(count(explode("\n", $bytes)), 146);
+            Assert::same($loader->invoke(null, $root . '/database/' . $stem . '-layout.jsonl', $engine), $golden);
+            Assert::same(\Tablo\ServerSchemaDescriptor::forEngine($engine), $golden);
+            $loaded = engine_schema_descriptor_source($loader, $bytes, $engine);
+            Assert::same($loaded['layout'], $golden); Assert::null($loaded['failure']);
+            Assert::same(array_keys($golden), ['format', 'engine', 'logicalVersion', 'syntheticPredecessor', 'collation', 'tables']);
+            Assert::same(count($golden['tables']), 18);
+            foreach ($golden['tables'] as $table) {
+                Assert::same(array_keys($table), ['name', 'columns', 'primary', 'checks', 'indexes', 'foreign', 'create', 'checksum']);
+                Assert::same(hash('sha256', $table['create']), $table['checksum']);
+            }
+            foreach ([9, 10] as $version) {
+                $tables = array_values(array_filter($golden['tables'], static fn (array $table): bool => $version === 10 || $table['name'] !== 'read_api_token'));
+                $reference = hash('sha256', \Tablo\JsonEncoding::encode($tables));
+                Assert::same($reference, engine_schema_descriptor_digest($engine, $version));
+                Assert::same($checksum->invoke(null, $tables), $reference);
+            }
+            Assert::same(engine_schema_descriptor_source($loader, str_replace("\n", replace: "\r\n", subject: $bytes), $engine)['layout'], $golden);
+            engine_schema_descriptor_framing($loader, $bytes, $engine);
+            engine_schema_descriptor_integrity($loader, $bytes, $engine);
+            engine_schema_descriptor_io($loader, $bytes, $engine);
+        }
+        $missing = null;
+        try { $loader->invoke(null, dirname(__DIR__) . '/fixtures/server-layouts/v10/absent-layout.jsonl', 'mysql'); }
+        catch (\Tablo\DatabaseFailure $error) { $missing = $error; }
+        engine_schema_descriptor_refusal($missing);
+        engine_schema_descriptor_native_values();
+        engine_schema_descriptor_manifest_contract();
+    } finally { stream_wrapper_unregister('tabloschemafixture'); EngineSchemaDescriptorStream::$bytes = ''; }
+}
+
+function engine_schema_descriptor_engine_selection(): void
+{
+    foreach ([null, 'unknown', 'sqlite'] as $engine) {
+        $failure = null;
+        try { \Tablo\ServerSchemaDescriptor::forEngine($engine); } catch (\Tablo\DatabaseFailure $error) { $failure = $error; }
+        Assert::same($failure?->category, 'configuration'); Assert::same($failure?->getPrevious(), null);
+    }
+}
+
+function engine_schema_descriptor_manifest_contract(): void
+{
+    $golden = engine_schema_descriptor_golden('mysql'); $tables = array_column($golden['tables'], column_key: null, index_key: 'name');
+    $expected = [];
+    foreach (\Tablo\DatabaseTransferManifest::TABLES as $name) {
+        if (!array_key_exists($name, $tables)) { throw new \RuntimeException('Missing golden transfer table.'); }
+        $table = $tables[$name]; $columns = [];
+        foreach ($table['columns'] as $column) {
+            if (array_key_exists('generated', $column)) { continue; }
+            $columns[] = ['name' => $column['name'], 'type' => $column['type'], 'nullable' => $column['nullable']];
+        }
+        $expected[] = ['name' => $name, 'columns' => $columns, 'primary' => $table['primary']];
+    }
+    Assert::same(\Tablo\DatabaseTransferManifest::tables(), $expected);
+    Assert::same(\Tablo\DatabaseTransferManifest::layout(), hash('sha256', \Tablo\JsonEncoding::encode($expected)));
+    Assert::same(\Tablo\DatabaseTransferManifest::contract(), array_map(static fn (array $table): array => ['name' => $table['name'], 'columns' => $table['columns']], $expected));
+}
+
+/** @param array{failAt?: ?int, failClose?: bool, failOpen?: bool} $options
+ * @return array{layout: ?array, failure: ?\Tablo\DatabaseFailure, read: int} */
+function engine_schema_descriptor_source(\ReflectionMethod $loader, string $bytes, string $engine, array $options = []): array
+{
+    EngineSchemaDescriptorStream::$bytes = $bytes; EngineSchemaDescriptorStream::$position = 0;
+    EngineSchemaDescriptorStream::$opens = 0; EngineSchemaDescriptorStream::$closes = 0;
+    EngineSchemaDescriptorStream::$failAt = $options['failAt'] ?? null;
+    EngineSchemaDescriptorStream::$failClose = $options['failClose'] ?? false;
+    $failOpen = $options['failOpen'] ?? false; EngineSchemaDescriptorStream::$failOpen = $failOpen;
+    $readers = array_keys(get_resources('stream'));
+    $layout = null; $failure = null;
+    try { $layout = JsonRecord::checked($loader->invoke(null, 'tabloschemafixture://descriptor-private-path-sentinel', $engine)); }
+    catch (\Tablo\DatabaseFailure $error) { $failure = $error; }
+    Assert::same(EngineSchemaDescriptorStream::$opens, 1);
+    Assert::same(EngineSchemaDescriptorStream::$closes, $failOpen ? 0 : 1);
+    Assert::same(array_keys(get_resources('stream')), $readers, 'every opened source reader must be closed');
+    if ($failure !== null) { engine_schema_descriptor_refusal($failure); }
+    return ['layout' => $layout, 'failure' => $failure, 'read' => EngineSchemaDescriptorStream::$position];
+}
+
+function engine_schema_descriptor_refusal(?\Tablo\DatabaseFailure $failure): void
+{
+    if ($failure === null) { throw new \RuntimeException('Expected a source refusal.'); }
+    Assert::same($failure->category, 'schema'); Assert::same($failure->getPrevious(), null);
+    Assert::false(str_contains($failure->getMessage(), 'descriptor-private'));
+    Assert::false(str_contains($failure->getMessage(), 'tabloschemafixture'));
+}
+
+function engine_schema_descriptor_framing(\ReflectionMethod $loader, string $bytes, string $engine): void
+{
+    $lines = explode("\n", $bytes); Assert::same(array_pop($lines), '');
+    if (!array_key_exists(0, $lines) || !array_key_exists(1, $lines) || !array_key_exists(2, $lines)) { throw new \RuntimeException('Incomplete framing fixture.'); }
+    $header = $lines[0]; $first = $lines[1]; $second = $lines[2];
+    foreach ([substr($bytes, offset: 0, length: -1), "\xEF\xBB\xBF" . $bytes, "\n" . $bytes, $bytes . "\n", $bytes . "\0",
+        $header . "\n", implode("\n", array_slice($lines, offset: 1)) . "\n", substr($bytes, offset: 0, length: -80),
+        str_replace('"records":1', replace: '"records":2', subject: $bytes), str_replace('"format":1', replace: '"format":"1"', subject: $bytes),
+        str_replace("\n", replace: "\r", subject: $bytes)] as $broken) {
+        $result = engine_schema_descriptor_source($loader, $broken, $engine);
+        engine_schema_descriptor_refusal($result['failure']); Assert::null($result['layout']);
+    }
+    foreach (['{"tables":[{"unknown":"x"}]}', '{"tables":[{"name":"x","unknown":null}]}', '{"tables":[{"name":"x"},{}]}',
+        '{"other":[{"name":"x"}]}', '{"tables":null}', '{"tables":[{"name":"\ud800"}]}', "{\"tables\":[{\"name\":\"\xFF\"}]}", '{'] as $record) {
+        $changed = $lines; $changed[1] = $record;
+        engine_schema_descriptor_refusal(engine_schema_descriptor_source($loader, implode("\n", $changed) . "\n", $engine)['failure']);
+    }
+    $changed = $lines; $changed[1] = $second; $changed[2] = $first;
+    engine_schema_descriptor_refusal(engine_schema_descriptor_source($loader, implode("\n", $changed) . "\n", $engine)['failure']);
+    $changed = $lines; $changed[2] = $first;
+    engine_schema_descriptor_refusal(engine_schema_descriptor_source($loader, implode("\n", $changed) . "\n", $engine)['failure']);
+    foreach ([str_replace('{"records":1,"layout":', replace: '{"unknown":0,"records":1,"layout":', subject: $bytes),
+        str_replace('{"records":1,"layout":', replace: '{"layout":', subject: $bytes),
+        str_replace('"format":1,"engine":', replace: '"engine":', subject: $bytes)] as $broken) {
+        engine_schema_descriptor_refusal(engine_schema_descriptor_source($loader, $broken, $engine)['failure']);
+    }
+    engine_schema_descriptor_refusal(engine_schema_descriptor_source($loader, $bytes . $first . "\n", $engine)['failure']);
+}
+
+function engine_schema_descriptor_integrity(\ReflectionMethod $loader, string $bytes, string $engine): void
+{
+    $lines = explode("\n", $bytes);
+    foreach ([0, 8, 17] as $table) {
+        $changed = $lines; $changed[1 + $table * 8 + 7] = '{"tables":[{"checksum":"' . str_repeat('0', times: 64) . '"}]}';
+        $broken = implode("\n", $changed);
+        $result = engine_schema_descriptor_source($loader, $broken, $engine);
+        engine_schema_descriptor_refusal($result['failure']); Assert::null($result['layout']);
+        Assert::same($result['read'], strlen($broken), 'assemble the whole graph before any CREATE validation, including the version9-excluded tail');
+    }
+    foreach ([str_replace('"format":1', replace: '"format":0', subject: $bytes),
+        str_replace('"engine":"' . $engine . '"', replace: '"engine":"other"', subject: $bytes)] as $broken) {
+        $result = engine_schema_descriptor_source($loader, $broken, $engine);
+        engine_schema_descriptor_refusal($result['failure']); Assert::same($result['read'], strlen($broken));
+    }
+    $first = engine_schema_descriptor_source($loader, bytes: '{', engine: $engine)['failure'];
+    $second = engine_schema_descriptor_source($loader, bytes: '{', engine: $engine)['failure'];
+    engine_schema_descriptor_refusal($first); engine_schema_descriptor_refusal($second); Assert::false($first === $second);
+    Assert::true(engine_schema_descriptor_source($loader, $bytes, $engine)['layout'] !== null, 'no cached refusal or graph');
+}
+
+function engine_schema_descriptor_io(\ReflectionMethod $loader, string $bytes, string $engine): void
+{
+    foreach ([0, 9000, strlen($bytes)] as $position) {
+        engine_schema_descriptor_refusal(engine_schema_descriptor_source($loader, $bytes, $engine, options: ['failAt' => $position])['failure']);
+    }
+    engine_schema_descriptor_refusal(engine_schema_descriptor_source($loader, $bytes, $engine, options: ['failOpen' => true])['failure']);
+    engine_schema_descriptor_refusal(engine_schema_descriptor_source($loader, $bytes, $engine, options: ['failClose' => true])['failure']);
+    $primary = engine_schema_descriptor_source($loader, bytes: '{', engine: $engine)['failure'];
+    $withCloseFailure = engine_schema_descriptor_source($loader, bytes: '{', engine: $engine, options: ['failClose' => true])['failure'];
+    engine_schema_descriptor_refusal($primary); engine_schema_descriptor_refusal($withCloseFailure);
+    Assert::same($withCloseFailure?->getLine(), $primary?->getLine(), 'close failure cannot replace the primary source refusal');
+    set_error_handler(static function (int $severity, string $message): never { throw new \ErrorException($message, 0, $severity); });
+    try {
+        engine_schema_descriptor_refusal(engine_schema_descriptor_source($loader, $bytes, $engine, options: ['failAt' => 9000])['failure']);
+        $restored = false;
+        try { trigger_error('descriptor-private-handler-restoration-sentinel', E_USER_WARNING); } catch (\ErrorException) { $restored = true; }
+        Assert::true($restored, 'native I/O must restore the caller error handler');
+    }
+    finally { restore_error_handler(); }
+}
+
+/** @return array */
+function engine_schema_descriptor_record(\ReflectionMethod $decoder, string $bytes): array
+{
+    $stream = fopen('php://memory', mode: 'w+b');
+    if ($stream === false) { throw new \RuntimeException('Cannot open pure record fixture.'); }
+    try { fwrite($stream, $bytes); rewind($stream); return JsonRecord::checked($decoder->invoke(null, $stream)); }
+    finally { fclose($stream); }
+}
+
+/** Extract a decoded whole value without treating a legitimate null as a missing key. */
+function engine_schema_descriptor_field_value(array $record, string $field): mixed
+{
+    $tables = JsonRecord::checked($record['tables'] ?? null);
+    $table = JsonRecord::checked($tables[0] ?? null);
+    if (!array_key_exists($field, $table)) { throw new \RuntimeException('Missing native field fixture.'); }
+    return $table[$field];
+}
+
+function engine_schema_descriptor_native_values(): void
+{
+    $decoder = new \ReflectionMethod(\Tablo\ServerSchemaRecords::class, 'record');
+    $special = <<<'JSON'
+"quote\" slash\/ backslash\\ control\u0000\r\n\t Caf\u00e9 \ud83e\uddea"
+JSON;
+    foreach (['null', 'false', 'true', '0', '1', '-1', '1.0', '1.5', '-0.0', '1e2', '"1"', '""', '[]', '{}',
+        '{"3":"three","1":"one"}', '[null,false,true,0,"1",[],{"nested":[]}]', $special] as $value) {
+        $line = '{"tables":[{"columns":' . $value . '}]}';
+        $decoded = engine_schema_descriptor_record($decoder, $line . "\n");
+        $reference = JsonRecord::checked(json_decode($line, associative: true, flags: JSON_THROW_ON_ERROR));
+        Assert::same($decoded, $reference);
+        Assert::same(\Tablo\server_schema_records_field($decoded, field: 'columns'), engine_schema_descriptor_field_value($reference, field: 'columns'));
+    }
+    $boundary = false;
+    foreach (['columns', 'primary', 'checks', 'indexes', 'foreign'] as $field) {
+        foreach ([15, 16, 17, 507, 508, 509, 510, 511, 512, 513] as $depth) {
+            $value = str_repeat('[', $depth) . '0' . str_repeat(']', $depth);
+            $line = '{"tables":[{"' . $field . '":' . $value . '}]}';
+            $reference = engine_schema_checksum_outcome(static fn () => engine_schema_descriptor_field_value(JsonRecord::checked(json_decode('{"format":1,"tables":[{"' . $field . '":' . $value . '}]}', associative: true, flags: JSON_THROW_ON_ERROR)), $field));
+            $actual = engine_schema_checksum_outcome(static fn () => engine_schema_descriptor_field_value(engine_schema_descriptor_record($decoder, $line . "\n"), $field));
+            Assert::same($actual, $reference);
+            $unwrapped = engine_schema_checksum_outcome(static fn () => json_decode('{"' . $field . '":' . $value . '}', associative: true, flags: JSON_THROW_ON_ERROR));
+            if ($reference['error'] === JSON_ERROR_DEPTH && $unwrapped['error'] === null) { $boundary = true; }
+        }
+    }
+    Assert::true($boundary, 'unwrapped native JSON must expose a depth-boundary counterexample');
+    $line = '{"tables":[{"name":"limit"}]}';
+    $limit = $line . str_repeat(' ', 131_071 - strlen($line)) . "\n";
+    Assert::same(engine_schema_descriptor_record($decoder, $limit), ['tables' => [['name' => 'limit']]]);
+    $failure = null;
+    try { engine_schema_descriptor_record($decoder, ' ' . $limit); } catch (\Tablo\DatabaseFailure $error) { $failure = $error; }
+    engine_schema_descriptor_refusal($failure);
 }
 
 /** @param list<array> $tables */

@@ -1750,7 +1750,8 @@
     "consumers": [
       "Composer lint",
       "Composer verify",
-      "Composer analyze"
+      "Composer analyze",
+      "app/ServerSchemaRecords.php"
     ]
   },
   "app/notification-delivery.php": {
@@ -2770,8 +2771,19 @@
       "Composer lint",
       "Composer analyze",
       "Composer verify",
+      "app/DatabaseTransferManifest.php",
       "app/ServerColumnAdmission.php",
       "app/ServerSchema.php"
+    ]
+  },
+  "app/ServerSchemaRecords.php": {
+    "owner": "Tablo\\ServerSchemaRecords and internal finite framing checks",
+    "consumers": [
+      "Composer lint",
+      "Composer analyze",
+      "Composer verify",
+      "app/ServerSchemaDescriptor.php",
+      "tests/Server/EngineMigrationPreviousTest.php"
     ]
   },
   "app/ServerSchemaState.php": {
@@ -4217,16 +4229,16 @@
       "Read API documentation and privacy review"
     ]
   },
-  "database/mariadb114-layout.json": {
-    "owner": "Finite MariaDB11.4 metadata1 logical9/10 descriptor",
+  "database/mariadb114-layout.jsonl": {
+    "owner": "Authoritative finite MariaDB11.4 metadata1 logical9/10 field records",
     "consumers": [
       "Tablo\\ServerSchemaDescriptor",
       "Selected-engine admission and explicit maintenance",
       "Native constraints and migration tests"
     ]
   },
-  "database/mysql84-layout.json": {
-    "owner": "Finite MySQL8.4 metadata1 logical9/10 descriptor",
+  "database/mysql84-layout.jsonl": {
+    "owner": "Authoritative finite MySQL8.4 metadata1 logical9/10 field records",
     "consumers": [
       "Tablo\\ServerSchemaDescriptor",
       "Selected-engine admission and explicit maintenance",
@@ -4723,6 +4735,20 @@
       "Composer lint",
       "Composer verify",
       "Composer analyze"
+    ]
+  },
+  "tests/fixtures/server-layouts/v10/mariadb114-layout.json": {
+    "owner": "Frozen pre-record MariaDB11.4 layout compatibility oracle; tests only",
+    "consumers": [
+      "tests/Server/EngineConstraintsTest.php",
+      "tests/Server/EngineMigrationPreviousTest.php"
+    ]
+  },
+  "tests/fixtures/server-layouts/v10/mysql84-layout.json": {
+    "owner": "Frozen pre-record MySQL8.4 layout compatibility oracle; tests only",
+    "consumers": [
+      "tests/Server/EngineConstraintsTest.php",
+      "tests/Server/EngineMigrationPreviousTest.php"
     ]
   },
   "tests/fixtures/session-automatic.php": {
@@ -6521,6 +6547,15 @@
       "Composer lint",
       "Composer analyze",
       "Composer verify:server"
+    ]
+  },
+  "tests/Server/EngineSchemaDescriptorStream.php": {
+    "owner": "Test-only finite descriptor stream I/O fault fixture; no test identity",
+    "consumers": [
+      "Composer lint",
+      "Composer analyze",
+      "Composer verify:server",
+      "tests/Server/EngineMigrationPreviousTest.php"
     ]
   },
   "tests/Server/EngineSettlementFailureTest.php": {

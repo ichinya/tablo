@@ -8,7 +8,6 @@ namespace Tablo;
  *
  * @phpstan-type Column array{name: string, type: string, nullable: bool}
  * @phpstan-type Table array{name: string, columns: list<Column>, primary: list<string>}
- * @phpstan-import-type Layout from ServerSchema
  *
  * @phpstan-import-type Receipt from DatabaseTransferArchive
  *
@@ -33,9 +32,7 @@ final class DatabaseTransferManifest
     public static function tables(): array
     {
         if (self::$dataTables !== null) { return self::$dataTables; }
-        $bytes = RequiredFile::bytes(file_get_contents(dirname(__DIR__) . '/database/mysql84-layout.json'));
-        /** @var Layout $layout Checked-in descriptor, not archive-controlled SQL. */
-        $layout = json_decode($bytes, associative: true, flags: JSON_THROW_ON_ERROR);
+        $layout = ServerSchemaDescriptor::forEngine('mysql');
         $tables = [];
         foreach (self::TABLES as $name) {
             $matches = array_values(array_filter($layout['tables'], static fn (array $table): bool => $table['name'] === $name));

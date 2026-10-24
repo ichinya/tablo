@@ -117,7 +117,7 @@ function engine_constraints_mysql_defaults(): void
         "varbinary(16)/'=='" => '0x3d3d', "varbinary(16)/'release'" => '0x72656c65617365',
         "longtext/'main'" => "_utf8mb4\\'main\\'", "longtext/'/up'" => "_utf8mb4\\'/up\\'", "longtext/''" => "_utf8mb4\\'\\'"];
     /** @var \Tablo\ServerSchema::Layout $layout Public finite source descriptor. */
-    $layout = json_decode(\Tablo\RequiredFile::bytes(file_get_contents(dirname(__DIR__, levels: 2) . '/database/mysql84-layout.json')),
+    $layout = json_decode(\Tablo\RequiredFile::bytes(file_get_contents(dirname(__DIR__, levels: 2) . '/tests/fixtures/server-layouts/v10/mysql84-layout.json')),
         associative: true, flags: JSON_THROW_ON_ERROR);
     $seen = [];
     foreach ($layout['tables'] as $table) {
@@ -213,7 +213,7 @@ function engine_constraints_singleton_membership(): void
 function engine_constraints_mysql_check_literals(): void
 {
     /** @var \Tablo\ServerSchema::Layout $layout */
-    $layout = json_decode(\Tablo\RequiredFile::bytes(file_get_contents(dirname(__DIR__, levels: 2) . '/database/mysql84-layout.json')),
+    $layout = json_decode(\Tablo\RequiredFile::bytes(file_get_contents(dirname(__DIR__, levels: 2) . '/tests/fixtures/server-layouts/v10/mysql84-layout.json')),
         associative: true, flags: JSON_THROW_ON_ERROR);
     foreach ($layout['tables'] as $table) {
         foreach ($table['checks'] as $check) {
@@ -299,7 +299,7 @@ function engine_constraints_binary_cast_alias(): void
 {
     foreach (['mysql84', 'mariadb114'] as $engine) {
         /** @var \Tablo\ServerSchema::Layout $layout */
-        $layout = json_decode(\Tablo\RequiredFile::bytes(file_get_contents(dirname(__DIR__, levels: 2) . '/database/' . $engine . '-layout.json')),
+        $layout = json_decode(\Tablo\RequiredFile::bytes(file_get_contents(dirname(__DIR__, levels: 2) . '/tests/fixtures/server-layouts/v10/' . $engine . '-layout.json')),
             associative: true, flags: JSON_THROW_ON_ERROR);
         foreach ($layout['tables'] as $table) {
             foreach ($table['columns'] as $column) {
@@ -339,7 +339,7 @@ function engine_constraints_substring_aliases(): void
     }
     foreach (['mysql84', 'mariadb114'] as $engine) {
         /** @var array{tables: list<array{checks: list<array{expression: string}>}>} $layout Checked-in public schema descriptor. */
-        $layout = json_decode(\Tablo\RequiredFile::bytes(file_get_contents(dirname(__DIR__, levels: 2) . '/database/' . $engine . '-layout.json')),
+        $layout = json_decode(\Tablo\RequiredFile::bytes(file_get_contents(dirname(__DIR__, levels: 2) . '/tests/fixtures/server-layouts/v10/' . $engine . '-layout.json')),
             associative: true, flags: JSON_THROW_ON_ERROR);
         foreach ($layout['tables'] as $table) {
             foreach ($table['checks'] as $check) {
@@ -392,7 +392,7 @@ function engine_constraints_modulo_forms(): void
     Assert::false(ServerExpression::canonical('-0 MOD step') === ServerExpression::canonical('0 MOD step'));
     Assert::false(ServerExpression::canonical("event = '%' ") === ServerExpression::canonical("event = 'MOD' "));
     /** @var \Tablo\ServerSchema::Layout $layout Checked-in public descriptor, including the complete timestamp predicate. */
-    $layout = json_decode(\Tablo\RequiredFile::bytes(file_get_contents(dirname(__DIR__, levels: 2) . '/database/mariadb114-layout.json')),
+    $layout = json_decode(\Tablo\RequiredFile::bytes(file_get_contents(dirname(__DIR__, levels: 2) . '/tests/fixtures/server-layouts/v10/mariadb114-layout.json')),
         associative: true, flags: JSON_THROW_ON_ERROR);
     $users = $layout['tables'][3] ?? throw new \RuntimeException('Missing public users descriptor.');
     $check = $users['checks'][1] ?? throw new \RuntimeException('Missing public timestamp constraint.');
@@ -412,7 +412,7 @@ function engine_constraints_modulo_forms(): void
 function engine_constraints_mysql_metadata(): void
 {
     /** @var \Tablo\ServerSchema::Layout $layout Checked-in public MySQL descriptor. */
-    $layout = json_decode(\Tablo\RequiredFile::bytes(file_get_contents(dirname(__DIR__, levels: 2) . '/database/mysql84-layout.json')),
+    $layout = json_decode(\Tablo\RequiredFile::bytes(file_get_contents(dirname(__DIR__, levels: 2) . '/tests/fixtures/server-layouts/v10/mysql84-layout.json')),
         associative: true, flags: JSON_THROW_ON_ERROR);
     foreach ($layout['tables'] as $table) {
         foreach ($table['checks'] as $check) {
@@ -482,7 +482,7 @@ function engine_constraints_replace_hex(): void
 function engine_constraints_generated_hex(): void
 {
     /** @var \Tablo\ServerSchema::Layout $layout Checked-in public MySQL descriptor. */
-    $layout = json_decode(\Tablo\RequiredFile::bytes(file_get_contents(dirname(__DIR__, levels: 2) . '/database/mysql84-layout.json')),
+    $layout = json_decode(\Tablo\RequiredFile::bytes(file_get_contents(dirname(__DIR__, levels: 2) . '/tests/fixtures/server-layouts/v10/mysql84-layout.json')),
         associative: true, flags: JSON_THROW_ON_ERROR);
     $seen = 0;
     foreach ($layout['tables'] as $table) {
@@ -532,7 +532,7 @@ function engine_constraints_locate_hex(): void
         Assert::same($caught?->getPrevious(), null);
     }
     /** @var \Tablo\ServerSchema::Layout $layout Checked-in complete public MySQL CHECK descriptor. */
-    $layout = json_decode(\Tablo\RequiredFile::bytes(file_get_contents(dirname(__DIR__, levels: 2) . '/database/mysql84-layout.json')),
+    $layout = json_decode(\Tablo\RequiredFile::bytes(file_get_contents(dirname(__DIR__, levels: 2) . '/tests/fixtures/server-layouts/v10/mysql84-layout.json')),
         associative: true, flags: JSON_THROW_ON_ERROR);
     $seen = 0;
     foreach ($layout['tables'] as $table) {
