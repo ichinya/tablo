@@ -4045,7 +4045,7 @@
                 "tablo/check/v1 local consumers",
                 "Administrator idle timeout policy"
             ],
-            "fingerprint": "sha256:59814bda8f0a948c1153345f2faa10e6b07193d61ce2a38edfb258af48694da5"
+            "fingerprint": "sha256:6d771b63c2d6a8da4e07e9edcefaaa7cf1884dda64f70c7dc1cb5a7e741ec0bf"
         },
         {
             "path": "tests/browser-fixture.php",
@@ -9682,7 +9682,7 @@
             "consumers": [
                 "HSTS deployment operator guidance"
             ],
-            "fingerprint": "sha256:fd3e778b0ee19b17762e5d22e52f4dc6f73eebea6f85c7603bfe8d5359897948"
+            "fingerprint": "sha256:5be5ff98752d8cd181456c2fb8d768460a48b45028b769fe1647b866d506fc09"
         },
         {
             "path": "tests/fixtures/hsts-router.php",

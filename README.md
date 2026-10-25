@@ -1371,3 +1371,5 @@ read-only Bearer API. По умолчанию доступ выключен; а�
 использует существующую текущую БД без миграций и записи сайтов. См.
 [контракт v1 и ограничения приватности](docs/read-api.md) и
 [JSON schema](contracts/read-api-v1.schema.json).
+
+План расширения Git-провайдеров: [Gitea, контракты и будущая приёмка](docs/git-provider-plan.md).

@@ -1349,3 +1349,5 @@ of Git/endpoint credentials and cannot authenticate browser actions. The reader 
 an existing current database without migration or site writes. See
 [the v1 contract and privacy limits](docs/read-api.md) and
 [JSON schema](contracts/read-api-v1.schema.json).
+
+Git provider expansion plan: [Gitea, contracts and future acceptance](docs/git-provider-plan.md).
