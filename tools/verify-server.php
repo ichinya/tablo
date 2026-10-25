@@ -299,14 +299,7 @@ function server_verify_fixture_declaration(array $map, string $identity, string 
 function server_verify_baseline(string $root, array $map, array $plan): array
 {
     $declaration = JsonRecord::checked($map['baseline'] ?? null);
-    if (SqlColumn::integer($declaration, 'requiredIdentityCount') !== 441) { throw new RuntimeException('Required SQLite baseline changed.'); }
-    $policy = ['scope' => 'original-subprocess', 'defaultChildSeconds' => 8,
-        'explicitBudgetSource' => 'Unchanged original CommandOptions call sites, including20second helper operations',
-        'methodDeadlineSeconds' => null, 'overallParentSeconds' => 1800];
-    if (($declaration['budgetPolicy'] ?? null) !== $policy) { throw new RuntimeException('Original SQLite budget policy changed.'); }
-    if (($declaration['platformPolicy'] ?? null) !== \Tablo\Tools\server_native_baseline_platform_policy()) { throw new RuntimeException('Original SQLite platform policy changed.'); }
-    $cases = \Tablo\Tools\server_native_cases(['cases' => ['baseline' => $declaration['identities'] ?? null]], lane: 'baseline');
-    if (count($cases) !== 441) { throw new RuntimeException('Exact441 baseline declarations missing.'); }
+    $cases = \Tablo\Tools\server_native_baseline_declaration($declaration);
     $phase = server_verify_baseline_phase($plan); $output = SqlColumn::string($phase, 'baselineDirectory');
     $child = \Tablo\Tools\server_verify_native_import($root, $output);
     $report = SqlColumn::string($child, 'report');

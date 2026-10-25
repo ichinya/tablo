@@ -9,6 +9,23 @@ use Tablo\Tests\Support\WebFixture;
 
 final class AuthenticationLifecycleTest extends DashboardFixtureCase
 {
+    #[Test]
+    public function longLoginUsesItsEntireRawCredentialAndRejectsANulOrChangedSuffix(): void
+    {
+        $web = \Tablo\Tests\Support\FixtureValue::object($this->web);
+        $password = str_repeat('ж', times: 512);
+        $setup = $web->request('/setup');
+        Assert::same($web->request('/setup', ['_csrf' => WebFixture::csrf($setup), 'password' => $password, 'confirmation' => $password])['status'], 303);
+        $csrf = WebFixture::csrf($web->request('/'));
+        Assert::same($web->request('/logout', ['_csrf' => $csrf])['status'], 303);
+        $login = $web->request('/login'); $csrf = WebFixture::csrf($login);
+        foreach ([str_repeat('ж', times: 511) . 'я', $password . "\0", $password . 'x'] as $invalid) {
+            Assert::same($web->request('/login', ['_csrf' => $csrf, 'password' => $invalid])['status'], 422);
+        }
+        Assert::same($web->request('/login', ['_csrf' => $csrf, 'password' => $password])['status'], 303);
+        Assert::same($web->request('/')['status'], 200);
+    }
+
 
 
 

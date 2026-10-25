@@ -18,11 +18,13 @@ pinned to a specific commit. The locked Phalcon release is a release candidate.
 ## Screenshots
 
 These illustrations use a separate test database with fictional sites and check
-results: `example/*` repositories, `*.example.com` domains, and a demonstration
-Git token. They contain no real repositories, passwords, or tokens. The screenshots
+results: `example/*` repositories, `*.example.com` domains, and synthetic states.
+They contain no real repositories, passwords, or tokens. The screenshots
 show the existing Russian interface; the English README does not change the UI language.
 
 ![Website overview: availability, versions, and GitHub metrics](docs/screenshots/dashboard-desktop.png)
+
+![Site table with versions, metrics, and actions](docs/screenshots/dashboard-table-desktop.png)
 
 <details>
 <summary>Adding a site, selecting a token, and configuring JSON checks</summary>
@@ -40,6 +42,8 @@ show the existing Russian interface; the English README does not change the UI l
 
 <details>
 <summary>Mobile interface</summary>
+
+<img src="docs/screenshots/dashboard-table-mobile.png" alt="Horizontally scrollable site table on a mobile screen" width="390">
 
 <img src="docs/screenshots/site-form-mobile.png" alt="Site form on a mobile screen" width="390">
 
@@ -62,11 +66,33 @@ composer serve
 ```
 
 Open <http://127.0.0.1:8087>. If the database is missing or has no administrator,
-the application redirects to `/setup` to create a password (12–72 **bytes**).
+the application redirects to `/setup` to create a password (12–1024 **bytes**).
 After setup, GET and POST `/setup` return 404, including unauthenticated requests.
 There is no default password, public registration, or preinstalled site. Sign in
 at `/login`; use [the local password reset](#local-administrator-password-reset)
 if access is lost.
+
+New passwords and local resets use Argon2id with 64 MiB of memory
+(`memory_cost=65536` KiB), three passes (`time_cost=3`), one thread
+(`threads=1`), and an automatically generated salt. Run
+`php tests/fixtures/argon2id-capability.php` in the application's actual runtime
+to check effective hashing and verification; an extension name or Composer
+platform setting does not establish support. See the
+[PHP requirements](https://www.php.net/manual/en/password.requirements.php).
+When Argon2id is unavailable, an existing bcrypt credential can be verified
+without rewriting its hash; setup and reset refuse safely. Restore support in
+the same runtime before retrying. A failed password verification alone does
+not establish provider absence.
+
+A successful login upgrades legacy bcrypt or deficient Argon parameters to
+Argon2id while retaining stronger memory/pass components. Same-policy or
+stronger Argon2id hashes remain byte-identical; a thread-count difference alone
+does not trigger rewriting. Legacy verification preserves exact raw bytes,
+including short or empty credentials, but refuses bcrypt candidates over
+72 bytes before native verification to prevent truncated-prefix aliases.
+A successful upgrade or local reset invalidates prior browser sessions and
+read API bearers. The complete stored API-token row stays unchanged; issue a
+new token through explicit rotation after a fresh login.
 
 Add a site with its HTTP(S) address, GitHub repository (`owner/repo` or a full
 URL), token, branch, health path, optional version path, and comparison mode.
@@ -75,9 +101,19 @@ through the GitHub API with the selected token. Pick a branch from the list or
 enter one manually. The server checks that it exists again when saving; a tag
 cannot replace a branch.
 
-Use ↻ on a card to check the site. Configuration changes clear the previous result;
-disabled sites are not checked. Search and filters operate locally on the rendered
-cards. `Online` means HTTP 200 for the homepage, or HTTP 2xx for an explicit health
+Use ↻ on a card or table row to check the site. Configuration changes clear the previous
+result; disabled sites are not checked. Search by name, host, or repository and filters
+operate locally in both views and are preserved when switching views.
+
+Tiles are shown by default. The “Плитки / Таблица” (Tiles / Table) switch saves only
+the selected view in this browser (`localStorage['tablo.dashboard.view.v1']`). When
+storage is unavailable, switching still works until reload. Search and filter state
+are retained for the current history entry: Back restores them, while a normal check
+or save opens a fresh overview. These controls send no requests and do not extend
+the session. Without JavaScript, tiles, checks, and edit links work. On narrow screens,
+the table scrolls within its own region, which supports Tab focus and keyboard scrolling.
+
+`Online` means HTTP 200 for the homepage, or HTTP 2xx for an explicit health
 endpoint with a successful JSON condition when enabled. `Offline` means another
 received status for that mode or a failed JSON condition. “Нет данных” (No data)
 means DNS, transport, request-policy, or JSON parsing failure; “На паузе” (Paused)
@@ -897,8 +933,11 @@ public files.
 `--password-stdin` accepts exactly two UTF-8 lines (password and confirmation),
 each terminated by LF or CRLF, followed by EOF. Only line endings are removed;
 spaces remain. TTY, BOM, NUL, extra/unterminated lines, unsupported encoding/framing,
-mismatch, or overflow cause refusal. Shared web/CLI validation requires 12–72
-**bytes**, exact untrimmed confirmation, PASSWORD_DEFAULT, and a random salt.
+mismatch, or overflow cause refusal. Shared web/CLI validation requires 12–1024
+**bytes**, exact confirmation without trimming or normalization, Argon2id with
+64 MiB/three passes/one thread, and a random salt. Both fields are bounded before
+comparison. The stdin payload limit is 2052 bytes with CRLF or 2050 with LF;
+a 1025-byte line or overflow is refused. Six Cyrillic letters can supply 12 bytes.
 Newlines allowed by general web validation cannot be represented by this separate
 stdin protocol. The command cannot establish a third-party producer's security.
 
@@ -931,7 +970,9 @@ the password. `-T` disables the default TTY for stdin. See
 [Compose exec](https://docs.docker.com/reference/cli/docker/compose/exec/) and
 [Compose run](https://docs.docker.com/reference/cli/docker/compose/run/).
 
-The chosen hash snapshot is fixed **before** reading stdin. Two processes sharing
+The CLI fixes its chosen hash snapshot **before** reading stdin. The helper's
+two protected prompts precede CLI startup, so selection does not precede those
+prompts. Two processes sharing
 one old snapshot cannot overwrite each other: one succeeds and the other reports
 conflict/busy. A deliberate later change with a new snapshot is allowed. The same
 current password and a repeated completed change are refused without rehashing.
@@ -1246,9 +1287,8 @@ This runs `composer test`, not `composer verify`; the container does not install
 Lekalo or Mago. Production `.dockerignore` excludes tests; dev packages exist only
 in the temporary copy.
 
-For an optional visual fixture, `tests/browser-fixture.php` creates
-`artifacts/browser.sqlite` by default with explicitly synthetic data, without
-changing the main installation. To use a separate directory:
+For an optional visual fixture, `tests/browser-fixture.php` requires an explicit
+path to a new database with synthetic data, without changing the main installation:
 
 ```powershell
 php tests/browser-fixture.php artifacts/screenshots-demo/browser.sqlite
@@ -1262,8 +1302,8 @@ Malformed remaining/Retry-After alone does not block other credentials. 301/302,
 unconfirmed branches, and large branch lists yield safe correction guidance.
 See [policy, actual timing limits, and 20-site measurements](docs/github-polling.md).
 
-The fixture contains only fictional `example/*` projects and a demonstration
-token. For visual checks use `tests/web-router.php` with `TABLO_DB` pointing at
+The fixture contains only fictional `example/*` projects and synthetic check
+results; it does not create Git tokens. For visual checks use `tests/web-router.php` with `TABLO_DB` pointing at
 that database and `TABLO_TEST_RUNTIME` at a separate session/Volt cache directory.
 This router substitutes fixture GitHub responses; no real GitHub token is needed.
 
@@ -1368,3 +1408,5 @@ of Git/endpoint credentials and cannot authenticate browser actions. The reader 
 an existing current database without migration or site writes. See
 [the v1 contract and privacy limits](docs/read-api.md) and
 [JSON schema](contracts/read-api-v1.schema.json).
+
+Git provider expansion plan: [Gitea, contracts and future acceptance](docs/git-provider-plan.md).

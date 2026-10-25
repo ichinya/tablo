@@ -267,15 +267,15 @@ function server_native_case_result(string $root, DOMElement $case, array $spec):
     return ['status' => 'passed', 'assertions' => $assertions, 'seconds' => server_native_elapsed($case, $spec['deadlineSeconds'])];
 }
 
-/** The sole original platform exception is checked against the actual PHP runtime, never an input alias.
+/** The original host and six exact fixture exceptions use the actual PHP runtime, never an input alias.
  * @param array{identity: string, path: string, minimumAssertions: int, deadlineSeconds: ?int} $spec
  * @return array{status: string, assertions: int, seconds: float} */
 function server_native_original_platform_skip(DOMElement $case, array $spec): array
 {
-    $policy = server_native_baseline_platform_policy();
+    $policy = server_native_baseline_platform_skips()[$spec['identity']] ?? null;
     $skips = $case->getElementsByTagName('skipped'); $skip = $skips->item(0);
-    if (PHP_OS_FAMILY !== 'Linux' || [$spec['identity'], $spec['path'], $spec['deadlineSeconds']]
-        !== [$policy['identity'], $policy['path'], null] || $case->getAttribute('assertions') !== '0'
+    if (PHP_OS_FAMILY !== 'Linux' || $policy === null || [$spec['path'], $spec['deadlineSeconds']]
+        !== [$policy['path'], null] || $case->getAttribute('assertions') !== '0'
         || $skips->length !== 1 || !$skip instanceof DOMElement || $skip->parentNode !== $case
         || $skip->getAttribute('message') !== $policy['reason'] || $skip->textContent !== '') {
         throw new RuntimeException('Original native platform skip qualification refused.');
@@ -286,17 +286,54 @@ function server_native_original_platform_skip(DOMElement $case, array $spec): ar
     return ['status' => 'skipped_platform', 'assertions' => 0, 'seconds' => server_native_elapsed($case, maximum: null)];
 }
 
-/** @return array{platform: string, identity: string, path: string, reason: string, windowsPassed: int, linuxPassed: int} */
+/** The exact ordinary-source union is reviewed independently of child totals. */
+function server_native_baseline_identity_count(): int { return 507; }
+
+/** @return array{platform: string, identity: string, path: string, reason: string, windowsPassed: int, linuxPassed: int, additionalSkips: list<array{identity: string, path: string, reason: string}>} */
 function server_native_baseline_platform_policy(): array
 {
     return ['platform' => 'Linux', 'identity' => 'Tablo\\Tests\\Network\\PasswordHelperTest::shippedHelperPreservesHostEncodingAndExactCredentials',
-        'path' => 'tests/Network/PasswordHelperTest.php', 'reason' => 'Native Windows PowerShell host required.', 'windowsPassed' => 441, 'linuxPassed' => 440];
+        'path' => 'tests/Network/PasswordHelperTest.php', 'reason' => 'Native Windows PowerShell host required.',
+        'windowsPassed' => server_native_baseline_identity_count(), 'linuxPassed' => server_native_baseline_identity_count() - 7,
+        'additionalSkips' => [
+            ['identity' => 'Tablo\\Tests\\Network\\PasswordHelperFixtureObservationTest::preHelperStallEmitsEntryWhileNativeStagesRemainUnobserved', 'path' => 'tests/Network/PasswordHelperFixtureObservationTest.php', 'reason' => 'Native Windows PowerShell fixture control required.'],
+            ['identity' => 'Tablo\\Tests\\Network\\PasswordHelperFixtureObservationTest::observerDiagnosticFailurePreservesCallerAndRejectsIncompleteCollection', 'path' => 'tests/Network/PasswordHelperFixtureObservationTest.php', 'reason' => 'Native Windows PowerShell fixture control required.'],
+            ['identity' => 'Tablo\\Tests\\Network\\PasswordHelperFixtureObservationTest::fixtureReadinessRequiresEntryAndKnownTerminationExit', 'path' => 'tests/Network/PasswordHelperFixtureObservationTest.php', 'reason' => 'Native Windows PowerShell fixture control required.'],
+            ['identity' => 'Tablo\\Tests\\Network\\PasswordHelperFixtureObservationTest::fixtureAppendCollisionFailsCollectorAndPreservesActualHelperFailure', 'path' => 'tests/Network/PasswordHelperFixtureObservationTest.php', 'reason' => 'Native Windows PowerShell fixture control required.'],
+            ['identity' => 'Tablo\\Tests\\Network\\PasswordHelperFixtureObservationTest::normalFixtureOrdersNativeEventsWithOriginalCredentialEncodingRepeatAndPrivacyAssertions', 'path' => 'tests/Network/PasswordHelperFixtureObservationTest.php', 'reason' => 'Native Windows PowerShell fixture control required.'],
+            ['identity' => 'Tablo\\Tests\\Network\\PasswordHelperFixtureReadinessTest::fixtureReadinessRequiresMarkerAndEntryWithinOriginalBudget', 'path' => 'tests/Network/PasswordHelperFixtureReadinessTest.php', 'reason' => 'Native Windows PowerShell fixture control required.'],
+        ]];
+}
+
+/** Source-authored registry, never an exception list supplied by a child report.
+ * @return array<string, array{path: string, reason: string}> */
+function server_native_baseline_platform_skips(): array
+{
+    $policy = server_native_baseline_platform_policy();
+    $skips = [$policy['identity'] => ['path' => $policy['path'], 'reason' => $policy['reason']]];
+    foreach ($policy['additionalSkips'] as $skip) { $skips[$skip['identity']] = ['path' => $skip['path'], 'reason' => $skip['reason']]; }
+    return $skips;
+}
+
+/** Pure declaration admission, before importing any actual baseline process evidence.
+ * @return array<string, array{identity: string, path: string, minimumAssertions: int, deadlineSeconds: ?int}> */
+function server_native_baseline_declaration(array $declaration): array
+{
+    if (SqlColumn::integer($declaration, 'requiredIdentityCount') !== server_native_baseline_identity_count()) { throw new RuntimeException('Required SQLite baseline changed.'); }
+    $policy = ['scope' => 'original-subprocess', 'defaultChildSeconds' => 8,
+        'explicitBudgetSource' => 'Unchanged original CommandOptions call sites, including20second helper operations',
+        'methodDeadlineSeconds' => null, 'overallParentSeconds' => 1800];
+    if (($declaration['budgetPolicy'] ?? null) !== $policy) { throw new RuntimeException('Original SQLite budget policy changed.'); }
+    if (($declaration['platformPolicy'] ?? null) !== server_native_baseline_platform_policy()) { throw new RuntimeException('Original SQLite platform policy changed.'); }
+    $cases = server_native_cases(['cases' => ['baseline' => $declaration['identities'] ?? null]], lane: 'baseline');
+    if (count($cases) !== server_native_baseline_identity_count()) { throw new RuntimeException('Exact integrated baseline declarations missing.'); }
+    return $cases;
 }
 
 /** @param array{cases: array<string, array{status: string, assertions: int, seconds: float}>, assertions: int, platform: string} $native */
 function server_native_baseline_summary(array $summary, array $native): void
 {
-    if ($native['platform'] !== PHP_OS_FAMILY || count($native['cases']) !== 441) { throw new RuntimeException('Original native platform or baseline union refused.'); }
+    if ($native['platform'] !== PHP_OS_FAMILY || count($native['cases']) !== server_native_baseline_identity_count()) { throw new RuntimeException('Original native platform or baseline union refused.'); }
     $counts = server_native_baseline_counts($native['cases']);
     if ($counts['assertions'] !== $native['assertions']) { throw new RuntimeException('Original native assertion sum disagrees.'); }
     server_native_baseline_totals($summary, $counts);
@@ -306,26 +343,28 @@ function server_native_baseline_summary(array $summary, array $native): void
  * @return array{assertions: int, skipped: int} */
 function server_native_baseline_counts(array $cases): array
 {
-    $skipped = 0; $assertions = 0;
+    $skipped = []; $assertions = 0; $allowed = server_native_baseline_platform_skips();
     foreach ($cases as $identity => $case) {
         if ($case['status'] === 'passed' && $case['assertions'] > 0) { $assertions += $case['assertions']; continue; }
-        if ([PHP_OS_FAMILY, $identity, $case['status'], $case['assertions']] !== ['Linux', server_native_baseline_platform_policy()['identity'], 'skipped_platform', 0]) {
+        if (PHP_OS_FAMILY !== 'Linux' || !array_key_exists($identity, $allowed) || [$case['status'], $case['assertions']] !== ['skipped_platform', 0]) {
             throw new RuntimeException('Original native baseline outcome refused.');
         }
-        $skipped++;
+        $skipped[] = $identity;
     }
-    return ['assertions' => $assertions, 'skipped' => $skipped];
+    $expected = PHP_OS_FAMILY === 'Linux' ? array_keys($allowed) : []; sort($skipped); sort($expected);
+    if ($skipped !== $expected) { throw new RuntimeException('Exact native baseline platform skip set refused.'); }
+    return ['assertions' => $assertions, 'skipped' => count($skipped)];
 }
 
 /** @param array{assertions: int, skipped: int} $counts */
 function server_native_baseline_totals(array $summary, array $counts): void
 {
-    $expectedSkips = PHP_OS_FAMILY === 'Linux' ? 1 : 0;
+    $expectedSkips = PHP_OS_FAMILY === 'Linux' ? 7 : 0;
     $assertions = $counts['assertions'];
     $totals = JsonRecord::checked($summary['totals'] ?? null);
     if ($counts['skipped'] !== $expectedSkips || $assertions < 1 || ($summary['status'] ?? null) !== 'passed'
         || [SqlColumn::integer($totals, 'total'), SqlColumn::integer($totals, 'passed'), SqlColumn::integer($totals, 'assertions'), $totals['skipped'] ?? 0]
-            !== [441, 441 - $expectedSkips, $assertions, $expectedSkips] || ($summary['failures'] ?? null) !== []) {
+            !== [server_native_baseline_identity_count(), server_native_baseline_identity_count() - $expectedSkips, $assertions, $expectedSkips] || ($summary['failures'] ?? null) !== []) {
         throw new RuntimeException('Original native baseline summary and JUnit disagree.');
     }
     foreach (array_keys($totals) as $name) {

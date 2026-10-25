@@ -49,12 +49,14 @@ final class Auth
                 throw ValidationException::field(field: 'password', message: 'Слишком много попыток. Повторите через 15 минут.');
             }
             $hash = $this->adminHash();
-            $valid = is_string($hash) && !str_contains($password, "\0") && password_verify($password, $hash);
+            $valid = is_string($hash) && PasswordService::verify($password, $hash);
             if ($valid) {
                 \Tablo\SqlStatement::checked($this->db->prepare('DELETE FROM login_limits WHERE `key` = ?'))->execute([$key]);
-                if (password_needs_rehash($hash, PASSWORD_DEFAULT)) {
-                    $hash = PasswordService::hash($password, $password);
-                    (new AdministratorCredentialWrite($this->db))->executeCredential('UPDATE users SET password_hash = ? WHERE id = 1', [$hash]);
+                $replacement = PasswordService::upgradeVerified($password, $hash);
+                if ($replacement !== null) {
+                    $changed = (new AdministratorCredentialWrite($this->db))->executeCredential('UPDATE users SET password_hash = ? WHERE id = 1 AND password_hash = ?', [$replacement, $hash]);
+                    if ([$changed, $this->adminHash()] !== [1, $replacement]) { throw new PasswordConflict('Credential write conflicted.'); }
+                    $hash = $replacement;
                 }
             }
             if (!$valid) {
@@ -88,7 +90,7 @@ final class Auth
     public function credentialFingerprint(): ?string
     {
         $hash = $this->adminHash();
-        return $hash === null ? null : AdministratorFingerprint::fingerprint($hash);
+        return $hash === null || !PasswordService::supportsStoredHash($hash) ? null : AdministratorFingerprint::fingerprint($hash);
     }
 
 

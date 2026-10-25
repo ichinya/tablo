@@ -132,7 +132,7 @@ final class AdminPasswordStorageTest extends AdminPasswordFixtureCase
             Assert::same(\Tablo\Tests\Support\FixtureValue::at(self::command($directory, $path, ['--password-stdin'], \Tablo\Tests\Support\FixtureCredentials::confirmationInput(label: 'replacement-secret')), 'exit_code'), 4);
             Assert::same(\Tablo\SqlRows::all(\Tablo\SqlStatement::checked($db->query('SELECT * FROM users'))->fetchAll(), \Tablo\SqlUsersCreatedAtIdPasswordHashRow::checked(...)), $old);
             $db->exec('DROP TRIGGER ignore_reset');
-            $malformed = substr_replace(\Tablo\Tests\Support\FixtureValue::at($old, 0)['password_hash'], replace: '00', offset: 4, length: 2);
+            $malformed = '$argon2id$v=19$m=0,t=3,p=1$malformed$independent';
             \Tablo\SqlStatement::checked($db->prepare('UPDATE users SET password_hash=?'))->execute([$malformed]);
             Assert::same(\Tablo\Tests\Support\FixtureValue::at(self::command($directory, $path, ['--show-installation']), 'exit_code'), 3);
         } catch (\Throwable $error) { $directory->retainFailure($error); throw $error; }

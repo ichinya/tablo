@@ -106,32 +106,18 @@ final class EngineVerificationTest
     public function onlyTheOriginalWindowsHostCaseCanBeAQualifiedLinuxPlatformSkip(): void
     {
         require_once dirname(__DIR__, levels: 2) . '/tools/ServerTestEvidence.php';
-        $policy = \Tablo\Tools\server_native_baseline_platform_policy();
+        $policies = engine_verification_platform_policies();
+        $expected = [];
+        foreach ($policies as $policy) { $expected[$policy['identity']] = ['path' => $policy['path'], 'reason' => $policy['reason']]; }
+        Assert::same(\Tablo\Tools\server_native_baseline_platform_skips(), $expected);
+        engine_verification_integrated_baseline($policies);
         $root = dirname(__DIR__, levels: 2); $directory = new TemporaryDirectory('tablo-platform-evidence-');
         try {
-            $parts = explode('::', $policy['identity']);
-            $file = htmlspecialchars($root . '/' . $policy['path'], ENT_XML1 | ENT_QUOTES, encoding: 'UTF-8');
-            $wire = '<testcase classname="' . $parts[0] . '" name="' . ($parts[1] ?? throw new \RuntimeException('Original method identity absent.')) . '" file="' . $file
-                . '" assertions="0" time="0.01" testo:status="skipped"><skipped message="' . $policy['reason'] . '"/></testcase>';
-            $spec = ['identity' => $policy['identity'], 'path' => $policy['path'], 'minimumAssertions' => 1, 'deadlineSeconds' => null];
-            $required = [$policy['identity'] => $spec]; $report = $directory->path . '/report.xml';
-            engine_verification_report($report, $wire);
-            if (PHP_OS_FAMILY === 'Linux') {
-                $actual = \Tablo\Tools\server_native_junit($root, $report, $required);
-                Assert::same([$actual['platform'], $actual['cases'][$policy['identity']]['status'] ?? null, $actual['assertions']], ['Linux', 'skipped_platform', 0]);
-            }
-            if (PHP_OS_FAMILY !== 'Linux') { Assert::true(engine_verification_refuses(static fn (): array => \Tablo\Tools\server_native_junit($root, $report, $required))); }
-            foreach ([str_replace($policy['reason'], replace: 'Different reason', subject: $wire),
-                str_replace('assertions="0"', replace: 'assertions="1"', subject: $wire),
-                str_replace('testo:status="skipped"', replace: 'testo:status="cancelled"', subject: $wire),
-                str_replace('</testcase>', replace: '<error/></testcase>', subject: $wire),
-                str_replace('</testcase>', replace: '<skipped message="' . $policy['reason'] . '"/></testcase>', subject: $wire)] as $invalid) {
-                engine_verification_report($report, $invalid);
-                Assert::true(engine_verification_refuses(static fn (): array => \Tablo\Tools\server_native_junit($root, $report, $required)));
-            }
+            foreach ($policies as $policy) { engine_verification_platform_case($root, $directory, $policy); }
+            $report = $directory->path . '/report.xml';
             engine_verification_report($report, engine_verification_testcase('skipped', assertions: 0));
             Assert::true(engine_verification_refuses(static fn (): array => \Tablo\Tools\server_native_junit($root, $report, engine_verification_required())));
-            engine_verification_baseline_summary($policy['identity']);
+            engine_verification_baseline_summary($policies);
         } finally { $directory->close(); }
     }
 
@@ -409,24 +395,128 @@ PHP;
     } finally { $directory->close(); }
 }
 
-/** The aggregate fixture checks summary agreement without replacing real native platform metadata. */
-function engine_verification_baseline_summary(string $identity): void
+/** Independent authorization tuples; do not derive negative controls from the qualifier's generated policy.
+ * @return list<array{identity: string, path: string, reason: string}> */
+function engine_verification_platform_policies(): array
+{
+    return [
+        ['identity' => 'Tablo\\Tests\\Network\\PasswordHelperTest::shippedHelperPreservesHostEncodingAndExactCredentials', 'path' => 'tests/Network/PasswordHelperTest.php', 'reason' => 'Native Windows PowerShell host required.'],
+        ['identity' => 'Tablo\\Tests\\Network\\PasswordHelperFixtureObservationTest::preHelperStallEmitsEntryWhileNativeStagesRemainUnobserved', 'path' => 'tests/Network/PasswordHelperFixtureObservationTest.php', 'reason' => 'Native Windows PowerShell fixture control required.'],
+        ['identity' => 'Tablo\\Tests\\Network\\PasswordHelperFixtureObservationTest::observerDiagnosticFailurePreservesCallerAndRejectsIncompleteCollection', 'path' => 'tests/Network/PasswordHelperFixtureObservationTest.php', 'reason' => 'Native Windows PowerShell fixture control required.'],
+        ['identity' => 'Tablo\\Tests\\Network\\PasswordHelperFixtureObservationTest::fixtureReadinessRequiresEntryAndKnownTerminationExit', 'path' => 'tests/Network/PasswordHelperFixtureObservationTest.php', 'reason' => 'Native Windows PowerShell fixture control required.'],
+        ['identity' => 'Tablo\\Tests\\Network\\PasswordHelperFixtureObservationTest::fixtureAppendCollisionFailsCollectorAndPreservesActualHelperFailure', 'path' => 'tests/Network/PasswordHelperFixtureObservationTest.php', 'reason' => 'Native Windows PowerShell fixture control required.'],
+        ['identity' => 'Tablo\\Tests\\Network\\PasswordHelperFixtureObservationTest::normalFixtureOrdersNativeEventsWithOriginalCredentialEncodingRepeatAndPrivacyAssertions', 'path' => 'tests/Network/PasswordHelperFixtureObservationTest.php', 'reason' => 'Native Windows PowerShell fixture control required.'],
+        ['identity' => 'Tablo\\Tests\\Network\\PasswordHelperFixtureReadinessTest::fixtureReadinessRequiresMarkerAndEntryWithinOriginalBudget', 'path' => 'tests/Network/PasswordHelperFixtureReadinessTest.php', 'reason' => 'Native Windows PowerShell fixture control required.'],
+    ];
+}
+
+/** @param list<array{identity: string, path: string, reason: string}> $policies */
+function engine_verification_integrated_baseline(array $policies): void
+{
+    $catalog = \Tablo\JsonRecord::decode(\Tablo\RequiredFile::bytes(file_get_contents(dirname(__DIR__, levels: 2) . '/tools/server-native-tests.json')));
+    $declaration = \Tablo\JsonRecord::checked($catalog['baseline'] ?? null);
+    $required = \Tablo\Tools\server_native_baseline_declaration($declaration);
+    Assert::same(count($required), 507);
+    foreach ($policies as $policy) { Assert::same($required[$policy['identity']]['path'] ?? null, $policy['path']); }
+    $identities = \Tablo\JsonRecord::checked($declaration['identities'] ?? null);
+    $variants = [];
+    $changed = $declaration; $changed['requiredIdentityCount'] = 441; $variants[] = $changed;
+    $changed = $declaration; $changed['identities'] = array_slice($identities, offset: 0, length: -1); $variants[] = $changed;
+    $changed = $declaration; $extraIdentity = $identities; $extraIdentity[] = $identities[0] ?? null; $changed['identities'] = $extraIdentity; $variants[] = $changed;
+    $changed = $declaration; $duplicateIdentity = $identities; $duplicateIdentity[1] = $identities[0] ?? null; $changed['identities'] = $duplicateIdentity; $variants[] = $changed;
+    $changed = $declaration;
+    $platform = \Tablo\JsonRecord::checked($changed['platformPolicy'] ?? null);
+    $additional = \Tablo\JsonRecord::checked($platform['additionalSkips'] ?? null);
+    $additional[] = ['identity' => 'Unknown\\Evidence::skip', 'path' => 'tests/Network/PasswordHelperTest.php', 'reason' => 'Native Windows PowerShell host required.'];
+    $platform['additionalSkips'] = $additional; $changed['platformPolicy'] = $platform; $variants[] = $changed;
+    foreach ($variants as $invalid) {
+        Assert::true(engine_verification_refuses(static fn (): array => \Tablo\Tools\server_native_baseline_declaration($invalid)));
+    }
+}
+
+/** @param array{identity: string, path: string, reason: string} $policy */
+function engine_verification_platform_wire(string $root, array $policy): string
+{
+    $parts = explode('::', $policy['identity']);
+    $file = htmlspecialchars($root . '/' . $policy['path'], ENT_XML1 | ENT_QUOTES, encoding: 'UTF-8');
+    return '<testcase classname="' . $parts[0] . '" name="' . ($parts[1] ?? throw new \RuntimeException('Platform method identity absent.')) . '" file="' . $file
+        . '" assertions="0" time="0.01" testo:status="skipped"><skipped message="' . $policy['reason'] . '"/></testcase>';
+}
+
+/** @param array{identity: string, path: string, reason: string} $policy */
+function engine_verification_platform_case(string $root, TemporaryDirectory $directory, array $policy): void
+{
+    $wire = engine_verification_platform_wire($root, $policy); $report = $directory->path . '/report.xml';
+    $spec = ['identity' => $policy['identity'], 'path' => $policy['path'], 'minimumAssertions' => 1, 'deadlineSeconds' => null];
+    $required = [$policy['identity'] => $spec];
+    engine_verification_report($report, $wire);
+    if (PHP_OS_FAMILY === 'Linux') {
+        $actual = \Tablo\Tools\server_native_junit($root, $report, $required);
+        Assert::same([$actual['platform'], $actual['cases'][$policy['identity']]['status'] ?? null, $actual['assertions']], ['Linux', 'skipped_platform', 0]);
+    }
+    if (PHP_OS_FAMILY !== 'Linux') { Assert::true(engine_verification_refuses(static fn (): array => \Tablo\Tools\server_native_junit($root, $report, $required))); }
+    $invalid = [str_replace($policy['reason'], replace: 'Different reason', subject: $wire),
+        str_replace('assertions="0"', replace: 'assertions="1"', subject: $wire),
+        str_replace('assertions="0"', replace: 'assertions="00"', subject: $wire),
+        str_replace('time="0.01"', replace: 'time="INF"', subject: $wire),
+        str_replace('testo:status="skipped"', replace: 'testo:status="cancelled"', subject: $wire),
+        str_replace('</testcase>', replace: '<skipped message="' . $policy['reason'] . '"/></testcase>', subject: $wire),
+        str_replace('/></testcase>', replace: '>unexpected</skipped></testcase>', subject: $wire),
+        str_replace('<skipped message=', replace: '<wrapper><skipped message=', subject: str_replace('/></testcase>', replace: '/></wrapper></testcase>', subject: $wire))];
+    foreach (['failure', 'error', 'flakyFailure', 'flakyError', 'rerunFailure', 'rerunError'] as $tag) {
+        $invalid[] = str_replace('</testcase>', replace: '<' . $tag . '/></testcase>', subject: $wire);
+    }
+    foreach ($invalid as $bytes) {
+        engine_verification_report($report, $bytes);
+        Assert::true(engine_verification_refuses(static fn (): array => \Tablo\Tools\server_native_junit($root, $report, $required)));
+    }
+    foreach ([['identity' => $policy['identity'] . 'Unknown'], ['path' => $policy['path'] === 'tests/Network/PasswordHelperTest.php'
+        ? 'tests/Network/PasswordHelperFixtureReadinessTest.php' : 'tests/Network/PasswordHelperTest.php']] as $change) {
+        $foreign = ['identity' => $change['identity'] ?? $policy['identity'], 'path' => $change['path'] ?? $policy['path'], 'reason' => $policy['reason']];
+        $foreignSpec = ['identity' => $foreign['identity'], 'path' => $foreign['path'], 'minimumAssertions' => 1, 'deadlineSeconds' => null];
+        engine_verification_report($report, engine_verification_platform_wire($root, $foreign));
+        Assert::true(engine_verification_refuses(static fn (): array => \Tablo\Tools\server_native_junit($root, $report, [$foreign['identity'] => $foreignSpec])));
+    }
+}
+
+/** The aggregate fixture checks an independently specified skip set and summary agreement.
+ * @param list<array{identity: string, path: string, reason: string}> $policies */
+function engine_verification_baseline_summary(array $policies): void
 {
     $cases = [];
-    for ($index = 0; $index < 440; $index++) { $cases['Synthetic\\Baseline::case' . $index] = ['status' => 'passed', 'assertions' => 1, 'seconds' => 0.01]; }
-    $linux = PHP_OS_FAMILY === 'Linux'; $passed = $linux ? 440 : 441;
-    $cases[$identity] = ['status' => $linux ? 'skipped_platform' : 'passed', 'assertions' => $linux ? 0 : 1, 'seconds' => 0.01];
+    for ($index = 0; $index < 500; $index++) { $cases['Synthetic\\Baseline::case' . $index] = ['status' => 'passed', 'assertions' => 1, 'seconds' => 0.01]; }
+    $linux = PHP_OS_FAMILY === 'Linux'; $passed = $linux ? 500 : 507;
+    foreach ($policies as $policy) { $cases[$policy['identity']] = ['status' => $linux ? 'skipped_platform' : 'passed', 'assertions' => $linux ? 0 : 1, 'seconds' => 0.01]; }
     $native = ['cases' => $cases, 'assertions' => $passed, 'platform' => PHP_OS_FAMILY];
-    $summary = ['status' => 'passed', 'totals' => ['total' => 441, 'passed' => $passed, 'assertions' => $passed, 'skipped' => $linux ? 1 : 0], 'failures' => []];
-    \Tablo\Tools\server_native_baseline_summary($summary, $native); Assert::same(count($native['cases']), 441);
-    foreach (['error' => 1, 'skipped' => 2] as $name => $count) {
-        $wrong = $summary; $wrong['totals'][$name] = $count; $refused = false;
+    $summary = ['status' => 'passed', 'totals' => ['total' => 507, 'passed' => $passed, 'assertions' => $passed, 'skipped' => $linux ? 7 : 0], 'failures' => []];
+    \Tablo\Tools\server_native_baseline_summary($summary, $native); Assert::same(count($native['cases']), 507);
+    engine_verification_baseline_summary_invalid($summary, $native);
+    engine_verification_baseline_skips_invalid($summary, $native, $policies[0]['identity'] ?? throw new \RuntimeException('Independent original platform tuple missing.'));
+}
+
+/** @param array{cases: array<string, array{status: string, assertions: int, seconds: float}>, assertions: int, platform: string} $native */
+function engine_verification_baseline_summary_invalid(array $summary, array $native): void
+{
+    foreach (['error' => 1, 'skipped' => 8, 'total' => 441] as $name => $count) {
+        $wrong = $summary; $totals = \Tablo\JsonRecord::checked($wrong['totals'] ?? null); $totals[$name] = $count; $wrong['totals'] = $totals; $refused = false;
         try { \Tablo\Tools\server_native_baseline_summary($wrong, $native); } catch (\RuntimeException) { $refused = true; }
         Assert::true($refused);
     }
-    $native['platform'] = PHP_OS_FAMILY === 'Linux' ? 'Windows' : 'Linux'; $refused = false;
-    try { \Tablo\Tools\server_native_baseline_summary($summary, $native); } catch (\RuntimeException) { $refused = true; }
-    Assert::true($refused);
+    $native['platform'] = PHP_OS_FAMILY === 'Linux' ? 'Windows' : 'Linux';
+    Assert::true(engine_verification_refuses(static fn () => \Tablo\Tools\server_native_baseline_summary($summary, $native)));
+}
+
+/** @param array{cases: array<string, array{status: string, assertions: int, seconds: float}>, assertions: int, platform: string} $native */
+function engine_verification_baseline_skips_invalid(array $summary, array $native, string $first): void
+{
+    $wrong = $native; $wrong['cases']['Synthetic\\Baseline::case0'] = ['status' => 'skipped_platform', 'assertions' => 0, 'seconds' => 0.01];
+    Assert::true(engine_verification_refuses(static fn () => \Tablo\Tools\server_native_baseline_summary($summary, $wrong)));
+    if (PHP_OS_FAMILY === 'Linux') {
+        $wrong = $native; $wrong['cases']['Unknown\\Evidence::skip'] = $wrong['cases'][$first] ?? throw new \RuntimeException('Independent original platform case missing.'); unset($wrong['cases'][$first]);
+        Assert::true(engine_verification_refuses(static fn () => \Tablo\Tools\server_native_baseline_summary($summary, $wrong)), 'The correct skip count cannot authorize an unknown replacement identity.');
+        $wrong = $native; $wrong['cases'][$first] = ['status' => 'passed', 'assertions' => 1, 'seconds' => 0.01];
+        Assert::true(engine_verification_refuses(static fn () => \Tablo\Tools\server_native_baseline_summary($summary, $wrong)), 'Every exact Linux skip must be present.');
+    }
 }
 
 /** Synthetic wire rejection tests only; the real existing Testo child is required by the engine cell. */

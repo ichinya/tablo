@@ -4201,7 +4201,7 @@
     }
   },
   "baseline": {
-    "requiredIdentityCount": 441,
+    "requiredIdentityCount": 507,
     "identities": [
       {
         "identity": "Tablo\\Tests\\Http\\AdminPasswordTest::resetRevokesEveryProtectedRouteAndPreservesSetupAndData",
@@ -7289,6 +7289,468 @@
         "dataRows": [],
         "minimumAssertions": 1,
         "deadlineSeconds": null
+      },
+      {
+        "identity": "Tablo\\Tests\\Http\\AuthenticationLifecycleTest::longLoginUsesItsEntireRawCredentialAndRejectsANulOrChangedSuffix",
+        "path": "tests/Http/AuthenticationLifecycleTest.php",
+        "dataRows": [],
+        "minimumAssertions": 1,
+        "deadlineSeconds": null
+      },
+      {
+        "identity": "Tablo\\Tests\\Http\\AuthenticationSetupTest::setupCountsUtf8BytesAndBoundsBothFieldsBeforeCreatingTheAdministrator",
+        "path": "tests/Http/AuthenticationSetupTest.php",
+        "dataRows": [],
+        "minimumAssertions": 1,
+        "deadlineSeconds": null
+      },
+      {
+        "identity": "Tablo\\Tests\\Http\\DashboardModeActionsTest::bothModesAssociateNativeCsrfFormsLinksAndPausedControls",
+        "path": "tests/Http/DashboardModeActionsTest.php",
+        "dataRows": [],
+        "minimumAssertions": 1,
+        "deadlineSeconds": null
+      },
+      {
+        "identity": "Tablo\\Tests\\Http\\DashboardModeActionsTest::csrfAnonymousExpiredAndRevokedSessionsCannotCheck",
+        "path": "tests/Http/DashboardModeActionsTest.php",
+        "dataRows": [],
+        "minimumAssertions": 1,
+        "deadlineSeconds": null
+      },
+      {
+        "identity": "Tablo\\Tests\\Http\\DashboardModesTest::bothViewsExcludeSeededEncryptedCredentialsAndEndpointQueries",
+        "path": "tests/Http/DashboardModesTest.php",
+        "dataRows": [],
+        "minimumAssertions": 1,
+        "deadlineSeconds": null
+      },
+      {
+        "identity": "Tablo\\Tests\\Http\\DashboardModesTest::lockedRenderTreatsOmittedMetricsAsUnknownAndEscapesAttributes",
+        "path": "tests/Http/DashboardModesTest.php",
+        "dataRows": [],
+        "minimumAssertions": 1,
+        "deadlineSeconds": null
+      },
+      {
+        "identity": "Tablo\\Tests\\Http\\DashboardModesTest::preservesOrderedPresenterFieldsAndSemanticTable",
+        "path": "tests/Http/DashboardModesTest.php",
+        "dataRows": [],
+        "minimumAssertions": 1,
+        "deadlineSeconds": null
+      },
+      {
+        "identity": "Tablo\\Tests\\Http\\DashboardModesTest::preservesUnknownOptionalPausedAndEscapedPartialStates",
+        "path": "tests/Http/DashboardModesTest.php",
+        "dataRows": [],
+        "minimumAssertions": 1,
+        "deadlineSeconds": null
+      },
+      {
+        "identity": "Tablo\\Tests\\Http\\hsts_genuine_index_expiry_keeps_html_303_and_json_401_with_the_same_policy",
+        "path": "tests/Http/HstsResponseTest.php",
+        "dataRows": [],
+        "minimumAssertions": 1,
+        "deadlineSeconds": null
+      },
+      {
+        "identity": "Tablo\\Tests\\Http\\hsts_genuine_index_json_200_keeps_provider_and_session_flow_with_isolated_outbound_transport",
+        "path": "tests/Http/HstsResponseTest.php",
+        "dataRows": [],
+        "minimumAssertions": 1,
+        "deadlineSeconds": null
+      },
+      {
+        "identity": "Tablo\\Tests\\Http\\hsts_health_never_reads_malformed_hsts_and_retains_capture_failure_boundaries",
+        "path": "tests/Http/HstsBootstrapTest.php",
+        "dataRows": [],
+        "minimumAssertions": 1,
+        "deadlineSeconds": null
+      },
+      {
+        "identity": "Tablo\\Tests\\Http\\hsts_invalid_configuration_refuses_both_ingresses_before_composer_or_state",
+        "path": "tests/Http/HstsBootstrapTest.php",
+        "dataRows": [],
+        "minimumAssertions": 1,
+        "deadlineSeconds": null
+      },
+      {
+        "identity": "Tablo\\Tests\\Http\\hsts_missing_composer_and_policy_have_fixed_responses_and_early_401_is_key_free",
+        "path": "tests/Http/HstsBootstrapTest.php",
+        "dataRows": [],
+        "minimumAssertions": 1,
+        "deadlineSeconds": null
+      },
+      {
+        "identity": "Tablo\\Tests\\Http\\hsts_pre_composer_snapshot_survives_conflicting_dotenv_and_dotenv_alone_cannot_enable_it",
+        "path": "tests/Http/HstsBootstrapTest.php",
+        "dataRows": [],
+        "minimumAssertions": 1,
+        "deadlineSeconds": null
+      },
+      {
+        "identity": "Tablo\\Tests\\Http\\HstsReadApiTest::finalSenderRetainsExactlyOneValidatedFieldAcrossApiStatusesWithoutWrites",
+        "path": "tests/Http/HstsReadApiTest.php",
+        "dataRows": [],
+        "minimumAssertions": 1,
+        "deadlineSeconds": null
+      },
+      {
+        "identity": "Tablo\\Tests\\Http\\HstsReadApiTest::hostileCapturedWorkCannotAuthorizeHeadersCookiesLocationCorsOutputOrStatus",
+        "path": "tests/Http/HstsReadApiTest.php",
+        "dataRows": [],
+        "minimumAssertions": 1,
+        "deadlineSeconds": null
+      },
+      {
+        "identity": "Tablo\\Tests\\Http\\HstsResponseTest::actualIndexPreservesHtmlJsonRedirectAndRefusalResponses",
+        "path": "tests/Http/HstsResponseTest.php",
+        "dataRows": [],
+        "minimumAssertions": 1,
+        "deadlineSeconds": null
+      },
+      {
+        "identity": "Tablo\\Tests\\Http\\HstsResponseTest::hstsAndSecureCookieRemainIndependentAndHttpDoesNotRedirect",
+        "path": "tests/Http/HstsResponseTest.php",
+        "dataRows": [],
+        "minimumAssertions": 1,
+        "deadlineSeconds": null
+      },
+      {
+        "identity": "Tablo\\Tests\\Http\\PasswordLoginRaceTest::aRealResetCommitsAfterLoginEntersButBeforeItsCredentialRead",
+        "path": "tests/Http/PasswordLoginRaceTest.php",
+        "dataRows": [],
+        "minimumAssertions": 1,
+        "deadlineSeconds": null
+      },
+      {
+        "identity": "Tablo\\Tests\\Http\\ReadApiSessionContractTest::samePolicyLoginRotatesItsBrowserSessionWithoutRevokingTheExistingBearer",
+        "path": "tests/Http/ReadApiSessionContractTest.php",
+        "dataRows": [],
+        "minimumAssertions": 1,
+        "deadlineSeconds": null
+      },
+      {
+        "identity": "Tablo\\Tests\\Http\\ReadApiTokenManagementTest::nativeBcryptVariantsUpgradeTheirExactStoredBytesWithoutChangingTheBearerRow",
+        "path": "tests/Http/ReadApiTokenManagementTest.php",
+        "dataRows": [],
+        "minimumAssertions": 1,
+        "deadlineSeconds": null
+      },
+      {
+        "identity": "Tablo\\Tests\\Http\\ReadApiTokenManagementTest::realBcryptLoginUpgradeAndCliResetRevokeOldBearerWhileItsStoredRowStaysIdentical",
+        "path": "tests/Http/ReadApiTokenManagementTest.php",
+        "dataRows": [],
+        "minimumAssertions": 1,
+        "deadlineSeconds": null
+      },
+      {
+        "identity": "Tablo\\Tests\\Network\\AdminPasswordConflictTest::selectedLegacyCommandCannotOverwriteAnActualLoginUpgrade",
+        "path": "tests/Network/AdminPasswordConflictTest.php",
+        "dataRows": [],
+        "minimumAssertions": 1,
+        "deadlineSeconds": null
+      },
+      {
+        "identity": "Tablo\\Tests\\Network\\DashboardModesFixtureCleanupTest::cleansDefaultSnapshotsAndRetainsLateFailures",
+        "path": "tests/Network/DashboardModesFixtureCleanupTest.php",
+        "dataRows": [],
+        "minimumAssertions": 1,
+        "deadlineSeconds": null
+      },
+      {
+        "identity": "Tablo\\Tests\\Network\\DashboardModesFixtureCleanupTest::closesBothRealServersAndReleasesTheDatabaseWhenAuthenticationFails",
+        "path": "tests/Network/DashboardModesFixtureCleanupTest.php",
+        "dataRows": [],
+        "minimumAssertions": 1,
+        "deadlineSeconds": null
+      },
+      {
+        "identity": "Tablo\\Tests\\Network\\DashboardModesFixtureCleanupTest::closesTheRealPeerWhenWebConstructionThrows",
+        "path": "tests/Network/DashboardModesFixtureCleanupTest.php",
+        "dataRows": [],
+        "minimumAssertions": 1,
+        "deadlineSeconds": null
+      },
+      {
+        "identity": "Tablo\\Tests\\Network\\DashboardModesFixtureCleanupTest::enforcesTheObserverJournalAndNativeCompletionContract",
+        "path": "tests/Network/DashboardModesFixtureCleanupTest.php",
+        "dataRows": [],
+        "minimumAssertions": 1,
+        "deadlineSeconds": null
+      },
+      {
+        "identity": "Tablo\\Tests\\Network\\DashboardModesFixtureCleanupTest::exercisePropagatesFinalResourceErrorsAndPreservesTheOriginalPrimary",
+        "path": "tests/Network/DashboardModesFixtureCleanupTest.php",
+        "dataRows": [],
+        "minimumAssertions": 1,
+        "deadlineSeconds": null
+      },
+      {
+        "identity": "Tablo\\Tests\\Network\\DashboardModesFixtureCleanupTest::rejectsLiveResourcesAndAcceptsTheReleasedPort",
+        "path": "tests/Network/DashboardModesFixtureCleanupTest.php",
+        "dataRows": [],
+        "minimumAssertions": 1,
+        "deadlineSeconds": null
+      },
+      {
+        "identity": "Tablo\\Tests\\Network\\DashboardModesFixtureCleanupTest::retainsTheDefaultSnapshotWhenFinalResourceObservationFails",
+        "path": "tests/Network/DashboardModesFixtureCleanupTest.php",
+        "dataRows": [],
+        "minimumAssertions": 1,
+        "deadlineSeconds": null
+      },
+      {
+        "identity": "Tablo\\Tests\\Network\\DashboardModesFixtureCleanupTest::successfulFixtureDisposalStillRemovesItsOwnedDirectories",
+        "path": "tests/Network/DashboardModesFixtureCleanupTest.php",
+        "dataRows": [],
+        "minimumAssertions": 1,
+        "deadlineSeconds": null
+      },
+      {
+        "identity": "Tablo\\Tests\\Network\\hsts_plain_http_edge_overwrites_spoofed_external_scheme_and_direct_mode_ignores_it",
+        "path": "tests/Network/HstsTransportTest.php",
+        "dataRows": [],
+        "minimumAssertions": 1,
+        "deadlineSeconds": null
+      },
+      {
+        "identity": "Tablo\\Tests\\Network\\hsts_real_http_raw_peer_and_duplicate_fields_are_observed_at_the_native_sapi",
+        "path": "tests/Network/HstsTransportTest.php",
+        "dataRows": [],
+        "minimumAssertions": 1,
+        "deadlineSeconds": null
+      },
+      {
+        "identity": "Tablo\\Tests\\Network\\PasswordHelperFixtureObservationTest::fixtureAppendCollisionFailsCollectorAndPreservesActualHelperFailure",
+        "path": "tests/Network/PasswordHelperFixtureObservationTest.php",
+        "dataRows": [],
+        "minimumAssertions": 1,
+        "deadlineSeconds": null
+      },
+      {
+        "identity": "Tablo\\Tests\\Network\\PasswordHelperFixtureObservationTest::fixtureReadinessRequiresEntryAndKnownTerminationExit",
+        "path": "tests/Network/PasswordHelperFixtureObservationTest.php",
+        "dataRows": [],
+        "minimumAssertions": 1,
+        "deadlineSeconds": null
+      },
+      {
+        "identity": "Tablo\\Tests\\Network\\PasswordHelperFixtureObservationTest::normalFixtureOrdersNativeEventsWithOriginalCredentialEncodingRepeatAndPrivacyAssertions",
+        "path": "tests/Network/PasswordHelperFixtureObservationTest.php",
+        "dataRows": [],
+        "minimumAssertions": 1,
+        "deadlineSeconds": null
+      },
+      {
+        "identity": "Tablo\\Tests\\Network\\PasswordHelperFixtureObservationTest::observerDiagnosticFailurePreservesCallerAndRejectsIncompleteCollection",
+        "path": "tests/Network/PasswordHelperFixtureObservationTest.php",
+        "dataRows": [],
+        "minimumAssertions": 1,
+        "deadlineSeconds": null
+      },
+      {
+        "identity": "Tablo\\Tests\\Network\\PasswordHelperFixtureObservationTest::preHelperStallEmitsEntryWhileNativeStagesRemainUnobserved",
+        "path": "tests/Network/PasswordHelperFixtureObservationTest.php",
+        "dataRows": [],
+        "minimumAssertions": 1,
+        "deadlineSeconds": null
+      },
+      {
+        "identity": "Tablo\\Tests\\Network\\PasswordHelperFixtureReadinessTest::fixtureReadinessRequiresMarkerAndEntryWithinOriginalBudget",
+        "path": "tests/Network/PasswordHelperFixtureReadinessTest.php",
+        "dataRows": [],
+        "minimumAssertions": 1,
+        "deadlineSeconds": null
+      },
+      {
+        "identity": "Tablo\\Tests\\Network\\PasswordProviderTest::explicitSimulationsDistinguishInvalidVerificationAbsenceAndReplacementFailure",
+        "path": "tests/Network/PasswordProviderTest.php",
+        "dataRows": [],
+        "minimumAssertions": 1,
+        "deadlineSeconds": null
+      },
+      {
+        "identity": "Tablo\\Tests\\Network\\PasswordProviderTest::simulatedCliProviderFailuresPreserveTheWholeSelectedInstallation",
+        "path": "tests/Network/PasswordProviderTest.php",
+        "dataRows": [],
+        "minimumAssertions": 1,
+        "deadlineSeconds": null
+      },
+      {
+        "identity": "Tablo\\Tests\\Network\\TestServerReadinessTest::genuinePhpServerReadinessAndStartupRefusalStillOwnTheirChildren",
+        "path": "tests/Network/TestServerReadinessTest.php",
+        "dataRows": [],
+        "minimumAssertions": 1,
+        "deadlineSeconds": null
+      },
+      {
+        "identity": "Tablo\\Tests\\Network\\TestServerReadinessTest::liveForeignListenerDoesNotEstablishOwnedServerReadiness",
+        "path": "tests/Network/TestServerReadinessTest.php",
+        "dataRows": [],
+        "minimumAssertions": 1,
+        "deadlineSeconds": null
+      },
+      {
+        "identity": "Tablo\\Tests\\Unit\\AdminPasswordTest::conditionalLoginRefusesZeroRowsAndAReplacedOwnedHashWithAtomicRollback",
+        "path": "tests/Unit/AdminPasswordTest.php",
+        "dataRows": [],
+        "minimumAssertions": 1,
+        "deadlineSeconds": null
+      },
+      {
+        "identity": "Tablo\\Tests\\Unit\\AdminPasswordTest::loginBeginAndCommitFailuresPreserveTheOriginalCredentialAndLimiterSnapshot",
+        "path": "tests/Unit/AdminPasswordTest.php",
+        "dataRows": [],
+        "minimumAssertions": 1,
+        "deadlineSeconds": null
+      },
+      {
+        "identity": "Tablo\\Tests\\Unit\\AdminPasswordTest::resetCanReplaceABcryptPrefixWithADistinctLongCredential",
+        "path": "tests/Unit/AdminPasswordTest.php",
+        "dataRows": [],
+        "minimumAssertions": 1,
+        "deadlineSeconds": null
+      },
+      {
+        "identity": "Tablo\\Tests\\Unit\\AuthTest::hostileCandidatesNeverUpgradeTheVerifiedLegacySnapshot",
+        "path": "tests/Unit/AuthTest.php",
+        "dataRows": [],
+        "minimumAssertions": 1,
+        "deadlineSeconds": null
+      },
+      {
+        "identity": "Tablo\\Tests\\Unit\\DatabaseFailureBoundaryTest::actualWorkerPassStopsAtNestedCooldownPersistenceBeforeAnotherFieldOrSite",
+        "path": "tests/Unit/DatabaseFailureBoundaryTest.php",
+        "dataRows": [],
+        "minimumAssertions": 1,
+        "deadlineSeconds": null
+      },
+      {
+        "identity": "Tablo\\Tests\\Unit\\DatabaseFailureBoundaryTest::cooldownPolicyLedgerMetricAndFieldKeepFatalIdentity",
+        "path": "tests/Unit/DatabaseFailureBoundaryTest.php",
+        "dataRows": [],
+        "minimumAssertions": 1,
+        "deadlineSeconds": null
+      },
+      {
+        "identity": "Tablo\\Tests\\Unit\\DatabaseFailureBoundaryTest::credentialResolverFlagsAndLiveProofPreserveTypedFailures",
+        "path": "tests/Unit/DatabaseFailureBoundaryTest.php",
+        "dataRows": [],
+        "minimumAssertions": 1,
+        "deadlineSeconds": null
+      },
+      {
+        "identity": "Tablo\\Tests\\Unit\\DatabaseFailureBoundaryTest::workerOuterInnerAndPriorityStorageFailuresEscapeWithoutSettlement",
+        "path": "tests/Unit/DatabaseFailureBoundaryTest.php",
+        "dataRows": [],
+        "minimumAssertions": 1,
+        "deadlineSeconds": null
+      },
+      {
+        "identity": "Tablo\\Tests\\Unit\\DatabaseFailureOutputTest::jsonCommandKeepsEarlierSuccessAndAbortsRemainingSitesAsStorageFailure",
+        "path": "tests/Unit/DatabaseFailureOutputTest.php",
+        "dataRows": [],
+        "minimumAssertions": 1,
+        "deadlineSeconds": null
+      },
+      {
+        "identity": "Tablo\\Tests\\Unit\\DatabaseFailureOutputTest::nativeHttpAndEndpointChecksDoNotReclassifyTypedStorageFailures",
+        "path": "tests/Unit/DatabaseFailureOutputTest.php",
+        "dataRows": [],
+        "minimumAssertions": 1,
+        "deadlineSeconds": null
+      },
+      {
+        "identity": "Tablo\\Tests\\Unit\\DatabaseTransferNameTest::realSqliteBadNamesRefusePublicPreflightWithoutChangingSourceRows",
+        "path": "tests/Unit/DatabaseTransferNameTest.php",
+        "dataRows": [],
+        "minimumAssertions": 1,
+        "deadlineSeconds": null
+      },
+      {
+        "identity": "Tablo\\Tests\\Unit\\DatabaseTransferNameTest::selfConsistentBadNameArchivesRefuseBeforeAnyTargetSqlOrClearing",
+        "path": "tests/Unit/DatabaseTransferNameTest.php",
+        "dataRows": [],
+        "minimumAssertions": 1,
+        "deadlineSeconds": null
+      },
+      {
+        "identity": "Tablo\\Tests\\Unit\\DatabaseTransferNameTest::varcharNamesCountCodePointsAndKeepExactPermittedBytes",
+        "path": "tests/Unit/DatabaseTransferNameTest.php",
+        "dataRows": [],
+        "minimumAssertions": 1,
+        "deadlineSeconds": null
+      },
+      {
+        "identity": "Tablo\\Tests\\Unit\\DatabaseTransferPublicationTest::publishedImportSurvivesCleanupFailureAndRefusesCompetingTargets",
+        "path": "tests/Unit/DatabaseTransferPublicationTest.php",
+        "dataRows": [],
+        "minimumAssertions": 1,
+        "deadlineSeconds": null
+      },
+      {
+        "identity": "Tablo\\Tests\\Unit\\hsts_direct_uses_only_exact_server_owned_https_strings",
+        "path": "tests/Unit/HstsPolicyTest.php",
+        "dataRows": [],
+        "minimumAssertions": 1,
+        "deadlineSeconds": null
+      },
+      {
+        "identity": "Tablo\\Tests\\Unit\\hsts_exact_modes_and_canonical_age_refuse_without_leaking_values",
+        "path": "tests/Unit/HstsPolicyTest.php",
+        "dataRows": [],
+        "minimumAssertions": 1,
+        "deadlineSeconds": null
+      },
+      {
+        "identity": "Tablo\\Tests\\Unit\\hsts_proxy_requires_whole_valid_trust_raw_peer_and_one_bounded_https_token",
+        "path": "tests/Unit/HstsPolicyTest.php",
+        "dataRows": [],
+        "minimumAssertions": 1,
+        "deadlineSeconds": null
+      },
+      {
+        "identity": "Tablo\\Tests\\Unit\\PasswordHashPolicyTest::malformedIndependentEncodingsCannotAuthorizeVerificationOrReplacement",
+        "path": "tests/Unit/PasswordHashPolicyTest.php",
+        "dataRows": [],
+        "minimumAssertions": 1,
+        "deadlineSeconds": null
+      },
+      {
+        "identity": "Tablo\\Tests\\Unit\\PasswordHashPolicyTest::replacementPreservesStrongerComponentsAndParallelismAloneDoesNotRewrite",
+        "path": "tests/Unit/PasswordHashPolicyTest.php",
+        "dataRows": [],
+        "minimumAssertions": 1,
+        "deadlineSeconds": null
+      },
+      {
+        "identity": "Tablo\\Tests\\Unit\\PasswordHashPolicyTest::successfulLegacyUpgradeKeepsShortEmptyAndRawCredentialsVerifiable",
+        "path": "tests/Unit/PasswordHashPolicyTest.php",
+        "dataRows": [],
+        "minimumAssertions": 1,
+        "deadlineSeconds": null
+      },
+      {
+        "identity": "Tablo\\Tests\\Unit\\PasswordPrivacyTest::simulatedAuthOperationsUseSafe503WhileVerifierFalseRemainsAnInvalidLogin",
+        "path": "tests/Unit/PasswordPrivacyTest.php",
+        "dataRows": [],
+        "minimumAssertions": 1,
+        "deadlineSeconds": null
+      },
+      {
+        "identity": "Tablo\\Tests\\Unit\\PasswordServiceTest::preservesRawLegacyBytesAndRefusesBcryptPrefixAliasesBeforeVerification",
+        "path": "tests/Unit/PasswordServiceTest.php",
+        "dataRows": [],
+        "minimumAssertions": 1,
+        "deadlineSeconds": null
+      },
+      {
+        "identity": "Tablo\\Tests\\Unit\\ReadApiTokenTest::actualLoginUpgradeAndResetInvalidateBearerWithoutTouchingTheCompleteTokenRow",
+        "path": "tests/Unit/ReadApiTokenTest.php",
+        "dataRows": [],
+        "minimumAssertions": 1,
+        "deadlineSeconds": null
       }
     ],
     "prerequisite": "Unchanged Composer verify with explicitly isolated SQLite configuration; source/dependency refusal must happen before native subprocesses.",
@@ -7304,8 +7766,40 @@
       "identity": "Tablo\\Tests\\Network\\PasswordHelperTest::shippedHelperPreservesHostEncodingAndExactCredentials",
       "path": "tests/Network/PasswordHelperTest.php",
       "reason": "Native Windows PowerShell host required.",
-      "windowsPassed": 441,
-      "linuxPassed": 440
+      "windowsPassed": 507,
+      "linuxPassed": 500,
+      "additionalSkips": [
+        {
+          "identity": "Tablo\\Tests\\Network\\PasswordHelperFixtureObservationTest::preHelperStallEmitsEntryWhileNativeStagesRemainUnobserved",
+          "path": "tests/Network/PasswordHelperFixtureObservationTest.php",
+          "reason": "Native Windows PowerShell fixture control required."
+        },
+        {
+          "identity": "Tablo\\Tests\\Network\\PasswordHelperFixtureObservationTest::observerDiagnosticFailurePreservesCallerAndRejectsIncompleteCollection",
+          "path": "tests/Network/PasswordHelperFixtureObservationTest.php",
+          "reason": "Native Windows PowerShell fixture control required."
+        },
+        {
+          "identity": "Tablo\\Tests\\Network\\PasswordHelperFixtureObservationTest::fixtureReadinessRequiresEntryAndKnownTerminationExit",
+          "path": "tests/Network/PasswordHelperFixtureObservationTest.php",
+          "reason": "Native Windows PowerShell fixture control required."
+        },
+        {
+          "identity": "Tablo\\Tests\\Network\\PasswordHelperFixtureObservationTest::fixtureAppendCollisionFailsCollectorAndPreservesActualHelperFailure",
+          "path": "tests/Network/PasswordHelperFixtureObservationTest.php",
+          "reason": "Native Windows PowerShell fixture control required."
+        },
+        {
+          "identity": "Tablo\\Tests\\Network\\PasswordHelperFixtureObservationTest::normalFixtureOrdersNativeEventsWithOriginalCredentialEncodingRepeatAndPrivacyAssertions",
+          "path": "tests/Network/PasswordHelperFixtureObservationTest.php",
+          "reason": "Native Windows PowerShell fixture control required."
+        },
+        {
+          "identity": "Tablo\\Tests\\Network\\PasswordHelperFixtureReadinessTest::fixtureReadinessRequiresMarkerAndEntryWithinOriginalBudget",
+          "path": "tests/Network/PasswordHelperFixtureReadinessTest.php",
+          "reason": "Native Windows PowerShell fixture control required."
+        }
+      ]
     }
   },
   "aggregate": {

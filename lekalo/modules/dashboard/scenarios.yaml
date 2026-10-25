@@ -4,8 +4,8 @@
         {
             "id": "dashboard.single_owner",
             "kind": "scenario",
-            "version": 2,
-            "summary": "First setup creates id=1 only, duplicate setup is refused; password hash verifies and persistent failed-login rate limit denies the sixth attempt. Canonical IPv6/mapped identities share persistent keys; independent proxy clients, success reset, expiry and write rollback retain atomic limiter behavior. First setup creates id=1 only, duplicate setup is refused; password hash verifies and persistent failed-login rate limit denies the sixth attempt. First setup creates id=1 only, duplicate setup is refused; password hash verifies and persistent failed-login rate limit denies the sixth attempt. Canonical IPv6/mapped identities share persistent keys; independent proxy clients, success reset, expiry and write rollback retain atomic limiter behavior.",
+            "version": 3,
+            "summary": "First setup creates id=1 only, duplicate setup is refused; password hash verifies and persistent failed-login rate limit denies the sixth attempt. Canonical IPv6/mapped identities share persistent keys; independent proxy clients, success reset, expiry and write rollback retain atomic limiter behavior. First setup creates id=1 only, duplicate setup is refused; password hash verifies and persistent failed-login rate limit denies the sixth attempt. First setup creates id=1 only, duplicate setup is refused; password hash verifies and persistent failed-login rate limit denies the sixth attempt. Canonical IPv6/mapped identities share persistent keys; independent proxy clients, success reset, expiry and write rollback retain atomic limiter behavior. Setup/reset byte edges11/12/72/73/1023/1024/1025 include both confirmations and multibyte crossings; native Argon2id v19 m65536/t3/p1, generated salts and full-suffix discrimination. Legacy empty/short/raw verified credentials can upgrade without the creation minimum, while oversized/NUL/wrong/bcrypt72-prefix aliases never rewrite.",
             "covers": [
                 "dashboard.setup",
                 "dashboard.login",
@@ -37,8 +37,8 @@
         {
             "id": "dashboard.web_access",
             "kind": "scenario",
-            "version": 2,
-            "summary": "HTTP smoke: setup, login, session rotation, protected routes, CRUD, CSRF rejection, XSS escaping, deletion confirmation, logout and persistent data. Browser smoke on desktop and mobile. Real socket ingress proves direct/untrusted spoof rejection, sanitizing edge client isolation, two-hop and untrusted-middle selection, duplicate-wire handling and trusted malformed-chain refusal; invalid config fails before runtime/DB/session side effects. HTTP smoke: setup, login, session rotation, protected routes, CRUD, CSRF rejection, XSS escaping, deletion confirmation, logout and persistent data. Browser smoke on desktop and mobile. HTTP smoke: setup, login, session rotation, protected routes, CRUD, CSRF rejection, XSS escaping, deletion confirmation, logout and persistent data. Browser smoke on desktop and mobile. Real socket ingress proves direct/untrusted spoof rejection, sanitizing edge client isolation, two-hop and untrusted-middle selection, duplicate-wire handling and trusted malformed-chain refusal; invalid config fails before runtime/DB/session side effects.",
+            "version": 3,
+            "summary": "HTTP smoke: setup, login, session rotation, protected routes, CRUD, CSRF rejection, XSS escaping, deletion confirmation, logout and persistent data. Browser smoke on desktop and mobile. Real socket ingress proves direct/untrusted spoof rejection, sanitizing edge client isolation, two-hop and untrusted-middle selection, duplicate-wire handling and trusted malformed-chain refusal; invalid config fails before runtime/DB/session side effects. HTTP smoke: setup, login, session rotation, protected routes, CRUD, CSRF rejection, XSS escaping, deletion confirmation, logout and persistent data. Browser smoke on desktop and mobile. HTTP smoke: setup, login, session rotation, protected routes, CRUD, CSRF rejection, XSS escaping, deletion confirmation, logout and persistent data. Browser smoke on desktop and mobile. Real socket ingress proves direct/untrusted spoof rejection, sanitizing edge client isolation, two-hop and untrusted-middle selection, duplicate-wire handling and trusted malformed-chain refusal; invalid config fails before runtime/DB/session side effects. HTTP preserves proxy/throttle/CSRF/cookie behavior with1024-byte shared verification; established runtime failures use safe503, verifierfalse remains422. Setup UI describes bytes without a character minlength. Browser authority refusal for known unsupported hashes uses no KDF; bearer ingress remains early/keyfree/native-info/digest only.",
             "covers": [
                 "dashboard.setup",
                 "dashboard.login",
@@ -175,8 +175,8 @@
         {
             "id": "dashboard.local_password_change",
             "kind": "scenario",
-            "version": 1,
-            "summary": "Actual local CLI refuses absent/transient/incompatible installations and unsafe argv/stdin. Shared validation preserves bytes; atomic existing-admin password change keeps identity, created_at, schema, limits, sites/results and encrypted credentials/key unchanged. Missing key is irrelevant.",
+            "version": 2,
+            "summary": "Actual local CLI refuses absent/transient/incompatible installations and unsafe argv/stdin. Shared validation preserves bytes; atomic existing-admin password change keeps identity, created_at, schema, limits, sites/results and encrypted credentials/key unchanged. Missing key is irrelevant. Fixed Argon2id result inspection and exact native verification precede reset BEGIN. Keep selected fingerprint/oldhash CAS, rowCount1, owned equality, rollback and postcommit output uncertainty. Accept2052CRLF/2050LF, reject2053 overflow and1025-byte lines. Real PS5.1/7/Bash console transport remains distinct from simulated Read-Host evidence; preserve8s/20s deadlines.",
             "covers": [
                 "dashboard.change_admin_password",
                 "dashboard.user",
@@ -186,8 +186,8 @@
         {
             "id": "dashboard.session_revocation",
             "kind": "scenario",
-            "version": 1,
-            "summary": "Actual HTTP cookies/routes refuse legacy, missing, malformed and stale credential markers with session/CSRF rotation before protected GET/POST. Setup remains 404; old verified login cookies remain stale if reset commits before cookie creation. New login and rehash bind their own verified/inserted/replaced hash snapshot; logout/12h expiry clear markers. Already admitted work may finish.",
+            "version": 2,
+            "summary": "Actual HTTP cookies/routes refuse legacy, missing, malformed and stale credential markers with session/CSRF rotation before protected GET/POST. Setup remains 404; old verified login cookies remain stale if reset commits before cookie creation. New login and rehash bind their own verified/inserted/replaced hash snapshot; logout/12h expiry clear markers. Already admitted work may finish. Natural successful bcrypt/weak-Argon upgrade changes credential fingerprint only after own COMMIT; old cookies are stale, exact/strong Argon and wrong/rolledback input preserve old authority. No later capture of concurrent reset hash. Prior API bearer invalidates with entire stored token row unchanged.",
             "covers": [
                 "dashboard.change_admin_password",
                 "dashboard.setup",
@@ -199,8 +199,8 @@
         {
             "id": "dashboard.password_change_concurrency",
             "kind": "scenario",
-            "version": 1,
-            "summary": "Two actual CLI processes selected before input cannot overwrite the same old snapshot; one commits, the other conflicts/busy without retry. A deliberately later new snapshot succeeds. UPDATE/BEGIN/COMMIT failures, rollback failure and cancellation preserve known rollback state; output/process failure after commit has an uncertain receipt, not promised rollback. Admin stays present and public setup stays closed during the writer.",
+            "version": 2,
+            "summary": "Two actual CLI processes selected before input cannot overwrite the same old snapshot; one commits, the other conflicts/busy without retry. A deliberately later new snapshot succeeds. UPDATE/BEGIN/COMMIT failures, rollback failure and cancellation preserve known rollback state; output/process failure after commit has an uncertain receipt, not promised rollback. Admin stays present and public setup stays closed during the writer. Login BEGIN precedes credential read/verification; exact verified oldhash CAS and own replacement reread must hold. Exercise rowCount0, trigger replacement, BEGIN/UPDATE/COMMIT/rollback failures and a real reset held before login begins, then committed before login reads. Retain existing after-Auth/pre-cookie barrier and selected-before-upgrade CLI conflict; no timing-only proof or retries.",
             "covers": [
                 "dashboard.change_admin_password",
                 "dashboard.setup",
@@ -211,8 +211,8 @@
         {
             "id": "dashboard.password_change_privacy",
             "kind": "scenario",
-            "version": 1,
-            "summary": "Actual subprocess framing and complete propagated exception traces with exception_ignore_args=0 reveal no password, confirmation, raw hash, fingerprint, key, token or unknown argv. Protected Windows UTF-8 byte transport and Bash/Docker -T examples retain command exits; physical console checks are separate platform evidence.",
+            "version": 2,
+            "summary": "Actual subprocess framing and complete propagated exception traces with exception_ignore_args=0 reveal no password, confirmation, raw hash, fingerprint, key, token or unknown argv. Protected Windows UTF-8 byte transport and Bash/Docker -T examples retain command exits; physical console checks are separate platform evidence. Actual-options hostile hash shim and explicit simulation hit counters distinguish native false from established provider failure. Fresh PasswordRuntimeFailure retains no native/previous/secret trace. Real providerless binary is independently qualified, never inferred from php-n or simulation labels; state preservation and safe HTTP503/CLI1 are checked separately.",
             "covers": [
                 "dashboard.change_admin_password",
                 "dashboard.setup",
@@ -398,13 +398,23 @@
         {
             "id": "dashboard.read_api_token_lifecycle",
             "kind": "scenario",
-            "version": 1,
-            "summary": "Real setup/login cookie CSRF rotate/revoke/one-time direct reveal, hash-only storage, failed commit/no reveal, current post-lock authority, serial rotations/revoke and password binding. Browser logout and idle remain separate. Atomic schema9->10 empty/OFF, old lineages and original403 meaningful identities/deadlines retained.",
+            "version": 2,
+            "summary": "Real setup/login cookie CSRF rotate/revoke/one-time direct reveal, hash-only storage, failed commit/no reveal, current post-lock authority, serial rotations/revoke and password binding. Browser logout and idle remain separate. Atomic schema9->10 empty/OFF, old lineages and original403 meaningful identities/deadlines retained. Independently seeded bcrypt bearer remains200 after wrong/rollback login, becomes401 after actual login upgrade or CLI reset, and its complete stored row remains identical. Same-policy no-op login preserves bearer. Stale cookie cannot rotate/revoke; fresh login plus explicit rotation restores access. Preserve keyfree ingress, query_only snapshot, fixed errors, no cookie/session activity and providerless Argon401 admission.",
             "covers": [
                 "dashboard.read_api_token",
                 "dashboard.read_api_token_metadata",
                 "dashboard.rotate_read_api_token",
                 "dashboard.revoke_read_api_token"
+            ]
+        },
+        {
+            "id": "dashboard.dashboard_modes",
+            "kind": "scenario",
+            "version": 1,
+            "summary": "Tile default and semantic table share the once-presented ordered sites, status/comparison/unknown metrics and native CSRF actions. Browser-only allowlisted preference, search and filters send no requests or session activity; pending and paused checks stay disabled, history restores local state, and keyboard/mobile overflow reaches actions.",
+            "covers": [
+                "dashboard.list_sites",
+                "dashboard.check_site"
             ]
         }
     ]

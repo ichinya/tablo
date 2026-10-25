@@ -9,14 +9,22 @@ final class PasswordHelperCommand
     /** @return list<string> */
     public static function forEvidence(\Tablo\Tests\Support\PasswordHelperEvidence $evidence): array
     {
-        $case = $evidence->case->identity;
-        return self::forHost($case['host'], $case['encoding'], $case['scenario'], $evidence->nativePath);
+        return self::forCase($evidence->case, $evidence->path);
+    }
+
+    /** @return list<string> */
+    public static function forCase(\Tablo\Tests\Support\PasswordHelperCase $case, string $path): array
+    {
+        $identity = $case->identity;
+        return [...self::forHost($identity['host'], $identity['encoding'], $identity['scenario'], $path . '/native-observation.jsonl'),
+            '-FixtureObservationPath', $path . '/fixture-observation.jsonl', '-CaseId', basename($path),
+            '-CasePhase', $identity['phase'], '-FixtureControl', $identity['phase'] === 'fixture-control' ? 'pre-helper-stall' : 'none'];
     }
 
     /** @return list<string> */
     public static function forHost(string $shell, string $encoding, string $scenario, ?string $observationPath = null): array
     {
-        return [$shell, '-NoProfile', '-NonInteractive', '-ExecutionPolicy', 'Bypass', '-File',
+        return [$shell, '-NoProfile', '-ExecutionPolicy', 'Bypass', '-File',
                         dirname(__DIR__) . '/fixtures/password-helper-input.ps1', '-Helper',
                         dirname(__DIR__, levels: 2) . '/tools/admin-password.ps1', '-Php', PHP_BINARY,
                         '-HostEncoding', $encoding, '-Scenario', $scenario,
