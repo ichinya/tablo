@@ -36,18 +36,31 @@ final class TestServer
             $this->pid = proc_get_status($this->process)['pid'];
             $this->recordStart($directory, $environment);
             fclose(\Tablo\Tests\Support\FixturePipes::pipe($pipes, 0));
-            $deadline = microtime(true) + 5;
-            do {
-                if (!proc_get_status(FixtureNative::resource($this->process))['running']) { break; }
-                $connection = \Tablo\NativeWarning::ignore(function () use (&$socketHost, &$errno, &$error) { return fsockopen($socketHost, $this->port, $errno, $error, timeout: .1); });
-                if ($connection !== false) { fclose($connection); return; }
-                usleep(50_000);
-            } while (microtime(true) < $deadline);
-            throw new RuntimeException('Test server did not become ready');
+            $this->waitForReadiness($socketHost);
         } catch (\Throwable $error) {
             $this->close();
             throw new RuntimeException($error->getMessage() . "\n" . $this->diagnostics(), 0, $error);
         }
+    }
+
+    private function waitForReadiness(string $socketHost): void
+    {
+        $deadline = microtime(true) + 5;
+        $errno = 0; $error = '';
+        do {
+            if (!proc_get_status(FixtureNative::resource($this->process))['running']) { break; }
+            // A port can be taken after allocation and before our child binds.
+            // Require the owned PHP startup banner before contacting that port.
+            $started = str_contains($this->diagnostics(), 'Development Server (' . $this->base . ') started');
+            $connection = $started ? \Tablo\NativeWarning::ignore(function () use ($socketHost, &$errno, &$error) { return fsockopen($socketHost, $this->port, $errno, $error, timeout: .1); }) : false;
+            if ($connection !== false) {
+                fclose($connection);
+                if (proc_get_status(FixtureNative::resource($this->process))['running']) { return; }
+                break;
+            }
+            usleep(50_000);
+        } while (microtime(true) < $deadline);
+        throw new RuntimeException('Test server did not become ready');
     }
 
     public function diagnostics(): string

@@ -7,14 +7,39 @@ param(
     [string] $Scenario = 'unicode',
     [ValidateSet('Native', 'Docker', 'DockerStopped')]
     [string] $Mode = 'Native',
-    [string] $ObservationPath = ''
+    [string] $ObservationPath = '',
+    [string] $FixtureObservationPath = '',
+    [ValidatePattern('^(case-[a-f0-9]{24})?$')]
+    [string] $CaseId = '',
+    [ValidateSet('primary', 'repeat', 'fixture-control')]
+    [string] $CasePhase = 'primary',
+    [ValidateSet('none', 'pre-helper-stall')]
+    [string] $FixtureControl = 'none'
 )
 
+# Fixed body-entry evidence only; diagnostic failure must preserve the fixture outcome.
+try { [Console]::Out.WriteLine('HELPER_FIXTURE_BODY=admitted') } catch { }
+
 $ErrorActionPreference = 'Stop'
+$fixtureObservationEncoding = $null
+$fixtureObservationPresence = @{}
+foreach ($fixtureParameter in @('Helper', 'Php', 'HostEncoding', 'Scenario', 'Mode', 'ObservationPath', 'FixtureObservationPath', 'CaseId', 'CasePhase', 'FixtureControl')) {
+    $fixtureObservationPresence[$fixtureParameter] = $PSBoundParameters.ContainsKey($fixtureParameter)
+}
+. (Join-Path $PSScriptRoot 'password-helper-fixture-observation.ps1')
+Write-FixtureObservation 'fixture-entry'
+# Deliberately live, pre-helper synthetic control; only its new test uses a short deadline.
+if ($FixtureControl -eq 'pre-helper-stall') {
+    [Console]::Out.WriteLine('HELPER_FIXTURE_CONTROL=pre-helper-stall')
+    while ($true) { Start-Sleep -Milliseconds 100 }
+}
+Write-FixtureObservation 'before-encoding-initialization'
 if ($HostEncoding -eq 'bom') { [Console]::InputEncoding = New-Object System.Text.UTF8Encoding($true, $true) }
 if ($HostEncoding -eq 'bomless') { [Console]::InputEncoding = New-Object System.Text.UTF8Encoding($false, $true) }
 if ($HostEncoding -eq 'cp866') { [Console]::InputEncoding = [Text.Encoding]::GetEncoding(866) }
 $fixtureBefore = [Console]::InputEncoding
+$fixtureObservationEncoding = @{ codePage = $fixtureBefore.CodePage; preambleBytes = $fixtureBefore.GetPreamble().Length }
+Write-FixtureObservation 'after-encoding-initialization'
 $fixtureState = @{ prompts = 0 }
 
 # Only the protected prompt is substituted; the shipped helper and PHP CLI run.
@@ -38,6 +63,7 @@ function Read-Host {
     return $fixtureSecret
 }
 
+Write-FixtureObservation 'before-resolver-setup'
 if ($Scenario -eq 'startFailure') {
     function Get-Command {
         param([string] $Name, [string] $CommandType)
@@ -51,7 +77,9 @@ if ($Scenario -eq 'startFailure') {
         return [pscustomobject]@{ Source = $Php }
     }
 }
+Write-FixtureObservation 'after-resolver-setup'
 
+Write-FixtureObservation 'before-callback-setup'
 if ($ObservationPath -ne '') {
     $fixtureObserverPath = $ObservationPath
     $fixtureObserver = {
@@ -59,17 +87,24 @@ if ($ObservationPath -ne '') {
         $fixtureLine = ($Record | ConvertTo-Json -Depth 5 -Compress) + [Environment]::NewLine
         [IO.File]::AppendAllText($fixtureObserverPath, $fixtureLine, (New-Object Text.UTF8Encoding($false, $true)))
     }.GetNewClosure()
+    Write-FixtureObservation 'after-callback-setup'
+    Write-FixtureObservation 'before-helper-call'
     & $Helper -Mode $Mode -Observation $fixtureObserver
-} else { & $Helper -Mode $Mode }
+} else {
+    Write-FixtureObservation 'after-callback-setup'
+    Write-FixtureObservation 'before-helper-call'
+    & $Helper -Mode $Mode
+}
 $fixtureExit = $LASTEXITCODE
+Write-FixtureObservation 'after-helper-call'
 $fixtureAfter = [Console]::InputEncoding
 $fixtureMetadata = @{
     helperExit = $fixtureExit
     encodingRestored = $fixtureBefore.Equals($fixtureAfter)
     codePageRestored = ($fixtureBefore.CodePage -eq $fixtureAfter.CodePage)
     preambleRestored = ([BitConverter]::ToString($fixtureBefore.GetPreamble()) -eq [BitConverter]::ToString($fixtureAfter.GetPreamble()))
-    beforeCodePage = $fixtureBefore.CodePage
-    beforePreambleBytes = $fixtureBefore.GetPreamble().Length
+    beforeCodePage = $fixtureObservationEncoding.codePage
+    beforePreambleBytes = $fixtureObservationEncoding.preambleBytes
     prompts = $fixtureState.prompts
     powerShell = $PSVersionTable.PSVersion.ToString()
     dotNet = [Environment]::Version.ToString()
