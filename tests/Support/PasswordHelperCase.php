@@ -43,6 +43,13 @@ final class PasswordHelperCase
             $secret === '' ? [] : [$secret], ['classification' => 'no diagnostic stdin', 'observedBytes' => 0]);
     }
 
+    public static function fixtureStall(string $host): self
+    {
+        return new self(PasswordHelperCommand::forHost($host, 'default', 'unicode'),
+            ['host' => $host, 'encoding' => 'default', 'scenario' => 'unicode', 'phase' => 'fixture-control'],
+            [], ['classification' => 'deliberate pre-helper stall; no credential input generated', 'observedBytes' => null]);
+    }
+
     public static function missing(TemporaryDirectory $directory): self
     {
         return new self([$directory->path . '/absent-synthetic-executable'],

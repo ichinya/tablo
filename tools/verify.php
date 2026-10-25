@@ -129,7 +129,8 @@ try {
             };
             if (in_array($symbol['id'], ['dashboard.setup', 'dashboard.login', 'dashboard.change_admin_password'], strict: true)) {
                 $unitTests .= ',tests/Unit/PasswordHashPolicyTest.php,tests/Network/PasswordProviderTest.php,tests/Unit/ReadApiTokenTest.php,tests/Http/ReadApiTokenManagementTest.php,tests/Http/ReadApiSessionContractTest.php,tests/Http/ReadApiAuthenticationTest.php';
-                $unitTests .= ',tests/Network/PasswordHelperDiagnosticsTest.php,tests/Network/PasswordHelperRetentionTest.php';
+                $unitTests .= ',tests/Network/PasswordHelperDiagnosticsTest.php,tests/Network/PasswordHelperRetentionTest.php,tests/Network/PasswordHelperFixtureObservationTest.php';
+                $unitTests .= ',tests/Network/PasswordHelperFixtureReadinessTest.php';
                 $unitTests .= ',tests/Unit/PasswordServiceTest.php,tests/Unit/PasswordPrivacyTest.php,tests/Unit/AdminPasswordTest.php,tests/Network/AdminPasswordTest.php,tests/Network/AdminPasswordSelectionTest.php,tests/Network/AdminPasswordStorageTest.php,tests/Network/AdminPasswordConflictTest.php,tests/Network/PasswordHelperTest.php,tests/Http/AdminPasswordTest.php,tests/Http/PasswordSessionAdmissionTest.php,tests/Http/PasswordLoginRaceTest.php,tests/Http/PasswordCommitVisibilityTest.php';
             }
             if (in_array($symbol['id'], ['dashboard.authenticate_read_api', 'dashboard.read_api_token_metadata', 'dashboard.rotate_read_api_token', 'dashboard.revoke_read_api_token'], strict: true)) {
@@ -163,6 +164,9 @@ try {
             }
             // Preserve the original browser/database compatibility coverage; bearer ingress has its own key-free boundary tests above.
             $tests .= ',tests/Unit/CurlPlatformTest.php';
+            if (in_array($symbol['id'], ['dashboard.setup', 'dashboard.login', 'dashboard.change_admin_password'], strict: true)) {
+                $tests .= ',tests/Network/TestServerReadinessTest.php';
+            }
             $tests .= ',tests/Unit/DatabaseTest.php,tests/Unit/DatabaseHistoricalImportTest.php,tests/Unit/DatabaseDiagnosticsUpgradeTest.php,tests/Unit/DatabaseSchemaAdmissionTest.php,tests/Unit/DatabaseMigrationAtomicityTest.php,tests/Unit/DatabaseWalNegotiationTest.php,tests/Unit/DatabaseWalCleanupTest.php,tests/Unit/DatabaseWalClockTest.php,tests/Unit/GitHubMigrationTest.php,tests/Unit/WorkerMigrationTest.php,tests/Network/DatabaseMigrationTest.php,tests/Network/DatabaseMigrationLockTest.php,tests/Network/DatabaseMigrationCustodyTest.php,tests/Network/DatabaseWalTest.php,tests/Network/DatabaseWalHolderTest.php,tests/Network/FixtureCleanupTest.php';
             $tests .= ',tests/Unit/DatabaseTest.php,tests/Unit/DatabaseHistoricalImportTest.php,tests/Unit/DatabaseDiagnosticsUpgradeTest.php,tests/Unit/DatabaseSchemaAdmissionTest.php,tests/Unit/DatabaseMigrationAtomicityTest.php,tests/Unit/DatabaseWalNegotiationTest.php,tests/Unit/DatabaseWalCleanupTest.php,tests/Unit/DatabaseWalClockTest.php,tests/Unit/GitHubMigrationTest.php,tests/Unit/WorkerMigrationTest.php,tests/Unit/HistoryMigrationTest.php,tests/Network/DatabaseMigrationTest.php,tests/Network/DatabaseMigrationLockTest.php,tests/Network/DatabaseMigrationCustodyTest.php,tests/Network/DatabaseWalTest.php,tests/Network/DatabaseWalHolderTest.php,tests/Network/FixtureCleanupTest.php';
             $tests .= ',tests/Unit/IncidentMigrationTest.php';
