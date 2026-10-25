@@ -8,6 +8,11 @@ const options = {timeout: 4000};
 const never = () => new Promise(() => {});
 const tight = {cleanupMs: 180, stepMs: 25, terminationMs: 400, terminalSlackMs: 150};
 
+function blockEventLoop(milliseconds) {
+  const until = performance.now() + milliseconds;
+  while (performance.now() < until) {} // Deliberately prevent deadline timers from running.
+}
+
 test('fulfilled click without a POST fails and releases the held route', options, async () => {
   let phase;
   await assert.rejects(pendingNavigation(control => {
@@ -64,6 +69,88 @@ test('normal observations pass once and release without a late timeout', options
   await phase.held;
   assert.equal(phase.observe({late: true}), false);
   await delay(40);
+});
+
+test('a late direct phase result cannot beat its delayed deadline timer', options, async () => {
+  await assert.rejects(pendingNavigation(() => {
+    blockEventLoop(40);
+    return 'late direct result';
+  }, {timeoutMs: 5}), ControlDeadlineError);
+});
+
+test('blocked event loop cannot admit late route entry or DOM observation', options, async () => {
+  const admissions = [];
+  await assert.rejects(pendingNavigation(phase => {
+    blockEventLoop(40);
+    admissions.push(phase.entered(), phase.observe('late-observation'));
+    return phase.observationAfter(Promise.resolve());
+  }, {timeoutMs: 5}), ControlDeadlineError);
+  assert.deepEqual(admissions, [false, false]);
+});
+
+test('an on-time route does not admit an observation after the shared deadline', options, async () => {
+  let lateObservation;
+  await assert.rejects(pendingNavigation(phase => {
+    assert.equal(phase.entered(), true);
+    blockEventLoop(40);
+    lateObservation = phase.observe('too late');
+    return phase.observationAfter(Promise.resolve());
+  }, {timeoutMs: 5}), ControlDeadlineError);
+  assert.equal(lateObservation, false);
+});
+
+test('already settled observations still need an on-time successful continuation', options, async () => {
+  await assert.rejects(pendingNavigation(phase => {
+    phase.entered(); phase.observe('on-time admission');
+    const observation = phase.observationAfter(Promise.resolve());
+    blockEventLoop(40);
+    return observation;
+  }, {timeoutMs: 5}), ControlDeadlineError);
+});
+
+test('a click rejection delayed with the deadline retains its original reason', options, async () => {
+  const primary = new Error('click failed before the blocked continuation');
+  await assert.rejects(pendingNavigation(phase => {
+    phase.entered(); phase.observe('admitted');
+    const observation = phase.observationAfter(Promise.reject(primary));
+    blockEventLoop(40);
+    return observation;
+  }, {timeoutMs: 5}), error => error === primary);
+});
+
+test('a blocked cleanup step cannot pass its own deadline or erase the primary', options, async () => {
+  const primary = new Error('original pending failure');
+  const order = [];
+  const result = await settleOwnedCleanup({primary, owners: [], cleanupMs: 500, stepMs: 5,
+    steps: [{label: 'blocked-step', run: () => blockEventLoop(40)},
+      {label: 'later-release', run: () => order.push('later-release')}],
+    forceExit: () => assert.fail('Closed cleanup needs no terminal exit')});
+  assert.equal(result.primary, primary);
+  assert.equal(result.complete, false);
+  assert.ok(result.cleanupFailures.some(failure => failure.phase === 'blocked-step' && failure.name === 'ControlDeadlineError'));
+  assert.deepEqual(order, ['later-release']);
+});
+
+test('slow final evidence cannot turn an expired cleanup budget into COMPLETE', options, async () => {
+  const retained = [];
+  const result = await settleOwnedCleanup({owners: [], steps: [], cleanupMs: 5, terminationMs: 50, terminalSlackMs: 20,
+    retain: value => { retained.push(value); if (retained.length === 1) blockEventLoop(40); },
+    forceExit: () => assert.fail('Closed cleanup remains inside the terminal bound')});
+  assert.equal(result.complete, false);
+  assert.ok(result.primary instanceof ControlDeadlineError);
+  assert.equal(result.primary.phase, 'cleanup-budget');
+  assert.equal(retained.at(-1).complete, false, 'The corrected failing receipt must be retained');
+});
+
+test('a delayed terminal timer cannot be cleared after its absolute controller bound', options, async () => {
+  const primary = new Error('original primary before terminal delay');
+  const exits = [];
+  const result = await settleOwnedCleanup({primary, owners: [], cleanupMs: 5, stepMs: 5, terminationMs: 5, terminalSlackMs: 5,
+    steps: [{label: 'blocked-step', run: () => blockEventLoop(40)}], forceExit: code => exits.push(code)});
+  assert.equal(result.primary, primary);
+  assert.equal(result.complete, false);
+  assert.deepEqual(exits, [1]);
+  assert.ok(result.cleanupFailures.some(failure => failure.phase === 'cleanup-terminal-watchdog'));
 });
 
 test('a stuck cleanup step cannot prevent later cooperative releases or erase the primary', options, async () => {
@@ -178,5 +265,49 @@ test('unconfirmed closure cannot hold the controller event loop or overwrite its
     clearTimeout(outer);
     if (!owner.snapshot().closed) { child.kill('SIGKILL'); await Promise.race([owner.closed, delay(500)]); }
     if (!owner.snapshot().closed) owner.detach();
+  }
+});
+
+test('the independent watchdog fires when the bounded-wait mechanism stalls', options, async t => {
+  const helper = new URL('./control-lifecycle.mjs', import.meta.url).href;
+  const script = `import fs from 'node:fs';import {EventEmitter} from 'node:events';
+    import {ownDirectChild,settleOwnedCleanup} from ${JSON.stringify(helper)};
+    const child=new EventEmitter();child.pid=null;child.exitCode=null;child.signalCode=null;
+    child.kill=()=>false;child.unref=()=>{};child.stdio=[];
+    const owner=ownDirectChild(child,'simulated unknown direct child');
+    setInterval(()=>{},1000);
+    await settleOwnedCleanup({primary:new Error('original-watchdog-primary'),owners:[owner],
+      steps:[{label:'stalled-wait',run:()=>new Promise(()=>{})}],
+      boundedWait:()=>new Promise(()=>{}), // Supported fault injection: only the independent watchdog can settle this controller.
+      cleanupMs:40,stepMs:10,terminationMs:10,terminalSlackMs:30,
+      retain:state=>fs.writeSync(1,JSON.stringify({primary:state.primary.message,complete:state.complete,
+        phases:state.cleanupFailures.map(failure=>failure.phase),children:state.children,
+        pendingSteps:state.pendingSteps,descendantClosure:state.descendantClosure})+'\\n')});`;
+  const child = spawn(process.execPath, ['--input-type=module', '-e', script], {windowsHide: true, stdio: ['ignore', 'pipe', 'pipe']});
+  const owner = ownDirectChild(child, 'owned independent-watchdog controller');
+  let stdout = ''; let stderr = ''; let expired = false;
+  child.stdout.setEncoding('utf8'); child.stderr.setEncoding('utf8');
+  child.stdout.on('data', bytes => { stdout += bytes; }); child.stderr.on('data', bytes => { stderr += bytes; });
+  const outer = setTimeout(() => { expired = true; child.kill('SIGKILL'); }, 1500);
+  try {
+    await Promise.race([owner.closed, delay(2200).then(() => { throw new Error('Independent watchdog controller close not observed'); })]);
+    assert.equal(expired, false, 'Removing only the watchdog must reach the independent outer owner deadline');
+    assert.equal(owner.snapshot().exitCode, 1);
+    assert.equal(stderr, '');
+    const state = JSON.parse(stdout.trim());
+    assert.equal(state.primary, 'original-watchdog-primary');
+    assert.deepEqual(state.phases, ['cleanup-terminal-watchdog'], 'The actual independent timer must own this terminal path');
+    assert.deepEqual(state.pendingSteps, ['stalled-wait']);
+    assert.equal(state.complete, false);
+    assert.equal(state.children[0].closed, false);
+    assert.equal(state.children[0].exitCode, null);
+    assert.equal(state.children[0].detached, true);
+    assert.equal(state.descendantClosure, 'UNKNOWN');
+    t.diagnostic(JSON.stringify({watchdogControllerPid: owner.snapshot().pid, nativeExit: owner.snapshot().exitCode, unknownChildClosure: true}));
+  } finally {
+    clearTimeout(outer);
+    if (!owner.snapshot().closed) { child.kill('SIGKILL'); await Promise.race([owner.closed, delay(500)]); }
+    if (!owner.snapshot().closed) owner.detach();
+    assert.equal(owner.snapshot().closed, true, 'The outer test owner must settle its controller');
   }
 });

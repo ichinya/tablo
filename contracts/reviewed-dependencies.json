@@ -10007,7 +10007,7 @@
                 "tests/Browser/control-lifecycle.test.mjs",
                 "Dedicated Node browser control-check CI step"
             ],
-            "fingerprint": "sha256:b51ba475414876837cde429a8e78c3bc0a1d037708da39fce2bbaabb04760401"
+            "fingerprint": "sha256:ef9bb21c1e02917e6507333f1526afe0076962291cbcb9b3e3fc3fb894f6c273"
         },
         {
             "path": "tests/Browser/control-lifecycle.test.mjs",
@@ -10016,7 +10016,7 @@
                 "Dedicated Node browser control-check CI step",
                 "Developer standalone browser control checks"
             ],
-            "fingerprint": "sha256:2be2acd969e210410b8d17227a0232295f217509c6e6443d4a17369ab3a5ed99"
+            "fingerprint": "sha256:41f58d20920157641b85dbe726e881ce7dff151f948a7b7fe72cadb1085b926a"
         },
         {
             "path": "tests/Browser/dashboard-modes.mjs",
