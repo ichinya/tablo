@@ -34,6 +34,8 @@ final class PasswordHelperCapture
             'running' => $state->running, 'raw_status' => $evidence->lastStatus, 'events' => $state->events,
             'streams' => $streams, 'ownership' => 'direct-child-only',
             'streams_classification' => 'byte-exact capture at observation; unobserved nested writer may still append to original',
-            'nested_closure' => 'UNKNOWN unless separately observed in native-observation.jsonl']);
+            'nested_closure' => 'UNKNOWN unless separately observed in native-observation.jsonl',
+            'observation' => PasswordHelperFixtureObservation::status($evidence,
+                \Tablo\RequiredFile::bytes(file_get_contents($state->files['stderr'])))]);
     }
 }
