@@ -3,12 +3,9 @@ declare(strict_types=1);
 
 namespace Tablo {
     require_once dirname(__DIR__, levels: 2) . '/app/RuntimeIni.php';
-    function password_hash(#[\SensitiveParameter] string $password, string|int|null $algorithm): string
-    {
-        // Deliberately hostile implementation error; actual PasswordService must
-        // discard this secret-bearing message/previous trace before propagation.
-        throw new \ValueError('synthetic-private-hash-error ' . $password);
-    }
+    // Share the one explicit shim definition so static analysis sees no duplicate.
+    require_once __DIR__ . '/password-provider-failure.php';
+    putenv('TABLO_TEST_PROVIDER_CASE=hash-throw');
 }
 namespace {
     require dirname(__DIR__, levels: 2) . '/vendor/autoload.php';
@@ -24,12 +21,14 @@ namespace {
         fn () => $auth->login('synthetic-private-password', 'client'),
         fn () => $auth->loginSession('synthetic-private-password', 'client')] as $action) {
         try { $action(); exit(2); }
-        catch (\Throwable $error) {
+        catch (\Tablo\PasswordRuntimeFailure $error) {
+            if ($error->getPrevious() !== null) { exit(5); }
             for ($current = $error; $current !== null; $current = $current->getPrevious()) {
                 $complete = print_r($current, return: true) . print_r($current->getTrace(), return: true);
-                if (str_contains($complete, 'synthetic-private')) { exit(3); }
+                if (str_contains($complete, 'synthetic-private') || str_contains($complete, 'provider-private-marker')) { exit(3); }
             }
         }
     }
+    if (\Tablo\provider_hits('hash') !== 6) { exit(6); }
     echo "Complete hashing failure traces redacted.\n";
 }

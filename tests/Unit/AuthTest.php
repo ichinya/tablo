@@ -15,6 +15,24 @@ use Testo\Test;
 final class AuthTest
 {
     #[Test]
+    public function hostileCandidatesNeverUpgradeTheVerifiedLegacySnapshot(): void
+    {
+        $db = Database::connect(':memory:');
+        $prefix = str_repeat('x', times: 72);
+        $legacy = password_hash($prefix, PASSWORD_BCRYPT, ['cost' => 4]);
+        \Tablo\SqlStatement::checked($db->prepare('INSERT INTO users(id,password_hash) VALUES(1,?)'))->execute([$legacy]);
+        $auth = new Auth($db); $fingerprint = $auth->credentialFingerprint();
+        foreach (['wrong', $prefix . 'alias', str_repeat('x', times: 1025), $prefix . "\0"] as $index => $candidate) {
+            Assert::same($auth->loginSession($candidate, 'invalid-' . $index), null);
+            Assert::same(\Tablo\SqlStatement::checked($db->query('SELECT password_hash FROM users'))->fetchColumn(), $legacy);
+            Assert::same($auth->credentialFingerprint(), $fingerprint);
+        }
+        Assert::same((int) \Tablo\SqlStatement::checked($db->query('SELECT SUM(failures) FROM login_limits'))->fetchColumn(), 4);
+        Assert::notNull($auth->loginSession($prefix, 'correct'));
+        Assert::true($auth->credentialFingerprint() !== $fingerprint);
+    }
+
+    #[Test]
     public function createsOneAdministratorWithHashedCredentials(): void
     {
         $db = Database::connect(':memory:');
