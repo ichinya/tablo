@@ -1369,8 +1369,31 @@ function engine_verification_r74_files(): void
         Assert::null(\Tablo\Tools\server_native_phase_bytes($path)); Assert::same(file_get_contents($path), $wire);
         $oversize = $directory->path . '/oversize'; file_put_contents($oversize, str_repeat('x', times: 8193)); chmod($oversize, permissions: 0o600);
         Assert::null(\Tablo\Tools\server_native_phase_bytes($oversize));
+        engine_verification_r74_file_replacement($directory->path, $wire);
     } catch (\Throwable $error) { $directory->retainFailure($error); throw $error; }
     finally { $directory->close(); }
+}
+
+/** The actual descriptor must refuse a replacement inode and changing bytes between its two reads. */
+function engine_verification_r74_file_replacement(string $directory, string $wire): void
+{
+    $path = $directory . '/replace.tsv'; file_put_contents($path, $wire); chmod($path, permissions: 0o600);
+    $before = lstat($path); $handle = fopen($path, mode: 'rb');
+    if (!is_array($before) || !is_resource($handle)) { throw new \RuntimeException('Synthetic stable descriptor absent.'); }
+    try {
+        Assert::true(rename($path, $path . '.old')); file_put_contents($path, $wire); chmod($path, permissions: 0o600);
+        Assert::null(\Tablo\Tools\server_native_phase_descriptor($handle, $path, $before));
+        Assert::same(file_get_contents($path . '.old'), $wire); Assert::same(file_get_contents($path), $wire);
+    } finally { fclose($handle); }
+    $handle = fopen($path, mode: 'rb');
+    if (!is_resource($handle)) { throw new \RuntimeException('Synthetic changing descriptor absent.'); }
+    try {
+        $opened = fstat($handle);
+        if (!is_array($opened)) { throw new \RuntimeException('Synthetic opened stat absent.'); }
+        Assert::same(stream_get_contents($handle, length: 8193), $wire); Assert::true(rewind($handle));
+        file_put_contents($path, str_replace('115', replace: '116', subject: $wire));
+        Assert::false(\Tablo\Tools\server_native_phase_stable($handle, $path, $opened, $wire));
+    } finally { fclose($handle); }
 }
 
 /** Actual Linux cohort children are added below; unsupported hosts never bypass the runtime gate. */
@@ -1443,9 +1466,9 @@ function engine_verification_r74_actor(string $variant): string
         'partial' => [115, 116, 10], default => engine_verification_r74_lifecycle(),
     };
     $namespace = match ($variant) {
-        'short-write' => 'namespace Tablo { function fwrite(mixed $handle, string $line): int|false { return 0; } } namespace {',
-        'partial-write' => 'namespace Tablo { function fwrite(mixed $handle, string $line): int|false { return \fwrite($handle,substr($line,0,-1)); } } namespace {',
-        'flush-failure' => 'namespace Tablo { function fflush(mixed $handle): bool { return false; } } namespace {',
+        'short-write' => 'namespace Tablo { function fwrite(mixed $handle, string $line): int|false { $GLOBALS["r74Writes"]=($GLOBALS["r74Writes"]??0)+1; return 0; } } namespace {',
+        'partial-write' => 'namespace Tablo { function fwrite(mixed $handle, string $line): int|false { $GLOBALS["r74Writes"]=($GLOBALS["r74Writes"]??0)+1; return \fwrite($handle,substr($line,0,-1)); } } namespace {',
+        'flush-failure' => 'namespace Tablo { function fwrite(mixed $handle, string $line): int|false { $GLOBALS["r74Writes"]=($GLOBALS["r74Writes"]??0)+1; return \fwrite($handle,$line); } function fflush(mixed $handle): bool { return false; } } namespace {',
         'close-failure' => 'namespace Tablo { function fclose(mixed $handle): bool { throw new \RuntimeException("SYNTHETIC_CLOSE"); } } namespace {',
         'buffer-unavailable' => 'namespace Tablo { function stream_set_write_buffer(mixed $handle, int $size): int { return -1; } } namespace {',
         default => 'namespace {',
@@ -1454,6 +1477,7 @@ function engine_verification_r74_actor(string $variant): string
     $facts = engine_verification_r74_positive($variant)
         ? '$facts=["gate"=>\Tablo\database_transfer_phase_gate(),"source"=>\Tablo\database_transfer_phase_source()===str_replace("\\\\","/",dirname(__DIR__)),"derivedDirectory"=>\Tablo\database_transfer_phase_directory()===getenv("TABLO_SESSION_EVIDENCE_DIRECTORY")];'
         : '$facts=[];';
+    if (in_array($variant, ['short-write', 'partial-write', 'flush-failure'], strict: true)) { $facts .= '$facts["writeCalls"]=$GLOBALS["r74Writes"]??0;'; }
     return '<?php ' . $namespace . ' require dirname(__DIR__)."/app/DatabaseTransferSequence.php"; $grew=false;'
         . '$primary=new \RuntimeException("SYNTHETIC_PRIMARY");try { foreach(' . var_export($phases, return: true) . ' as $phase){ \Tablo\database_transfer_phase_mark($phase); ' . $growth . ' } throw $primary; }'
         . 'catch(\Throwable $caught){ ' . $facts . ' echo json_encode(["primaryPreserved"=>$caught===$primary]+$facts,JSON_THROW_ON_ERROR); } }';
@@ -1472,6 +1496,7 @@ function engine_verification_r74_collector_variant(TemporaryDirectory $directory
     Assert::same([$child['exit_code'], $child['stderr']], [0, '']);
     $expected = ['primaryPreserved' => true];
     if (engine_verification_r74_positive($variant)) { $expected += ['gate' => true, 'source' => true, 'derivedDirectory' => true]; }
+    if (in_array($variant, ['short-write', 'partial-write', 'flush-failure'], strict: true)) { $expected['writeCalls'] = 1; }
     Assert::same(\Tablo\JsonRecord::decode($child['stdout']), $expected);
     Assert::false(file_exists($layout['foreign'] . '/transfer-phase-r74-v1.tsv'));
     engine_verification_r74_collector_result($trace, $variant, $sentinel);
