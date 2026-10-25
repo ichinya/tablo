@@ -8,7 +8,7 @@
                 "Composer verify",
                 "Reviewed dependency capture"
             ],
-            "fingerprint": "sha256:c22dac81b7ca8b060005689d82de0d636554bcf089eba9abf641d79058d5cea0"
+            "fingerprint": "sha256:9c0a8df42aae9c35c622e79f73cd9a7a22155c5f5335ea90bccd5d5dd6b47b2a"
         },
         {
             "path": "tools/reviewed-dependencies.php",
@@ -43,7 +43,7 @@
             "consumers": [
                 "Hosted pinned contract and native PHP gates"
             ],
-            "fingerprint": "sha256:be21419558e08f630dcdf31de641b617187edfcb22c24d2eab887c49c65063b1"
+            "fingerprint": "sha256:f0bda3d59cf94c4cef9e518f5d91abd28ddb3f8c431c23ebdbf892d5d2dc4f7f"
         },
         {
             "path": "app/AddressRange.php",
@@ -9660,7 +9660,7 @@
                 "Administrator idle timeout policy",
                 "HSTS deployment operator guidance"
             ],
-            "fingerprint": "sha256:ff3ec019407d687311ef9186cb41c4e7c92b18de61ea9e2482c55e30e0adae5b"
+            "fingerprint": "sha256:3c7af88b65890543dada88ac97c82a80f0c10bc7fdf30c235324bbacf28cf2fb"
         },
         {
             "path": "app/PasswordHashPolicy.php",
@@ -10000,12 +10000,31 @@
             "fingerprint": "sha256:1608c5dffe0e9bb2b00f7b6b118d9c0e2c4a58fb740a851cef7d8cd68933ac58"
         },
         {
+            "path": "tests/Browser/control-lifecycle.mjs",
+            "owner": "Browser harness pending-phase and direct-child lifecycle controls",
+            "consumers": [
+                "tests/Browser/dashboard-modes.mjs",
+                "tests/Browser/control-lifecycle.test.mjs",
+                "Dedicated Node browser control-check CI step"
+            ],
+            "fingerprint": "sha256:b51ba475414876837cde429a8e78c3bc0a1d037708da39fce2bbaabb04760401"
+        },
+        {
+            "path": "tests/Browser/control-lifecycle.test.mjs",
+            "owner": "Standalone Node browser control regressions",
+            "consumers": [
+                "Dedicated Node browser control-check CI step",
+                "Developer standalone browser control checks"
+            ],
+            "fingerprint": "sha256:2be2acd969e210410b8d17227a0232295f217509c6e6443d4a17369ab3a5ed99"
+        },
+        {
             "path": "tests/Browser/dashboard-modes.mjs",
             "owner": "tests/Browser/dashboard-modes.mjs",
             "consumers": [
                 "Qualified isolated browser acceptance and nonzero controls"
             ],
-            "fingerprint": "sha256:e9dc2f6076b7ef5c2d433a9d1fceaf068a5de05d18d27e126580ad89644b34ad"
+            "fingerprint": "sha256:4ba65563bafc8d2ffccaa07a0955c54bcde4ad5ea1e52ba49d434aaedb19f652"
         },
         {
             "path": "tests/fixtures/dashboard-modes-startup-failure.php",

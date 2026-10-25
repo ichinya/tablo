@@ -1391,3 +1391,11 @@ an existing current database without migration or site writes. See
 [JSON schema](contracts/read-api-v1.schema.json).
 
 Git provider expansion plan: [Gitea, contracts and future acceptance](docs/git-provider-plan.md).
+
+### Browser harness control checks
+
+With an existing Node 22+ executable, run `node --version`, then
+`node --test --test-concurrency=1 tests/Browser/control-lifecycle.test.mjs`.
+These standalone deadline/owned-child regressions launch only synthetic Node
+children. They need no browser, application, database or package installation.
+CI qualifies the actual Node executable separately; Composer tests do not require Node.

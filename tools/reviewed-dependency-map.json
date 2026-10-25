@@ -8007,6 +8007,21 @@
       "Owned retained browser fixture protocol"
     ]
   },
+  "tests/Browser/control-lifecycle.mjs": {
+    "owner": "Browser harness pending-phase and direct-child lifecycle controls",
+    "consumers": [
+      "tests/Browser/dashboard-modes.mjs",
+      "tests/Browser/control-lifecycle.test.mjs",
+      "Dedicated Node browser control-check CI step"
+    ]
+  },
+  "tests/Browser/control-lifecycle.test.mjs": {
+    "owner": "Standalone Node browser control regressions",
+    "consumers": [
+      "Dedicated Node browser control-check CI step",
+      "Developer standalone browser control checks"
+    ]
+  },
   "tests/Browser/dashboard-modes.mjs": {
     "owner": "tests/Browser/dashboard-modes.mjs",
     "consumers": [
