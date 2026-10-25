@@ -17,6 +17,9 @@ param(
     [string] $FixtureControl = 'none'
 )
 
+# Fixed body-entry evidence only; diagnostic failure must preserve the fixture outcome.
+try { [Console]::Out.WriteLine('HELPER_FIXTURE_BODY=admitted') } catch { }
+
 $ErrorActionPreference = 'Stop'
 $fixtureObservationEncoding = $null
 $fixtureObservationPresence = @{}
