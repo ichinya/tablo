@@ -353,9 +353,14 @@ Http проверяет session/CSRF и consumers; SQLite — native migrations/
 отдельная одноразовая установка поддерживаемого Gitea с private repo подтверждает
 реальные scopes/units, proxy encoding, headers и server clamps.
 
-Сохранить все 436 текущих test identities и все уже привязанные test identities
-по [contracts/php-bindings.json на pinned commit df0a5e8](https://github.com/ichinya/tablo/blob/df0a5e81edf8084835ddaec1d0edc0bbb7ff77dd/contracts/php-bindings.json).
-Воспроизводимая инвентаризация на этом commit: прочитать command/query symbols
+Исторический baseline — 436 test identities по
+[contracts/php-bindings.json на pinned commit df0a5e8](https://github.com/ichinya/tablo/blob/df0a5e81edf8084835ddaec1d0edc0bbb7ff77dd/contracts/php-bindings.json).
+Он не ограничивает сохраняемый набор: перед реализацией зафиксировать точный
+commit актуальной базовой ветки и сохранить все его test identities и native
+привязки, включая добавленные после исторического baseline. База этой редакции
+плана `023503e8fe6a23a669ec115f1a2c6547ba01fbda` содержит 451 test identity,
+включая 15 HSTS-тестов. Воспроизводимая инвентаризация выбранной базы:
+прочитать command/query symbols
 декларации, вычислить их native test-file union по правилам `tools/verify.php`
 и перечислить `#[Test]` identities (namespace/class/method) в этих файлах.
 Будущий набор обязан включать каждую identity исходного набора; отдельный
