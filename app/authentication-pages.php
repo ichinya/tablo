@@ -14,32 +14,9 @@ final class AuthenticationPages extends WebPage
     {
         $web = $this;
         $app->get('/setup', new WebAction(static fn () => $web->auth->needsSetup() ? $web->render('auth', ['setup' => true, 'title' => 'Добро пожаловать']) : $web->notFound()));
-        $app->post('/setup', new WebAction(static function () use ($web) {
-            if (!$web->auth->needsSetup()) {
-                return $web->notFound();
-            }
-            try {
-                $fingerprint = $web->auth->setupSession($web->input('password'), $web->input('confirmation'));
-                WebSession::authenticate($fingerprint);
-                return $web->redirect('/');
-            } catch (ValidationException $e) {
-                return $web->render('auth', ['setup' => true, 'title' => 'Добро пожаловать', 'errors' => $e->errors], 422);
-            }
-        }));
+        $app->post('/setup', new WebAction($this->setupAction(...)));
         $app->get('/login', new WebAction(static fn () => (($_SESSION['authenticated_at'] ?? null) !== null) ? $web->redirect('/') : $web->render('auth', ['setup' => false, 'title' => 'С возвращением'])));
-        $app->post('/login', new WebAction(static function () use ($web) {
-            try {
-                $password = $web->input('password');
-                $fingerprint = strlen($password) > 72 ? null : $web->auth->loginSession($password, $web->clientAddress->resolve($_SERVER));
-                if ($fingerprint === null) {
-                    throw ValidationException::field(field: 'password', message: 'Неверный пароль.');
-                }
-                WebSession::authenticate($fingerprint);
-                return $web->redirect('/');
-            } catch (ValidationException $e) {
-                return $web->render('auth', ['setup' => false, 'title' => 'С возвращением', 'errors' => $e->errors], 422);
-            }
-        }));
+        $app->post('/login', new WebAction($this->loginAction(...)));
         $app->post('/logout', new WebAction(static function () use ($web) {
             $_SESSION = [];
             session_destroy();
@@ -48,6 +25,44 @@ final class AuthenticationPages extends WebPage
             setcookie($name, value: '', expires_or_options: ['expires' => time() - 3600, 'path' => '/', 'secure' => session_get_cookie_params()['secure'], 'httponly' => true, 'samesite' => 'Strict']);
             return $web->redirect('/login');
         }));
+    }
+
+    private function setupAction(): \Phalcon\Http\Response
+    {
+        if (!$this->auth->needsSetup()) {
+            return $this->notFound();
+        }
+        try {
+            $fingerprint = $this->auth->setupSession($this->input('password'), $this->input('confirmation'));
+            WebSession::authenticate($fingerprint);
+            return $this->redirect('/');
+        } catch (ValidationException $e) {
+            return $this->render('auth', ['setup' => true, 'title' => 'Добро пожаловать', 'errors' => $e->errors], 422);
+        } catch (PasswordRuntimeFailure $e) {
+            return $this->runtimeFailure(true, 'Добро пожаловать', $e);
+        }
+    }
+
+    private function loginAction(): \Phalcon\Http\Response
+    {
+        try {
+            $password = $this->input('password');
+            $fingerprint = $this->auth->loginSession($password, $this->clientAddress->resolve($_SERVER));
+            if ($fingerprint === null) {
+                throw ValidationException::field(field: 'password', message: 'Неверный пароль.');
+            }
+            WebSession::authenticate($fingerprint);
+            return $this->redirect('/');
+        } catch (ValidationException $e) {
+            return $this->render('auth', ['setup' => false, 'title' => 'С возвращением', 'errors' => $e->errors], 422);
+        } catch (PasswordRuntimeFailure $e) {
+            return $this->runtimeFailure(false, 'С возвращением', $e);
+        }
+    }
+
+    private function runtimeFailure(bool $setup, string $title, PasswordRuntimeFailure $error): \Phalcon\Http\Response
+    {
+        return $this->render('auth', ['setup' => $setup, 'title' => $title, 'errors' => ['password' => $error->getMessage()]], 503);
     }
 
 }

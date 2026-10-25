@@ -3221,7 +3221,10 @@
     "owner": "Administrator session and CLI documentation",
     "consumers": [
       "tablo/check/v1 local consumers",
-      "Administrator idle timeout policy"
+      "Administrator idle timeout policy",
+      "HSTS deployment operator guidance",
+      "Administrator Argon2id runtime and byte policy",
+      "Administrator local password reset and API bearer revocation"
     ]
   },
   "tests/browser-fixture.php": {
@@ -4835,7 +4838,8 @@
       "Composer analyze",
       "tests/Network/PasswordHelperTest.php",
       "tests/Network/PasswordHelperDiagnosticsTest.php",
-      "tests/Network/PasswordHelperRetentionTest.php"
+      "tests/Network/PasswordHelperRetentionTest.php",
+      "tests/Network/PasswordHelperFixtureObservationTest.php"
     ]
   },
   "tests/Network/PasswordHelperTest.php": {
@@ -5327,7 +5331,8 @@
     "consumers": [
       "Composer lint",
       "Composer analyze",
-      "Composer verify"
+      "Composer verify",
+      "tests/Network/PasswordHelperFixtureReadinessTest.php"
     ]
   },
   "tests/Support/FixtureJson.php": {
@@ -5391,7 +5396,8 @@
     "consumers": [
       "Composer lint",
       "Composer analyze",
-      "Composer verify"
+      "Composer verify",
+      "tests/Network/PasswordHelperFixtureReadinessTest.php"
     ]
   },
   "tests/Support/FixtureWireRows.php": {
@@ -5697,7 +5703,8 @@
       "Native CLI direct-child receipts",
       "Composer lint",
       "Composer verify",
-      "Composer analyze"
+      "Composer analyze",
+      "tests/Network/PasswordHelperFixtureReadinessTest.php"
     ]
   },
   "tests/Support/SubprocessClosure.php": {
@@ -5770,7 +5777,8 @@
       "Composer analyze",
       "tests/Network/PasswordHelperTest.php",
       "tests/Network/PasswordHelperDiagnosticsTest.php",
-      "tests/Network/PasswordHelperRetentionTest.php"
+      "tests/Network/PasswordHelperRetentionTest.php",
+      "tests/Network/PasswordHelperFixtureReadinessTest.php"
     ]
   },
   "tests/Support/SubprocessReceiptData.php": {
@@ -5822,7 +5830,8 @@
       "Native CLI fixture custody",
       "Composer lint",
       "Composer verify",
-      "Composer analyze"
+      "Composer analyze",
+      "tests/Network/PasswordHelperFixtureReadinessTest.php"
     ]
   },
   "tests/Support/TestServer.php": {
@@ -7292,7 +7301,8 @@
       "tests/Network/PasswordHelperTest.php",
       "tests/Network/PasswordHelperDiagnosticsTest.php",
       "tests/Network/PasswordHelperRetentionTest.php",
-      "Native dashboard.setup/login/change_admin_password attachment"
+      "Native dashboard.setup/login/change_admin_password attachment",
+      "tests/Network/PasswordHelperFixtureObservationTest.php"
     ]
   },
   "tests/Support/PasswordHelperCase.php": {
@@ -7304,7 +7314,8 @@
       "tests/Network/PasswordHelperTest.php",
       "tests/Network/PasswordHelperDiagnosticsTest.php",
       "tests/Network/PasswordHelperRetentionTest.php",
-      "Native dashboard.setup/login/change_admin_password attachment"
+      "Native dashboard.setup/login/change_admin_password attachment",
+      "tests/Network/PasswordHelperFixtureObservationTest.php"
     ]
   },
   "tests/Support/PasswordHelperEvidence.php": {
@@ -7316,7 +7327,9 @@
       "tests/Network/PasswordHelperTest.php",
       "tests/Network/PasswordHelperDiagnosticsTest.php",
       "tests/Network/PasswordHelperRetentionTest.php",
-      "Native dashboard.setup/login/change_admin_password attachment"
+      "Native dashboard.setup/login/change_admin_password attachment",
+      "tests/Network/PasswordHelperFixtureObservationTest.php",
+      "tests/Network/PasswordHelperFixtureReadinessTest.php"
     ]
   },
   "tests/Support/PasswordHelperEvidenceFiles.php": {
@@ -7328,7 +7341,8 @@
       "tests/Network/PasswordHelperTest.php",
       "tests/Network/PasswordHelperDiagnosticsTest.php",
       "tests/Network/PasswordHelperRetentionTest.php",
-      "Native dashboard.setup/login/change_admin_password attachment"
+      "Native dashboard.setup/login/change_admin_password attachment",
+      "tests/Network/PasswordHelperFixtureReadinessTest.php"
     ]
   },
   "tests/Support/PasswordHelperEvidenceStart.php": {
@@ -7340,7 +7354,9 @@
       "tests/Network/PasswordHelperTest.php",
       "tests/Network/PasswordHelperDiagnosticsTest.php",
       "tests/Network/PasswordHelperRetentionTest.php",
-      "Native dashboard.setup/login/change_admin_password attachment"
+      "Native dashboard.setup/login/change_admin_password attachment",
+      "tests/Network/PasswordHelperFixtureObservationTest.php",
+      "tests/Network/PasswordHelperFixtureReadinessTest.php"
     ]
   },
   "tests/Support/PasswordHelperFailureState.php": {
@@ -7376,7 +7392,8 @@
       "tests/Network/PasswordHelperTest.php",
       "tests/Network/PasswordHelperDiagnosticsTest.php",
       "tests/Network/PasswordHelperRetentionTest.php",
-      "Native dashboard.setup/login/change_admin_password attachment"
+      "Native dashboard.setup/login/change_admin_password attachment",
+      "tests/Network/PasswordHelperFixtureObservationTest.php"
     ]
   },
   "tests/Support/PasswordHelperDatabaseFixture.php": {
@@ -7706,6 +7723,80 @@
       "Read API documentation and privacy review"
     ]
   },
+  "README.en.md": {
+    "owner": "Administrator password, session, and HSTS documentation in English",
+    "consumers": [
+      "Administrator Argon2id runtime and byte policy",
+      "Administrator local password reset and API bearer revocation",
+      "Administrator idle timeout policy",
+      "HSTS deployment operator guidance"
+    ]
+  },
+  "app/PasswordHashPolicy.php": {
+    "owner": "Tablo\\PasswordHashPolicy",
+    "consumers": [
+      "Tablo\\PasswordService stored algorithm and non-downgrading upgrade policy",
+      "Composer lint",
+      "Composer analyze",
+      "Composer verify"
+    ]
+  },
+  "app/PasswordHashRuntime.php": {
+    "owner": "Tablo\\PasswordHashRuntime",
+    "consumers": [
+      "Composer lint",
+      "Composer analyze",
+      "Composer verify",
+      "PasswordService native result validation"
+    ]
+  },
+  "app/PasswordRuntimeFailure.php": {
+    "owner": "Tablo\\PasswordRuntimeFailure",
+    "consumers": [
+      "Password runtime error sanitization for authentication and local reset",
+      "Composer lint",
+      "Composer analyze",
+      "Composer verify"
+    ]
+  },
+  "tests/Network/PasswordProviderTest.php": {
+    "owner": "Tablo\\Tests\\Network\\PasswordProviderTest",
+    "consumers": [
+      "Explicit provider simulations and native authentication attachments",
+      "Composer lint",
+      "Composer analyze",
+      "Composer verify"
+    ]
+  },
+  "tests/Unit/PasswordHashPolicyTest.php": {
+    "owner": "Tablo\\Tests\\Unit\\PasswordHashPolicyTest",
+    "consumers": [
+      "Native authentication policy and upgrade attachments",
+      "Composer lint",
+      "Composer analyze",
+      "Composer verify"
+    ]
+  },
+  "tests/fixtures/argon2id-capability.php": {
+    "owner": "php-script:tests/fixtures/argon2id-capability.php",
+    "consumers": [
+      "Actual global-native runtime qualification outside requests",
+      "Hosted six-cell Argon2id preflight",
+      "Composer lint",
+      "Composer analyze",
+      "Composer verify"
+    ]
+  },
+  "tests/fixtures/password-provider-failure.php": {
+    "owner": "php-script:tests/fixtures/password-provider-failure.php",
+    "consumers": [
+      "PasswordProviderTest explicit simulations only",
+      "PasswordPrivacyTest actual-options hostile shim",
+      "Composer lint",
+      "Composer analyze",
+      "Composer verify"
+    ]
+  },
   ".env.example": {
     "owner": "Example process and Dotenv configuration ownership",
     "consumers": [
@@ -7728,12 +7819,6 @@
       "Composer analyze",
       "Composer verify",
       "Native HSTS ingress tests"
-    ]
-  },
-  "README.en.md": {
-    "owner": "English operator documentation",
-    "consumers": [
-      "HSTS deployment operator guidance"
     ]
   },
   "tests/fixtures/hsts-router.php": {
@@ -7806,6 +7891,90 @@
       "Composer analyze",
       "Composer verify",
       "Native HSTS ingress tests"
+    ]
+  },
+  "tests/Network/PasswordHelperFixtureObservationTest.php": {
+    "owner": "Tablo\\Tests\\Network\\PasswordHelperFixtureObservationTest",
+    "consumers": [
+      "Composer lint",
+      "Composer analyze",
+      "Composer verify",
+      "tests/Network/PasswordHelperTest.php",
+      "tests/Network/PasswordHelperFixtureObservationTest.php",
+      "native-php-tests"
+    ]
+  },
+  "tests/Support/PasswordHelperFixtureObservation.php": {
+    "owner": "Tablo\\Tests\\Support\\PasswordHelperFixtureObservation",
+    "consumers": [
+      "Composer lint",
+      "Composer analyze",
+      "Composer verify",
+      "tests/Network/PasswordHelperTest.php",
+      "tests/Network/PasswordHelperFixtureObservationTest.php",
+      "native-php-tests",
+      "tests/Network/PasswordHelperFixtureReadinessTest.php"
+    ]
+  },
+  "tests/fixtures/password-helper-fixture-observation.ps1": {
+    "owner": "powershell-script:tests/fixtures/password-helper-fixture-observation.ps1",
+    "consumers": [
+      "Composer lint",
+      "Composer analyze",
+      "Composer verify",
+      "tests/Network/PasswordHelperTest.php",
+      "tests/Network/PasswordHelperFixtureObservationTest.php",
+      "native-php-tests",
+      "tests/fixtures/password-helper-observer-control.ps1",
+      "tests/Network/PasswordHelperFixtureReadinessTest.php"
+    ]
+  },
+  "tests/fixtures/password-helper-observer-control.ps1": {
+    "owner": "powershell-script:tests/fixtures/password-helper-observer-control.ps1",
+    "consumers": [
+      "Composer lint",
+      "Composer analyze",
+      "Composer verify",
+      "tests/Network/PasswordHelperFixtureObservationTest.php",
+      "native-php-tests",
+      "tests/Network/PasswordHelperFixtureReadinessTest.php"
+    ]
+  },
+  "tests/Support/PasswordHelperFixtureReadiness.php": {
+    "owner": "Tablo\\Tests\\Support\\PasswordHelperFixtureReadiness",
+    "consumers": [
+      "Composer lint",
+      "Composer analyze",
+      "Composer verify",
+      "tests/Support/PasswordHelperEvidenceStart.php",
+      "tests/Network/PasswordHelperFixtureObservationTest.php",
+      "tests/Network/PasswordHelperFixtureReadinessTest.php",
+      "native-php-tests"
+    ]
+  },
+  "tests/Network/PasswordHelperFixtureReadinessTest.php": {
+    "owner": "Tablo\\Tests\\Network\\PasswordHelperFixtureReadinessTest",
+    "consumers": [
+      "Composer lint",
+      "Composer analyze",
+      "Composer verify",
+      "tests/Network/PasswordHelperFixtureReadinessTest.php",
+      "native-php-tests"
+    ]
+  },
+  "tests/Network/TestServerReadinessTest.php": {
+    "owner": "Tablo\\Tests\\Network\\TestServerReadinessTest",
+    "consumers": [
+      "Composer lint",
+      "Composer analyze",
+      "Composer verify",
+      "Native HTTP fixture readiness and ownership"
+    ]
+  },
+  "tests/fixtures/server-readiness-idle.php": {
+    "owner": "Owned live non-listening readiness control",
+    "consumers": [
+      "tests/Network/TestServerReadinessTest.php"
     ]
   },
   "docs/screenshots/dashboard-desktop.png": {

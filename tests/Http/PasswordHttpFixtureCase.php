@@ -14,6 +14,51 @@ use Testo\Assert;
  */
 abstract class PasswordHttpFixtureCase
 {
+    protected function resetBeforeLoginBegin(): void
+    {
+        $barrier = new TemporaryDirectory('tablo-reset-before-login-');
+        $web = null; $writer = null; $process = null; $pipes = [];
+        try {
+            $web = new WebFixture(router: dirname(__DIR__) . '/password-race-router.php', environment: ['TABLO_TEST_AUTH_BARRIER' => $barrier->path]);
+            $csrf = $web->authenticate();
+            $web->request('/logout', ['_csrf' => $csrf]);
+            $csrf = WebFixture::csrf($web->request('/login'));
+            $writer = new \Tablo\Tests\Support\PasswordProcess($web->directory, $web->directory->path . '/test.sqlite',
+                dirname(__DIR__) . '/fixtures/password-write-barrier.php', ['TABLO_TEST_WRITE_BARRIER' => $barrier->path]);
+            $writer->send(\Tablo\Tests\Support\FixtureCredentials::confirmationInput(label: 'replacement-secret'));
+            self::awaitBarrier($barrier, 'written');
+            file_put_contents($barrier->path . '/before-begin-armed', data: 'ready');
+            $process = proc_open([PHP_BINARY, dirname(__DIR__) . '/fixtures/password-login.php', $web->server->base,
+                $web->directory->path . '/cookies', $csrf], [0 => ['pipe', 'r'], 1 => ['file', $barrier->path . '/out', 'w'],
+                2 => ['file', $barrier->path . '/err', 'w']], $pipes, dirname(__DIR__, levels: 2));
+            if (!is_resource($process)) { throw new \RuntimeException('Cannot start before-BEGIN login fixture'); }
+            fclose(\Tablo\Tests\Support\FixturePipes::pipe($pipes, 0));
+            self::awaitBarrier($barrier, 'before-login-begin');
+            file_put_contents($barrier->path . '/release', data: 'commit reset');
+            Assert::same($writer->finish()['exit_code'], 0, 'actual selected CLI reset committed');
+            $writer->close(); $writer = null;
+            file_put_contents($barrier->path . '/release-login-begin', data: 'begin login after reset COMMIT');
+            Assert::same(proc_close($process), 1, 'existing client requires303 and must refuse actual422');
+            $process = null;
+            Assert::same(\Tablo\RequiredFile::bytes(file_get_contents($barrier->path . '/login-status')), '422', 'old credential was read after reset COMMIT');
+            Assert::same($web->request('/')['status'], 303);
+            Assert::same(self::login($web, \Tablo\Tests\Support\FixtureCredentials::value(label: 'replacement-secret'))['status'], 303);
+            Assert::same($web->request('/')['status'], 200);
+        } catch (\Throwable $error) { $barrier->retainFailure($error); throw $error; }
+        finally {
+            file_put_contents($barrier->path . '/release', data: 'cleanup release');
+            file_put_contents($barrier->path . '/release-login-begin', data: 'cleanup release');
+            $writer?->close(); self::closeLoginProcess($process); $web?->close(); $barrier->close();
+        }
+    }
+
+    private static function awaitBarrier(TemporaryDirectory $barrier, string $name): void
+    {
+        $deadline = microtime(true) + 5;
+        while (!is_file($barrier->path . '/' . $name) && microtime(true) < $deadline) { clearstatcache(); usleep(20_000); }
+        Assert::true(is_file($barrier->path . '/' . $name), 'actual barrier hit: ' . $name);
+    }
+
     /**
      * @return Result
      */

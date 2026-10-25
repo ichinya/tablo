@@ -5,16 +5,16 @@
         "version": "0.1.0"
     },
     "project": "tablo",
-    "revision": "sha256:a56858c65afa6613e5a0da552f6ea1b26c8738ad020c350c6eccb7c7c1c7addf",
+    "revision": "sha256:cb4868dc0ecc387584a2ad3e9362aa295a4fab2e3a4a0579ef6184521f002d7e",
     "symbols": [
         {
             "id": "dashboard.change_admin_password",
             "kind": "command",
             "source": {
                 "path": "app/auth.php",
-                "line": 104
+                "line": 106
             },
-            "fingerprint": "sha256:781d5bf1e584b2795da7ed182ce52f6d0db356ebd4e68a59d21cb61ffefd599b",
+            "fingerprint": "sha256:b48b5573c62e2dbcbd405255079b6c09a9ceb5ec53fd0a364cc46083356d00a3",
             "signature": {
                 "inputs": [
                     {
@@ -45,7 +45,7 @@
                 "path": "app/auth.php",
                 "line": 27
             },
-            "fingerprint": "sha256:781d5bf1e584b2795da7ed182ce52f6d0db356ebd4e68a59d21cb61ffefd599b",
+            "fingerprint": "sha256:b48b5573c62e2dbcbd405255079b6c09a9ceb5ec53fd0a364cc46083356d00a3",
             "signature": {
                 "inputs": [
                     {
@@ -76,7 +76,7 @@
                 "path": "app/auth.php",
                 "line": 46
             },
-            "fingerprint": "sha256:781d5bf1e584b2795da7ed182ce52f6d0db356ebd4e68a59d21cb61ffefd599b",
+            "fingerprint": "sha256:b48b5573c62e2dbcbd405255079b6c09a9ceb5ec53fd0a364cc46083356d00a3",
             "signature": {
                 "inputs": [
                     {
@@ -88,16 +88,21 @@
                 "output": null,
                 "reads": []
             },
-            "effects": []
+            "effects": [
+                {
+                    "kind": "update",
+                    "subject": "dashboard.user"
+                }
+            ]
         },
         {
             "id": "dashboard.logout",
             "kind": "command",
             "source": {
                 "path": "app/authentication-pages.php",
-                "line": 43
+                "line": 20
             },
-            "fingerprint": "sha256:d83c581676430cebaa0fda378d32c8e8ef31f59f2aeb7fb5e976da9230a7b361",
+            "fingerprint": "sha256:29589d4f8ac2427dfb2757a74a7bccb224ddc8481623b8ec3a6e805e9b1a4de6",
             "signature": {
                 "inputs": [],
                 "output": null,
