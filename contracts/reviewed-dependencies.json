@@ -9069,7 +9069,7 @@
                 "Composer verify",
                 "Composer analyze"
             ],
-            "fingerprint": "sha256:aa4632153315b84263829240896ec4b904f27fb643ad9f0a3bab4c9ac61a3abc"
+            "fingerprint": "sha256:69ab6ee1b46711d96609dd8ca1855f4b498e41b9ab56da52d39681b70640e199"
         },
         {
             "path": "views/incidents.volt",

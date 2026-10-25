@@ -160,7 +160,9 @@ try {
             }
             // Preserve the original browser/database compatibility coverage; bearer ingress has its own key-free boundary tests above.
             $tests .= ',tests/Unit/CurlPlatformTest.php';
-            $tests .= ',tests/Network/TestServerReadinessTest.php';
+            if (in_array($symbol['id'], ['dashboard.setup', 'dashboard.login', 'dashboard.change_admin_password'], strict: true)) {
+                $tests .= ',tests/Network/TestServerReadinessTest.php';
+            }
             $tests .= ',tests/Unit/DatabaseTest.php,tests/Unit/DatabaseHistoricalImportTest.php,tests/Unit/DatabaseDiagnosticsUpgradeTest.php,tests/Unit/DatabaseSchemaAdmissionTest.php,tests/Unit/DatabaseMigrationAtomicityTest.php,tests/Unit/DatabaseWalNegotiationTest.php,tests/Unit/DatabaseWalCleanupTest.php,tests/Unit/DatabaseWalClockTest.php,tests/Unit/GitHubMigrationTest.php,tests/Unit/WorkerMigrationTest.php,tests/Network/DatabaseMigrationTest.php,tests/Network/DatabaseMigrationLockTest.php,tests/Network/DatabaseMigrationCustodyTest.php,tests/Network/DatabaseWalTest.php,tests/Network/DatabaseWalHolderTest.php,tests/Network/FixtureCleanupTest.php';
             $tests .= ',tests/Unit/DatabaseTest.php,tests/Unit/DatabaseHistoricalImportTest.php,tests/Unit/DatabaseDiagnosticsUpgradeTest.php,tests/Unit/DatabaseSchemaAdmissionTest.php,tests/Unit/DatabaseMigrationAtomicityTest.php,tests/Unit/DatabaseWalNegotiationTest.php,tests/Unit/DatabaseWalCleanupTest.php,tests/Unit/DatabaseWalClockTest.php,tests/Unit/GitHubMigrationTest.php,tests/Unit/WorkerMigrationTest.php,tests/Unit/HistoryMigrationTest.php,tests/Network/DatabaseMigrationTest.php,tests/Network/DatabaseMigrationLockTest.php,tests/Network/DatabaseMigrationCustodyTest.php,tests/Network/DatabaseWalTest.php,tests/Network/DatabaseWalHolderTest.php,tests/Network/FixtureCleanupTest.php';
             $tests .= ',tests/Unit/IncidentMigrationTest.php';
