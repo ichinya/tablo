@@ -347,6 +347,9 @@ function server_native_phase_predecessor(array $record): bool
 function server_native_phase_facade_bridge(array $record): bool
 {
     if (server_native_phase_operation($record['previousPhase'], $record['operation'])) { return true; }
+    if ($record['operation'] === 0 && in_array($record['kind'], [3, 4], strict: true)) {
+        return in_array($record['previousPhase'], [11, 13, 15, 17], strict: true);
+    }
     if ($record['kind'] !== 2) { return false; }
     return in_array([$record['previousPhase'], $record['phase'], $record['operation']],
         [[11, 120, 0], [13, 120, 0], [15, 120, 0], [11, 16, 5], [17, 14, 6]], strict: true);

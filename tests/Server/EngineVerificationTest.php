@@ -1135,6 +1135,7 @@ function engine_verification_r74_projection(): void
     }
     engine_verification_r74_bridges($unknown);
     engine_verification_r74_legacy_contexts($unknown);
+    engine_verification_r74_idle_terminals($unknown);
     engine_verification_r74_sparse($unknown);
     engine_verification_r74_malformed($unknown);
     engine_verification_r74_caps($unknown);
@@ -1148,18 +1149,90 @@ function engine_verification_r74_legacy_contexts(array $unknown): void
 {
     foreach (range(10, end: 17) as $phase) {
         foreach (range(0, end: 6) as $operation) {
-            $allowed = match ($phase) { 10, 11 => in_array($operation, [1, 4], strict: true), 12, 13 => $operation === 2,
+            $allowed = $operation === 0 && in_array($phase, [11, 13, 15, 17], strict: true);
+            $allowed = $allowed || match ($phase) { 10, 11 => in_array($operation, [1, 4], strict: true), 12, 13 => $operation === 2,
                 14, 15 => in_array($operation, [3, 6], strict: true), 16, 17 => $operation === 5 };
             foreach ([engine_verification_r74_records($phase, $operation, kind: 3),
                 [engine_verification_r74_initial(), [4, 2, $operation, $phase, 901, 0, 10, 1]]] as $records) {
                 $actual = \Tablo\Tools\server_native_phase_project(engine_verification_r74_wire($records));
-                if ($allowed) { Assert::same($actual['status'], 'APP_FAILURE'); }
-                if (!$allowed) { Assert::same($actual, $unknown); }
+                if ($allowed) { Assert::same($actual['status'], 'APP_FAILURE'); continue; }
+                Assert::same($actual, $unknown);
             }
         }
     }
     engine_verification_r74_entry_contexts($unknown);
     engine_verification_r74_late_initial($unknown);
+}
+
+/** Idle keeps the last valid facade EXIT; failure/truncation/order terminals must not echo a refused marker.
+ * @param array $unknown */
+function engine_verification_r74_idle_terminals(array $unknown): void
+{
+    foreach ([11, 13, 15, 17] as $exit) {
+        foreach ([[901, 1, 'APP_FAILURE'], [902, 3, 'TRUNCATED'], [903, 5, 'ORDER_INVALID'], [903, 7, 'ORDER_INVALID']] as [$terminal, $flags, $status]) {
+            $records = [engine_verification_r74_initial(), [4, 2, 0, $exit, $terminal, 0, 10, $flags]];
+            Assert::same(\Tablo\Tools\server_native_phase_project(engine_verification_r74_wire($records))['status'], $status);
+            $records = [engine_verification_r74_initial(), [3, 2, 0, $exit, 1, 0, 20, $flags], [4, 3, 0, $exit, $terminal, 0, 20, $flags]];
+            Assert::same(\Tablo\Tools\server_native_phase_project(engine_verification_r74_wire($records))['status'], $status);
+        }
+    }
+    engine_verification_r74_idle_witnesses($unknown);
+    engine_verification_r74_idle_refusals($unknown);
+}
+
+/** The real finite collector helpers leave operations4/5 idle and retain the valid exit when Factory120 is refused.
+ * @param array $unknown */
+function engine_verification_r74_idle_witnesses(array $unknown): void
+{
+    foreach ([[4, 11, 33], [5, 17, 71]] as [$completed, $exit, $beforeExit]) {
+        $state = engine_verification_r74_machine([...engine_verification_r74_idle_prefix($completed), 120]);
+        Assert::same([$state['terminal'], $state['operation'], $state['previous'], $state['flags']], [903, 0, $exit, 5]);
+        $sample = [2, 2, $completed, $beforeExit, $exit, 0, 20, 1];
+        $last = [4, 3, $state['operation'], $state['previous'], $state['terminal'], 0, 20, $state['flags']];
+        $records = [engine_verification_r74_initial(), $sample, $last];
+        $actual = \Tablo\Tools\server_native_phase_project(engine_verification_r74_wire($records));
+        Assert::same($actual['status'], 'ORDER_INVALID'); Assert::same($actual['records'][2]['previousPhase'] ?? null, $exit);
+        Assert::same($actual['records'][2]['phase'], 903);
+        $last[1] = 4; $last[6] = 30;
+        $records = [engine_verification_r74_initial(), $sample, [3, 3, 0, $exit, 1, 0, 30, 5], $last];
+        Assert::same(\Tablo\Tools\server_native_phase_project(engine_verification_r74_wire($records))['status'], 'ORDER_INVALID');
+        foreach ([[2, 3, 0, $exit, 120, 0, 30, 1], [2, 3, 0, 120, 130, 0, 30, 1]] as $forbiddenBlock) {
+            $records = [engine_verification_r74_initial(), $sample, $forbiddenBlock, [4, 4, 0, 130, 901, 0, 30, 1]];
+            Assert::same(\Tablo\Tools\server_native_phase_project(engine_verification_r74_wire($records)), $unknown);
+        }
+    }
+}
+
+/** @return list<int> */
+function engine_verification_r74_idle_prefix(int $completed): array
+{
+    $prefix = []; $exits = 0;
+    foreach (engine_verification_r74_lifecycle() as $phase) {
+        $prefix[] = $phase;
+        if (!in_array($phase, [11, 13, 15, 17], strict: true)) { continue; }
+        $exits++;
+        if ($exits === $completed) { return $prefix; }
+    }
+    throw new \LogicException('Synthetic completed operation absent.');
+}
+
+/** @param array $unknown */
+function engine_verification_r74_idle_refusals(array $unknown): void
+{
+    foreach ([10, 12, 14, 16] as $entry) {
+        foreach ([[901, 1], [902, 3], [903, 5], [903, 7]] as [$terminal, $flags]) {
+            $records = [engine_verification_r74_initial(), [4, 2, 0, $entry, $terminal, 0, 10, $flags]];
+            Assert::same(\Tablo\Tools\server_native_phase_project(engine_verification_r74_wire($records)), $unknown);
+            $records = [engine_verification_r74_initial(), [3, 2, 0, $entry, 1, 0, 20, $flags], [4, 3, 0, $entry, $terminal, 0, 20, $flags]];
+            Assert::same(\Tablo\Tools\server_native_phase_project(engine_verification_r74_wire($records)), $unknown);
+        }
+    }
+    foreach ([11, 13, 15, 17] as $exit) {
+        foreach ([[900, 1], [901, 3], [901, 5], [902, 1], [902, 5], [903, 1], [903, 3], [903, 4], [903, 6], [120, 5]] as [$terminal, $flags]) {
+            $records = [engine_verification_r74_initial(), [4, 2, 0, $exit, $terminal, 0, 10, $flags]];
+            Assert::same(\Tablo\Tools\server_native_phase_project(engine_verification_r74_wire($records)), $unknown);
+        }
+    }
 }
 
 /** @param array $unknown */

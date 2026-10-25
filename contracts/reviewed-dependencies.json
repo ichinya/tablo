@@ -8270,7 +8270,7 @@
                 "Composer analyze",
                 "Composer verify:server"
             ],
-            "fingerprint": "sha256:74ae70b87e684f75bfd25f40b24008c977cbf8a794ad6e05bc656b17a6ac6d66"
+            "fingerprint": "sha256:b8f26c3a60ef697badcde3f342bbf26a611c6ae7d434b6d25cb4d4606dde815c"
         },
         {
             "path": "tests/Server/EngineWatermarkTest.php",
@@ -11210,7 +11210,7 @@
                 "Composer lint",
                 "Composer analyze"
             ],
-            "fingerprint": "sha256:d930ac8b595402429067110f308b49f9a7f478f95d841f3779221b79d1493b74"
+            "fingerprint": "sha256:4a33aa1b40cfda317ae3192b7cb8376d033a8e2591d69a993cb19b9f73fe4778"
         },
         {
             "path": "tools/verify-server.php",
