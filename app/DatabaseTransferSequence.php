@@ -116,7 +116,7 @@ function database_transfer_phase_mark(int $phase): void
 {
     static $operation = 0, $lifecycle = 0, $factory = 0, $modules = 0;
     static $previous = 0, $flags = 1, $stopped = false;
-    if ($stopped || database_transfer_phase_initial_ignored($phase, ($lifecycle >> 4) & 0xF)) { return; }
+    if ($stopped || ($lifecycle === 0 && $phase !== 115) || database_transfer_phase_initial_ignored($phase, ($lifecycle >> 4) & 0xF)) { return; }
     $handle = false;
     try {
         $used = memory_get_usage(false); $peak = memory_get_peak_usage(false);

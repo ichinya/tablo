@@ -946,7 +946,7 @@
                 "tests/ServerCross/EngineCrossTransferTest.php",
                 "tests/Server/EngineTransferEnvelopeTest.php"
             ],
-            "fingerprint": "sha256:d4c9a4c55b512cf7ac27d9c1b8975b7630b0361e8f80dac4746f32215ca5cc6d"
+            "fingerprint": "sha256:eabaf489f68dc901d7542235c94fe4340fa8d140ec7d37dee150e345c2122d17"
         },
         {
             "path": "app/DatabaseTransferTarget.php",
@@ -8270,7 +8270,7 @@
                 "Composer analyze",
                 "Composer verify:server"
             ],
-            "fingerprint": "sha256:b8f26c3a60ef697badcde3f342bbf26a611c6ae7d434b6d25cb4d4606dde815c"
+            "fingerprint": "sha256:fa2eba7943ca5a08c4a2d1df2dbd62019e0cb3fe99048f255ded7e6e92895a41"
         },
         {
             "path": "tests/Server/EngineWatermarkTest.php",

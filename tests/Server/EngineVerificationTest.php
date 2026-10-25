@@ -1605,7 +1605,7 @@ function engine_verification_r74_standalone(): void
     try {
         foreach (['preflight', 'sequence'] as $variant) {
             $module = $variant === 'preflight' ? 'DatabaseTransferPreflight' : 'DatabaseTransferSequence';
-            $call = $variant === 'preflight' ? '\\Tablo\\database_transfer_preflight_phase(100);' : '\\Tablo\\database_transfer_phase_mark(116);';
+            $call = $variant === 'preflight' ? '\\Tablo\\database_transfer_preflight_phase(100);' : engine_verification_r74_rejected();
             $source = '<?php require ' . var_export(dirname(__DIR__, levels: 2) . '/app/' . $module . '.php', return: true) . ';'
                 . '$primary = new \\RuntimeException("SYNTHETIC_PRIMARY"); try { ' . $call . ' throw $primary; } catch (\\Throwable $caught) {'
                 . 'echo json_encode(["primaryPreserved"=>$caught === $primary,"facadeAbsent"=>!class_exists("Tablo\\\\DatabaseTransfer",false),'
@@ -1618,6 +1618,42 @@ function engine_verification_r74_standalone(): void
         }
     } catch (\Throwable $error) { $directory->retainFailure($error); throw $error; }
     finally { $directory->close(); }
+}
+
+/** Actual mark/handle statics in the existing isolated children, never a copied admission model. */
+function engine_verification_r74_dormant(): string
+{
+    return <<<'PHP'
+$mark = new \ReflectionFunction('Tablo\database_transfer_phase_mark');
+$handle = new \ReflectionFunction('Tablo\database_transfer_phase_handle');
+$beforeMark = $mark->getStaticVariables(); $beforeHandle = $handle->getStaticVariables();
+if ($beforeMark !== ['operation'=>0,'lifecycle'=>0,'factory'=>0,'modules'=>0,'previous'=>0,'flags'=>1,'stopped'=>false]
+    || $beforeHandle !== ['attempted'=>false,'handle'=>false]) { throw new \RuntimeException('Synthetic dormant initial state changed.'); }
+foreach ([116,901,117] as $dormantPhase) {
+    \Tablo\database_transfer_phase_mark($dormantPhase);
+    if ($mark->getStaticVariables() !== $beforeMark || $handle->getStaticVariables() !== $beforeHandle) {
+        throw new \RuntimeException('Synthetic dormant mark changed admission state.');
+    }
+}
+PHP;
+}
+
+/** A rejected real gate in the declaration child must retain its one-shot rejection. */
+function engine_verification_r74_rejected(): string
+{
+    return engine_verification_r74_dormant() . <<<'PHP'
+\Tablo\database_transfer_phase_mark(115);
+$rejectedMark = $mark->getStaticVariables(); $rejectedHandle = $handle->getStaticVariables();
+if ($rejectedMark !== array_replace($beforeMark, ['stopped'=>true]) || $rejectedHandle !== ['attempted'=>true,'handle'=>false]) {
+    throw new \RuntimeException('Synthetic rejected admission did not latch.');
+}
+foreach ([115,116,901,117] as $retryPhase) {
+    \Tablo\database_transfer_phase_mark($retryPhase);
+    if ($mark->getStaticVariables() !== $rejectedMark || $handle->getStaticVariables() !== $rejectedHandle) {
+        throw new \RuntimeException('Synthetic rejected admission reactivated.');
+    }
+}
+PHP;
 }
 
 /** POSIX mode/inode file controls are not claimed on the Windows host. */
@@ -1745,7 +1781,8 @@ function engine_verification_r74_actor(string $variant): string
         ? '$facts=["gate"=>\Tablo\database_transfer_phase_gate(),"source"=>\Tablo\database_transfer_phase_source()===str_replace("\\\\","/",dirname(__DIR__)),"derivedDirectory"=>\Tablo\database_transfer_phase_directory()===getenv("TABLO_SESSION_EVIDENCE_DIRECTORY")];'
         : '$facts=[];';
     if (in_array($variant, ['short-write', 'partial-write', 'flush-failure'], strict: true)) { $facts .= '$facts["writeCalls"]=$GLOBALS["r74Writes"]??0;'; }
-    return '<?php ' . $namespace . ' require dirname(__DIR__)."/app/DatabaseTransferSequence.php"; $grew=false;'
+    $dormant = $variant === 'valid' ? engine_verification_r74_dormant() : '';
+    return '<?php ' . $namespace . ' require dirname(__DIR__)."/app/DatabaseTransferSequence.php"; $grew=false;' . $dormant
         . '$primary=new \RuntimeException("SYNTHETIC_PRIMARY");try { foreach(' . var_export($phases, return: true) . ' as $phase){ \Tablo\database_transfer_phase_mark($phase); ' . $growth . ' } throw $primary; }'
         . 'catch(\Throwable $caught){ ' . $facts . ' echo json_encode(["primaryPreserved"=>$caught===$primary]+$facts,JSON_THROW_ON_ERROR); } }';
 }
