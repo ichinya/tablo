@@ -3196,7 +3196,8 @@
   "public/assets/app.css": {
     "owner": "asset:public/assets/app.css",
     "consumers": [
-      "dashboard.read_incidents"
+      "dashboard.read_incidents",
+      "Bounded dashboard table overflow and keyboard focus"
     ]
   },
   "public/index.php": {
@@ -3231,7 +3232,8 @@
     "consumers": [
       "Composer lint",
       "Composer verify",
-      "Composer analyze"
+      "Composer analyze",
+      "Neutral demo fixture seeding"
     ]
   },
   "tests/endpoint-router.php": {
@@ -7973,6 +7975,144 @@
     "owner": "Owned live non-listening readiness control",
     "consumers": [
       "tests/Network/TestServerReadinessTest.php"
+    ]
+  },
+  "docs/screenshots/dashboard-desktop.png": {
+    "owner": "docs/screenshots/dashboard-desktop.png",
+    "consumers": [
+      "Synthetic tile dashboard documentation"
+    ]
+  },
+  "docs/screenshots/dashboard-table-desktop.png": {
+    "owner": "docs/screenshots/dashboard-table-desktop.png",
+    "consumers": [
+      "Synthetic table dashboard documentation"
+    ]
+  },
+  "docs/screenshots/dashboard-table-mobile.png": {
+    "owner": "docs/screenshots/dashboard-table-mobile.png",
+    "consumers": [
+      "Synthetic mobile table documentation"
+    ]
+  },
+  "public/assets/app.js": {
+    "owner": "public/assets/app.js",
+    "consumers": [
+      "Local dashboard view/search/filter/history and pending forms"
+    ]
+  },
+  "tests/browser-dashboard.php": {
+    "owner": "tests/browser-dashboard.php",
+    "consumers": [
+      "Owned retained browser fixture protocol"
+    ]
+  },
+  "tests/Browser/control-lifecycle.mjs": {
+    "owner": "Browser harness pending-phase and direct-child lifecycle controls",
+    "consumers": [
+      "tests/Browser/dashboard-modes.mjs",
+      "tests/Browser/control-lifecycle.test.mjs",
+      "Dedicated Node browser control-check CI step"
+    ]
+  },
+  "tests/Browser/control-lifecycle.test.mjs": {
+    "owner": "Standalone Node browser control regressions",
+    "consumers": [
+      "Dedicated Node browser control-check CI step",
+      "Developer standalone browser control checks"
+    ]
+  },
+  "tests/Browser/dashboard-modes.mjs": {
+    "owner": "tests/Browser/dashboard-modes.mjs",
+    "consumers": [
+      "Qualified isolated browser acceptance and nonzero controls"
+    ]
+  },
+  "tests/fixtures/dashboard-modes-startup-failure.php": {
+    "owner": "tests/fixtures/dashboard-modes-startup-failure.php",
+    "consumers": [
+      "Dashboard fixture real application setup GET and controlled authentication refusal"
+    ]
+  },
+  "tests/fixtures/dashboard-port-observation.ps1": {
+    "owner": "tests/fixtures/dashboard-port-observation.ps1",
+    "consumers": [
+      "Dashboard cleanup Windows exclusive loopback-port observation",
+      "Dashboard live and closed owned PHP listener control"
+    ]
+  },
+  "tests/Http/DashboardModeActionsTest.php": {
+    "owner": "tests/Http/DashboardModeActionsTest.php",
+    "consumers": [
+      "dashboard.check_site native test",
+      "Actual cookie/CSRF/native POST and authority rejection"
+    ]
+  },
+  "tests/Http/DashboardModesTest.php": {
+    "owner": "tests/Http/DashboardModesTest.php",
+    "consumers": [
+      "dashboard.list_sites native test",
+      "Actual HTTP and locked Volt DOM rendering"
+    ]
+  },
+  "tests/Network/DashboardModesFixtureCleanupTest.php": {
+    "owner": "tests/Network/DashboardModesFixtureCleanupTest.php",
+    "consumers": [
+      "Dashboard fixture real startup and authentication failure lifecycle",
+      "dashboard.list_sites native test",
+      "dashboard.check_site native test"
+    ]
+  },
+  "tests/Support/DashboardModesFixture.php": {
+    "owner": "tests/Support/DashboardModesFixture.php",
+    "consumers": [
+      "Synthetic dashboard HTTP/browser fixtures"
+    ]
+  },
+  "tests/Support/DashboardPortObserver.php": {
+    "owner": "Tablo\\Tests\\Support\\DashboardPortObserver",
+    "consumers": [
+      "Dashboard cleanup observer-only budget and stage journal contract",
+      "Dashboard actual delayed-entry, incomplete-journal and live-child controls"
+    ]
+  },
+  "views/dashboard-actions.volt": {
+    "owner": "Volt dashboard template",
+    "consumers": [
+      "Native manual check and edit in both modes"
+    ]
+  },
+  "views/dashboard-comparison.volt": {
+    "owner": "Volt dashboard template",
+    "consumers": [
+      "Tile and table Presenter comparison"
+    ]
+  },
+  "views/dashboard-status.volt": {
+    "owner": "Volt dashboard template",
+    "consumers": [
+      "Tile and table status presentation"
+    ]
+  },
+  "views/dashboard-table.volt": {
+    "owner": "Volt dashboard template",
+    "consumers": [
+      "DashboardPage::dashboard",
+      "Semantic table, ordered rows and unknown metric handling"
+    ]
+  },
+  "views/dashboard-tiles.volt": {
+    "owner": "Volt dashboard template",
+    "consumers": [
+      "DashboardPage::dashboard",
+      "Ordered tile rendering"
+    ]
+  },
+  "views/dashboard.volt": {
+    "owner": "Volt dashboard template",
+    "consumers": [
+      "DashboardPage::dashboard",
+      "Shared toolbar and canonical CSRF form composition"
     ]
   }
 }

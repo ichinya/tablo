@@ -30,6 +30,29 @@ jobs:
       COMPOSER_PROCESS_TIMEOUT: '1800'
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - name: Qualify Node and check standalone browser controls
+        timeout-minutes: 2
+        run: |
+          $node = (Get-Command node -CommandType Application -ErrorAction Stop).Source
+          $binary = Get-Item -LiteralPath $node -ErrorAction Stop
+          if ($binary.PSIsContainer -or $binary.Length -le 0) { throw 'Node executable is unavailable' }
+          $runtimeText = & $node -p 'JSON.stringify({executable:process.execPath,version:process.version})'
+          if ($LASTEXITCODE -ne 0) { throw 'Node runtime qualification failed' }
+          $runtime = $runtimeText | ConvertFrom-Json
+          $version = $runtime.version
+          if ($version -notmatch '^v([0-9]+)\.[0-9]+\.[0-9]+$' -or [int]$Matches[1] -lt 22) { throw 'Node 22 or newer is required for standalone browser control checks' }
+          if ((Get-FileHash -LiteralPath $node -Algorithm SHA256).Hash -ne (Get-FileHash -LiteralPath $runtime.executable -Algorithm SHA256).Hash) { throw 'Node command and actual executable differ' }
+          Write-Output "Qualified Node: $($runtime.executable) $version"
+          Get-FileHash -LiteralPath $runtime.executable -Algorithm SHA256 | Format-List
+          $nodeTemp = Join-Path $env:RUNNER_TEMP 'tablo-browser-control-temp'
+          New-Item -ItemType Directory -Path $nodeTemp -ErrorAction Stop | Out-Null
+          $env:TEMP = $nodeTemp
+          $env:TMP = $nodeTemp
+          $env:TMPDIR = $nodeTemp
+          & $node --check tests/Browser/dashboard-modes.mjs
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          & $node --test --test-concurrency=1 tests/Browser/control-lifecycle.test.mjs
+          exit $LASTEXITCODE
       - name: Start dedicated synthetic helper evidence
         env:
           HELPER_MATRIX_OS: ${{ matrix.os }}

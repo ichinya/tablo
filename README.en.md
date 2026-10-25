@@ -18,11 +18,13 @@ pinned to a specific commit. The locked Phalcon release is a release candidate.
 ## Screenshots
 
 These illustrations use a separate test database with fictional sites and check
-results: `example/*` repositories, `*.example.com` domains, and a demonstration
-Git token. They contain no real repositories, passwords, or tokens. The screenshots
+results: `example/*` repositories, `*.example.com` domains, and synthetic states.
+They contain no real repositories, passwords, or tokens. The screenshots
 show the existing Russian interface; the English README does not change the UI language.
 
 ![Website overview: availability, versions, and GitHub metrics](docs/screenshots/dashboard-desktop.png)
+
+![Site table with versions, metrics, and actions](docs/screenshots/dashboard-table-desktop.png)
 
 <details>
 <summary>Adding a site, selecting a token, and configuring JSON checks</summary>
@@ -40,6 +42,8 @@ show the existing Russian interface; the English README does not change the UI l
 
 <details>
 <summary>Mobile interface</summary>
+
+<img src="docs/screenshots/dashboard-table-mobile.png" alt="Horizontally scrollable site table on a mobile screen" width="390">
 
 <img src="docs/screenshots/site-form-mobile.png" alt="Site form on a mobile screen" width="390">
 
@@ -97,9 +101,19 @@ through the GitHub API with the selected token. Pick a branch from the list or
 enter one manually. The server checks that it exists again when saving; a tag
 cannot replace a branch.
 
-Use ↻ on a card to check the site. Configuration changes clear the previous result;
-disabled sites are not checked. Search and filters operate locally on the rendered
-cards. `Online` means HTTP 200 for the homepage, or HTTP 2xx for an explicit health
+Use ↻ on a card or table row to check the site. Configuration changes clear the previous
+result; disabled sites are not checked. Search by name, host, or repository and filters
+operate locally in both views and are preserved when switching views.
+
+Tiles are shown by default. The “Плитки / Таблица” (Tiles / Table) switch saves only
+the selected view in this browser (`localStorage['tablo.dashboard.view.v1']`). When
+storage is unavailable, switching still works until reload. Search and filter state
+are retained for the current history entry: Back restores them, while a normal check
+or save opens a fresh overview. These controls send no requests and do not extend
+the session. Without JavaScript, tiles, checks, and edit links work. On narrow screens,
+the table scrolls within its own region, which supports Tab focus and keyboard scrolling.
+
+`Online` means HTTP 200 for the homepage, or HTTP 2xx for an explicit health
 endpoint with a successful JSON condition when enabled. `Offline` means another
 received status for that mode or a failed JSON condition. “Нет данных” (No data)
 means DNS, transport, request-policy, or JSON parsing failure; “На паузе” (Paused)
@@ -1254,9 +1268,8 @@ This runs `composer test`, not `composer verify`; the container does not install
 Lekalo or Mago. Production `.dockerignore` excludes tests; dev packages exist only
 in the temporary copy.
 
-For an optional visual fixture, `tests/browser-fixture.php` creates
-`artifacts/browser.sqlite` by default with explicitly synthetic data, without
-changing the main installation. To use a separate directory:
+For an optional visual fixture, `tests/browser-fixture.php` requires an explicit
+path to a new database with synthetic data, without changing the main installation:
 
 ```powershell
 php tests/browser-fixture.php artifacts/screenshots-demo/browser.sqlite
@@ -1270,8 +1283,8 @@ Malformed remaining/Retry-After alone does not block other credentials. 301/302,
 unconfirmed branches, and large branch lists yield safe correction guidance.
 See [policy, actual timing limits, and 20-site measurements](docs/github-polling.md).
 
-The fixture contains only fictional `example/*` projects and a demonstration
-token. For visual checks use `tests/web-router.php` with `TABLO_DB` pointing at
+The fixture contains only fictional `example/*` projects and synthetic check
+results; it does not create Git tokens. For visual checks use `tests/web-router.php` with `TABLO_DB` pointing at
 that database and `TABLO_TEST_RUNTIME` at a separate session/Volt cache directory.
 This router substitutes fixture GitHub responses; no real GitHub token is needed.
 
@@ -1378,3 +1391,11 @@ an existing current database without migration or site writes. See
 [JSON schema](contracts/read-api-v1.schema.json).
 
 Git provider expansion plan: [Gitea, contracts and future acceptance](docs/git-provider-plan.md).
+
+### Browser harness control checks
+
+With an existing Node 22+ executable, run `node --version`, then
+`node --test --test-concurrency=1 tests/Browser/control-lifecycle.test.mjs`.
+These standalone deadline/owned-child regressions launch only synthetic Node
+children. They need no browser, application, database or package installation.
+CI qualifies the actual Node executable separately; Composer tests do not require Node.

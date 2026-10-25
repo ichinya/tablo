@@ -8,7 +8,7 @@
                 "Composer verify",
                 "Reviewed dependency capture"
             ],
-            "fingerprint": "sha256:32b01310800e52292afd797b27194728fcb1b87a12d9680e003cca499b813f85"
+            "fingerprint": "sha256:9c0a8df42aae9c35c622e79f73cd9a7a22155c5f5335ea90bccd5d5dd6b47b2a"
         },
         {
             "path": "tools/reviewed-dependencies.php",
@@ -43,7 +43,7 @@
             "consumers": [
                 "Hosted pinned contract and native PHP gates"
             ],
-            "fingerprint": "sha256:be21419558e08f630dcdf31de641b617187edfcb22c24d2eab887c49c65063b1"
+            "fingerprint": "sha256:f0bda3d59cf94c4cef9e518f5d91abd28ddb3f8c431c23ebdbf892d5d2dc4f7f"
         },
         {
             "path": "app/AddressRange.php",
@@ -4013,9 +4013,10 @@
             "path": "public/assets/app.css",
             "owner": "asset:public/assets/app.css",
             "consumers": [
-                "dashboard.read_incidents"
+                "dashboard.read_incidents",
+                "Bounded dashboard table overflow and keyboard focus"
             ],
-            "fingerprint": "sha256:ade5a2c7fa8c388fd677a2b16c94336cbd066dfe661299a72b00c28768a5de53"
+            "fingerprint": "sha256:af732cba9cba559e4c89e6f20f4d954a8b25ca630ff37ac1eb26fca004ac7c27"
         },
         {
             "path": "public/index.php",
@@ -4048,7 +4049,7 @@
                 "Administrator Argon2id runtime and byte policy",
                 "Administrator local password reset and API bearer revocation"
             ],
-            "fingerprint": "sha256:25f0d1fc0c638b0cf4b5abe0cbcea70cd21c6b754b49ef4b1c0b0e648a6dedcf"
+            "fingerprint": "sha256:0c3b19ac0f8ea25238f9ef7dff560b92ac1600c0a807efbbd43d45c0c37fba93"
         },
         {
             "path": "tests/browser-fixture.php",
@@ -4056,9 +4057,10 @@
             "consumers": [
                 "Composer lint",
                 "Composer verify",
-                "Composer analyze"
+                "Composer analyze",
+                "Neutral demo fixture seeding"
             ],
-            "fingerprint": "sha256:6d9257da0a60dbf3784610ce666f830cdf1ff1b1cd11000ca1d8131f66146334"
+            "fingerprint": "sha256:7fde9f516f4be68c6c9ed186aee2cdae3d3d0a116c58d331b19c7c1218e6b67d"
         },
         {
             "path": "tests/endpoint-router.php",
@@ -9072,7 +9074,7 @@
                 "Composer verify",
                 "Composer analyze"
             ],
-            "fingerprint": "sha256:54d205b64446c6d49455fdd353b27c2426fb09921a731f83ba5ab0a58f0426e4"
+            "fingerprint": "sha256:6b953c1e72c832c2466b4e7562452372ae343dd43fbf64c775ace8d0d622ebe7"
         },
         {
             "path": "views/incidents.volt",
@@ -9658,7 +9660,7 @@
                 "Administrator idle timeout policy",
                 "HSTS deployment operator guidance"
             ],
-            "fingerprint": "sha256:2130f1fa37edc5734cc8e067a9261896a79e19e8fc1f1053fb400ad7abe87eaa"
+            "fingerprint": "sha256:3c7af88b65890543dada88ac97c82a80f0c10bc7fdf30c235324bbacf28cf2fb"
         },
         {
             "path": "app/PasswordHashPolicy.php",
@@ -9956,6 +9958,186 @@
                 "tests/Network/TestServerReadinessTest.php"
             ],
             "fingerprint": "sha256:1c028d8814bf7ec22e9996d93c913296c1f05caec14648e7f070bc0018e3e6f6"
+        },
+        {
+            "path": "docs/screenshots/dashboard-desktop.png",
+            "owner": "docs/screenshots/dashboard-desktop.png",
+            "consumers": [
+                "Synthetic tile dashboard documentation"
+            ],
+            "fingerprint": "sha256:5f2b0dd6c73f359817903bb544a9593e22df0246e8a4a30cc854591105ecec06"
+        },
+        {
+            "path": "docs/screenshots/dashboard-table-desktop.png",
+            "owner": "docs/screenshots/dashboard-table-desktop.png",
+            "consumers": [
+                "Synthetic table dashboard documentation"
+            ],
+            "fingerprint": "sha256:c41f9baa7332978482699a13575ccc6762e9a6d1456fcb97defdce996da5413e"
+        },
+        {
+            "path": "docs/screenshots/dashboard-table-mobile.png",
+            "owner": "docs/screenshots/dashboard-table-mobile.png",
+            "consumers": [
+                "Synthetic mobile table documentation"
+            ],
+            "fingerprint": "sha256:261c96670ee4e55efd0ffd1cb8d3c19501e84a107c2714631c2977fc88d6c1df"
+        },
+        {
+            "path": "public/assets/app.js",
+            "owner": "public/assets/app.js",
+            "consumers": [
+                "Local dashboard view/search/filter/history and pending forms"
+            ],
+            "fingerprint": "sha256:ac90729b57870845959b963a8dddddb7b657c2d1c9215bead788ae4bc37a4091"
+        },
+        {
+            "path": "tests/browser-dashboard.php",
+            "owner": "tests/browser-dashboard.php",
+            "consumers": [
+                "Owned retained browser fixture protocol"
+            ],
+            "fingerprint": "sha256:1608c5dffe0e9bb2b00f7b6b118d9c0e2c4a58fb740a851cef7d8cd68933ac58"
+        },
+        {
+            "path": "tests/Browser/control-lifecycle.mjs",
+            "owner": "Browser harness pending-phase and direct-child lifecycle controls",
+            "consumers": [
+                "tests/Browser/dashboard-modes.mjs",
+                "tests/Browser/control-lifecycle.test.mjs",
+                "Dedicated Node browser control-check CI step"
+            ],
+            "fingerprint": "sha256:ef9bb21c1e02917e6507333f1526afe0076962291cbcb9b3e3fc3fb894f6c273"
+        },
+        {
+            "path": "tests/Browser/control-lifecycle.test.mjs",
+            "owner": "Standalone Node browser control regressions",
+            "consumers": [
+                "Dedicated Node browser control-check CI step",
+                "Developer standalone browser control checks"
+            ],
+            "fingerprint": "sha256:41f58d20920157641b85dbe726e881ce7dff151f948a7b7fe72cadb1085b926a"
+        },
+        {
+            "path": "tests/Browser/dashboard-modes.mjs",
+            "owner": "tests/Browser/dashboard-modes.mjs",
+            "consumers": [
+                "Qualified isolated browser acceptance and nonzero controls"
+            ],
+            "fingerprint": "sha256:4ba65563bafc8d2ffccaa07a0955c54bcde4ad5ea1e52ba49d434aaedb19f652"
+        },
+        {
+            "path": "tests/fixtures/dashboard-modes-startup-failure.php",
+            "owner": "tests/fixtures/dashboard-modes-startup-failure.php",
+            "consumers": [
+                "Dashboard fixture real application setup GET and controlled authentication refusal"
+            ],
+            "fingerprint": "sha256:56c3a835de446288d62af1de7c4b453fba74bf63fc82bdac693c552de24384f6"
+        },
+        {
+            "path": "tests/fixtures/dashboard-port-observation.ps1",
+            "owner": "tests/fixtures/dashboard-port-observation.ps1",
+            "consumers": [
+                "Dashboard cleanup Windows exclusive loopback-port observation",
+                "Dashboard live and closed owned PHP listener control"
+            ],
+            "fingerprint": "sha256:b0a62879a40a82801c90abc4a82561fc91ec78470c44e03fe7dc6f50eeb09c95"
+        },
+        {
+            "path": "tests/Http/DashboardModeActionsTest.php",
+            "owner": "tests/Http/DashboardModeActionsTest.php",
+            "consumers": [
+                "dashboard.check_site native test",
+                "Actual cookie/CSRF/native POST and authority rejection"
+            ],
+            "fingerprint": "sha256:fed571893d1260c7256b2710f6bbc47536c0ec732046195013fcf9f9f42d8e6d"
+        },
+        {
+            "path": "tests/Http/DashboardModesTest.php",
+            "owner": "tests/Http/DashboardModesTest.php",
+            "consumers": [
+                "dashboard.list_sites native test",
+                "Actual HTTP and locked Volt DOM rendering"
+            ],
+            "fingerprint": "sha256:cb9bf4cd60102cf9bdf8360c7013f316e02513e3672d44e80bdd732da52e843f"
+        },
+        {
+            "path": "tests/Network/DashboardModesFixtureCleanupTest.php",
+            "owner": "tests/Network/DashboardModesFixtureCleanupTest.php",
+            "consumers": [
+                "Dashboard fixture real startup and authentication failure lifecycle",
+                "dashboard.list_sites native test",
+                "dashboard.check_site native test"
+            ],
+            "fingerprint": "sha256:00ab7e33090bffa5d12e483d974acabc103bf18fa229013bab2bc3b70557950a"
+        },
+        {
+            "path": "tests/Support/DashboardModesFixture.php",
+            "owner": "tests/Support/DashboardModesFixture.php",
+            "consumers": [
+                "Synthetic dashboard HTTP/browser fixtures"
+            ],
+            "fingerprint": "sha256:07451c783000b3fe6fa450e98c3a0ae1945b3736cc58af887976078b00dd78b7"
+        },
+        {
+            "path": "tests/Support/DashboardPortObserver.php",
+            "owner": "Tablo\\Tests\\Support\\DashboardPortObserver",
+            "consumers": [
+                "Dashboard cleanup observer-only budget and stage journal contract",
+                "Dashboard actual delayed-entry, incomplete-journal and live-child controls"
+            ],
+            "fingerprint": "sha256:648d8216f4d79597e2de97d46fe10656ce5faf76a5a01b39dee7023bca060116"
+        },
+        {
+            "path": "views/dashboard-actions.volt",
+            "owner": "Volt dashboard template",
+            "consumers": [
+                "Native manual check and edit in both modes"
+            ],
+            "fingerprint": "sha256:8b2c3bc86593e2f4de1b61973352b4f209693e7803a9c2e6361e72d7bf2c713e"
+        },
+        {
+            "path": "views/dashboard-comparison.volt",
+            "owner": "Volt dashboard template",
+            "consumers": [
+                "Tile and table Presenter comparison"
+            ],
+            "fingerprint": "sha256:c346bdf94898112754a6ccb03abc3572a1ceec95bc47072d7fbcbba2144867d9"
+        },
+        {
+            "path": "views/dashboard-status.volt",
+            "owner": "Volt dashboard template",
+            "consumers": [
+                "Tile and table status presentation"
+            ],
+            "fingerprint": "sha256:ee3c24f52a0ffb6b78091b6805dd818e89300858b5e7f35f3963812e66707f4b"
+        },
+        {
+            "path": "views/dashboard-table.volt",
+            "owner": "Volt dashboard template",
+            "consumers": [
+                "DashboardPage::dashboard",
+                "Semantic table, ordered rows and unknown metric handling"
+            ],
+            "fingerprint": "sha256:f3e5f60f8376b8ef10cfa7952ce9915d5639788062a2f372b696f49f39ca53f6"
+        },
+        {
+            "path": "views/dashboard-tiles.volt",
+            "owner": "Volt dashboard template",
+            "consumers": [
+                "DashboardPage::dashboard",
+                "Ordered tile rendering"
+            ],
+            "fingerprint": "sha256:9c10a70da2a6b89e2525c600c957f046f1b0faffdbf675df6071af41c61efb19"
+        },
+        {
+            "path": "views/dashboard.volt",
+            "owner": "Volt dashboard template",
+            "consumers": [
+                "DashboardPage::dashboard",
+                "Shared toolbar and canonical CSRF form composition"
+            ],
+            "fingerprint": "sha256:4e51d6a33d2bc61395a72cc863cb640e0df91114457b9bbda26d0453461be1da"
         }
     ]
 }

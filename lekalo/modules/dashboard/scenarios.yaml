@@ -406,6 +406,16 @@
                 "dashboard.rotate_read_api_token",
                 "dashboard.revoke_read_api_token"
             ]
+        },
+        {
+            "id": "dashboard.dashboard_modes",
+            "kind": "scenario",
+            "version": 1,
+            "summary": "Tile default and semantic table share the once-presented ordered sites, status/comparison/unknown metrics and native CSRF actions. Browser-only allowlisted preference, search and filters send no requests or session activity; pending and paused checks stay disabled, history restores local state, and keyboard/mobile overflow reaches actions.",
+            "covers": [
+                "dashboard.list_sites",
+                "dashboard.check_site"
+            ]
         }
     ]
 }

@@ -199,7 +199,10 @@ try {
                 $tests .= ',tests/Network/ProcessDiagnosticTest.php,tests/Unit/HealthCheckDiagnosticsTest.php';
             }
             if ($symbol['id'] === 'dashboard.list_sites') {
-                $tests .= ',tests/Unit/PresenterTest.php';
+                $tests .= ',tests/Unit/PresenterTest.php,tests/Http/DashboardModesTest.php,tests/Http/DashboardModeActionsTest.php,tests/Network/DashboardModesFixtureCleanupTest.php';
+            }
+            if ($symbol['id'] === 'dashboard.check_site') {
+                $tests .= ',tests/Http/DashboardModeActionsTest.php,tests/Network/DashboardModesFixtureCleanupTest.php';
             }
             if (in_array($symbol['id'], ['dashboard.setup', 'dashboard.login', 'dashboard.logout', 'dashboard.list_sites',
                 'dashboard.list_branches', 'dashboard.check_site', 'dashboard.read_api_sites', 'dashboard.read_api_site', 'dashboard.authenticate_read_api'], strict: true)) {

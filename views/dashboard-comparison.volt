@@ -1,0 +1,1 @@
+<div class="comparison {{ site['comparison_tone'] }}"><svg><use href="/assets/icons.svg#{% if site['comparison_tone'] == 'green' %}check{% elseif site['comparison_tone'] == 'amber' %}activity{% else %}clock{% endif %}"></use></svg>{{ site['comparison'] }}</div>
