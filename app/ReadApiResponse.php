@@ -28,8 +28,9 @@ final class ReadApiResponse
         return new self(200, $encoded);
     }
 
-    public function send(): void
+    public function send(?string $hstsValue = null): void
     {
+        if ($hstsValue !== null) { header('Strict-Transport-Security: ' . $hstsValue, replace: true); }
         http_response_code($this->status);
         header('Content-Type: application/json; charset=utf-8');
         header('Cache-Control: no-store, private');

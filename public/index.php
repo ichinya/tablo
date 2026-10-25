@@ -11,15 +11,20 @@ set_error_handler(static function (int $severity): bool {
 $target = $_SERVER['REQUEST_URI'] ?? '';
 // External bearer reads must precede Composer bootstrap, vault, migration and browser sessions.
 if (str_starts_with($target, '/api')) {
+    $hstsValue = null;
     try {
+        require_once dirname(__DIR__) . '/app/HstsPolicy.php';
+        $hstsValue = \Tablo\HstsPolicy::fromEnvironment()->headerValue($_SERVER);
         require_once dirname(__DIR__) . '/app/ReadApiRequest.php';
         require_once dirname(__DIR__) . '/app/ReadApiResponse.php';
         require_once dirname(__DIR__) . '/app/ReadApi.php';
-        \Tablo\ReadApi::serve();
-    } catch (Throwable) {
+        \Tablo\ReadApi::serve($hstsValue);
+    } catch (Throwable $error) {
+        if ($error instanceof \Tablo\HstsConfigurationError) { error_log($error->getMessage()); }
         // This fixed fallback remains available when an API owner cannot load.
         if (headers_sent()) { return; }
         header_remove();
+        if ($hstsValue !== null) { header('Strict-Transport-Security: ' . $hstsValue, replace: true); }
         http_response_code(500);
         header('Content-Type: application/json; charset=utf-8');
         header('Cache-Control: no-store, private');
@@ -105,9 +110,13 @@ if ($target === '/_tablo/health' || str_starts_with($target, '/_tablo/health?') 
     return;
 }
 try {
+    require_once dirname(__DIR__) . '/app/HstsPolicy.php';
+    $hstsValue = \Tablo\HstsPolicy::fromEnvironment()->headerValue($_SERVER);
+    if ($hstsValue !== null) { header('Strict-Transport-Security: ' . $hstsValue, replace: true); }
     require dirname(__DIR__) . '/vendor/autoload.php';
     (new Tablo\Web())->run();
 } catch (Throwable $e) {
+    if ($e instanceof \Tablo\HstsConfigurationError) { error_log($e->getMessage()); }
     error_log('Tablo initialization or operation failed. Check installation configuration and local storage.');
     if ($e instanceof Tablo\InstallationException && $e->getCode() === Tablo\InstallationException::UNSUPPORTED_CURL) {
         error_log(Tablo\InstallationException::CURL_DIAGNOSTIC);
