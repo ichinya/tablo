@@ -8,7 +8,7 @@
                 "Composer verify",
                 "Reviewed dependency capture"
             ],
-            "fingerprint": "sha256:2cffb0e034e19438a07acd6779df906d91c4a6fe23ffa75ece8435bbb7a112e3"
+            "fingerprint": "sha256:80b48f93354cf0b37cd0d57571337b51a595ceb5d22a131e4424ab93e0c41787"
         },
         {
             "path": "tools/reviewed-dependencies.php",
@@ -146,7 +146,7 @@
                 "tools/server-io-uring-php-grammar.test.php",
                 "tools/server-supervisor-linux-fallback-unit.c"
             ],
-            "fingerprint": "sha256:a7a33155544b95cce2477fbcbd25c80a048cca6d5a756c36e952abb9894f6c89"
+            "fingerprint": "sha256:7ad5d59c2c6de08c5d1ad9b0f09243fee6e1063c04483e8449722074fbb58a2f"
         },
         {
             "path": "app/AddressRange.php",
@@ -11727,7 +11727,7 @@
                 "Administrator local password reset and API bearer revocation",
                 "Administrator idle timeout policy"
             ],
-            "fingerprint": "sha256:a2089eb05c66b952f60d80a8405159e539ce4e6da1dcc2ffd55b53ad2b76d706"
+            "fingerprint": "sha256:5c7c1b90a12e8c89cf3041a980b7f9ab975d73f9ab3867738f72a4d8692409dd"
         },
         {
             "path": "tests/fixtures/hsts-router.php",
@@ -12037,12 +12037,31 @@
             "fingerprint": "sha256:1608c5dffe0e9bb2b00f7b6b118d9c0e2c4a58fb740a851cef7d8cd68933ac58"
         },
         {
+            "path": "tests/Browser/control-lifecycle.mjs",
+            "owner": "Browser harness pending-phase and direct-child lifecycle controls",
+            "consumers": [
+                "tests/Browser/dashboard-modes.mjs",
+                "tests/Browser/control-lifecycle.test.mjs",
+                "Dedicated Node browser control-check CI step"
+            ],
+            "fingerprint": "sha256:ef9bb21c1e02917e6507333f1526afe0076962291cbcb9b3e3fc3fb894f6c273"
+        },
+        {
+            "path": "tests/Browser/control-lifecycle.test.mjs",
+            "owner": "Standalone Node browser control regressions",
+            "consumers": [
+                "Dedicated Node browser control-check CI step",
+                "Developer standalone browser control checks"
+            ],
+            "fingerprint": "sha256:41f58d20920157641b85dbe726e881ce7dff151f948a7b7fe72cadb1085b926a"
+        },
+        {
             "path": "tests/Browser/dashboard-modes.mjs",
             "owner": "tests/Browser/dashboard-modes.mjs",
             "consumers": [
                 "Qualified isolated browser acceptance and nonzero controls"
             ],
-            "fingerprint": "sha256:e9dc2f6076b7ef5c2d433a9d1fceaf068a5de05d18d27e126580ad89644b34ad"
+            "fingerprint": "sha256:4ba65563bafc8d2ffccaa07a0955c54bcde4ad5ea1e52ba49d434aaedb19f652"
         },
         {
             "path": "tests/fixtures/dashboard-modes-startup-failure.php",
