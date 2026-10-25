@@ -97,7 +97,8 @@ final class AdminPasswordStorageTest extends AdminPasswordFixtureCase
             $old = \Tablo\SqlRows::all(\Tablo\SqlStatement::checked($db->query('SELECT * FROM users'))->fetchAll(), \Tablo\SqlUsersCreatedAtIdPasswordHashRow::checked(...));
             Assert::same(\Tablo\SqlStatement::checked($db->query('PRAGMA journal_mode = DELETE'))->fetchColumn(), 'delete');
             $db->exec('BEGIN EXCLUSIVE');
-            $result = self::command($directory, $path, ['--password-stdin'], \Tablo\Tests\Support\FixtureCredentials::confirmationInput(label: 'replacement-secret'));
+            // SQLite's accumulated busy sleeps do not bound elapsed wall time.
+            $result = self::command($directory, $path, ['--password-stdin'], \Tablo\Tests\Support\FixtureCredentials::confirmationInput(label: 'replacement-secret'), timeout: 20);
             Assert::same($result['exit_code'], 4, 'opening an exclusively locked installation is busy');
             Assert::same($result['stdout'], '');
             Assert::true(!str_contains(\Tablo\Tests\Support\FixtureValue::string($result['stderr']), 'PDO'));

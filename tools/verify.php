@@ -193,6 +193,16 @@ try {
             if ($symbol['id'] === 'dashboard.list_sites') {
                 $tests .= ',tests/Unit/PresenterTest.php';
             }
+            if (in_array($symbol['id'], ['dashboard.setup', 'dashboard.login', 'dashboard.logout', 'dashboard.list_sites',
+                'dashboard.list_branches', 'dashboard.check_site', 'dashboard.read_api_sites', 'dashboard.read_api_site', 'dashboard.authenticate_read_api'], strict: true)) {
+                $tests .= ',tests/Unit/HstsPolicyTest.php,tests/Http/HstsBootstrapTest.php,tests/Http/HstsResponseTest.php,tests/Network/HstsTransportTest.php';
+            }
+            if (in_array($symbol['id'], ['dashboard.read_api_sites', 'dashboard.read_api_site', 'dashboard.authenticate_read_api'], strict: true)) {
+                $tests .= ',tests/Http/HstsReadApiTest.php';
+            }
+            if (in_array($symbol['id'], ['dashboard.run_checks', 'dashboard.run_worker_pass'], strict: true)) {
+                $tests .= ',tests/Http/HstsBootstrapTest.php';
+            }
             $testFiles = array_values(array_unique(explode(',', $tests)));
             $selectors = Tablo\Tools\NativeTestAttachments::selectors($testFiles);
             $nativeMap[$symbol['id']] = ['test_files' => $testFiles, 'native_selectors' => $selectors];

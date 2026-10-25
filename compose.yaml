@@ -13,6 +13,8 @@ services:
       TABLO_ALLOW_PRIVATE_NETWORK: "${TABLO_ALLOW_PRIVATE_NETWORK:-0}"
       TABLO_COOKIE_SECURE: "${TABLO_COOKIE_SECURE:-0}"
       TABLO_TRUSTED_PROXIES: "${TABLO_TRUSTED_PROXIES:-}"
+      TABLO_HSTS_MODE: "${TABLO_HSTS_MODE:-off}"
+      TABLO_HSTS_MAX_AGE: "${TABLO_HSTS_MAX_AGE:-}"
     restart: unless-stopped
   tablo-worker:
     build: .

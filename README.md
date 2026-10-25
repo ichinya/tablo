@@ -1,17 +1,24 @@
 # Tablo
 
+[Русский](README.md) | [English](README.en.md)
+
+`README.md` — каноническая русская документация. При изменении поведения синхронно
+обновляйте в обоих README установку, настройки, команды и ссылки.
+
 Небольшая self-hosted панель сайтов: доступность, установленная версия, последний
 релиз / HEAD ветки, Issues, PR и время ответа. Одна установка, один администратор.
 
-Phalcon **6.0.0 RC2**, Volt, PHP 8.2+, libcurl 7.55.0+, SQLite. Без SPA, Redis, очередей и внешнего
+Phalcon **6.0.0 RC2** и Volt устанавливаются Composer как PHP-библиотеки;
+нативное расширение `ext-phalcon` не требуется. PHP 8.2+, libcurl 7.55.0+, SQLite. Без SPA, Redis, очередей и внешнего
 сервера БД. Зависимости закреплены в `composer.lock`; отдельный пакет Volt пока
-использует dev-ветку, закреплённую на конкретном commit. Phalcon 6 ещё не stable.
+использует dev-ветку, закреплённую на конкретном commit. Закреплённая версия Phalcon — release candidate.
 
 ## Скриншоты
 
 Панель с вымышленными сайтами и результатами проверок. Скриншоты сделаны на
 отдельной тестовой базе: репозитории `example/*`, домены `*.example.com` и
 демонстрационный Git-токен. Реальные репозитории, пароли и токены не используются.
+На скриншотах существующий русский интерфейс; английский README не меняет язык UI.
 
 ![Обзор сайтов: доступность, версии и GitHub-метрики](docs/screenshots/dashboard-desktop.png)
 
@@ -38,8 +45,15 @@ Phalcon **6.0.0 RC2**, Volt, PHP 8.2+, libcurl 7.55.0+, SQLite. Без SPA, Redi
 
 ## Локальный запуск
 
+Требуются Composer 2 и PHP `^8.2` с cURL, OpenSSL, PDO/pdo_sqlite, ctype,
+fileinfo, iconv, JSON, mbstring, PCRE, session и XML. Для dev-зависимостей также
+нужны tokenizer и xmlwriter. Матрица CI включает Windows/Linux и PHP 8.2, 8.4, 8.5.
+Устанавливайте закреплённые зависимости из `composer.lock`; проверяйте фактический
+runtime, а не только Composer `config.platform`.
+
 ```powershell
 composer install
+composer check-platform-reqs
 composer serve
 ```
 
@@ -48,6 +62,8 @@ composer serve
 (12–72 байта). После создания администратора `/setup` возвращает 404 для GET
 и POST, включая запросы без авторизации. Начальных паролей, регистрации
 и предустановленных сайтов нет.
+Вход выполняется через `/login`; при утрате доступа используйте
+[локальную смену пароля](#локальная-смена-пароля-администратора).
 
 Добавьте сайт, указав HTTP(S) адрес, GitHub репозиторий (`owner/repo` или полный
 URL), токен, ветку, health path, необязательный version path и режим сравнения. «Получить ветки»
@@ -58,8 +74,9 @@ URL), токен, ветку, health path, необязательный version 
 ↻ на карточке. Изменение настроек сбрасывает старый результат; отключённые сайты
 не проверяются. Поиск и фильтры работают локально поверх отрисованных карточек.
 
-Состояния: `Online` для HTTP 2xx health и успешного условия в режиме JSON,
-`Offline` для полученного ответа вне 2xx или несовпадения JSON-значения,
+Состояния: `Online` для HTTP 200 главной страницы либо HTTP 2xx явного health endpoint
+и успешного условия в режиме JSON; `Offline` для другого полученного статуса
+соответствующего режима или несовпадения JSON-значения,
 «Нет данных» при DNS/transport/запрете запроса или ошибке разбора JSON,
 «На паузе» для отключённого сайта.
 Отдельные ошибки version/GitHub не отменяют валидный health. Нет данных не
@@ -116,8 +133,9 @@ ASCII-байт `0x21..0x7e`: пробелы, управляющие символ
 Значение не обрезается и не преобразуется; `null` и другие типы отклоняются.
 
 Токен хранится в SQLite как шифротекст AES-256-GCM v1 с ключом существующего
-хранилища. Переход схемы v4 → v5 добавляет nullable `endpoint_token` без сетевых
-запросов и создания ключа. Токен отключённого сайта также устанавливает существующее
+хранилища. Текущая схема содержит nullable `endpoint_token`; при обновлении
+поддерживаемой старой структуры поле добавляется без сетевых запросов и создания ключа.
+Токен отключённого сайта также устанавливает существующее
 состояние ключа. Пропавший, повреждённый или известный заменённый ключ вызывает
 безопасный отказ без генерации замены. Для неизвестного корректного legacy-ключа
 без доверенного эталона свежий процесс не может доказать прежнюю идентичность.
@@ -251,6 +269,8 @@ wildcard, фильтры и рекурсивный поиск. Ограниче�
 логику. Существующая SQLite получает новые поля автоматически; сайты сохраняют
 режим HTTP и автоматическое определение версии.
 
+### Git-токены и ветки
+
 `RepositoryProvider` — маленький контракт из четырёх методов. Реализован только
 `GitHubProvider`; GitLab/Gitea/Forgejo можно добавить отдельно. Для Issues и PR
 используются отдельные GitHub search-запросы; неполный ответ и лимит API
@@ -262,6 +282,8 @@ wildcard, фильтры и рекурсивный поиск. Ограниче�
 проектах. Его замена сбрасывает результаты их проверок; удалить используемый
 токен можно после переключения проектов на другой токен. Пустое поле при
 редактировании токена сохраняет прежнее значение.
+`GITHUB_TOKEN` не используется как переменная окружения приложения; задавайте
+credentials через эти элементы управления.
 
 Таблица `git_tokens` хранит `provider`, имя и зашифрованное значение; проект
 ссылается на токен через `git_token_id`. Реестр `GitProviders` и контракт
@@ -315,6 +337,11 @@ Docker Compose читает `.env` для подстановки значени�
 | `TABLO_ALLOW_PRIVATE_NETWORK` | `1` для осознанного мониторинга localhost/private сетей; по умолчанию `0`. |
 | `TABLO_COOKIE_SECURE` | `1` при работе через HTTPS reverse proxy. Прямой HTTPS определяется автоматически. |
 | `TABLO_TRUSTED_PROXIES` | Пусто по умолчанию. Список точных IP доверенных прокси через запятую для режима приложения; правила ниже. |
+| `TABLO_HISTORY_RETENTION_DAYS` | При отсутствии — 30 дней; целое от 1 до 3650 без ведущих нулей. Используется только явной командой очистки истории; пустое значение ошибочно. |
+
+Базовый Compose задаёт `TABLO_DB` внутри контейнера явно и не передаёт
+`TABLO_HISTORY_RETENTION_DAYS` из окружения host автоматически. Для внешнего ключа
+используйте [отдельный overlay](#внешний-read-only-ключ-токенов).
 
 Явный непустой Health endpoint и включённый Version endpoint допускают до трёх
 ручных переходов (четыре GET-запроса) для 301/302/303/307/308. GET остаётся GET.
@@ -409,26 +436,31 @@ JSON не меняет механизм проверок, лимиты пров�
 Запускайте эту команду своим cron/Task Scheduler с теми же переменными окружения.
 Проверки последовательные; интервал выбирайте с учётом числа сайтов и лимита
 GitHub search API. Код выхода `1` означает ошибку, Offline или изменённые во время
-проверки настройки. Отдельная история проверок пока не хранится.
+проверки настройки. Принятые результаты сохраняются в [истории](#check-history);
+очистка по retention запускается явно. Для регулярного процесса см.
+[Periodic worker](#periodic-worker), для внешнего чтения — [Read API](#read-api).
 
 ## Миграции SQLite
 
 Версия схемы хранится в `PRAGMA user_version`. При первом подключении пустая
-или совместимая старая база с версией `0` автоматически обновляется до версии `4`.
-Переход `1 → 2` добавляет nullable `health_error_code` и `health_http_status`;
-`2 → 3` добавляет сохранённые GitHub cooldown; `3 → 4` — настройки интервала,
-revision сайта и состояние/прогресс воркера. Применяются только недостающие переходы;
+или поддерживаемая старая база автоматически обновляется до версии **10**.
+Мигратор проверяет фактическую структуру: исторические варианты включают разные
+композиции endpoint-токенов и истории, а не одну линейную цепочку v4/v5.
+Текущая схема включает диагностику health, GitHub cooldown, настройки и состояние
+воркера, endpoint-токены, историю, incidents, notifications, idle timeout и read API token.
+Применяются только недостающие поддерживаемые изменения;
 существующие сайты, endpoints, credentials и результаты сохраняются.
 Создание таблиц, добавление недостающих колонок и запись номера версии выполняются
 в одной транзакции. При ошибке переход откатывается; повторное подключение может
 повторить его. Пароль администратора, сайты, ключ шифрования и сохранённые токены
 при обновлении не заменяются.
 
-Для актуальной схемы мигратор только читает номер версии: не выполняет DDL и не
-запрашивает блокировку записи. При одновременном запуске процессы повторно проверяют
+Для актуальной схемы мигратор проверяет поддерживаемую физическую структуру и
+внешние ключи, не выполняя DDL и не запрашивая блокировку записи для миграции. При одновременном запуске процессы повторно проверяют
 версию после получения блокировки, поэтому уже выполненный переход пропускается.
 База с более новой версией или несовместимой старой структурой вызывает ошибку
 без изменения данных; не снижайте `user_version` вручную для запуска старого приложения.
+Отдельный reader Read API требует текущую установку и не выполняет миграции.
 
 `database/schema.sql` — фиксированный bootstrap версии `1`. Будущие изменения
 добавляются отдельными переходами в мигратор с увеличением номера версии.
@@ -520,51 +552,29 @@ PDO поддерживает `VACUUM INTO` без обязательной ко�
 база + ключ предпочтительно окно обслуживания с остановленными web и CLI/worker;
 при online-бэкапе гарантируйте, что существующий ключ не изменяется во время копирования.
 
-В PowerShell из корня проекта, с тем же `TABLO_DB`, что у приложения:
+Перед бэкапом явно определите фактически используемую БД и ключ по той же
+конфигурации, что у web и worker: process environment имеет приоритет над корневым
+`.env`; относительный `TABLO_DB` зависит от CWD, а `TABLO_TOKEN_KEY_FILE` — от корня
+проекта. Прямой `php` со скриптом без Composer autoload сам не загружает `.env`.
+В legacy-режиме ключ — соседний `github-token.key`; во внешнем режиме нужен файл,
+выбранный `TABLO_TOKEN_KEY_FILE`, а не оставшаяся соседняя копия.
 
-```powershell
-$walBackupScript = @'
-<?php
-$path = realpath(getenv('TABLO_DB') ?: __DIR__ . '/storage/tablo.sqlite');
-if ($path === false || !is_file($path)) { throw new RuntimeException('База не найдена.'); }
-$db = new PDO('sqlite:' . $path, null, null, [PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION]);
-$db->exec('PRAGMA busy_timeout = 5000; PRAGMA foreign_keys = ON');
-$key = dirname($path) . '/github-token.key';
-$hasTokens = (int) $db->query("SELECT (SELECT count(*) FROM git_tokens)
-    + (SELECT count(*) FROM sites WHERE github_token IS NOT NULL AND github_token <> '')")->fetchColumn() > 0;
-// Schema 3 can retain private quota identity after every encrypted credential is removed.
-$hasQuotaTable = (int) $db->query("SELECT count(*) FROM sqlite_schema WHERE type = 'table' AND name = 'github_cooldowns'")->fetchColumn() > 0;
-if ($hasQuotaTable) {
-    $hasTokens = $hasTokens || (bool) $db->query("SELECT EXISTS(SELECT 1 FROM github_cooldowns WHERE scope LIKE 'credential:v1:%')")->fetchColumn();
-}
-if ($hasTokens && !is_file($key)) { throw new RuntimeException('Ключ токенов отсутствует; бэкап неполон.'); }
-$backup = dirname($path) . '/backups/wal-' . gmdate('Ymd-His') . '-' . bin2hex(random_bytes(4));
-if (!mkdir($backup, 0700, true)) { throw new RuntimeException('Не удалось создать каталог бэкапа.'); }
-$snapshot = $backup . '/tablo.sqlite';
+В окно обслуживания остановите все consumers, проверьте выбранные существующие
+файлы и создайте снимок через отдельный PDO. Для подготовленного оператором `$db`
+и нового абсолютного пути `$snapshot` основная операция:
+
+```php
 $db->exec('VACUUM INTO ' . $db->quote($snapshot));
-$check = new PDO('sqlite:' . $snapshot, null, null, [PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION]);
-if ($check->query('PRAGMA integrity_check')->fetchColumn() !== 'ok'
-    || $check->query('PRAGMA foreign_key_check')->fetchAll() !== []) {
-    throw new RuntimeException('Бэкап не прошёл проверку; не используйте его для восстановления.');
-}
-unset($check, $db);
-chmod($snapshot, 0600);
-if (is_file($key)) {
-    if (!copy($key, $backup . '/github-token.key')) { throw new RuntimeException('Бэкап ключа не выполнен.'); }
-    chmod($backup . '/github-token.key', 0600);
-}
-echo 'Проверенный снимок: ' . $backup . PHP_EOL;
-?>
-'@
-$walBackupScript | php
-if ($LASTEXITCODE -ne 0) { throw 'Бэкап не завершён.' }
 ```
 
-Для Docker передайте тот же скрипт через
-`$walBackupScript | docker compose exec -T --user www-data tablo php`.
-Проверьте код завершения. Если сохранены токены, отсутствие соответствующего
-`github-token.key` делает восстановление неполным; ключ также нужен для сохранённых
-private quota identities, даже после удаления всех зашифрованных токенов. Прерванный `VACUUM INTO` оставляет
+Это фрагмент операции, не самостоятельный скрипт выбора установки. Откройте снимок
+отдельно и проверьте `PRAGMA integrity_check` (ровно `ok`) и `PRAGMA foreign_key_check`
+(нет строк), затем закройте оба подключения. Сохраните исходные байты выбранного
+ключа вместе со снимком и проверьте полноту пары до возобновления consumers.
+Ключ нужен для Git-, endpoint- и notification-credentials, а также private quota
+identities даже после удаления зашифрованных токенов. Если состояние требует ключ,
+а оригинала нет, бэкап неполон; не генерируйте замену. Read API token хранится только
+как digest и не заменяет vault key. Прерванный `VACUUM INTO` оставляет
 неполный выходной файл: он не считается бэкапом. Перенесите проверенную пару за пределы
 живого каталога/тома и ограничьте доступ (Windows ACL, Unix каталог 0700, файлы 0600);
 бэкап только внутри того же volume не защищает от его потери.
@@ -578,7 +588,8 @@ private quota identities, даже после удаления всех заши
 1. Остановите web и все CLI/worker. Сохраните прежнюю базу, ключ и crash-sidecars
    вместе в отдельном месте для диагностики и отката.
 2. Проверьте integrity и foreign keys снимка, затем поместите его и соответствующий
-   ключ в чистый целевой каталог с рабочими правами. Не совмещайте снимок со старыми
+   ключ в выбранное legacy/external расположение с рабочими правами и чистой целевой БД.
+   Во внешнем режиме настройте тот же `TABLO_TOKEN_KEY_FILE`. Не совмещайте снимок со старыми
    `-wal`/`-shm`; не создавайте новый ключ вместо утраченного.
 3. Откройте через `Database::connect()`: проверьте WAL, `user_version`, integrity/FKs,
    администратора, сайты и расшифровку токена без вывода секрета. При несовместимой
@@ -590,6 +601,15 @@ DELETE-контроль, timeout/retry, устаревшую сырую копи
 crash/recovery и освобождение файлов, включая удерживаемый PDOStatement на Windows.
 
 ## Docker
+
+```powershell
+docker compose up --build -d
+```
+
+Адрес тот же: <http://127.0.0.1:8087>. Контейнер использует Apache и PHP, данные
+хранятся в именованном томе `tablo-data`. Перед запуском остановите локальный PHP
+сервер, если он занимает этот порт. Для публикации используйте HTTPS reverse
+proxy и `TABLO_COOKIE_SECURE=1`. DocumentRoot всегда должен указывать на `public/`.
 
 Образ проверяет локальное HTTP/PHP serving liveness через точный `GET /_tablo/health`
 с Host `127.0.0.1` (допускается `:80`) и исходным loopback `REMOTE_ADDR`. Успех —
@@ -631,21 +651,61 @@ production кода — фиксированный 503 `unavailable\n` без д
 вредоносные shutdown/output callbacks не дают гарантии фиксированного HTTP-ответа.
 Клиент по-прежнему требует точный успешный статус и тело в пределах своих лимитов.
 
-```powershell
-docker compose up --build -d
-```
+### Управляемый HSTS
 
-Адрес тот же: <http://127.0.0.1:8087>. Контейнер использует Apache и PHP, данные
-хранятся в именованном томе `tablo-data`. Перед запуском остановите локальный PHP
-сервер, если он занимает этот порт. Для публикации используйте HTTPS reverse
-proxy и `TABLO_COOKIE_SECURE=1`. DocumentRoot всегда должен указывать на `public/`.
+По умолчанию HSTS выключен. Для прямого TLS передайте реальному PHP-сервису
+переменные процесса `TABLO_HSTS_MODE=direct` и `TABLO_HSTS_MAX_AGE=300`.
+За прокси используйте режим `proxy` и процессный `TABLO_TRUSTED_PROXIES`
+с проверенными адресами непосредственных socket peers. После изменения окружения
+перезапустите сервис. Допустимы только точные `off`, `direct`, `proxy`;
+пустой/отсутствующий режим означает off. При включении обязательны канонические
+десятичные секунды `0..31536000`; непустой возраст проверяется даже в off.
+Некорректная конфигурация даёт фиксированный 500 без HSTS до Composer и состояния
+приложения. Опций includeSubDomains/preload и новых перенаправлений нет.
+
+Web и API один раз читают только локальное **окружение процесса** до Composer.
+Проектный PHP `.env` сам по себе не настраивает HSTS, включая доверие прокси;
+последующая загрузка Dotenv не меняет снимок. Значения процесса авторитетны.
+Интерполяция host `.env` в Compose становится окружением контейнера только
+через записи `environment` веб-сервиса; worker не меняется. Примеры HSTS
+в `.env.example` относятся к такой настройке процесса/Compose. На Windows
+пустая переменная дочернего процесса может исчезнуть: удалите конфликтующие
+сохранённые настройки и используйте явный off для выключения.
+
+Режим direct принимает только строки SAPI `HTTPS=on` или `HTTPS=1`. Режим
+proxy требует канонический исходный `REMOTE_ADDR` из списка доверия процесса
+и единственный `X-Forwarded-Proto: https` (ASCII без учёта регистра,
+только внешние SP/HTAB, не более 64 байт). Списки через запятую, повторы,
+параметры, управляющие символы и другие значения не дают HSTS. TLS до backend
+не заменяет внешний HTTPS. Не совмещайте этот режим доверия приложения
+с восстановлением REMOTE_ADDR через remoteip. На внешнем edge перезаписывайте
+X-Forwarded-Proto и ограничьте обход прямого доступа ACL; дополнительные
+контролируемые hops должны сохранять внешний протокол. Отдельно проверьте
+свёртку повторных заголовков реальным SAPI: PHP не восстановит отброшенное поле.
+Forwarded, Host, login IP и Secure-cookie не определяют транспорт HSTS;
+политики cookie, сессии и исходящих запросов остаются независимыми.
+
+Выберите одного владельца HSTS на публичное имя хоста. Приложение покрывает
+обычные ответы Web и безопасные конечные/ошибочные ответы API. Health никогда
+не читает настройки HSTS и не выдаёт этот заголовок. Статика, ошибки сервера,
+edge/cache, отсутствующий/сломанный ingress или policy, уже отправленный вывод
+и завершённые процессы требуют выбранного владельца на сервере/edge. Проверьте
+все публичные входы перед включением. HSTS не защищает первый небезопасный hop
+и не делает безопасным bearer, уже отправленный по HTTP. Выключение/пропуск
+заголовка не стирает политику браузера: откат требует `max-age=0` по HTTPS
+с того же хоста. Родительский includeSubDomains или preload продолжает
+действовать; сброс дочернего хоста не удаляет родительскую/preload-политику.
+Автоматический includeSubDomains нарушил бы работу HTTP-only поддоменов;
+preload требует отдельного развёртывания на весь домен и процедуры удаления.
 
 ### Адрес клиента и доверенные прокси
 
 Лимит входа сохраняет пять неудачных попыток на адрес на 900 секунд в SQLite.
 Установка выбирает **один** из двух взаимоисключающих способов восстановления
 адреса. Смена способа не меняет схему БД. `TABLO_TRUSTED_PROXIES` не влияет на
-HTTPS, cookie, время сессии или исходящие проверки сайтов.
+cookie, время сессии или исходящие проверки сайтов. При явном включении
+`TABLO_HSTS_MODE=proxy` этот список также определяет доверенный непосредственный
+узел для HSTS по правилам ниже; HTTPS для cookie остаётся независимым.
 
 **Режим приложения:** PHP получает исходный `REMOTE_ADDR` соединения. Задайте
 `TABLO_TRUSTED_PROXIES=192.0.2.10,2001:db8::10`, заменив примеры проверенными
@@ -750,7 +810,8 @@ bridge-сеть. Общий NAT или IP соседа не подтвержда
 Создайте администратора при первоначальной локальной настройке до публикации.
 Для бэкапа/восстановления следуйте разделу SQLite WAL выше; вместе
 с БД сохраняется хеш пароля. Если используются токены сайтов, обязательно
-сохраняйте также `github-token.key`: без него прежние токены нельзя расшифровать.
+сохраняйте также выбранный vault key (соседний `github-token.key` или внешний файл):
+без оригинала прежние токены нельзя расшифровать.
 Сессии можно не переносить. Существующая БД обновляется автоматически без сброса
 сайтов и администратора. Исходники, SQLite, .env
 и зависимости не должны быть доступны из web root.
@@ -900,12 +961,12 @@ Rehash привязывает вызывающую сессию к её собс
 проверка и загрузка веток считаются активностью. Ошибка валидации допустимой формы
 422 тоже считается активностью. Ошибки входа, неизвестные маршруты или ресурсы,
 отклонённые CSRF и слишком большие запросы окно не продлевают. Категорию задаёт
-серверный обработчик: заголовки и параметры клиента её не меняют. Будущие polling
-и read-only API должны использовать явную категорию автоматических запросов;
+серверный обработчик: заголовки и параметры клиента её не меняют. Будущий polling
+должен использовать явную категорию автоматических запросов;
 она изменяет только время последнего наблюдения, без продления idle window.
-Для будущего API чтения (#30) выбран отдельный read-only Bearer-токен; Git- и
-endpoint-токены, а также cookie администратора для этой цели не используются.
-Сам API и dashboard polling (#33) в это изменение не входят.
+Существующий [Read API](#read-api) использует отдельный read-only Bearer-токен;
+Git- и endpoint-токены, а также cookie администратора для этой цели не используются.
+API не продлевает браузерную сессию. Dashboard polling пока не реализован.
 
 Начало авторизации остаётся неизменным. Ровно на границе текущего idle timeout
 или **12 часов после входа** сессия теряет авторизацию до защищённого действия.
@@ -946,10 +1007,11 @@ composer verify
 Проверка запускает:
 
 1. проверку project-local зависимостей из `contracts/reviewed-dependencies.json`;
-2. `lekalo validate --no-cache`, `lekalo lock --check --offline` и SHA256 declaring owners;
-3. регистрацию сохранённых bindings и привязку native tests;
-4. `lekalo contract check --module dashboard --no-cache`;
-5. три набора Testo: Unit, Network (реальные локальные cURL проверки JSON,
+2. полный Mago lint и analyze;
+3. `lekalo validate --no-cache`, `lekalo lock --check --offline` и SHA256 declaring owners;
+4. регистрацию сохранённых bindings и привязку native tests;
+5. `lekalo contract check --module dashboard --no-cache`;
+6. три набора Testo: Unit, Network (реальные локальные cURL проверки JSON,
    редиректов, размера ответа и таймаутов) и Http (независимые HTTP-сценарии).
 
 При необходимости задайте `LEKALO_BIN` полным путём к CLI. Результат успешного
@@ -966,10 +1028,10 @@ composer verify
 Capture фиксирует канонические контракты, source locations и fingerprints;
 это локальная декларация проекта, а не полноценный Phalcon target adapter
 или анализатор тел PHP. Runtime-семантика подтверждается native tests.
-Отдельный project-local manifest `contracts/reviewed-dependencies.json` фиксирует
-полные байты `app/ClientAddress.php`, его владельца `Tablo\ClientAddress` и потребителя
-`Tablo\Web::__construct`. Это зависимость Web, а не declaration команды login/setup:
-их фактический владелец остаётся Auth. `composer verify` проверяет этот manifest
+Project-local manifest `contracts/reviewed-dependencies.json` фиксирует полные байты
+явно перечисленных физических зависимостей, их владельцев и потребителей, включая
+код, тесты, инструменты, настройки и документацию. Это project-local ownership,
+а не новые declaring owners Lekalo. `composer verify` проверяет этот manifest
 до contract update/attach и тестов; даже изменение комментария требует review и
 явного capture. Проверка не обновляет ни один fingerprint автоматически.
 Встроенный PHP/Laravel adapter Lekalo
@@ -978,14 +1040,21 @@ Capture фиксирует канонические контракты, source l
 вымышленного transport endpoint. Остальные POST endpoints есть в модели.
 
 Общий manifest `schema=tablo/reviewed-dependencies/v1` содержит строгий
-`dependencies=[{path,owner,consumers,fingerprint}]`: все девять зависимостей
-worker, ClientAddress, все семь зависимостей password CLI и критические
-entrypoint/bootstrap/Compose зависимости внешнего ключа. Это project-local ownership,
-а не новые declaring owners Lekalo. Отсутствие, неверный состав/ownership,
+`dependencies=[{path,owner,consumers,fingerprint}]`; явный каталог расположен в
+`tools/reviewed-dependency-map.json`. Отсутствие, неверный состав/ownership,
 повтор пути или drift байтов даёт отказ до contract update, attachments и тестов.
 Capture явный и детерминированный; verify его не вызывает. Каждая ветка проверяет
 свой reviewed набор; будущая композиция требует обычного merge и явного review
 объединённого набора и проверок, без импорта чужих непринятых исходников.
+
+Если изменена только reviewed-зависимость, например этот README, после просмотра
+diff используйте отдельный capture и проверьте изменение manifest:
+
+```powershell
+php tools/capture-reviewed-dependencies.php
+# Просмотрите contracts/reviewed-dependencies.json.
+composer verify
+```
 
 ## Внешний read-only ключ токенов
 
@@ -1027,7 +1096,8 @@ diagnostic: неверный ключ и повреждение всех ciphert
 32 байт проверить невозможно; точный перенос исходных байтов — обязанность оператора.
 Никакой sentinel/hash/verifier в базе не добавляется. Чтение существующей SQLite
 может создавать bookkeeping/sidecars; обещание — отсутствие application/schema writes,
-а не отсутствие всех filesystem effects. Формат AES-256-GCM `v1:` и schema 4 неизменны.
+а не отсутствие всех filesystem effects. Формат AES-256-GCM `v1:` сохраняется;
+внешний выбор ключа не меняет текущую схему 10.
 
 Password CLI и явный `php bin/worker.php --stop` намеренно независимы от token key.
 Stop открывает существующую совместимую control-базу без create/migration, условно
@@ -1068,10 +1138,11 @@ CLI внутри service наследует ту же настройку. Про
 5. Храните matching DB/key backup отдельно с независимым доступом и provenance.
    Restore выполняйте в изолированную чистую цель с matching key/config, затем preflight
    и проверка ciphertext/cooldown/integrity. Не стирайте WAL/SHM и не заменяйте live storage.
-6. Rollback — под остановленными consumers, на совместимую predecessor schema 4,
-   с теми же байтами в legacy adjacent location и пустым `TABLO_TOKEN_KEY_FILE`.
-   Проверяйте destination до копирования. Более старый schema2/3 binary не является
-   допустимым rollback. При потере установленного ключа восстановите только оригинал;
+6. Возврат к legacy-ключу — под остановленными consumers, с теми же байтами в
+   соседнем расположении и пустым `TABLO_TOKEN_KEY_FILE`; проверяйте destination
+   до копирования. Rollback приложения требует binary, совместимого с текущей
+   схемой 10; старый schema4 binary не подходит. Не снижайте `user_version`.
+   При потере установленного ключа восстановите только оригинал;
    rotation/re-encryption требуют отдельной атомарной процедуры.
 
 ## Тесты и CI
@@ -1138,8 +1209,10 @@ Linux и Windows с PHP 8.2, 8.4 и 8.5. Lekalo собирается из ком
 ### Запуск тестов в Docker
 
 Следующий пример PowerShell использует текущий производственный образ PHP 8.4
-как среду выполнения. Исходники подключаются read-only; во временный каталог
-одноразового контейнера копируются только код, схема и тестовые фикстуры.
+как среду выполнения. Запускайте из чистого checkout/export только с исходниками:
+read-only mount запрещает запись, но не скрывает файлы от чтения контейнером.
+Во временный каталог одноразового контейнера копируются код, схема, инструменты,
+контракты, документация, настройки и синтетические тестовые фикстуры.
 Рабочие `.env`, SQLite, ключи и `vendor/` не копируются. Dev-зависимости
 устанавливаются внутри контейнера и не попадают в производственный образ.
 
@@ -1149,7 +1222,7 @@ if ($LASTEXITCODE -ne 0) { throw 'Docker build failed.' }
 $testInContainer = @'
 set -eu
 mkdir /tmp/tablo-tests
-cp -R /source/app /source/bin /source/public /source/views /source/database /source/tests /source/composer.json /source/composer.lock /source/testo.php /tmp/tablo-tests/
+cp -R /source/app /source/bin /source/public /source/views /source/database /source/tests /source/tools /source/contracts /source/deploy /source/docs /source/.github /source/lekalo /source/composer.json /source/composer.lock /source/testo.php /source/lekalo.lock /source/mago.toml /source/README.md /source/README.en.md /source/compose.yaml /source/compose.secret.yaml /source/Dockerfile /source/.env.example /tmp/tablo-tests/
 cd /tmp/tablo-tests
 composer install --no-interaction --prefer-dist
 composer test
@@ -1165,12 +1238,16 @@ docker run --rm --mount "type=bind,source=$PWD,target=/source,readonly" \
   --entrypoint sh tablo:test-runtime -lc '
 set -eu
 mkdir /tmp/tablo-tests
-cp -R /source/app /source/bin /source/public /source/views /source/database /source/tests /source/composer.json /source/composer.lock /source/testo.php /tmp/tablo-tests/
+cp -R /source/app /source/bin /source/public /source/views /source/database /source/tests /source/tools /source/contracts /source/deploy /source/docs /source/.github /source/lekalo /source/composer.json /source/composer.lock /source/testo.php /source/lekalo.lock /source/mago.toml /source/README.md /source/README.en.md /source/compose.yaml /source/compose.secret.yaml /source/Dockerfile /source/.env.example /tmp/tablo-tests/
 cd /tmp/tablo-tests
 composer install --no-interaction --prefer-dist
 composer test
 '
 ```
+
+Этот пример запускает `composer test`, а не `composer verify`: Lekalo и Mago в
+одноразовом контейнере не устанавливаются. Production-образ исключает тесты через
+`.dockerignore`; dev-пакеты устанавливаются только во временной копии.
 
 `tests/browser-fixture.php` по умолчанию создаёт `artifacts/browser.sqlite` с явно
 синтетическими данными для визуальной проверки; он не меняет основную установку.
@@ -1194,30 +1271,39 @@ primary cooldown через HMAC с private vault key; ротация handle с�
 Этот router подменяет GitHub API фикстурой; реальный GitHub-токен не нужен.
 ## Periodic worker
 
-`php bin/worker.php` runs serial checks using the interval saved at `/settings` (default 10 minutes).
-`php bin/worker.php --stop` requests cooperative stop; observe exit before restarting.
-Docker Compose includes `tablo-worker` sharing the web image, local database and token key.
-See [launch, cadence, fairness, stop and storage limits](docs/periodic-worker.md).
+`php bin/worker.php` последовательно проверяет сайты с интервалом из `/settings`
+(по умолчанию 10 минут), ожидая после каждого конечного прохода.
+`php bin/worker.php --stop` запрашивает кооперативную остановку; перед перезапуском
+дождитесь выхода. Допустимы только запуск без аргументов или `--stop`, без `--once`
+и `--help`. Стабильная неблокирующая блокировка рядом с БД удерживается и во время ожидания.
+Docker Compose включает `tablo-worker` с тем же образом, локальной БД и ключом токенов.
+Web и worker должны использовать один revision, совместимый со схемой 10.
+См. [запуск, интервалы, fairness, остановку и ограничения хранения](docs/periodic-worker.md).
 
 ## Check history
 
-Accepted checks append bounded immutable history without changing the current dashboard state.
-Use `php bin/history.php SITE FROM TO [LIMIT [CURSOR]]` to read local pages and
-`php bin/prune-history.php [SITE]` to prune with `TABLO_HISTORY_RETENTION_DAYS` (default 30).
-See [atomic persistence, pagination and retention limits](docs/check-history.md).
+Принятые проверки добавляют ограниченные неизменяемые записи истории, сохраняя
+прежний контракт текущего состояния панели. `php bin/history.php SITE FROM TO [LIMIT [CURSOR]]`
+читает локальные страницы, `php bin/prune-history.php [SITE]` явно очищает историю по
+`TABLO_HISTORY_RETENTION_DAYS` (при отсутствии — 30 дней, диапазон 1–3650).
+Worker не запускает очистку автоматически. См.
+[атомарную запись, пагинацию и ограничения retention](docs/check-history.md).
 
 ## Incidents
 
-Authenticated `/incidents` lists first observed Offline, recovery and qualified observation intervals.
-Tracking starts with newly accepted checks after installation; migration and reads never replay old
-history or fabricate incidents from current values. See [lifecycle, activation and paging boundaries](docs/incidents.md).
+Авторизованный `/incidents` показывает первое наблюдение Offline, восстановление
+и интервалы наблюдений с оговорёнными границами. Учёт начинается с новых принятых
+проверок после установки; миграции и чтение не воспроизводят старую историю и не
+создают incidents из текущих значений. Это интервалы наблюдений, не точное время
+простоя. См. [жизненный цикл, активацию и пагинацию](docs/incidents.md).
 
 ## Notifications
 
-Settings provides one encrypted HTTPS webhook channel, disabled by default, for selected
-unavailable, recovery and version-lag observations. Delivery follows accepted commits and
-is bounded best effort; receivers deduplicate stable event keys. See [settings, privacy,
-confirmation, retries and supervision limits](docs/notifications.md).
+Настройки предоставляют один зашифрованный HTTPS webhook-канал, по умолчанию
+отключённый, для выбранных наблюдений недоступности, восстановления и отставания версии.
+Отправка следует за принятым commit и работает как ограниченный best effort;
+получатель дедуплицирует стабильные event keys. См.
+[настройки, приватность, подтверждение, повторы и supervision](docs/notifications.md).
 
 ### Проверка PHP с Mago
 
@@ -1239,7 +1325,8 @@ Runner сверяет реальный список исходников Mago с
 `composer verify` сначала отказывает при изменении явно просмотренных зависимостей,
 затем запускает lint, analyze и полный прежний набор проверок модели, lock, bindings и Testo.
 Проверка ничего не скачивает и не обновляет fingerprints. После просмотра изменений
-выполните явный `php tools/capture-bindings.php` и проверьте diff обоих manifests;
+модели/владельцев выполните явный `php tools/capture-bindings.php` и проверьте diff
+обоих manifests; для одной reviewed-зависимости используйте отдельный capture выше;
 `tools/reviewed-dependency-map.json` перечисляет физические зависимости без новых доменных сущностей.
 CI выполняет явную установку и ту же проверку кэшированного релиза на каждой платформе.
 
@@ -1277,6 +1364,12 @@ uses the actual lowercase paths on both Windows and case-sensitive Linux.
 
 ## Read API
 
-External scripts can read site configuration and latest state through the versioned, readonly bearer API. It starts off; the administrator creates, rotates or revokes its separate token in Settings. See [the v1 contract and privacy limits](docs/read-api.md) and [JSON schema](contracts/read-api-v1.schema.json).
+Внешние скрипты читают конфигурацию сайтов и последнее состояние через версионированный
+read-only Bearer API. По умолчанию доступ выключен; администратор создаёт, заменяет
+или отзывает отдельный токен в настройках. В SQLite хранится только digest; токен
+независим от Git/endpoint credentials и не авторизует браузерные действия. Reader
+использует существующую текущую БД без миграций и записи сайтов. См.
+[контракт v1 и ограничения приватности](docs/read-api.md) и
+[JSON schema](contracts/read-api-v1.schema.json).
 
 План расширения Git-провайдеров: [Gitea, контракты и будущая приёмка](docs/git-provider-plan.md).
