@@ -7888,5 +7888,20 @@
       "tests/Network/PasswordHelperFixtureReadinessTest.php",
       "native-php-tests"
     ]
+  },
+  "tests/Network/TestServerReadinessTest.php": {
+    "owner": "Tablo\\Tests\\Network\\TestServerReadinessTest",
+    "consumers": [
+      "Composer lint",
+      "Composer analyze",
+      "Composer verify",
+      "Native HTTP fixture readiness and ownership"
+    ]
+  },
+  "tests/fixtures/server-readiness-idle.php": {
+    "owner": "Owned live non-listening readiness control",
+    "consumers": [
+      "tests/Network/TestServerReadinessTest.php"
+    ]
   }
 }

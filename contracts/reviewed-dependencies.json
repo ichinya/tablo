@@ -8,7 +8,7 @@
                 "Composer verify",
                 "Reviewed dependency capture"
             ],
-            "fingerprint": "sha256:bf19661ef6b6cadea32d4b856e6f47155311fd2e318e0617c45a5b310906a6fe"
+            "fingerprint": "sha256:6d170089d646114401a89b911676d897af9bfdc18eaeff37a947880856aef447"
         },
         {
             "path": "tools/reviewed-dependencies.php",
@@ -7316,7 +7316,7 @@
                 "Composer verify",
                 "Composer analyze"
             ],
-            "fingerprint": "sha256:6f8a921cb89b28f4898ec37a9e3481b365b5977fa6c6fc93ec72361f62bbcd01"
+            "fingerprint": "sha256:1aa7aeb75395d22e94e551809fba977fbe2b59e3205932558b1c138014448ea8"
         },
         {
             "path": "tests/Support/TraceInspector.php",
@@ -9069,7 +9069,7 @@
                 "Composer verify",
                 "Composer analyze"
             ],
-            "fingerprint": "sha256:79efc4c6f04ea7676a50dab7ee0b20d396ecc6064d8d49a3c677d2e59146e85b"
+            "fingerprint": "sha256:aa4632153315b84263829240896ec4b904f27fb643ad9f0a3bab4c9ac61a3abc"
         },
         {
             "path": "views/incidents.volt",
@@ -9852,6 +9852,25 @@
                 "native-php-tests"
             ],
             "fingerprint": "sha256:f0dfe3e4ac089871256124ba83712b9c9a7a6ef604889f83cf68111a0852becc"
+        },
+        {
+            "path": "tests/Network/TestServerReadinessTest.php",
+            "owner": "Tablo\\Tests\\Network\\TestServerReadinessTest",
+            "consumers": [
+                "Composer lint",
+                "Composer analyze",
+                "Composer verify",
+                "Native HTTP fixture readiness and ownership"
+            ],
+            "fingerprint": "sha256:c6a6381a417712b29773911aea716c4fc055c4e9fd958556d83094c2aa5598f7"
+        },
+        {
+            "path": "tests/fixtures/server-readiness-idle.php",
+            "owner": "Owned live non-listening readiness control",
+            "consumers": [
+                "tests/Network/TestServerReadinessTest.php"
+            ],
+            "fingerprint": "sha256:1c028d8814bf7ec22e9996d93c913296c1f05caec14648e7f070bc0018e3e6f6"
         }
     ]
 }
