@@ -6,6 +6,9 @@ param(
     [string] $CaseId
 )
 
+# Fixed body-entry evidence only; diagnostic failure must preserve the fixture outcome.
+try { [Console]::Out.WriteLine('HELPER_FIXTURE_BODY=admitted') } catch { }
+
 $ErrorActionPreference = 'Stop'
 $FixtureObservationPath = $Journal
 $HostEncoding = 'default'; $Scenario = 'unicode'; $CasePhase = 'primary'; $Mode = 'Native'; $FixtureControl = 'none'

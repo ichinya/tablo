@@ -44,6 +44,7 @@ final class PasswordHelperFixtureReadinessTest
             $caseId = 'case-' . bin2hex(random_bytes(12));
             $case = PasswordHelperFixtureObservation::caseMetadata($caseId,
                 ['encoding' => 'default', 'scenario' => 'unicode', 'phase' => 'fixture-control']);
+            if ($control === 'entry-before-marker') { self::assertBodyOnlyRefused($case); }
             $journal = $directory->path . '/entry.jsonl';
             $argv = PasswordHelperEvidenceStart::componentCommand($shell, $control, $directory, $journal, $caseId);
             $startedNs = FixtureValue::integer(hrtime(true));
@@ -71,6 +72,8 @@ final class PasswordHelperFixtureReadinessTest
         $journal = $directory->path . '/entry.jsonl';
         $stdout = FixtureFiles::first($directory->path . '/command-*.out');
         Assert::same(str_contains(\Tablo\RequiredFile::bytes(file_get_contents($stdout)), self::MARKER), $expected['marker']);
+        Assert::same(substr_count(\Tablo\RequiredFile::bytes(file_get_contents($stdout)),
+            needle: PasswordHelperFixtureReadiness::BODY_MARKER), 1);
         Assert::same(is_file($journal), $expected['entry']);
         if ($expected['entry']) {
             PasswordHelperFixtureObservation::assertComplete($journal, $case);
@@ -115,12 +118,36 @@ final class PasswordHelperFixtureReadinessTest
         Assert::same(FixtureValue::at($ready, 'budget_seconds'), 20);
         Assert::same(FixtureValue::at($ready, 'started_monotonic_ns'), $startedNs);
         Assert::same(FixtureValue::at(\Tablo\JsonRecord::checked(FixtureValue::at($ready, 'stdout')), 'observed'), $expected['final_marker']);
+        Assert::same(FixtureValue::at(\Tablo\JsonRecord::checked(FixtureValue::at($ready, 'stdout')), 'body_marker_observed'), true);
         $stdout = FixtureFiles::first($directory->path . '/command-*.out');
         Assert::same(str_contains(\Tablo\RequiredFile::bytes(file_get_contents($stdout)), self::MARKER), $expected['final_marker']);
         if ($expected['entry']) {
             Assert::same(FixtureValue::at(FixtureValue::at(PasswordHelperFixtureObservation::records(
                 $directory->path . '/entry.jsonl'), 0), 'wrapperPid'), $receipt['pid']);
         }
+    }
+
+    /** @param array<string, string> $case */
+    private static function assertBodyOnlyRefused(array $case): void
+    {
+        $directory = new TemporaryDirectory('tablo-helper-ready-body-only-');
+        try {
+            PasswordHelperEvidenceFiles::bytes($directory->path . '/command-body-only.out', PasswordHelperFixtureReadiness::BODY_MARKER . PHP_EOL);
+            $journal = $directory->path . '/entry.jsonl';
+            $startedNs = FixtureValue::integer(hrtime(true));
+            $output = new PasswordHelperFixtureReadiness($directory, self::MARKER);
+            $error = self::rejection(static fn() => PasswordHelperEvidenceStart::awaitFixtureEntry($journal, $case, $startedNs, $output, timeout: 0.2));
+            Assert::instanceOf($error, RuntimeException::class);
+            Assert::true(str_contains($error->getMessage(), 'state=not-observed; marker=not-observed; body-marker-observed=true'));
+            Assert::false(is_file($journal));
+            $ready = \Tablo\JsonRecord::decode(\Tablo\RequiredFile::bytes(file_get_contents($directory->path . '/fixture-readiness.json')));
+            Assert::same(FixtureValue::at($ready, 'accepted'), false, 'Body entry alone cannot establish readiness');
+            Assert::same(FixtureValue::at($ready, 'budget_seconds'), 0.2);
+            $stdout = \Tablo\JsonRecord::checked(FixtureValue::at($ready, 'stdout'));
+            Assert::same(FixtureValue::at($stdout, 'observed'), false);
+            Assert::same(FixtureValue::at($stdout, 'body_marker_observed'), true);
+        } catch (Throwable $error) { $directory->retainFailure($error); throw $error; }
+        finally { $directory->close(); }
     }
 
     /** @param callable(): mixed $call */

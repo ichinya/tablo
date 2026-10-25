@@ -9248,7 +9248,7 @@
                 "Native dashboard.setup/login/change_admin_password attachment",
                 "tests/Network/PasswordHelperFixtureObservationTest.php"
             ],
-            "fingerprint": "sha256:40702266a8f2e4f7db3b134fe536b2a5d41b9772b9e38b0cafc83c75046bc614"
+            "fingerprint": "sha256:ded2e4e2ac6fba098037bbff85b26c542b9e6989a6fc1282ec1caa84be3b7e76"
         },
         {
             "path": "tests/Support/PasswordHelperDatabaseFixture.php",
@@ -9870,7 +9870,7 @@
                 "tests/Network/PasswordHelperFixtureObservationTest.php",
                 "native-php-tests"
             ],
-            "fingerprint": "sha256:4ecb5f81d84acad955ba4e277527c7e8acc08673e17c8b04d8aeea13850058fb"
+            "fingerprint": "sha256:f211df43e5532e29dc56378272f4a007e2b9dd15c829a88fc796e816b02cc203"
         },
         {
             "path": "tests/Support/PasswordHelperFixtureObservation.php",
@@ -9912,7 +9912,7 @@
                 "native-php-tests",
                 "tests/Network/PasswordHelperFixtureReadinessTest.php"
             ],
-            "fingerprint": "sha256:6d639e6fdf6cf0447ffe6fdd60d83d5b1928d1582fcea3ff97392e1c3562d9cc"
+            "fingerprint": "sha256:1a8377480b3170d171f2de957bc923ff39ff12b144e00ad46d94294fffe7a6cc"
         },
         {
             "path": "tests/Support/PasswordHelperFixtureReadiness.php",
@@ -9926,7 +9926,7 @@
                 "tests/Network/PasswordHelperFixtureReadinessTest.php",
                 "native-php-tests"
             ],
-            "fingerprint": "sha256:8e0012e263589ddbc5c40d1de834fbe97841c93ec504c040ab6889a800444ef4"
+            "fingerprint": "sha256:0f104f30fb22c3994e65616377b08634e4b976932990232301c947be5043d48a"
         },
         {
             "path": "tests/Network/PasswordHelperFixtureReadinessTest.php",
@@ -9938,7 +9938,7 @@
                 "tests/Network/PasswordHelperFixtureReadinessTest.php",
                 "native-php-tests"
             ],
-            "fingerprint": "sha256:f0dfe3e4ac089871256124ba83712b9c9a7a6ef604889f83cf68111a0852becc"
+            "fingerprint": "sha256:d0e835005fa6a06451b3b813e68f200b5b13038dc4e07770e8847d82401d7679"
         },
         {
             "path": "tests/Network/TestServerReadinessTest.php",

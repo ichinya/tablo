@@ -44,6 +44,8 @@ final class PasswordHelperFixtureObservationTest
             PasswordHelperEvidenceStart::awaitFixtureEntry($evidence->fixturePath,
                 PasswordHelperFixtureObservation::caseMetadata(basename($evidence->path), $evidence->case->identity), $startedNs,
                 new PasswordHelperFixtureReadiness($directory, 'HELPER_FIXTURE_CONTROL=pre-helper-stall'));
+            $ready = \Tablo\JsonRecord::decode(\Tablo\RequiredFile::bytes(file_get_contents($evidence->path . '/fixture-readiness.json')));
+            Assert::same(FixtureValue::at(\Tablo\JsonRecord::checked(FixtureValue::at($ready, 'stdout')), 'body_marker_observed'), true);
             $error = self::rejection(static fn() => $child->finish(0.2));
             Assert::instanceOf($error, RuntimeException::class);
             Assert::true(str_contains($error->getMessage(), 'stage=timeout'));
@@ -51,6 +53,8 @@ final class PasswordHelperFixtureObservationTest
             PasswordHelperEvidence::assertTerminated($receipt);
             Assert::true(str_contains(\Tablo\RequiredFile::bytes(file_get_contents($evidence->path . '/final.stdout')),
                 'HELPER_FIXTURE_CONTROL=pre-helper-stall'));
+            Assert::same(substr_count(\Tablo\RequiredFile::bytes(file_get_contents($evidence->path . '/final.stdout')),
+                needle: PasswordHelperFixtureReadiness::BODY_MARKER), 1);
             $entry = PasswordHelperFixtureObservation::records($evidence->fixturePath);
             Assert::same(array_column($entry, 'stage'), ['fixture-entry']);
             Assert::same(FixtureValue::at(FixtureValue::at($entry, 0), 'wrapperPid'), $receipt['pid']);
@@ -93,6 +97,7 @@ final class PasswordHelperFixtureObservationTest
                 $journal = $directory->path . '/' . $control . '.jsonl';
                 $result = Subprocess::run(PasswordHelperEvidenceStart::componentCommand($shell, $control, $directory, $journal, $caseId), $directory, [],
                     new \Tablo\Tests\Support\CommandOptions(timeout: 20));
+                Assert::same(substr_count($result['stdout'], needle: PasswordHelperFixtureReadiness::BODY_MARKER), 1);
                 Assert::same($result['exit_code'], 23);
                 Assert::true(str_contains($result['stdout'], 'HELPER_OBSERVER_CONTROL=caller-continued'));
                 $match = []; preg_match('/HELPER_OBSERVER_CONTROL_RESULT=(.+)/', $result['stdout'], $match);
@@ -137,6 +142,7 @@ final class PasswordHelperFixtureObservationTest
             Assert::true(str_contains(\Tablo\RequiredFile::bytes(file_get_contents($receipt['streams']['stdout']['path'])), 'HELPER_OBSERVER_CONTROL=entry'));
             $ready = \Tablo\JsonRecord::decode(\Tablo\RequiredFile::bytes(file_get_contents($delayed->path . '/fixture-readiness.json')));
             Assert::same(FixtureValue::at($ready, 'accepted'), true);
+            Assert::same(FixtureValue::at(\Tablo\JsonRecord::checked(FixtureValue::at($ready, 'stdout')), 'body_marker_observed'), true);
             Assert::same(FixtureValue::at($ready, 'budget_seconds'), 20);
             Assert::true(FixtureValue::integer(FixtureValue::at($ready, 'elapsed_ns')) >= 9_000_000_000);
             Assert::same(FixtureValue::at(FixtureValue::at(PasswordHelperFixtureObservation::records($journal), 0), 'wrapperPid'), $receipt['pid']);
@@ -208,6 +214,7 @@ final class PasswordHelperFixtureObservationTest
             $result = Subprocess::run(PasswordHelperCommand::forEvidence($evidence), $directory, [],
                 new \Tablo\Tests\Support\CommandOptions(timeout: 20));
             (new ReflectionMethod(PasswordHelperTest::class, 'assertMetadata'))->invoke(null, $result, 1);
+            Assert::same(substr_count($result['stdout'], needle: PasswordHelperFixtureReadiness::BODY_MARKER), 1);
             Assert::true(\Tablo\Tests\Support\SubprocessReceipt::read($evidence->path . '/final.receipt.json')['closed']);
             Assert::same(substr_count($result['stderr'], needle: 'HELPER_FIXTURE_OBSERVER_FAILURE=append-failed'), 1);
             Assert::same(PasswordHelperFixtureObservation::status($evidence, $result['stderr'])['fixture']['state'], 'append-failed');
@@ -254,6 +261,7 @@ final class PasswordHelperFixtureObservationTest
         $caseKeys = array_keys($case); sort($caseKeys);
         Assert::same($caseKeys, ['control', 'encoding', 'id', 'mode', 'phase', 'scenario']);
         $stdout = \Tablo\RequiredFile::bytes(file_get_contents($path . '/final.stdout'));
+        Assert::same(substr_count($stdout, needle: PasswordHelperFixtureReadiness::BODY_MARKER), 1);
         $match = []; preg_match('/HELPER_METADATA=(.+)/', $stdout, $match);
         $metadata = \Tablo\JsonRecord::checked(json_decode($match[1] ?? '', associative: true, flags: JSON_THROW_ON_ERROR));
         foreach ($fixture as $index => $record) {
