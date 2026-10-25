@@ -4045,7 +4045,7 @@
                 "tablo/check/v1 local consumers",
                 "Administrator idle timeout policy"
             ],
-            "fingerprint": "sha256:455ba2905a4958146179df7b8495368234c9061eaffc4a914c0f647a0a54cdd9"
+            "fingerprint": "sha256:2c4f03ce8fb0cc08d3dbe04e0f985d23cbcfc832dde1b708899237d821818dee"
         },
         {
             "path": "tests/browser-fixture.php",
