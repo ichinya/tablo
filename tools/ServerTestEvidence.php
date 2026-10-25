@@ -10,6 +10,329 @@ use Tablo\DatabaseInteger;
 use Tablo\JsonRecord;
 use Tablo\SqlColumn;
 
+/** Temporary R74 projection. APP completion precedes the immutable actor's final metric.
+ * @return array{schema: string, scope: string, status: string, rootCause: string, originalActorFinalPeak: string, tail: string, issueAccepted: bool, records: list<array{kind: int, sequence: int, operation: int, previousPhase: int, phase: int, usedBytes: int, peakBytes: int, flags: int}>} */
+function server_native_phase_unknown(): array
+{
+    return ['schema' => 'tablo/server-transfer-phase-diagnostic/r74-v1', 'scope' => 'instrumented-app-only', 'status' => 'UNKNOWN',
+        'rootCause' => 'UNKNOWN', 'originalActorFinalPeak' => 'UNKNOWN', 'tail' => 'UNKNOWN', 'issueAccepted' => false, 'records' => []];
+}
+
+/** The controller supplies the already admitted plan and exact per-case closure; no child chooses an input path.
+ * @param array<string, string> $environment
+ * @return array{schema: string, scope: string, status: string, rootCause: string, originalActorFinalPeak: string, tail: string, issueAccepted: bool, records: list<array{kind: int, sequence: int, operation: int, previousPhase: int, phase: int, usedBytes: int, peakBytes: int, flags: int}>} */
+function server_native_phase_diagnostic(string $root, string $directory, array $environment, int $index, array $plan): array
+{
+    try {
+        return \Tablo\NativeWarning::ignore(static function () use ($root, $directory, $environment, $index, $plan) {
+            if (!server_native_phase_context($root, $directory, $environment, $index, $plan)) { return server_native_phase_unknown(); }
+            $bytes = server_native_phase_bytes($directory . '/transfer-phase-r74-v1.tsv');
+            return $bytes === null ? server_native_phase_unknown() : server_native_phase_project($bytes);
+        });
+    } catch (\Throwable) { return server_native_phase_unknown(); }
+}
+
+/** This optional diagnostic does not establish qualification; it rechecks the existing controller's trusted context.
+ * @param array<string, string> $environment */
+function server_native_phase_context(string $root, string $directory, array $environment, int $index, array $plan): bool
+{
+    $nonce = $environment['TABLO_TEST_RUN_NONCE'] ?? ''; $runtime = dirname($root); $base = $runtime . '/cases/main-' . $index;
+    $engine = $environment['TABLO_TEST_DB_DRIVER'] ?? '';
+    if (!server_native_phase_cohort($index, $engine) || !server_native_phase_source($root, $directory, $environment, $index)
+        || !server_native_phase_plan_context($plan, $engine, $nonce, $root, $runtime)) { return false; }
+    $fixture = $base . '/' . $engine . '/tablo-server-' . $nonce;
+    foreach ([$runtime, $root, $runtime . '/evidence', $runtime . '/cases', $base, $base . '/' . $engine, $fixture, $directory] as $ancestor) {
+        if (!server_native_phase_directory($ancestor)) { return false; }
+    }
+    $mode = fileperms($directory);
+    return is_int($mode) && ($mode & 0o777) === 0o700 && server_native_phase_plan_file($runtime, $environment)
+        && server_native_phase_actor_source($root);
+}
+
+function server_native_phase_plan_context(array $plan, string $engine, string $nonce, string $root, string $runtime): bool
+{
+    return [$plan['schema'] ?? null, $plan['executionMode'] ?? null, $plan['selectedEngine'] ?? null,
+        $plan['nonce'] ?? null, $plan['source'] ?? null, $plan['runtime'] ?? null]
+        === ['tablo/server-cell/v1', 'qualified', $engine, $nonce, $root, $runtime];
+}
+
+function server_native_phase_cohort(int $index, string $engine): bool
+{
+    return PHP_SAPI === 'cli' && PHP_OS_FAMILY === 'Linux'
+        && ((PHP_VERSION_ID >= 80_200 && PHP_VERSION_ID < 80_300) || (PHP_VERSION_ID >= 80_500 && PHP_VERSION_ID < 80_600))
+        && in_array($engine, ['mysql', 'mariadb'], strict: true) && $index >= 0 && $index <= 9999;
+}
+
+/** Scalar ownership checks precede any diagnostic filesystem access.
+ * @param array<string, string> $environment */
+function server_native_phase_source(string $root, string $directory, array $environment, int $index): bool
+{
+    $nonce = $environment['TABLO_TEST_RUN_NONCE'] ?? ''; $runtime = dirname($root); $base = $runtime . '/cases/main-' . $index;
+    $engine = $environment['TABLO_TEST_DB_DRIVER'] ?? '';
+    return preg_match('/\A[0-9a-f]{32}\z/D', $nonce) === 1 && basename($runtime) === 'tablo-server-' . $nonce
+        && basename($root) === 'source' && $directory === $base . '/closure'
+        && in_array($engine, ['mysql', 'mariadb'], strict: true)
+        && [$environment['TABLO_TEST_SOURCE_ROOT'] ?? null, $environment['TABLO_TEST_RUNTIME_ROOT'] ?? null,
+            $environment['TABLO_SESSION_EVIDENCE_DIRECTORY'] ?? null]
+            === [$root, $base . '/' . $engine . '/tablo-server-' . $nonce, $directory];
+}
+
+/** @param array<string, string> $environment */
+function server_native_phase_plan_file(string $runtime, array $environment): bool
+{
+    $path = $environment['TABLO_TEST_CELL_PLAN'] ?? ''; $digest = $environment['TABLO_TEST_CELL_PLAN_SHA256'] ?? '';
+    if ($path !== $runtime . '/evidence/started-cell.json' || preg_match('/\A[0-9a-f]{64}\z/D', $digest) !== 1
+        || is_link($path) || !is_file($path)) { return false; }
+    return hash_equals($digest, \Tablo\RequiredFile::digest($path));
+}
+
+function server_native_phase_directory(string $path): bool
+{
+    return !is_link($path) && is_dir($path) && str_replace('\\', replace: '/', subject: (string) realpath($path)) === $path;
+}
+
+/** Fixed-file reader only. Two individually bounded reads must agree through the same stable regular descriptor.
+ * @return ?string */
+function server_native_phase_bytes(string $path): ?string
+{
+    try {
+        return \Tablo\NativeWarning::ignore(static fn (): ?string => server_native_phase_read($path));
+    } catch (\Throwable) { return null; }
+}
+
+function server_native_phase_read(string $path): ?string
+{
+    clearstatcache(true, $path); $before = lstat($path);
+    if (!is_array($before) || !server_native_phase_regular($before) || is_link($path)) { return null; }
+    $handle = fopen($path, mode: 'rb');
+    if (!is_resource($handle)) { return null; }
+    try { return server_native_phase_descriptor($handle, $path, $before); }
+    finally {
+        try { fclose($handle); } catch (\Throwable $discarded) { unset($discarded); }
+    }
+}
+
+/** @param resource $handle */
+function server_native_phase_descriptor(mixed $handle, string $path, array $before): ?string
+{
+    $opened = fstat($handle);
+    if (!is_array($opened) || !server_native_phase_stat($before, $opened)) { return null; }
+    $bytes = stream_get_contents($handle, length: 8193);
+    if (!is_string($bytes) || strlen($bytes) > 8192 || strlen($bytes) !== $opened['size'] || !rewind($handle)) { return null; }
+    return server_native_phase_stable($handle, $path, $opened, $bytes) ? $bytes : null;
+}
+
+/** @param resource $handle */
+function server_native_phase_stable(mixed $handle, string $path, array $opened, string $bytes): bool
+{
+    $again = stream_get_contents($handle, length: 8193); $after = fstat($handle); clearstatcache(true, $path); $named = lstat($path);
+    return is_string($again) && hash_equals(hash('sha256', $bytes), hash('sha256', $again))
+        && is_array($after) && is_array($named) && server_native_phase_stat($opened, $after)
+        && server_native_phase_stat($after, $named) && !is_link($path);
+}
+
+function server_native_phase_regular(array $stat): bool
+{
+    return is_int($stat['mode'] ?? null) && ($stat['mode'] & 0o170_000) === 0o100_000 && ($stat['mode'] & 0o777) === 0o600
+        && ($stat['nlink'] ?? null) === 1 && is_int($stat['size'] ?? null) && $stat['size'] >= 1 && $stat['size'] <= 8192;
+}
+
+function server_native_phase_stat(array $left, array $right): bool
+{
+    if (!server_native_phase_regular($left) || !server_native_phase_regular($right)) { return false; }
+    foreach (['dev', 'ino', 'mode', 'nlink', 'size', 'mtime', 'ctime'] as $field) {
+        if (($left[$field] ?? null) !== ($right[$field] ?? null)) { return false; }
+    }
+    return true;
+}
+
+/** Pure strict numeric projection; invalid input returns exactly the fixed unknown shape, with no partial data echo.
+ * @return array{schema: string, scope: string, status: string, rootCause: string, originalActorFinalPeak: string, tail: string, issueAccepted: bool, records: list<array{kind: int, sequence: int, operation: int, previousPhase: int, phase: int, usedBytes: int, peakBytes: int, flags: int}>} */
+function server_native_phase_project(#[\SensitiveParameter] string $bytes): array
+{
+    $unknown = server_native_phase_unknown();
+    try {
+        $lines = server_native_phase_lines($bytes);
+        if ($lines === null) { return $unknown; }
+        $records = []; $operation = 0; $gap = 0; $peak = -1; $flags = 0; $terminal = false; $status = 'UNKNOWN';
+        foreach ($lines as $offset => $line) {
+            $record = server_native_phase_record($line);
+            if ($record === null || $terminal || !server_native_phase_follows($record, $offset, $operation, $peak, $flags)
+                || !server_native_phase_sparse_order($record, $operation, $gap)) { return $unknown; }
+            if ($record['kind'] === 4) {
+                $status = server_native_phase_terminal($record);
+                if ($status === 'UNKNOWN') { return $unknown; }
+                $terminal = true;
+            }
+            $records[] = $record; $peak = $record['peakBytes']; $flags = $record['flags'];
+        }
+        if (!$terminal) { return $unknown; }
+        $unknown['status'] = $status; $unknown['records'] = $records;
+        return $unknown;
+    } catch (\Throwable) { return $unknown; }
+}
+
+/** @return list<string>|null */
+function server_native_phase_lines(#[\SensitiveParameter] string $bytes): ?array
+{
+    if (!server_native_phase_integer_bound(PHP_INT_MAX) || $bytes === '' || strlen($bytes) > 8192 || !str_ends_with($bytes, "\n")) { return null; }
+    $lines = explode("\n", $bytes); array_pop($lines);
+    return count($lines) >= 2 && count($lines) <= 64 ? $lines : null;
+}
+
+/** The real runtime integer bound must represent every admitted memory value before decimal conversion. */
+function server_native_phase_integer_bound(int $maximum): bool
+{ return $maximum >= 1_099_511_627_776; }
+
+/** @param array{kind: int, sequence: int, operation: int, previousPhase: int, phase: int, usedBytes: int, peakBytes: int, flags: int} $record */
+function server_native_phase_follows(array $record, int $offset, int $operation, int $peak, int $flags): bool
+{
+    return $record['sequence'] === $offset + 1 && ($record['operation'] === 0 || $record['operation'] >= $operation)
+        && $record['peakBytes'] >= $peak && ($record['flags'] & $flags) === $flags && server_native_phase_kind($record, $offset, $peak);
+}
+
+/** @return array{kind: int, sequence: int, operation: int, previousPhase: int, phase: int, usedBytes: int, peakBytes: int, flags: int}|null */
+function server_native_phase_record(#[\SensitiveParameter] string $line): ?array
+{
+    if (strlen($line) + 1 > 128 || preg_match('/\A(?:0|[1-9][0-9]{0,12})(?:\t(?:0|[1-9][0-9]{0,12})){7}\z/D', $line) !== 1) { return null; }
+    $fields = explode("\t", $line);
+    $record = ['kind' => (int) \Tablo\RegexCapture::text($fields, 0), 'sequence' => (int) \Tablo\RegexCapture::text($fields, 1),
+        'operation' => (int) \Tablo\RegexCapture::text($fields, 2), 'previousPhase' => (int) \Tablo\RegexCapture::text($fields, key: 3),
+        'phase' => (int) \Tablo\RegexCapture::text($fields, key: 4), 'usedBytes' => (int) \Tablo\RegexCapture::text($fields, key: 5),
+        'peakBytes' => (int) \Tablo\RegexCapture::text($fields, key: 6), 'flags' => (int) \Tablo\RegexCapture::text($fields, key: 7)];
+    if ($record['kind'] < 1 || $record['kind'] > 4 || $record['sequence'] < 1 || $record['sequence'] > 64
+        || $record['operation'] < 0 || $record['operation'] > 6 || $record['flags'] > 7
+        || $record['usedBytes'] > $record['peakBytes'] || $record['peakBytes'] > 1_099_511_627_776) { return null; }
+    return $record;
+}
+
+/** @param array{kind: int, sequence: int, operation: int, previousPhase: int, phase: int, usedBytes: int, peakBytes: int, flags: int} $record */
+function server_native_phase_kind(array $record, int $offset, int $peak): bool
+{
+    if ($offset === 0) {
+        return [$record['kind'], $record['operation'], $record['previousPhase'], $record['phase'], $record['flags']] === [1, 0, 0, 115, 1];
+    }
+    if (!server_native_phase_predecessor($record)) { return false; }
+    return match ($record['kind']) {
+        2 => ($record['flags'] & 4) === 0 && $record['phase'] !== 115 && server_native_phase_app($record['phase'])
+            && server_native_phase_operation($record['phase'], $record['operation']) && $record['peakBytes'] > $peak
+            && ($record['phase'] !== 116 || $record['previousPhase'] === 115)
+            && ($record['phase'] !== 120 || in_array($record['previousPhase'], [11, 13, 15], strict: true)),
+        3 => $record['phase'] === 1 && ($record['flags'] & 1) === 1 && $record['peakBytes'] > $peak,
+        4 => in_array($record['phase'], [900, 901, 902, 903], strict: true),
+        default => false,
+    };
+}
+
+function server_native_phase_app(int $phase): bool
+{
+    return server_native_phase_legacy($phase) || ($phase >= 115 && $phase <= 116) || ($phase >= 120 && $phase <= 128)
+        || server_native_phase_module($phase);
+}
+
+function server_native_phase_legacy(int $phase): bool
+{
+    return ($phase >= 10 && $phase <= 17) || ($phase >= 20 && $phase <= 33) || ($phase >= 40 && $phase <= 42)
+        || ($phase >= 50 && $phase <= 53) || ($phase >= 60 && $phase <= 71) || ($phase >= 80 && $phase <= 91)
+        || ($phase >= 100 && $phase <= 114);
+}
+
+function server_native_phase_admitted(int $phase): bool
+{ return $phase >= 100 && $phase <= 114; }
+
+function server_native_phase_admitted_operation(int $phase, int $operation): bool
+{
+    return !server_native_phase_admitted($phase) || in_array($operation, [1, 4], strict: true);
+}
+
+function server_native_phase_operation(int $phase, int $operation): bool
+{
+    return match (true) {
+        in_array($phase, [10, 11], strict: true) => in_array($operation, [1, 4], strict: true),
+        in_array($phase, [12, 13], strict: true) => $operation === 2,
+        in_array($phase, [14, 15], strict: true) => in_array($operation, [3, 6], strict: true),
+        in_array($phase, [16, 17], strict: true) => $operation === 5,
+        $phase === 116 || ($phase >= 120 && $phase <= 128) => $operation === 0,
+        server_native_phase_module($phase) => $operation >= 0 && $operation <= 6,
+        default => $operation >= 1 && $operation <= 6 && server_native_phase_admitted_operation($phase, $operation),
+    };
+}
+
+/** @param array{kind: int, sequence: int, operation: int, previousPhase: int, phase: int, usedBytes: int, peakBytes: int, flags: int} $record */
+function server_native_phase_terminal(array $record): string
+{
+    if (($record['flags'] & 1) !== 1) { return 'UNKNOWN'; }
+    return match ($record['phase']) {
+        900 => [$record['operation'], $record['previousPhase'], $record['flags']] === [6, 15, 1] ? 'APP_COMPLETE_ONLY' : 'UNKNOWN',
+        901 => $record['flags'] === 1 ? 'APP_FAILURE' : 'UNKNOWN',
+        902 => $record['flags'] === 3 ? 'TRUNCATED' : 'UNKNOWN',
+        903 => ($record['flags'] & 4) === 4 ? 'ORDER_INVALID' : 'UNKNOWN', default => 'UNKNOWN',
+    };
+}
+
+
+/** Outside the measured actor, trusted controller source must still contain the two immutable files. */
+function server_native_phase_actor_source(string $root): bool
+{
+    foreach (['tests/server-child.php' => 'd83443857f36f10a62da62549e5f4b65958f8c5ecc2f93db264c6c7c4c560760',
+        'tests/Server/EngineTransferTest.php' => '1559b37a5d304fe83f92a79cd35ac6131e57d3dcb6d3194eaed5f0321754f3a3'] as $relative => $expected) {
+        $path = $root . '/' . $relative;
+        if (is_link($path) || !is_file($path) || str_replace('\\', replace: '/', subject: (string) realpath($path)) !== $path
+            || !hash_equals($expected, \Tablo\RequiredFile::digest($path))) { return false; }
+    }
+    return true;
+}
+
+function server_native_phase_module(int $phase): bool
+{
+    return ($phase >= 130 && $phase <= 132) || ($phase >= 140 && $phase <= 145) || ($phase >= 150 && $phase <= 156)
+        || ($phase >= 160 && $phase <= 164) || ($phase >= 170 && $phase <= 172) || ($phase >= 180 && $phase <= 187);
+}
+
+/** @param array{kind: int, sequence: int, operation: int, previousPhase: int, phase: int, usedBytes: int, peakBytes: int, flags: int} $record */
+function server_native_phase_predecessor(array $record): bool
+{
+    $previous = $record['previousPhase']; $operation = $record['operation'];
+    if (!server_native_phase_app($previous) || !server_native_phase_admitted_operation($previous, $operation)) { return false; }
+    if (in_array($previous, [115, 116], strict: true)) {
+        return server_native_phase_initial_bridge($record);
+    }
+    if ($previous >= 120 && $previous <= 127) { return $operation === 0; }
+    if ($previous === 128) {
+        return ($operation === 0 && in_array($record['kind'], [3, 4], strict: true))
+            || ($record['kind'] === 2 && in_array([$record['phase'], $operation], [[12, 2], [14, 3], [10, 4]], strict: true));
+    }
+    if (server_native_phase_module($previous)) {
+        return $record['kind'] !== 2 || !in_array($record['phase'], [10, 12, 14, 16], strict: true);
+    }
+    return $operation !== 0 || in_array($previous, [11, 13, 15], strict: true);
+}
+
+/** @param array{kind: int, sequence: int, operation: int, previousPhase: int, phase: int, usedBytes: int, peakBytes: int, flags: int} $record */
+function server_native_phase_initial_bridge(array $record): bool
+{
+    return ($record['operation'] === 0 && in_array($record['kind'], [3, 4], strict: true))
+        || ($record['kind'] === 2 && (($record['phase'] === 116 && $record['operation'] === 0 && $record['previousPhase'] === 115)
+            || ($record['phase'] === 10 && $record['operation'] === 1)));
+}
+
+/** Source lifecycle enforces the hidden three gaps; the public stream contains only new peaks.
+ * @param array{kind: int, sequence: int, operation: int, previousPhase: int, phase: int, usedBytes: int, peakBytes: int, flags: int} $record */
+function server_native_phase_sparse_order(array $record, int &$operation, int &$gap): bool
+{
+    $next = $record['operation'];
+    if ($next !== 0) {
+        if ($next < $operation || ($gap === 1 && ($next < 2 || $next <= $operation))) { return false; }
+        $operation = $next; $gap = 0; return true;
+    }
+    $phase = $record['kind'] === 3 ? $record['previousPhase'] : $record['phase'];
+    if (($phase >= 120 && $phase <= 128) || server_native_phase_module($phase)) {
+        if ($operation >= 4) { return false; }
+        $gap = 1;
+    }
+    return true;
+}
+
 /** Diagnostic projection of one failed Testo report; never evidence of admission or a root cause.
  * @param array<int|string, string> $publicSources Frozen owner catalog, never supplied by the child report; list shape is checked here.
  * @return array{schema: string, rootCause: string, reportStatus: string, type: string, origin: string, source: ?string, line: ?int, category: string, callerSource: ?string, callerLine: ?int} */

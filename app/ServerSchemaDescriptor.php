@@ -25,6 +25,7 @@ final class ServerSchemaDescriptor
      * @return list<AdmissionTable> */
     public static function admissionTables(array $layout): array
     {
+        server_schema_descriptor_phase(phase: 144);
         $tables = $layout['tables']; unset($layout);
         $projected = [];
         foreach (array_keys($tables) as $key) {
@@ -35,6 +36,7 @@ final class ServerSchemaDescriptor
             unset($tables[$key], $table);
         }
         unset($tables);
+        server_schema_descriptor_phase(phase: 145);
         return $projected;
     }
 
@@ -102,6 +104,7 @@ final class ServerSchemaDescriptor
 /** @internal Read the single finite source and positively close before publishing its graph. */
 function server_schema_descriptor_read(#[\SensitiveParameter] string $path): array
 {
+    server_schema_descriptor_phase(phase: 140);
     $stream = null; $layout = null; $primary = null;
     try {
         $stream = NativeWarning::ignore(static fn () => fopen($path, mode: 'rb'));
@@ -111,6 +114,7 @@ function server_schema_descriptor_read(#[\SensitiveParameter] string $path): arr
     finally { $closed = server_schema_descriptor_close($stream); }
     if ($primary !== null) { throw $primary; }
     if (!$closed || $layout === null) { throw new DatabaseFailure('schema'); }
+    server_schema_descriptor_phase(phase: 141);
     return $layout;
 }
 
@@ -181,6 +185,7 @@ function server_schema_descriptor_table(array $record): array
  * @return \Tablo\ServerSchema::Layout */
 function server_schema_descriptor_layout(array $layout, string $engine): array
 {
+    server_schema_descriptor_phase(phase: 142);
     $tables = JsonRecord::checked($layout['tables'] ?? null);
     if (($layout['format'] ?? null) !== 1 || ($layout['engine'] ?? null) !== $engine || count($tables) !== 18) { throw new DatabaseFailure('schema'); }
     foreach (array_keys($tables) as $key) {
@@ -189,6 +194,7 @@ function server_schema_descriptor_layout(array $layout, string $engine): array
             || !hash_equals($table['checksum'], hash('sha256', $table['create']))) { throw new DatabaseFailure('schema'); }
     }
     /** @var \Tablo\ServerSchema::Layout $layout Checked-in finite graph after framing and original full-graph integrity checks. */
+    server_schema_descriptor_phase(phase: 143);
     return $layout;
 }
 
@@ -213,4 +219,10 @@ function server_schema_mysql_default(mixed $actual, array $expected, string $ext
 function server_schema_mysql_default_escape(string $value): string
 {
     return strtr($value, ['\\' => '\\\\', "'" => "\\'", "\0" => '\\0', "\n" => '\\n', "\r" => '\\r', chr(26) => '\\Z']);
+}
+
+/** Observer-only forwarding never autoloads the transfer facade or observer host. */
+function server_schema_descriptor_phase(int $phase): void
+{
+    if (function_exists('Tablo\\database_transfer_phase_mark')) { database_transfer_phase_mark($phase); }
 }

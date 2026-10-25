@@ -15,7 +15,9 @@ final class ServerColumnAdmission
     /** @param Table $table */
     public static function verify(PDO $db, array $table): void
     {
+        server_column_admission_phase(phase: 170);
         $columns = ServerSchema::rows($db, 'SELECT COLUMN_NAME AS name, COLUMN_TYPE AS type, IS_NULLABLE AS nullable, COLUMN_DEFAULT AS default_value, EXTRA AS extra, GENERATION_EXPRESSION AS generation, COLLATION_NAME AS collation FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = ? ORDER BY ORDINAL_POSITION', [$table['name']]);
+        server_column_admission_phase(phase: 171);
         if (count($columns) !== count($table['columns'])) { self::refuse(); }
         $mysql = DatabaseSession::get($db)?->configuration->engine === 'mysql';
         foreach ($table['columns'] as $index => $expected) {
@@ -31,6 +33,7 @@ final class ServerColumnAdmission
             if (!array_key_exists('generated', $expected) && !server_column_default_matches($db, $actual, $expected)) { self::refuse(); }
             if (in_array($expected['type'], ['longtext', 'varchar(80)'], strict: true) && ($actual['collation'] ?? null) !== DatabaseSession::collation($db)) { self::refuse(); }
         }
+        server_column_admission_phase(phase: 172);
     }
     private static function refuse(): never { throw new DatabaseFailure('schema'); }
 
@@ -41,4 +44,10 @@ function server_column_default_matches(PDO $db, array $actual, array $expected):
 {
     return DatabaseSession::get($db)?->configuration->engine === 'mysql' ? ServerSchemaDescriptor::sameMysqlDefault($actual['default_value'] ?? null, $expected, SqlColumn::string($actual, 'extra'))
         : ServerSchemaDescriptor::sameDefault($actual['default_value'] ?? null, $expected['default']);
+}
+
+/** Observer-only forwarding never autoloads the transfer facade or observer host. */
+function server_column_admission_phase(int $phase): void
+{
+    if (function_exists('Tablo\\database_transfer_phase_mark')) { database_transfer_phase_mark($phase); }
 }

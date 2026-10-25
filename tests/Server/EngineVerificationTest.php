@@ -42,6 +42,7 @@ final class EngineVerificationTest
         require_once dirname(__DIR__, levels: 2) . '/tools/ServerTestEvidence.php';
         engine_verification_failed_report();
         engine_verification_failed_hook();
+        engine_verification_r74();
         $directory = new TemporaryDirectory('tablo-server-junit-');
         try {
             $root = dirname(__DIR__, levels: 2); $required = engine_verification_required();
@@ -981,6 +982,521 @@ function engine_verification_initialize_record(array $record): void
         $record['sqlState'] ?? null, $record['nativeCode'] ?? null], [null, null, null, null, null, null]);
     Assert::true(is_int($record['line'] ?? null) && $record['line'] > 0);
 }
+
+
+/** R74 protocol fixtures; these never execute the original actor, PDO, vault, transfer or network. */
+function engine_verification_r74(): void
+{
+    require_once dirname(__DIR__, levels: 2) . '/app/DatabaseTransferSequence.php';
+    engine_verification_r74_projection();
+    engine_verification_r74_state();
+    engine_verification_r74_writer();
+    engine_verification_r74_standalone();
+    engine_verification_r74_files();
+    engine_verification_r74_collector();
+}
+
+/** @return list<int> */
+function engine_verification_r74_new(): array
+{
+    return [...range(115, end: 116), ...range(120, end: 128), ...range(130, end: 132), ...range(140, end: 145),
+        ...range(150, end: 156), ...range(160, end: 164), ...range(170, end: 172), ...range(180, end: 187)];
+}
+
+/** @param list<list<int|string>> $records */
+function engine_verification_r74_wire(array $records): string
+{
+    $wire = '';
+    foreach ($records as $record) { $wire .= implode("\t", $record) . "\n"; }
+    return $wire;
+}
+
+/** @return list<int> */
+function engine_verification_r74_initial(): array { return [1, 1, 0, 0, 115, 0, 10, 1]; }
+
+/** @return list<list<int|string>> */
+function engine_verification_r74_records(int $phase, int $operation, int $kind = 2): array
+{
+    $entry = match ($operation) { 0 => 120, 1, 4 => 10, 2 => 12, 3, 6 => 14, 5 => 16, default => throw new \LogicException('Synthetic operation refused.') };
+    $previous = match (true) { $phase === 116 => 115, $phase === 120 => 11, default => $entry };
+    $record = $kind === 3 ? [3, 2, $operation, $phase, 1, 0, 20, 1] : [2, 2, $operation, $previous, $phase, 0, 20, 1];
+    return [engine_verification_r74_initial(), $record, [4, 3, $operation, $phase, 901, 0, 20, 1]];
+}
+
+function engine_verification_r74_projection(): void
+{
+    $unknown = \Tablo\Tools\server_native_phase_unknown();
+    Assert::same($unknown, ['schema' => 'tablo/server-transfer-phase-diagnostic/r74-v1', 'scope' => 'instrumented-app-only',
+        'status' => 'UNKNOWN', 'rootCause' => 'UNKNOWN', 'originalActorFinalPeak' => 'UNKNOWN', 'tail' => 'UNKNOWN', 'issueAccepted' => false, 'records' => []]);
+    Assert::same(count(engine_verification_r74_new()), 43);
+    foreach (engine_verification_r74_new() as $phase) {
+        Assert::true(\Tablo\database_transfer_phase_known($phase)); Assert::true(\Tablo\Tools\server_native_phase_app($phase));
+        engine_verification_r74_phase_projection($phase, $unknown);
+    }
+    engine_verification_r74_bridges($unknown);
+    engine_verification_r74_sparse($unknown);
+    engine_verification_r74_malformed($unknown);
+    engine_verification_r74_caps($unknown);
+    Assert::false(\Tablo\Tools\server_native_phase_integer_bound(1_099_511_627_775));
+    Assert::true(\Tablo\Tools\server_native_phase_integer_bound(1_099_511_627_776));
+}
+
+/** @param array $unknown */
+function engine_verification_r74_phase_projection(int $phase, array $unknown): void
+{
+    foreach (range(0, end: 6) as $operation) {
+        foreach ([false, true] as $predecessor) {
+            $records = engine_verification_r74_records($phase, $operation, kind: $predecessor ? 3 : 2);
+            $allowed = $phase <= 128 ? $operation === 0 : true;
+            if ($phase === 115 && !$predecessor) { $allowed = false; }
+            $actual = \Tablo\Tools\server_native_phase_project(engine_verification_r74_wire($records));
+            if ($allowed) { Assert::same($actual['status'], 'APP_FAILURE'); Assert::false($actual['issueAccepted']); }
+            if (!$allowed) { Assert::same($actual, $unknown); }
+        }
+    }
+    foreach ([false, true] as $predecessor) {
+        $records = engine_verification_r74_records($phase, operation: 0, kind: $predecessor ? 3 : 2);
+        $records[2] = [4, 3, 0, $phase, 903, 0, 20, 5];
+        $allowed = $phase !== 115 || $predecessor;
+        $actual = \Tablo\Tools\server_native_phase_project(engine_verification_r74_wire($records));
+        if ($allowed) { Assert::same($actual['status'], 'ORDER_INVALID'); }
+        if (!$allowed) { Assert::same($actual, $unknown); }
+    }
+}
+
+/** @param array $unknown */
+function engine_verification_r74_bridges(array $unknown): void
+{
+    foreach ([115, 116] as $previous) {
+        $records = [engine_verification_r74_initial(), [2, 2, 1, $previous, 10, 0, 20, 1], [4, 3, 1, 10, 901, 0, 20, 1]];
+        Assert::same(\Tablo\Tools\server_native_phase_project(engine_verification_r74_wire($records))['status'], 'APP_FAILURE');
+    }
+    foreach ([[12, 2], [14, 3], [10, 4]] as [$phase, $operation]) {
+        $records = [engine_verification_r74_initial(), [2, 2, 0, 120, 128, 0, 20, 1],
+            [2, 3, $operation, 128, $phase, 0, 30, 1], [4, 4, $operation, $phase, 901, 0, 30, 1]];
+        Assert::same(\Tablo\Tools\server_native_phase_project(engine_verification_r74_wire($records))['status'], 'APP_FAILURE');
+    }
+    foreach ([[12, 2, 115], [14, 3, 116], [16, 5, 128], [14, 6, 128], [12, 2, 132]] as [$phase, $operation, $previous]) {
+        $records = [engine_verification_r74_initial(), [2, 2, $operation, $previous, $phase, 0, 20, 1],
+            [4, 3, $operation, $phase, 901, 0, 20, 1]];
+        Assert::same(\Tablo\Tools\server_native_phase_project(engine_verification_r74_wire($records)), $unknown);
+    }
+    foreach (range(100, end: 114) as $phase) {
+        foreach (range(0, end: 6) as $operation) {
+            $actual = \Tablo\Tools\server_native_phase_project(engine_verification_r74_wire(engine_verification_r74_records($phase, $operation)));
+            if (in_array($operation, [1, 4], strict: true)) { Assert::same($actual['status'], 'APP_FAILURE'); }
+            if (!in_array($operation, [1, 4], strict: true)) { Assert::same($actual, $unknown); }
+        }
+    }
+}
+
+/** Normative sparse-order clarification: later observations may skip complete hidden operations.
+ * @param array $unknown */
+function engine_verification_r74_sparse(array $unknown): void
+{
+    foreach (range(2, end: 6) as $operation) {
+        $entry = match ($operation) { 2 => 12, 3, 6 => 14, 4 => 10, 5 => 16 };
+        $records = [engine_verification_r74_initial(), [2, 2, 0, 120, 121, 0, 20, 1],
+            [2, 3, $operation, $entry, 20, 0, 30, 1], [4, 4, 6, 15, 900, 0, 30, 1]];
+        Assert::same(\Tablo\Tools\server_native_phase_project(engine_verification_r74_wire($records))['status'], 'APP_COMPLETE_ONLY');
+    }
+    $records = [engine_verification_r74_initial(), [2, 2, 0, 120, 121, 0, 20, 1], [4, 3, 6, 15, 900, 0, 20, 1]];
+    Assert::same(\Tablo\Tools\server_native_phase_project(engine_verification_r74_wire($records))['status'], 'APP_COMPLETE_ONLY');
+    foreach ([901, 902, 903] as $terminal) {
+        $flags = match ($terminal) { 901 => 1, 902 => 3, 903 => 5 };
+        $records[2] = [4, 3, 0, 121, $terminal, 0, 20, $flags];
+        Assert::same(\Tablo\Tools\server_native_phase_project(engine_verification_r74_wire($records))['status'],
+            match ($terminal) { 901 => 'APP_FAILURE', 902 => 'TRUNCATED', 903 => 'ORDER_INVALID' });
+    }
+    engine_verification_r74_sparse_invalid($unknown);
+}
+
+/** @param array $unknown */
+function engine_verification_r74_sparse_invalid(array $unknown): void
+{
+    $records = [engine_verification_r74_initial(), [2, 2, 0, 120, 121, 0, 20, 1],
+        [2, 3, 1, 10, 20, 0, 30, 1], [4, 4, 1, 20, 901, 0, 30, 1]];
+    Assert::same(\Tablo\Tools\server_native_phase_project(engine_verification_r74_wire($records)), $unknown);
+    foreach ([4, 5, 6] as $operation) {
+        $entry = match ($operation) { 4 => 10, 5 => 16, 6 => 14 };
+        $records = [engine_verification_r74_initial(), [2, 2, $operation, $entry, 20, 0, 20, 1],
+            [2, 3, 0, 120, 121, 0, 30, 1], [4, 4, 0, 121, 901, 0, 30, 1]];
+        Assert::same(\Tablo\Tools\server_native_phase_project(engine_verification_r74_wire($records)), $unknown);
+    }
+    foreach ([2, 3] as $last) {
+        $entry = $last === 2 ? 12 : 14;
+        $records = [engine_verification_r74_initial(), [2, 2, $last, $entry, 20, 0, 20, 1],
+            [2, 3, 0, 120, 121, 0, 30, 1], [2, 4, $last, $entry, 20, 0, 40, 1], [4, 5, 6, 15, 900, 0, 40, 1]];
+        Assert::same(\Tablo\Tools\server_native_phase_project(engine_verification_r74_wire($records)), $unknown);
+    }
+}
+
+/** @param array $unknown */
+function engine_verification_r74_malformed(array $unknown): void
+{
+    $records = [engine_verification_r74_initial(), [2, 2, 1, 116, 10, 0, 20, 1], [4, 3, 6, 15, 900, 0, 20, 1]];
+    $wire = engine_verification_r74_wire($records);
+    foreach (['', rtrim($wire, characters: "\n"), "\xEF\xBB\xBF" . $wire, str_replace("\n", replace: "\r\n", subject: $wire), "\n" . $wire,
+        $wire . $wire, $wire . "PRIVATE_SQL_KEY_PATH\n", str_replace("\t20\t", replace: "\t020\t", subject: $wire),
+        str_replace("\t20\t", replace: "\tPRIVATE_SQL_KEY_PATH\t", subject: $wire), str_repeat('0', times: 8193),
+        str_repeat('1', times: 129) . "\n", "1\t1\t1\t0\t10\t0\t10\t0\n4\t2\t6\t15\t900\t0\t10\t1\n"] as $invalid) {
+        Assert::same(\Tablo\Tools\server_native_phase_project($invalid), $unknown);
+    }
+    foreach ([[0, 1, 2], [0, 7, 0], [1, 0, 1], [1, 1, 3], [1, 2, 7], [1, 3, 117], [1, 4, 119],
+        [1, 5, 21], [1, 6, 9], [1, 6, 1_099_511_627_777], [1, 7, 9], [1, 7, 0], [1, 7, 5], [2, 4, 904], [2, 7, 3]] as [$row, $field, $value]) {
+        $invalid = $records; $invalid[$row][$field] = $value;
+        Assert::same(\Tablo\Tools\server_native_phase_project(engine_verification_r74_wire($invalid)), $unknown);
+    }
+    foreach ([0, 1, 9, 18, 19, 34, 39, 43, 49, 54, 59, 72, 79, 92, 99, 117, 118, 119, 129, 133, 139, 146, 149, 157, 159, 165, 169, 173, 179, 188, 899, 904] as $phase) {
+        Assert::false(\Tablo\database_transfer_phase_known($phase));
+        foreach ([false, true] as $predecessor) {
+            Assert::same(\Tablo\Tools\server_native_phase_project(engine_verification_r74_wire(engine_verification_r74_records($phase, operation: 1, kind: $predecessor ? 3 : 2))), $unknown);
+        }
+    }
+}
+
+/** @param array $unknown */
+function engine_verification_r74_caps(array $unknown): void
+{
+    $records = [engine_verification_r74_initial()];
+    for ($index = 2; $index <= 63; $index++) { $records[] = [2, $index, 1, 20, 20, 0, $index + 10, 1]; }
+    $records[] = [4, 64, 1, 20, 902, 0, 100, 3];
+    $actual = \Tablo\Tools\server_native_phase_project(engine_verification_r74_wire($records));
+    Assert::same([$actual['status'], count($actual['records'])], ['TRUNCATED', 64]);
+    $records[] = [4, 65, 1, 20, 902, 0, 100, 3];
+    Assert::same(\Tablo\Tools\server_native_phase_project(engine_verification_r74_wire($records)), $unknown);
+    $upper = [engine_verification_r74_initial(), [4, 2, 6, 15, 900, 1_099_511_627_776, 1_099_511_627_776, 1]];
+    Assert::same(\Tablo\Tools\server_native_phase_project(engine_verification_r74_wire($upper))['status'], 'APP_COMPLETE_ONLY');
+}
+
+/** @return list<int> */
+function engine_verification_r74_descriptor(): array { return [140, 141, 142, 143, 144, 145]; }
+
+/** @return list<int> */
+function engine_verification_r74_metadata(int $version): array
+{
+    $phases = [150, 130, 131, 132, 151, 152, 153];
+    if ($version === 10) { $phases = [...$phases, ...engine_verification_r74_descriptor()]; }
+    $phases = [...$phases, 154, 155];
+    if ($version === 10) { $phases = [...$phases, 186, ...engine_verification_r74_descriptor(), 183, 184, 185, 187]; }
+    return [...$phases, 156];
+}
+
+/** @return list<int> */
+function engine_verification_r74_table(): array
+{
+    return [160, ...engine_verification_r74_descriptor(), 161, 162, 170, 171, 172, 180, 183, 184, 185, 181, 182, 163, 164];
+}
+
+/** @return list<int> */
+function engine_verification_r74_factory(int $slot): array
+{
+    $phases = [120, 121, ...engine_verification_r74_metadata($slot === 1 ? 0 : 10), 122, 130, 131, 132, 123, 124];
+    if ($slot !== 1) { $phases = [...$phases, ...engine_verification_r74_table(), 125, 126]; }
+    if ($slot === 3) { $phases[] = 127; }
+    return [...$phases, 128];
+}
+
+/** Complete numeric lifecycle, not a replacement for the original native scenario.
+ * @return list<int> */
+function engine_verification_r74_lifecycle(): array
+{
+    return [115, 116, 10, 20, 21, 22, 23, 24, 100, 101, 105, 106, 107, 108, 40, 140, 141, 142, 143, 41, 42,
+        109, 110, 111, 112, 113, 114, 25, 26, 50, 51, 27, 28, 29, 30, 31, 32, 33, 11,
+        ...engine_verification_r74_factory(1), 12, 60, 61, 62, 63, 64, 65, 20, 21, 66, 52, 53, 67,
+        80, 81, 82, 87, 88, 115, 116, 52, 53, 89, 68, 69, 90, 91, 83, 84, 70, 71, 85, 86, 13,
+        ...engine_verification_r74_factory(2), 14, 20, 21, 60, 61, 62, 63, 64, 65, 66, 67, 70, 71, 15,
+        ...engine_verification_r74_factory(3), 10, 24, 100, 101, 102, ...engine_verification_r74_table(),
+        103, 104, 108, 109, 110, 111, 112, 113, 114, 25, 11, 16, 20, 21, 115, 116, 60, 61, 62, 63, 64, 65,
+        66, 67, 70, 71, 17, 14, 20, 21, 60, 61, 62, 63, 64, 65, 66, 67, 70, 71, 15];
+}
+
+/** Actual transition helpers, without gate bypass, writer, PDO or memory sampling.
+ * @param list<int> $phases
+ * @return array{terminal: int, operation: int, completed: int, previous: int, flags: int, initial: int, factory: int, modules: int} */
+function engine_verification_r74_machine(array $phases): array
+{
+    $operation = 0; $lifecycle = 0; $factory = 0; $modules = 0; $previous = 0; $flags = 1; $terminal = 0;
+    foreach ($phases as $phase) {
+        if (\Tablo\database_transfer_phase_initial_ignored($phase, ($lifecycle >> 4) & 0xF)) { continue; }
+        $terminal = \Tablo\database_transfer_phase_transition($phase, $operation, $lifecycle, $factory, $modules);
+        if ($terminal === 903) { $flags |= 4; }
+        if ($terminal !== 901 && $terminal !== 903) { $previous = $phase; }
+        if ($terminal !== 0) { break; }
+        \Tablo\database_transfer_phase_leave($phase, $operation, $lifecycle, $factory);
+    }
+    return ['terminal' => $terminal, 'operation' => $operation, 'completed' => $lifecycle & 0xF, 'previous' => $previous, 'flags' => $flags,
+        'initial' => ($lifecycle >> 4) & 0xF, 'factory' => $factory, 'modules' => $modules];
+}
+
+function engine_verification_r74_state(): void
+{
+    $valid = engine_verification_r74_machine(engine_verification_r74_lifecycle());
+    Assert::same([$valid['terminal'], $valid['operation'], $valid['previous'], $valid['flags'], $valid['modules']], [900, 6, 15, 1, 0]);
+    $gap = engine_verification_r74_machine([115, 116, 10, 11, ...engine_verification_r74_factory(1)]);
+    Assert::same([$gap['operation'], $gap['completed'], $gap['factory']], [0, 1, -1]);
+    Assert::same(engine_verification_r74_machine([115, 116, 115, 116]), engine_verification_r74_machine([115, 116]));
+    foreach ([[115, 115], [115, 10], [115, 116, 12], [115, 116, 10, 12], [115, 116, 10, 11, 12],
+        [115, 116, 120], [115, 116, 10, 120], [115, 116, 10, 132],
+        [115, 116, 10, 140, 142], [115, 116, 10, 150, 152], [115, 116, 10, 160, 162],
+        [115, 116, 10, 170, 172], [115, 116, 10, 180, 182], [115, 116, 10, 183, 185],
+        [115, 116, 10, 187], [115, 116, 10, 117], [115, 116, 10, 11, 120, 120],
+        [115, 116, 10, 11, 120, 121, 128, 12], [115, 116, 10, 11, 120, 121, 122]] as $invalid) {
+        $actual = engine_verification_r74_machine($invalid);
+        Assert::same($actual['terminal'], 903); Assert::same($actual['flags'], 5);
+    }
+    engine_verification_r74_state_gaps();
+    engine_verification_r74_optional_scopes();
+    engine_verification_r74_cohort();
+}
+
+/** Cached clauses, supplied expected tables and empty maintenance metadata have different real paths. */
+function engine_verification_r74_optional_scopes(): void
+{
+    foreach ([130, 140, 150, 160, 170, 180, 183, 186] as $entry) {
+        $partial = engine_verification_r74_machine([115, 116, 10, $entry, 901]);
+        Assert::same([$partial['terminal'], $partial['flags'], $partial['previous']], [901, 1, $entry]);
+    }
+    $supplied = [150, 130, 131, 132, 151, 152, 153, 154, 155, 186, 183, 184, 185, 187, 156];
+    foreach ([[160, ...engine_verification_r74_descriptor(), 161, ...$supplied, 162, 170, 171, 172, 180, 181, 182, 163, 164],
+        [180, ...engine_verification_r74_metadata(10), 181, 182], engine_verification_r74_metadata(0), $supplied] as $phases) {
+        $actual = engine_verification_r74_machine([115, 116, 10, ...$phases, 901]);
+        Assert::same([$actual['terminal'], $actual['flags'], $actual['modules']], [901, 1, 0]);
+    }
+}
+
+function engine_verification_r74_state_gaps(): void
+{
+    foreach (range(100, end: 114) as $phase) {
+        Assert::same(engine_verification_r74_machine([115, 116, 10, 11, ...engine_verification_r74_factory(1), 12, $phase])['terminal'], 903);
+    }
+    foreach ([1, 2, 3] as $slot) {
+        $prefix = match ($slot) {
+            1 => [115, 116, 10, 11],
+            2 => [115, 116, 10, 11, ...engine_verification_r74_factory(1), 12, 13],
+            3 => [115, 116, 10, 11, ...engine_verification_r74_factory(1), 12, 13, ...engine_verification_r74_factory(2), 14, 15],
+        };
+        $actual = engine_verification_r74_machine([...$prefix, ...engine_verification_r74_factory($slot)]);
+        Assert::same([$actual['operation'], $actual['completed'], $actual['factory']], [0, $slot, -1]);
+    }
+    $afterThird = [115, 116, 10, 11, ...engine_verification_r74_factory(1), 12, 13,
+        ...engine_verification_r74_factory(2), 14, 15, ...engine_verification_r74_factory(3), 10, 11];
+    Assert::same(engine_verification_r74_machine([...$afterThird, 120])['terminal'], 903);
+    Assert::same(engine_verification_r74_machine([...$afterThird, 16, 17, 120])['terminal'], 903);
+ }
+
+function engine_verification_r74_cohort(): void
+{
+    foreach (['mysql', 'mariadb'] as $engine) {
+        foreach ([80_200, 80_299, 80_500, 80_599] as $version) { Assert::true(\Tablo\database_transfer_phase_cohort('cli', platform: 'Linux', version: $version, engine: $engine)); }
+        foreach ([80_199, 80_300, 80_400, 80_600] as $version) { Assert::false(\Tablo\database_transfer_phase_cohort('cli', platform: 'Linux', version: $version, engine: $engine)); }
+        Assert::false(\Tablo\database_transfer_phase_cohort('cli', platform: 'Windows', version: 80_500, engine: $engine));
+        Assert::false(\Tablo\database_transfer_phase_cohort('fpm-fcgi', platform: 'Linux', version: 80_500, engine: $engine));
+    }
+    Assert::false(\Tablo\database_transfer_phase_cohort('cli', platform: 'Linux', version: 80_500, engine: 'sqlite'));
+    Assert::same(\Tablo\database_transfer_phase_terminal(901, flags: 3), 902);
+    Assert::same(\Tablo\database_transfer_phase_terminal(900, flags: 7), 903);
+}
+
+function engine_verification_r74_writer(): void
+{
+    $directory = new TemporaryDirectory('tablo-r74-writer-'); $handle = null;
+    try {
+        $path = $directory->path . '/numeric.tsv'; $handle = fopen($path, mode: 'xb');
+        if (!is_resource($handle)) { throw new \RuntimeException('Synthetic writer resource absent.'); }
+        $flags = 1;
+        Assert::true(\Tablo\database_transfer_phase_emit($handle, kind: 1, fields: "0\t0\t115\t0\t10\t1", flags: $flags));
+        for ($index = 1; $index <= 70; $index++) {
+            Assert::true(\Tablo\database_transfer_phase_emit($handle, kind: 2, fields: "1\t20\t20\t0\t" . ($index + 10) . "\t" . $flags, flags: $flags));
+        }
+        Assert::same($flags, 3);
+        Assert::true(\Tablo\database_transfer_phase_emit($handle, kind: 4, fields: "1\t20\t902\t0\t100\t3", flags: $flags));
+        \Tablo\database_transfer_phase_close($handle); $handle = null;
+        $bytes = \Tablo\RequiredFile::bytes(file_get_contents($path));
+        Assert::true(strlen($bytes) <= 8192);
+        $projected = \Tablo\Tools\server_native_phase_project($bytes);
+        Assert::same([$projected['status'], count($projected['records'])], ['TRUNCATED', 64]);
+        $handle = fopen($path, mode: 'rb');
+        if (!is_resource($handle)) { throw new \RuntimeException('Synthetic read-only resource absent.'); }
+        $warnings = 0; $handler = static function () use (&$warnings): bool { $warnings++; return true; };
+        set_error_handler($handler);
+        try {
+            Assert::same(\Tablo\database_transfer_phase_record($handle, kind: 1, sequence: 1, fields: "0\t0\t115\t0\t10\t1"), 0);
+            \Tablo\database_transfer_phase_close($handle); $handle = null;
+            $restored = set_error_handler($handler); restore_error_handler();
+            Assert::same($restored, $handler); Assert::same($warnings, 0);
+        } finally { restore_error_handler(); }
+        Assert::same(file_get_contents($path), $bytes);
+    } catch (\Throwable $error) { $directory->retainFailure($error); throw $error; }
+    finally { \Tablo\database_transfer_phase_close($handle); $directory->close(); }
+}
+
+/** Exactly two declarations-only PHP controls; the real cold actor is never invoked. */
+function engine_verification_r74_standalone(): void
+{
+    $directory = new TemporaryDirectory('tablo-r74-declarations-');
+    try {
+        foreach (['preflight', 'sequence'] as $variant) {
+            $module = $variant === 'preflight' ? 'DatabaseTransferPreflight' : 'DatabaseTransferSequence';
+            $call = $variant === 'preflight' ? '\\Tablo\\database_transfer_preflight_phase(100);' : '\\Tablo\\database_transfer_phase_mark(116);';
+            $source = '<?php require ' . var_export(dirname(__DIR__, levels: 2) . '/app/' . $module . '.php', return: true) . ';'
+                . '$primary = new \\RuntimeException("SYNTHETIC_PRIMARY"); try { ' . $call . ' throw $primary; } catch (\\Throwable $caught) {'
+                . 'echo json_encode(["primaryPreserved"=>$caught === $primary,"facadeAbsent"=>!class_exists("Tablo\\\\DatabaseTransfer",false),'
+                . '"observerPresent"=>function_exists("Tablo\\\\database_transfer_phase_mark")],JSON_THROW_ON_ERROR); }';
+            $path = $directory->path . '/' . $variant . '.php'; file_put_contents($path, $source);
+            $child = Subprocess::run([PHP_BINARY, '-n', $path], $directory, [], new CommandOptions(timeout: 2));
+            Assert::same([$child['exit_code'], $child['stderr']], [0, '']);
+            Assert::same(\Tablo\JsonRecord::decode($child['stdout']), ['primaryPreserved' => true, 'facadeAbsent' => true, 'observerPresent' => $variant === 'sequence']);
+            Assert::false(file_exists($directory->path . '/transfer-phase-r74-v1.tsv'));
+        }
+    } catch (\Throwable $error) { $directory->retainFailure($error); throw $error; }
+    finally { $directory->close(); }
+}
+
+/** POSIX mode/inode file controls are not claimed on the Windows host. */
+function engine_verification_r74_files(): void
+{
+    if (PHP_OS_FAMILY !== 'Linux') { return; }
+    $directory = new TemporaryDirectory('tablo-r74-files-');
+    try {
+        $wire = engine_verification_r74_wire([engine_verification_r74_initial(), [4, 2, 0, 115, 901, 0, 10, 1]]);
+        $path = $directory->path . '/transfer-phase-r74-v1.tsv'; file_put_contents($path, $wire); chmod($path, permissions: 0o600);
+        Assert::same(\Tablo\Tools\server_native_phase_bytes($path), $wire);
+        chmod($path, permissions: 0o644); Assert::null(\Tablo\Tools\server_native_phase_bytes($path));
+        chmod($path, permissions: 0o600); $link = $directory->path . '/linked'; Assert::true(symlink($path, $link));
+        Assert::null(\Tablo\Tools\server_native_phase_bytes($link)); Assert::same(file_get_contents($path), $wire);
+        $hard = $directory->path . '/hard'; Assert::true(link($path, $hard));
+        Assert::null(\Tablo\Tools\server_native_phase_bytes($path)); Assert::same(file_get_contents($path), $wire);
+        $oversize = $directory->path . '/oversize'; file_put_contents($oversize, str_repeat('x', times: 8193)); chmod($oversize, permissions: 0o600);
+        Assert::null(\Tablo\Tools\server_native_phase_bytes($oversize));
+    } catch (\Throwable $error) { $directory->retainFailure($error); throw $error; }
+    finally { $directory->close(); }
+}
+
+/** Actual Linux cohort children are added below; unsupported hosts never bypass the runtime gate. */
+function engine_verification_r74_collector(): void
+{
+    if (PHP_OS_FAMILY !== 'Linux' || !in_array(intdiv(PHP_VERSION_ID, num2: 100), [802, 805], strict: true)) { return; }
+    foreach (['mysql', 'mariadb'] as $engine) {
+        engine_verification_r74_collector_case($engine);
+    }
+}
+
+
+
+/** Each layout is owned synthetic protocol data, never the original actor or an engine fixture. */
+function engine_verification_r74_collector_case(string $engine): void
+{
+    foreach (['valid', 'failure', 'gap-failure', 'order', 'bad-id', 'bad-op', 'partial', 'truncated', 'short-write', 'partial-write', 'flush-failure', 'close-failure', 'buffer-unavailable',
+        'nonce', 'source', 'script', 'case', 'arguments', 'engine', 'hash', 'plan', 'sink', 'runtime', 'collision', 'linked', 'ancestor'] as $variant) {
+        $directory = new TemporaryDirectory('tablo-r74-collector-');
+        try { engine_verification_r74_collector_variant($directory, $engine, $variant); }
+        catch (\Throwable $error) { $directory->retainFailure($error); throw $error; }
+        finally { $directory->close(); }
+    }
+}
+
+/** @return array{source: string, closure: string, environment: array<string, string>, actor: string, foreign: string} */
+function engine_verification_r74_layout(TemporaryDirectory $directory, string $engine, string $variant): array
+{
+    $nonce = str_repeat('a', times: 32); $runtime = str_replace('\\', replace: '/', subject: $directory->path) . '/tablo-server-' . $nonce;
+    $source = $runtime . '/source'; $base = $runtime . '/cases/main-0'; $closure = $base . '/closure';
+    $fixture = $base . '/' . $engine . '/tablo-server-' . $nonce; $foreign = str_replace('\\', replace: '/', subject: $directory->path) . '/owned-sentinel';
+    foreach ([$source . '/app', $source . '/tests', $runtime . '/evidence', $closure, $foreign] as $path) {
+        if (!mkdir($path, permissions: 0o700, recursive: true)) { throw new \RuntimeException('Synthetic owned layout absent.'); }
+    }
+    if ($variant === 'ancestor') { Assert::true(symlink($foreign, $base . '/' . $engine)); }
+    if (!mkdir($fixture, permissions: 0o700, recursive: true)) { throw new \RuntimeException('Synthetic fixture directory absent.'); }
+    Assert::true(copy(dirname(__DIR__, levels: 2) . '/app/DatabaseTransferSequence.php', $source . '/app/DatabaseTransferSequence.php'));
+    $plan = $runtime . '/evidence/started-cell.json'; file_put_contents($plan, data: 'synthetic-guard-bytes-only'); chmod($plan, permissions: 0o600);
+    $environment = ['TABLO_TEST_DB_DRIVER' => $engine, 'TABLO_TEST_ENGINE_CASE' => 'transfer-working-data',
+        'TABLO_TEST_SOURCE_ROOT' => $source, 'TABLO_TEST_RUN_NONCE' => $nonce, 'TABLO_TEST_RUNTIME_ROOT' => $fixture,
+        'TABLO_TEST_CELL_PLAN' => $plan, 'TABLO_TEST_CELL_PLAN_SHA256' => hash('sha256', data: 'synthetic-guard-bytes-only'),
+        'TABLO_SESSION_EVIDENCE_DIRECTORY' => $closure];
+    $actor = $source . '/tests/' . ($variant === 'script' ? 'other.php' : 'server-child.php');
+    return ['source' => $source, 'closure' => $closure, 'environment' => $environment, 'actor' => $actor, 'foreign' => $foreign];
+}
+
+/** @param array{source: string, closure: string, environment: array<string, string>, actor: string, foreign: string} $layout
+ * @return array<string, string> */
+function engine_verification_r74_environment(array $layout, string $variant): array
+{
+    $environment = $layout['environment']; $foreign = $layout['foreign'];
+    $changes = ['nonce' => ['TABLO_TEST_RUN_NONCE', str_repeat('b', times: 32)], 'source' => ['TABLO_TEST_SOURCE_ROOT', $foreign],
+        'case' => ['TABLO_TEST_ENGINE_CASE', 'foreign'], 'engine' => ['TABLO_TEST_DB_DRIVER', 'sqlite'],
+        'hash' => ['TABLO_TEST_CELL_PLAN_SHA256', str_repeat('0', times: 64)], 'plan' => ['TABLO_TEST_CELL_PLAN', $foreign],
+        'sink' => ['TABLO_SESSION_EVIDENCE_DIRECTORY', $foreign], 'runtime' => ['TABLO_TEST_RUNTIME_ROOT', $foreign]];
+    if (array_key_exists($variant, $changes)) { [$key, $value] = $changes[$variant]; $environment[$key] = $value; }
+    return $environment;
+}
+
+function engine_verification_r74_positive(string $variant): bool
+{
+    return in_array($variant, ['valid', 'failure', 'gap-failure', 'order', 'bad-id', 'bad-op', 'partial', 'truncated', 'short-write', 'partial-write', 'flush-failure', 'close-failure', 'buffer-unavailable'], strict: true);
+}
+
+function engine_verification_r74_actor(string $variant): string
+{
+    $phases = match ($variant) {
+        'failure' => [115, 116, 10, 901], 'gap-failure' => [115, 116, 10, 11, 120, 901], 'order' => [115, 116, 10, 12],
+        'bad-id' => [115, 116, 10, 117], 'bad-op' => [115, 116, 10, 11, ...engine_verification_r74_factory(1), 12, 100],
+        'partial' => [115, 116, 10], default => engine_verification_r74_lifecycle(),
+    };
+    $namespace = match ($variant) {
+        'short-write' => 'namespace Tablo { function fwrite(mixed $handle, string $line): int|false { return 0; } } namespace {',
+        'partial-write' => 'namespace Tablo { function fwrite(mixed $handle, string $line): int|false { return \fwrite($handle,substr($line,0,-1)); } } namespace {',
+        'flush-failure' => 'namespace Tablo { function fflush(mixed $handle): bool { return false; } } namespace {',
+        'close-failure' => 'namespace Tablo { function fclose(mixed $handle): bool { throw new \RuntimeException("SYNTHETIC_CLOSE"); } } namespace {',
+        'buffer-unavailable' => 'namespace Tablo { function stream_set_write_buffer(mixed $handle, int $size): int { return -1; } } namespace {',
+        default => 'namespace {',
+    };
+    $growth = $variant === 'truncated' ? 'if ($phase === 10 && !$grew) { $grew=true; for($index=1;$index<=70;$index++){ $growth=str_repeat("x",$index*65536); \Tablo\database_transfer_phase_mark(20); }}' : '';
+    $facts = engine_verification_r74_positive($variant)
+        ? '$facts=["gate"=>\Tablo\database_transfer_phase_gate(),"source"=>\Tablo\database_transfer_phase_source()===str_replace("\\\\","/",dirname(__DIR__)),"derivedDirectory"=>\Tablo\database_transfer_phase_directory()===getenv("TABLO_SESSION_EVIDENCE_DIRECTORY")];'
+        : '$facts=[];';
+    return '<?php ' . $namespace . ' require dirname(__DIR__)."/app/DatabaseTransferSequence.php"; $grew=false;'
+        . '$primary=new \RuntimeException("SYNTHETIC_PRIMARY");try { foreach(' . var_export($phases, return: true) . ' as $phase){ \Tablo\database_transfer_phase_mark($phase); ' . $growth . ' } throw $primary; }'
+        . 'catch(\Throwable $caught){ ' . $facts . ' echo json_encode(["primaryPreserved"=>$caught===$primary]+$facts,JSON_THROW_ON_ERROR); } }';
+}
+
+function engine_verification_r74_collector_variant(TemporaryDirectory $directory, string $engine, string $variant): void
+{
+    $layout = engine_verification_r74_layout($directory, $engine, $variant);
+    $trace = $layout['closure'] . '/transfer-phase-r74-v1.tsv'; $sentinel = 'SYNTHETIC_EXISTING_MUST_STAY';
+    if ($variant === 'collision') { file_put_contents($trace, $sentinel); chmod($trace, permissions: 0o600); }
+    if ($variant === 'linked') { file_put_contents($layout['foreign'] . '/sentinel', $sentinel); Assert::true(symlink($layout['foreign'] . '/sentinel', $trace)); }
+    file_put_contents($layout['actor'], engine_verification_r74_actor($variant));
+    $arguments = $variant === 'arguments' ? ['foreign', 'transfer-working-data'] : ['transfer-working-data', 'transfer-working-data'];
+    $child = Subprocess::run([PHP_BINARY, '-n', $layout['actor'], ...$arguments], $directory, [],
+        new CommandOptions(timeout: 2, replacementEnvironment: engine_verification_r74_environment($layout, $variant)));
+    Assert::same([$child['exit_code'], $child['stderr']], [0, '']);
+    $expected = ['primaryPreserved' => true];
+    if (engine_verification_r74_positive($variant)) { $expected += ['gate' => true, 'source' => true, 'derivedDirectory' => true]; }
+    Assert::same(\Tablo\JsonRecord::decode($child['stdout']), $expected);
+    Assert::false(file_exists($layout['foreign'] . '/transfer-phase-r74-v1.tsv'));
+    engine_verification_r74_collector_result($trace, $variant, $sentinel);
+    if (file_exists($layout['foreign'] . '/sentinel')) { Assert::same(file_get_contents($layout['foreign'] . '/sentinel'), $sentinel); }
+    Assert::false(\Tablo\Tools\server_native_phase_actor_source($layout['source']), 'Path-shaped protocol actors cannot qualify the original actor.');
+}
+
+function engine_verification_r74_collector_result(string $trace, string $variant, string $sentinel): void
+{
+    if ($variant === 'collision' || $variant === 'linked') { Assert::same(file_get_contents($trace), $sentinel); return; }
+    if (!engine_verification_r74_positive($variant)) { Assert::false(file_exists($trace)); return; }
+    $stat = lstat($trace);
+    Assert::true(is_array($stat)); Assert::false(is_link($trace));
+    Assert::same(($stat['mode'] ?? 0) & 0o777, 0o600); Assert::same($stat['nlink'] ?? null, 1);
+    $bytes = \Tablo\RequiredFile::bytes(file_get_contents($trace, length: 8193));
+    Assert::true(strlen($bytes) <= 8192);
+    $actual = \Tablo\Tools\server_native_phase_project($bytes);
+    $status = match ($variant) {
+        'failure', 'gap-failure' => 'APP_FAILURE', 'order', 'bad-id', 'bad-op' => 'ORDER_INVALID',
+        'partial', 'short-write', 'partial-write', 'flush-failure' => 'UNKNOWN', 'truncated' => 'TRUNCATED', default => 'APP_COMPLETE_ONLY',
+    };
+    Assert::same($actual['status'], $status); Assert::false($actual['issueAccepted']);
+    if ($status !== 'UNKNOWN') { Assert::true(count($actual['records']) >= 2 && count($actual['records']) <= 64); }
+}
+
 
 /** @return array<string, array{identity: string, path: string, minimumAssertions: int, deadlineSeconds: int}> */
 function engine_verification_required(): array

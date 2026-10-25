@@ -86,6 +86,7 @@ function database_transfer_archive_measure(PDO $source, PDO $scratch, array $tab
  * @return \Tablo\DatabaseTransferArchive::Receipt */
 function database_transfer_archive_stream(PDO $source, PDO $scratch, array $table, #[\SensitiveParameter] ?string $directory, int $remainingChunks): array
 {
+    database_transfer_archive_phase(50);
     if ($remainingChunks < 0 || $remainingChunks > DatabaseTransferManifest::MAX_CHUNKS) { throw new DatabaseFailure('configuration'); }
     $chunks = []; $rows = 0; $chunk = database_transfer_archive_pending_chunk(); $hash = hash_init('sha256');
     try {
@@ -102,6 +103,7 @@ function database_transfer_archive_stream(PDO $source, PDO $scratch, array $tabl
             unset($line, $values);
         }
         if ($chunk['rows'] !== 0) { $chunks[] = database_transfer_archive_chunk($chunk); }
+        database_transfer_archive_phase(51);
         return ['name' => $table['name'], 'rows' => $rows, 'sha256' => hash_final($hash), 'chunks' => $chunks];
     } finally {
         // Failure can leave a partial private chunk; close it without masking the primary failure.
@@ -174,6 +176,7 @@ function database_transfer_chunk_private_file(#[\SensitiveParameter] string $pat
  */
 function database_transfer_chunk_read(#[\SensitiveParameter] string $directory, array $table, array $receipt, ?\Closure $consume = null): \Generator
 {
+    database_transfer_archive_phase(52);
     $rows = 0; $hash = hash_init('sha256');
     foreach ($receipt['chunks'] as $index => $chunk) {
         $path = DatabaseTransferManifest::path($directory, $table['name'] . '.' . $index . '.jsonl');
@@ -203,6 +206,7 @@ function database_transfer_chunk_read(#[\SensitiveParameter] string $directory, 
         }
     }
     if ($rows !== $receipt['rows'] || !hash_equals($receipt['sha256'], hash_final($hash))) { throw new DatabaseFailure('schema'); }
+    database_transfer_archive_phase(53);
 }
 
 /** @param \Tablo\DatabaseTransferManifest::Table $table
@@ -275,4 +279,9 @@ function database_transfer_chunk_line(#[\SensitiveParameter] mixed $handle, arra
 function database_transfer_chunk_close(#[\SensitiveParameter] mixed $handle): void
 {
     if (is_resource($handle)) { NativeWarning::ignore(static fn (): bool => fclose($handle)); }
+}
+
+function database_transfer_archive_phase(int $phase): void
+{
+    if (function_exists('Tablo\\database_transfer_phase_mark')) { database_transfer_phase_mark($phase); }
 }
