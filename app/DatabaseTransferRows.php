@@ -156,6 +156,9 @@ function database_transfer_value_value(#[\SensitiveParameter] mixed $value, arra
     if ($column['type'] === 'longtext') {
         if (str_contains($value, "\0") || preg_match('//u', $value) !== 1) { throw new DatabaseFailure('schema'); }
     }
+    if ($column['type'] === 'varchar(80)' && preg_match('/\A[^\x00]{1,80}\z/uD', $value) !== 1) {
+        throw new DatabaseFailure('schema');
+    }
     if ($column['type'] === 'varbinary(20)') {
         try { $canonical = HistoryTime::canonical($value); }
         catch (\InvalidArgumentException) { throw new DatabaseFailure('schema'); }

@@ -16,7 +16,7 @@ final class WorkerSiteCheck
                 try {
                     $provider = $connection->provider(SiteProjection::gitCredentials($site));
                     $order = (new WorkerFieldOrder($this->state))->fieldOrder($site, $provider);
-                } catch (\PDOException | SharedKeyFailure $error) { throw $error; }
+                } catch (\PDOException | DatabaseFailure | SharedKeyFailure $error) { throw $error; }
                 catch (\Throwable) {
                     $provider = new UnavailableRepositoryProvider();
                     $order = WorkerStateRepository::FIELDS;
@@ -26,7 +26,7 @@ final class WorkerSiteCheck
                 $this->sites->assertWorkerKeyAvailable();
                 $stored = $this->state->settle($site, $result);
                 ($this->output)($stored ? 'Worker site checked.' : 'Worker site changed.');
-            } catch (\PDOException | SharedKeyFailure $error) { throw $error; }
+            } catch (\PDOException | DatabaseFailure | SharedKeyFailure $error) { throw $error; }
             catch (\Throwable) { ($this->output)('Worker site failed.'); }
     }
 }

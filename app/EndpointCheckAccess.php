@@ -12,7 +12,7 @@ final class EndpointCheckAccess
     {
         try {
             return self::credential($site['endpoint_token'] ?? null, $vault);
-        } catch (\PDOException | SharedKeyFailure $error) { throw $error; }
+        } catch (\PDOException | DatabaseFailure | SharedKeyFailure $error) { throw $error; }
         catch (\Throwable $discardedCredential) { unset($discardedCredential); return new self(requestHeaders: [], failure: new HttpFailure('check-error')); }
     }
 

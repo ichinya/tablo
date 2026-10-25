@@ -19,7 +19,7 @@ final class GitCooldownLedger
         $key = ($resource === 'secondary' ? 'shared' : $scope) . ':' . $resource;
         $this->cooldowns[$key] = max($this->cooldowns[$key] ?? 0, $eligible);
         try { $this->storage?->defer($resource, $eligible, $scope); }
-        catch (\PDOException | SharedKeyFailure $error) { throw $error; }
+        catch (\PDOException | DatabaseFailure | SharedKeyFailure $error) { throw $error; }
         catch (\Throwable) { throw new GitHubFailure('unavailable'); }
     }
     /** @param Frame $response */

@@ -22,7 +22,7 @@ final class GitHubMetric
             });
             $this->credential->assertCurrent($this->policy, $this->identity);
             return $result;
-        } catch (GitHubFailure | \PDOException | SharedKeyFailure $error) { throw $error; }
+        } catch (GitHubFailure | \PDOException | DatabaseFailure | SharedKeyFailure $error) { throw $error; }
         catch (\Throwable) { throw new GitHubFailure('unavailable'); }
     }
 }

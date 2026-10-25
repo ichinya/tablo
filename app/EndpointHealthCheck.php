@@ -24,7 +24,7 @@ final class EndpointHealthCheck
             EndpointResponse::validate($response);
             if (!EndpointHealthStatus::apply($site,$response,$state,$errors)) { return; }
             EndpointHealthJson::apply($site,$response,$state,$errors);
-        } catch (\PDOException | SharedKeyFailure $error) { throw $error; }
+        } catch (\PDOException | DatabaseFailure | SharedKeyFailure $error) { throw $error; }
         catch (\Throwable $e) {
             // A blocked/DNS/transport check does not prove that the site is offline.
             $state['online'] = null;

@@ -32,7 +32,7 @@ function public_api_missing_dependencies_and_ordinary_output_are_fixed_without_d
             }
             $router = $directory->path . '/router.php'; file_put_contents($router, data: '<?php require __DIR__ . "/source/public/index.php";');
             $database = $directory->path . ($fault === 'absent' ? '/absent.sqlite' : '/current.sqlite');
-            $server = new TestServer($directory, $router, $copy . '/public', ['TABLO_DB' => $database]);
+            $server = new TestServer($directory, $router, $copy . '/public', ['TABLO_DB' => $database, 'TABLO_HSTS_MODE' => 'off', 'TABLO_HSTS_MAX_AGE' => '']);
             ReadApiFixture::error(read_api_boundary_request($server), 401, 'unauthorized');
             $response = read_api_boundary_request($server, $secret);
             if ($fault === 'complete') { Assert::same($response['status'], 200); Assert::same(A::page($response['body'])['data'], []); }
@@ -68,7 +68,7 @@ function schema_transition_after_connection_admission_is_checked_inside_the_actu
             read_api_commit_schema_on_open($copy, $version);
             mkdir($copy . '/vendor'); file_put_contents($copy . '/vendor/autoload.php', read_api_fault_autoload($root, $copy, $files, fault: 'complete'));
             $router = $directory->path . '/router.php'; file_put_contents($router, data: '<?php require __DIR__ . "/source/public/index.php";');
-            $server = new TestServer($directory, $router, $copy . '/public', ['TABLO_DB' => $path]);
+            $server = new TestServer($directory, $router, $copy . '/public', ['TABLO_DB' => $path, 'TABLO_HSTS_MODE' => 'off', 'TABLO_HSTS_MAX_AGE' => '']);
             $response = read_api_boundary_request($server, $secret);
             Assert::same(json_decode(\Tablo\RequiredFile::bytes(file_get_contents($copy . '/app/transition.json')), associative: true, flags: JSON_THROW_ON_ERROR),
                 ['admitted' => \Tablo\Database::CURRENT_SCHEMA_VERSION, 'committed' => $version]);
@@ -110,6 +110,7 @@ function read_api_commit_schema_on_open(string $copy, int $version): void
 function read_api_copy_boundary_sources(string $root, string $copy): array
 {
     $files = ['public/index.php','app/RuntimeIni.php','app/ReadApi.php','app/ReadApiRequest.php','app/ReadApiResponse.php','app/read-api-repository.php',
+        'app/HstsPolicy.php','app/HstsConfigurationError.php','app/ClientAddress.php','app/ProxyConfiguration.php','app/IpAddress.php',
         'app/ReadApiConnection.php','app/ReadApiSchemaAdmission.php','app/ReadApiRepository.php','app/ApiSiteDto.php','app/ApiSiteState.php',
         'app/ReadApiToken.php','app/ReadApiTokenRepository.php','app/read-api-token-repository.php','app/ReadApiTokenSchema.php','app/read-api-token-schema.php'];
     foreach ($files as $file) { copy($root . '/' . $file, $copy . '/' . $file); }

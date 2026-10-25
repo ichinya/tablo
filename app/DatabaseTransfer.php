@@ -84,8 +84,10 @@ function database_transfer_facade_import_sqlite(#[\SensitiveParameter] TokenVaul
         DatabaseTransferVerification::database($scratch, $manifest['header'], $vault);
         $scratch = null;
         // Same-filesystem exclusive publication refuses an existing target atomically.
-        if (!link($scratchPath, $targetPath)) { throw new DatabaseFailure('unavailable'); }
-        if (!unlink($scratchPath)) { throw new DatabaseFailure('unavailable'); }
+        if (!NativeWarning::ignore(static fn (): bool => link($scratchPath, $targetPath))) { throw new DatabaseFailure('unavailable'); }
+        // Exclusive publication commits success. Cleanup cannot turn a published database into a failed import.
+        try { NativeWarning::ignore(static fn (): bool => unlink($scratchPath)); }
+        catch (\Throwable $discardedCleanup) { unset($discardedCleanup); }
         return $manifest['digest'];
     } catch (\Throwable $error) { throw database_transfer_persistence_safe($error); }
 }

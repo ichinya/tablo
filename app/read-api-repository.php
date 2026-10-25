@@ -371,7 +371,7 @@ function read_api_server_columns(\PDO $db, string $name): array
     return $found;
 }
 
-function read_api_serve(): void
+function read_api_serve(?string $hstsValue = null): void
     {
         $depth = ob_get_level(); $headers = headers_list();
         $sink = new class {
@@ -399,7 +399,7 @@ function read_api_serve(): void
         // Ordinary output/exceptions are contained. Destroyed buffers, transport flush and process exit cannot be undone.
         if (headers_sent() || ob_get_level() !== $depth) { return; }
         header_remove();
-        $response->send();
+        $response->send($hstsValue);
     }
 
 function read_api_dispatch(#[\SensitiveParameter] array $server): ReadApiResponse

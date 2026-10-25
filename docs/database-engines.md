@@ -271,6 +271,9 @@ check and must not be inferred from the encoded limits alone.
 Oversize, malformed UTF-8/NUL text, invalid dates, unsupported layouts, duplicate or
 orphan rows, NULL primary keys and nonpositive IDs fail preflight. Reconcile such
 data explicitly; the helper does not normalize, truncate, discard or renumber it.
+Saved token names must be valid UTF-8 without NUL, with 1 to 80 Unicode code points.
+Preflight and archive admission check this server column limit before target writes;
+permitted names retain their exact bytes, including trailing spaces.
 
 Before `--offline`, stop writers and observe worker/delivery exit. Non-null worker
 generations, inflight deliveries and unresolved pending claims/leases refuse the
@@ -313,6 +316,14 @@ as the destination. The destination must not already exist:
 ```sh
 php bin/database-transfer.php --import --offline --archive /private/transfer-a --scratch /private/new-target.staging.sqlite --sqlite-target /private/new-target.sqlite
 ```
+
+Exclusive hard-link publication is the SQLite import commit point and never
+replaces a destination created by another caller. Once published, the original
+manifest digest reports success even if staging cleanup fails. Cleanup is best
+effort: the owner-specified scratch file may remain with its private 0600 mode as
+another link to the published database. Keep that file private, do not open it as
+a separate writable installation, and remove the staging link when safe. A cleanup
+failure does not call for repeating the import against the existing destination.
 
 The archive records the original allocation floors and committed history watermark
 separately, including deleted high history IDs and prune-all installations. A server
