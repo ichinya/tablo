@@ -18,6 +18,39 @@ function server_native_phase_unknown(): array
         'rootCause' => 'UNKNOWN', 'originalActorFinalPeak' => 'UNKNOWN', 'tail' => 'UNKNOWN', 'issueAccepted' => false, 'records' => []];
 }
 
+/** The reader callback is unreachable until both the Testo parent and its measured descendant union are closed.
+ * @param \Closure(): array $read */
+function server_native_phase_publish(array $child, string $closure, \Closure $read): array
+{
+    try {
+        return \Tablo\NativeWarning::ignore(static fn (): array => server_native_phase_closed($child, $closure) ? $read() : server_native_phase_unknown());
+    } catch (\Throwable) { return server_native_phase_unknown(); }
+}
+
+/** The immutable cold test launches exactly one measured direct child into this controller-owned closure sink. */
+function server_native_phase_closed(array $child, string $closure): bool
+{
+    if (!array_key_exists('exit_code', $child) || !is_dir($closure) || is_link($closure)) { return false; }
+    $files = JsonRecord::checked($child['files'] ?? null);
+    $receipt = \Tablo\Tests\Support\SubprocessReceipt::read(SqlColumn::string($files, 'receipt'));
+    if ($receipt['exit_code'] !== $child['exit_code'] || !server_fixture_catalog_direct_stopped($receipt)) { return false; }
+    $records = server_fixture_catalog_closure_records($closure);
+    if (!server_native_phase_measured_child($records['children'], $receipt['pid'])) { return false; }
+    server_fixture_catalog_descendants_closed($closure);
+    return true;
+}
+
+/** Presence and parent ownership are additional to the unchanged receipt/hash/closure union.
+ * @param list<array> $children */
+function server_native_phase_measured_child(array $children, ?int $parent): bool
+{
+    if (count($children) !== 1 || !is_int($parent) || $parent < 1) { return false; }
+    $measured = $children[0];
+    return ($measured['controllerPid'] ?? null) === $parent && ($measured['ownership'] ?? null) === 'direct-child-only'
+        && is_int($measured['pid'] ?? null) && $measured['pid'] > 0
+        && is_string($measured['sourceReceipt'] ?? null) && $measured['sourceReceipt'] !== '';
+}
+
 /** The controller supplies the already admitted plan and exact per-case closure; no child chooses an input path.
  * @param array<string, string> $environment
  * @return array{schema: string, scope: string, status: string, rootCause: string, originalActorFinalPeak: string, tail: string, issueAccepted: bool, records: list<array{kind: int, sequence: int, operation: int, previousPhase: int, phase: int, usedBytes: int, peakBytes: int, flags: int}>} */
@@ -213,6 +246,7 @@ function server_native_phase_kind(array $record, int $offset, int $peak): bool
         return [$record['kind'], $record['operation'], $record['previousPhase'], $record['phase'], $record['flags']] === [1, 0, 0, 115, 1];
     }
     if (!server_native_phase_predecessor($record)) { return false; }
+    if ($record['kind'] === 2 && !server_native_phase_entry_bridge($record)) { return false; }
     return match ($record['kind']) {
         2 => ($record['flags'] & 4) === 0 && $record['phase'] !== 115 && server_native_phase_app($record['phase'])
             && server_native_phase_operation($record['phase'], $record['operation']) && $record['peakBytes'] > $peak
@@ -305,7 +339,30 @@ function server_native_phase_predecessor(array $record): bool
     if (server_native_phase_module($previous)) {
         return $record['kind'] !== 2 || !in_array($record['phase'], [10, 12, 14, 16], strict: true);
     }
-    return $operation !== 0 || in_array($previous, [11, 13, 15], strict: true);
+    if ($previous >= 10 && $previous <= 17) { return server_native_phase_facade_bridge($record); }
+    return $operation >= 1 && $operation <= 6;
+}
+
+/** @param array{kind: int, sequence: int, operation: int, previousPhase: int, phase: int, usedBytes: int, peakBytes: int, flags: int} $record */
+function server_native_phase_facade_bridge(array $record): bool
+{
+    if (server_native_phase_operation($record['previousPhase'], $record['operation'])) { return true; }
+    if ($record['kind'] !== 2) { return false; }
+    return in_array([$record['previousPhase'], $record['phase'], $record['operation']],
+        [[11, 120, 0], [13, 120, 0], [15, 120, 0], [11, 16, 5], [17, 14, 6]], strict: true);
+}
+
+/** Direct entry predecessors are observable even when their own peak samples were omitted.
+ * @param array{kind: int, sequence: int, operation: int, previousPhase: int, phase: int, usedBytes: int, peakBytes: int, flags: int} $record */
+function server_native_phase_entry_bridge(array $record): bool
+{
+    return match ($record['phase']) {
+        10 => in_array([$record['operation'], $record['previousPhase']], [[1, 115], [1, 116], [4, 128]], strict: true),
+        12 => [$record['operation'], $record['previousPhase']] === [2, 128],
+        14 => in_array([$record['operation'], $record['previousPhase']], [[3, 128], [6, 17]], strict: true),
+        16 => [$record['operation'], $record['previousPhase']] === [5, 11],
+        default => true,
+    };
 }
 
 /** @param array{kind: int, sequence: int, operation: int, previousPhase: int, phase: int, usedBytes: int, peakBytes: int, flags: int} $record */
@@ -321,6 +378,7 @@ function server_native_phase_initial_bridge(array $record): bool
 function server_native_phase_sparse_order(array $record, int &$operation, int &$gap): bool
 {
     $next = $record['operation'];
+    if (in_array($record['previousPhase'], [115, 116], strict: true) && ($operation !== 0 || $gap !== 0)) { return false; }
     if ($next !== 0) {
         if ($next < $operation || ($gap === 1 && ($next < 2 || $next <= $operation))) { return false; }
         $operation = $next; $gap = 0; return true;

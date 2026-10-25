@@ -243,20 +243,16 @@ function server_verify_failure_callback(string $root, array $selection, array $s
     };
 }
 
-/** Optional R74 output is scoped to one existing cold case and the already closed actual Testo child.
+/** Optional R74 output requires the stopped Testo parent and the existing owned measured-descendant closure union.
  * @param array{lane: string, index: int, identity: string, phasePlan: array, ...} $selection
  * @param array{environment: array<string, string>, closureDirectory: string, ...} $prepared
  * @param array $child */
 function server_verify_phase_diagnostic(string $root, array $selection, array $prepared, array $child): ?array
 {
     if (!server_verify_phase_scope($selection, $prepared['environment'])) { return null; }
-    try {
-        return \Tablo\NativeWarning::ignore(static function () use ($root, $selection, $prepared, $child): array {
-            if (!server_verify_phase_closed($child)) { return \Tablo\Tools\server_native_phase_unknown(); }
-            return \Tablo\Tools\server_native_phase_diagnostic($root, $prepared['closureDirectory'], $prepared['environment'],
-                $selection['index'], $selection['phasePlan']);
-        });
-    } catch (Throwable) { return \Tablo\Tools\server_native_phase_unknown(); }
+    return \Tablo\Tools\server_native_phase_publish($child, $prepared['closureDirectory'],
+        static fn (): array => \Tablo\Tools\server_native_phase_diagnostic($root, $prepared['closureDirectory'], $prepared['environment'],
+            $selection['index'], $selection['phasePlan']));
 }
 
 /** @param array{lane: string, index: int, identity: string, ...} $selection
@@ -265,16 +261,6 @@ function server_verify_phase_scope(array $selection, array $environment): bool
 {
     return $selection['identity'] === 'Tablo\\Tests\\Server\\EngineTransferTest::completeNativeRoundTripOverEightMiBUsesAtMostTwoMiBOfPhpWorkingData'
         && $selection['lane'] === 'main' && \Tablo\Tools\server_native_phase_cohort($selection['index'], $environment['TABLO_TEST_DB_DRIVER'] ?? '');
-}
-
-/** @param array $child */
-function server_verify_phase_closed(array $child): bool
-{
-    if (!array_key_exists('exit_code', $child)) { return false; }
-    $files = JsonRecord::checked($child['files'] ?? null);
-    $receipt = \Tablo\Tests\Support\SubprocessReceipt::read(SqlColumn::string($files, 'receipt'));
-    return $receipt['closed'] && $receipt['root_exit_observed'] && is_int($receipt['pid']) && $receipt['pid'] > 0
-        && $receipt['exit_code'] === $child['exit_code'] && \Tablo\Tools\server_fixture_catalog_direct_stopped($receipt);
 }
 
 function server_verify_progress(string $root, string $lane, int $index, array $record): void

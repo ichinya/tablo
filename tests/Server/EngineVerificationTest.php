@@ -390,10 +390,110 @@ try {
 } finally { $directory->close(); }
 PHP;
     try {
-        $child = Subprocess::run([PHP_BINARY, '-r', $actor, dirname(__DIR__, levels: 2)], $directory, []);
+        $closure = $directory->path . '/closure';
+        if (!mkdir($closure, permissions: 0o700)) { throw new \RuntimeException('Owned publisher closure absent.'); }
+        $child = Subprocess::run([PHP_BINARY, '-r', $actor, dirname(__DIR__, levels: 2)], $directory,
+            ['TABLO_SESSION_EVIDENCE_DIRECTORY' => $closure]);
         Assert::same($child['exit_code'], 0); Assert::same($child['stderr'], '');
         Assert::same(\Tablo\JsonRecord::decode($child['stdout']), ['primaryPreserved' => true, 'childExit' => 7, 'closed' => true, 'rootExitObserved' => true, 'receiptExit' => 7]);
-    } finally { $directory->close(); }
+        engine_verification_r74_publisher($child, $closure);
+    } catch (\Throwable $error) { $directory->retainFailure($error); throw $error; }
+    finally { $directory->close(); }
+}
+
+/** Reuse the hook's actual stopped outer PHP child and captured exit7 descendant; no additional process is launched.
+ * @param \Tablo\Tests\Support\Subprocess::Result $child */
+function engine_verification_r74_publisher(array $child, string $closure): void
+{
+    require_once dirname(__DIR__, levels: 2) . '/tools/ServerFixtureCatalog.php';
+    $path = $closure . '/transfer-phase-r74-v1.tsv';
+    file_put_contents($path, engine_verification_r74_wire([engine_verification_r74_initial(), [4, 2, 0, 115, 901, 0, 10, 1]]));
+    $reads = 0;
+    $read = static function () use ($path, &$reads): array {
+        $reads++;
+        return \Tablo\Tools\server_native_phase_project(\Tablo\RequiredFile::bytes(file_get_contents($path, length: 8193)));
+    };
+    Assert::true(\Tablo\Tools\server_native_phase_closed($child, $closure));
+    Assert::same(\Tablo\SqlColumn::string(\Tablo\Tools\server_native_phase_publish($child, $closure, $read), 'status'), 'APP_FAILURE'); Assert::same($reads, 1);
+    $start = engine_verification_r74_closure_record($closure, prefix: 'direct-child-start-');
+    $close = engine_verification_r74_closure_record($closure, prefix: 'direct-child-close-');
+    engine_verification_r74_missing_descendant($child, $closure, $read, $reads);
+    engine_verification_r74_wrong_parent($child, $closure, $read, $reads);
+    engine_verification_r74_unproved_descendant($child, $closure, $read, $reads);
+    Assert::same(\Tablo\Tools\server_native_phase_publish($child, $closure, static function (): never {
+        throw new \RuntimeException('PRIVATE_SYNTHETIC_READER_FAILURE');
+    }), \Tablo\Tools\server_native_phase_unknown());
+    Assert::same(\Tablo\SqlColumn::string(\Tablo\Tools\server_native_phase_publish($child, $closure, $read), 'status'), 'APP_FAILURE');
+    Assert::true(is_file($start) && is_file($close));
+}
+
+function engine_verification_r74_closure_record(string $closure, string $prefix): string
+{
+    $paths = [];
+    foreach (new \DirectoryIterator($closure) as $entry) {
+        if (!$entry->isFile() || !str_starts_with($entry->getFilename(), $prefix) || !str_ends_with($entry->getFilename(), '.json')) { continue; }
+        $paths[] = $entry->getPathname();
+    }
+    Assert::same(count($paths), 1);
+    return $paths[0] ?? throw new \RuntimeException('Actual hook descendant record absent.');
+}
+
+/** A ready trace must not be read for a stopped parent with missing/unproven measured-child closure.
+ * @param array $child
+ * @param \Closure(): array $read */
+function engine_verification_r74_publish_refuses(array $child, string $closure, \Closure $read, int &$reads): void
+{
+    $reads = 0;
+    Assert::same(\Tablo\Tools\server_native_phase_publish($child, $closure, $read), \Tablo\Tools\server_native_phase_unknown());
+    Assert::same($reads, 0);
+}
+
+/** @param array $child
+ * @param \Closure(): array $read */
+function engine_verification_r74_missing_descendant(array $child, string $closure, \Closure $read, int &$reads): void
+{
+    $start = engine_verification_r74_closure_record($closure, prefix: 'direct-child-start-');
+    $close = engine_verification_r74_closure_record($closure, prefix: 'direct-child-close-');
+    Assert::true(rename($close, $close . '.held'));
+    try {
+        engine_verification_r74_publish_refuses($child, $closure, $read, $reads);
+        Assert::true(rename($start, $start . '.held'));
+        try { engine_verification_r74_publish_refuses($child, $closure, $read, $reads); }
+        finally { rename($start . '.held', $start); }
+    } finally { rename($close . '.held', $close); }
+}
+
+/** @param array $child
+ * @param \Closure(): array $read */
+function engine_verification_r74_wrong_parent(array $child, string $closure, \Closure $read, int &$reads): void
+{
+    $start = engine_verification_r74_closure_record($closure, prefix: 'direct-child-start-');
+    $bytes = \Tablo\RequiredFile::bytes(file_get_contents($start)); $record = \Tablo\JsonRecord::decode($bytes);
+    try {
+        foreach ([['controllerPid' => 0], ['ownership' => 'UNKNOWN'], ['pid' => null]] as $changes) {
+            file_put_contents($start, \Tablo\JsonEncoding::encode(array_replace($record, $changes)));
+            engine_verification_r74_publish_refuses($child, $closure, $read, $reads);
+        }
+    } finally { file_put_contents($start, $bytes); }
+}
+
+/** Actual receipt copies are deliberately corrupted as negative protocol controls, then restored.
+ * @param array $child
+ * @param \Closure(): array $read */
+function engine_verification_r74_unproved_descendant(array $child, string $closure, \Closure $read, int &$reads): void
+{
+    $close = engine_verification_r74_closure_record($closure, prefix: 'direct-child-close-');
+    $closedBytes = \Tablo\RequiredFile::bytes(file_get_contents($close)); $closed = \Tablo\JsonRecord::decode($closedBytes);
+    $copy = \Tablo\SqlColumn::string($closed, 'receiptCopy');
+    $receiptBytes = \Tablo\RequiredFile::bytes(file_get_contents($copy)); $receipt = \Tablo\JsonRecord::decode($receiptBytes);
+    try {
+        foreach ([['closed' => false], ['root_exit_observed' => false], ['pid' => 0],
+            ['exit_code' => null, 'proc_close' => -1, 'signaled' => false, 'term_signal' => null]] as $changes) {
+            $bytes = \Tablo\JsonEncoding::encode(array_replace($receipt, $changes)); file_put_contents($copy, $bytes);
+            file_put_contents($close, \Tablo\JsonEncoding::encode(array_replace($closed, ['receiptSha256' => hash('sha256', $bytes)])));
+            engine_verification_r74_publish_refuses($child, $closure, $read, $reads);
+        }
+    } finally { file_put_contents($copy, $receiptBytes); file_put_contents($close, $closedBytes); }
 }
 
 /** Independent authorization tuples; do not derive negative controls from the qualifier's generated policy.
@@ -1034,11 +1134,67 @@ function engine_verification_r74_projection(): void
         engine_verification_r74_phase_projection($phase, $unknown);
     }
     engine_verification_r74_bridges($unknown);
+    engine_verification_r74_legacy_contexts($unknown);
     engine_verification_r74_sparse($unknown);
     engine_verification_r74_malformed($unknown);
     engine_verification_r74_caps($unknown);
     Assert::false(\Tablo\Tools\server_native_phase_integer_bound(1_099_511_627_775));
     Assert::true(\Tablo\Tools\server_native_phase_integer_bound(1_099_511_627_776));
+}
+
+/** Legacy facade predecessors retain their own operation domains and the two direct facade bridges.
+ * @param array $unknown */
+function engine_verification_r74_legacy_contexts(array $unknown): void
+{
+    foreach (range(10, end: 17) as $phase) {
+        foreach (range(0, end: 6) as $operation) {
+            $allowed = match ($phase) { 10, 11 => in_array($operation, [1, 4], strict: true), 12, 13 => $operation === 2,
+                14, 15 => in_array($operation, [3, 6], strict: true), 16, 17 => $operation === 5 };
+            foreach ([engine_verification_r74_records($phase, $operation, kind: 3),
+                [engine_verification_r74_initial(), [4, 2, $operation, $phase, 901, 0, 10, 1]]] as $records) {
+                $actual = \Tablo\Tools\server_native_phase_project(engine_verification_r74_wire($records));
+                if ($allowed) { Assert::same($actual['status'], 'APP_FAILURE'); }
+                if (!$allowed) { Assert::same($actual, $unknown); }
+            }
+        }
+    }
+    engine_verification_r74_entry_contexts($unknown);
+    engine_verification_r74_late_initial($unknown);
+}
+
+/** @param array $unknown */
+function engine_verification_r74_entry_contexts(array $unknown): void
+{
+    foreach ([[11, 120, 0], [13, 120, 0], [15, 120, 0], [11, 16, 5], [17, 14, 6],
+        [115, 10, 1], [116, 10, 1], [128, 10, 4], [128, 12, 2], [128, 14, 3]] as [$previous, $phase, $operation]) {
+        $records = [engine_verification_r74_initial(), [2, 2, $operation, $previous, $phase, 0, 20, 1],
+            [4, 3, $operation, $phase, 901, 0, 20, 1]];
+        Assert::same(\Tablo\Tools\server_native_phase_project(engine_verification_r74_wire($records))['status'], 'APP_FAILURE');
+    }
+    foreach ([[11, 12, 2], [14, 10, 1], [17, 16, 5], [20, 10, 1], [20, 12, 2], [20, 14, 6], [20, 16, 5]] as [$previous, $phase, $operation]) {
+        $records = [engine_verification_r74_initial(), [2, 2, $operation, $previous, $phase, 0, 20, 1],
+            [4, 3, $operation, $phase, 901, 0, 20, 1]];
+        Assert::same(\Tablo\Tools\server_native_phase_project(engine_verification_r74_wire($records)), $unknown);
+    }
+}
+
+/** @param array $unknown */
+function engine_verification_r74_late_initial(array $unknown): void
+{
+    foreach (range(1, end: 6) as $operation) {
+        $entry = match ($operation) { 1, 4 => 10, 2 => 12, 3, 6 => 14, 5 => 16 };
+        foreach ([115, 116] as $previous) {
+            foreach ([[3, 3, 0, $previous, 1, 0, 30, 1], [4, 3, 0, $previous, 901, 0, 30, 1],
+                [2, 3, 1, $previous, 10, 0, 30, 1]] as $late) {
+                $records = [engine_verification_r74_initial(), [2, 2, $operation, $entry, 20, 0, 20, 1], $late];
+                if ($late[0] !== 4) { $records[] = [4, 4, 6, 15, 900, 0, 30, 1]; }
+                Assert::same(\Tablo\Tools\server_native_phase_project(engine_verification_r74_wire($records)), $unknown);
+            }
+        }
+    }
+    $records = [engine_verification_r74_initial(), [2, 2, 0, 120, 121, 0, 20, 1],
+        [3, 3, 0, 116, 1, 0, 30, 1], [4, 4, 6, 15, 900, 0, 30, 1]];
+    Assert::same(\Tablo\Tools\server_native_phase_project(engine_verification_r74_wire($records)), $unknown);
 }
 
 /** @param array $unknown */
@@ -1247,13 +1403,14 @@ function engine_verification_r74_state(): void
     }
     engine_verification_r74_state_gaps();
     engine_verification_r74_optional_scopes();
+    engine_verification_r74_nested_scopes();
     engine_verification_r74_cohort();
 }
 
 /** Cached clauses, supplied expected tables and empty maintenance metadata have different real paths. */
 function engine_verification_r74_optional_scopes(): void
 {
-    foreach ([130, 140, 150, 160, 170, 180, 183, 186] as $entry) {
+    foreach ([130, 140, 150, 160, 170, 180, 183] as $entry) {
         $partial = engine_verification_r74_machine([115, 116, 10, $entry, 901]);
         Assert::same([$partial['terminal'], $partial['flags'], $partial['previous']], [901, 1, $entry]);
     }
@@ -1263,6 +1420,43 @@ function engine_verification_r74_optional_scopes(): void
         $actual = engine_verification_r74_machine([115, 116, 10, ...$phases, 901]);
         Assert::same([$actual['terminal'], $actual['flags'], $actual['modules']], [901, 1, 0]);
     }
+}
+
+/** Accepted partial scopes may fail/unwind, but cannot cross or later claim a successful outer return. */
+function engine_verification_r74_nested_scopes(): void
+{
+    foreach ([[140, 130, 141, 142, 143, 131, 132, 11], [130, 140], [170, 180], [180, 170], [183, 140], [186],
+        [150, 140], [150, 130, 131, 151], [150, 130, 131, 132, 151, 140],
+        [160, 140, 141, 142, 161], [160, ...engine_verification_r74_descriptor(), 161, 170],
+        [180, 183, 181], [140, 141, 142, 143, 144, 130]] as $phases) {
+        Assert::same(engine_verification_r74_machine([115, 116, 10, ...$phases])['terminal'], 903);
+    }
+    foreach ([[150, 130, 156], [150, 130, 131, 132, 151, 152, 153, 140, 156], [160, 140, 164],
+        [160, ...engine_verification_r74_descriptor(), 161, 150, 130, 156, 164]] as $phases) {
+        $actual = engine_verification_r74_machine([115, 116, 10, ...$phases, 901]);
+        Assert::same([$actual['terminal'], $actual['flags'], $actual['modules']], [901, 1, 0]);
+        Assert::same(engine_verification_r74_machine([115, 116, 10, ...$phases, 11])['terminal'], 903);
+    }
+    $factory = engine_verification_r74_machine([115, 116, 10, 11, 120, 121, 150, 130, 156, 128, 901]);
+    Assert::same([$factory['terminal'], $factory['flags'], $factory['operation'], $factory['factory'], $factory['modules']], [901, 1, 0, -2, 0]);
+    $sequential = engine_verification_r74_machine([115, 116, 10, ...engine_verification_r74_descriptor(), 130, 131, 132,
+        170, 171, 172, 180, 183, 184, 185, 181, 182, 901]);
+    Assert::same([$sequential['terminal'], $sequential['flags'], $sequential['modules']], [901, 1, 0]);
+    engine_verification_r74_unwind_parents();
+}
+
+function engine_verification_r74_unwind_parents(): void
+{
+    $check = [115, 116, 10, 180, 150, 130, 156];
+    $failed = engine_verification_r74_machine([...$check, 901]);
+    Assert::same([$failed['terminal'], $failed['flags'], $failed['modules']], [901, 1, 1 << 24]);
+    Assert::same(engine_verification_r74_machine([...$check, 181])['terminal'], 903);
+    $table = [115, 116, 10, 160, ...engine_verification_r74_descriptor(), 161, 162, 180, 150, 130, 156, 164];
+    $failed = engine_verification_r74_machine([...$table, 901]);
+    Assert::same([$failed['terminal'], $failed['flags'], $failed['modules']], [901, 1, 0]);
+    Assert::same(engine_verification_r74_machine([...$table, 11])['terminal'], 903);
+    $native = engine_verification_r74_machine([115, 116, 10, 11, 120, 121, ...engine_verification_r74_metadata(0), 122, 130, 128, 901]);
+    Assert::same([$native['terminal'], $native['flags'], $native['factory'], $native['modules']], [901, 1, -2, 0]);
 }
 
 function engine_verification_r74_state_gaps(): void

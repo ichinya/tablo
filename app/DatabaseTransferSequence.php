@@ -185,7 +185,7 @@ function database_transfer_phase_initial_ignored(int $phase, int $initial): bool
     return $initial === 2 && ($phase === 115 || $phase === 116);
 }
 
-/** Lifecycle packs initial/completed stages and five completion bits in a fixed integer. */
+/** Lifecycle packs initial/completed stages and completion/unwind bits in a fixed integer. */
 function database_transfer_phase_transition(int $phase, int &$operation, int &$lifecycle, int &$factory, int &$modules): int
 {
     if ($phase === 901) { return 901; }
@@ -199,6 +199,7 @@ function database_transfer_phase_step(int $phase, int &$operation, int &$lifecyc
     if (($lifecycle & 0xF0) !== 32 || !database_transfer_phase_known($phase)) { return false; }
     $completed = $lifecycle & 0xF;
     if ($phase >= 10 && $phase <= 17) {
+        if (($lifecycle & (32 << 8)) !== 0) { return false; }
         $next = database_transfer_phase_operation($phase, $operation, $completed, $factory, $modules);
         if ($next < 0) { return false; }
         $operation = $next;
@@ -255,23 +256,28 @@ function database_transfer_phase_leave(int $phase, int &$operation, int &$lifecy
     $lifecycle = ($lifecycle & ~0xF) | $operation; $operation = 0; $factory = 0;
 }
 
-function database_transfer_phase_factory(int $phase, int $completed, int &$factory, int $modules, int &$witness): bool
+function database_transfer_phase_factory(int $phase, int $completed, int &$factory, int &$modules, int &$witness): bool
 {
     if ($completed < 1 || $completed > 3) { return false; }
+    if (($witness & 32) !== 0 && $phase !== 128) { return false; }
     if ($phase === 120) {
         if ($factory !== 0 || $modules !== 0) { return false; }
         $factory = 120; $witness = 0; return true;
     }
-    if ($phase === 128) {
-        if ($factory < 120 || $factory > 127) { return false; }
-        $expected = match ($completed) { 1 => 124, 2 => 126, 3 => 127 };
-        $factory = $factory === $expected && $modules === 0 ? -1 : -2;
-        return true;
-    }
+    if ($phase === 128) { return database_transfer_phase_factory_finally($completed, $factory, $modules, $witness); }
     if (!database_transfer_phase_factory_advance($phase, $completed, $factory, $modules, $witness)) { return false; }
     if ($phase === 122) { $witness &= ~1; }
     if ($phase === 123) { $witness &= ~4; }
     $factory = $phase; return true;
+}
+
+function database_transfer_phase_factory_finally(int $completed, int &$factory, int &$modules, int $witness): bool
+{
+    if ($factory < 120 || $factory > 127) { return false; }
+    $expected = match ($completed) { 1 => 124, 2 => 126, 3 => 127, default => -1 };
+    $factory = $factory === $expected && $modules === 0 && ($witness & 32) === 0 ? -1 : -2;
+    $modules = 0;
+    return true;
 }
 
 function database_transfer_phase_factory_advance(int $phase, int $completed, int $factory, int $modules, int $witness): bool
@@ -284,6 +290,8 @@ function database_transfer_phase_factory_advance(int $phase, int $completed, int
 /** Nine fixed four-bit module stages; no event array or dynamically growing stack. */
 function database_transfer_phase_scope(int $phase, int &$modules, int &$witness): bool
 {
+    if (($witness & 32) !== 0 && !in_array($phase, [156, 164], strict: true)) { return false; }
+    if (!database_transfer_phase_scope_context($phase, $modules)) { return false; }
     if (($phase === 144 && ($witness & 16) === 0) || ($phase === 151 && ($witness & 1) === 0)
         || ($phase === 161 && ($witness & 8) === 0)) { return false; }
     $before = $modules;
@@ -297,19 +305,86 @@ function database_transfer_phase_scope(int $phase, int &$modules, int &$witness)
     return true;
 }
 
-/** Five completion bits prevent a fresh Factory slot from borrowing a prior setup's probes. */
+/** Fixed parent masks encode the nine actual module relationships, without an event history or stack. */
+function database_transfer_phase_scope_context(int $phase, int $modules): bool
+{
+    if (in_array($phase, [156, 164], strict: true)) { return true; }
+    return match (true) {
+        $phase <= 132 => database_transfer_phase_parent_native($modules & ~0xF),
+        $phase <= 143 => database_transfer_phase_parent_descriptor($modules & ~(0xF << 4)),
+        $phase <= 145 => database_transfer_phase_parent_descriptor($modules & ~(0xF << 8)),
+        $phase <= 156 => database_transfer_phase_parent_metadata($modules & ~(0xF << 12)),
+        $phase <= 164 => ($modules & ~(0xF << 16)) === 0,
+        $phase <= 172 => database_transfer_phase_parent_table_rows($modules & ~(0xF << 20)),
+        $phase <= 182 => database_transfer_phase_parent_table_rows($modules & ~(0xF << 24)),
+        $phase <= 185 => database_transfer_phase_parent_raw($modules & ~(0xF << 28)),
+        default => database_transfer_phase_parent_metadata_checks($modules & ~(0xF << 32)),
+    };
+}
+
+function database_transfer_phase_parent_native(int $parents): bool
+{
+    return $parents === 0 || ((($parents >> 12) & 0xF) === 1
+        && database_transfer_phase_parent_metadata($parents & ~(0xF << 12)));
+}
+
+function database_transfer_phase_parent_descriptor(int $parents): bool
+{
+    return match (true) {
+        $parents === 0 || $parents === (1 << 16) => true,
+        (($parents >> 12) & 0xF) === 4 => database_transfer_phase_parent_metadata($parents & ~(0xF << 12)),
+        (($parents >> 32) & 0xF) === 1 => database_transfer_phase_parent_metadata_checks($parents & ~(0xF << 32)),
+        default => false,
+    };
+}
+
+function database_transfer_phase_parent_metadata(int $parents): bool
+{
+    return $parents === 0 || $parents === (2 << 16) || ((($parents >> 24) & 0xF) === 1
+        && database_transfer_phase_parent_table_rows($parents & ~(0xF << 24)));
+}
+
+function database_transfer_phase_parent_table_rows(int $parents): bool
+{ return $parents === 0 || $parents === (3 << 16); }
+
+function database_transfer_phase_parent_raw(int $parents): bool
+{
+    return match (true) {
+        $parents === 0 => true,
+        (($parents >> 32) & 0xF) === 1 => database_transfer_phase_parent_metadata_checks($parents & ~(0xF << 32)),
+        (($parents >> 24) & 0xF) === 1 => database_transfer_phase_parent_table_rows($parents & ~(0xF << 24)),
+        default => false,
+    };
+}
+
+function database_transfer_phase_parent_metadata_checks(int $parents): bool
+{
+    return (($parents >> 12) & 0xF) === 6 && database_transfer_phase_parent_metadata($parents & ~(0xF << 12));
+}
+
+/** Five completion bits and one sticky partial-unwind bit; none are public protocol fields. */
 function database_transfer_phase_witness(int $phase, int $before, int &$witness): void
 {
     $clear = match ($phase) { 130 => 1, 140 => 16, 150 => 1 | 2 | 8 | 16, 160 => 4 | 8 | 16, default => 0 };
     $witness &= ~$clear;
-    $metadataParents = (0xF << 12) | (0xF << 16) | (0xF << 24);
+    $complete = database_transfer_phase_scope_success($phase, $before);
+    if (!$complete) { $witness |= 32; }
     $set = match ($phase) {
         132 => 1, 143 => 16, 145 => 8,
-        156 => (($before >> 12) & 0xF) === 6 && ($before & ~$metadataParents) === 0 ? 2 : 0,
-        164 => (($before >> 16) & 0xF) === 4 && ($before & ~(0xF << 16)) === 0 ? 4 : 0,
+        156 => $complete ? 2 : 0, 164 => $complete ? 4 : 0,
         default => 0,
     };
     $witness |= $set;
+}
+
+function database_transfer_phase_scope_success(int $phase, int $before): bool
+{
+    $parents = (0xF << 12) | (0xF << 16) | (0xF << 24);
+    return match ($phase) {
+        156 => (($before >> 12) & 0xF) === 6 && ($before & ~$parents) === 0,
+        164 => (($before >> 16) & 0xF) === 4 && ($before & ~(0xF << 16)) === 0,
+        default => true,
+    };
 }
 
 function database_transfer_phase_scope_connection(int $phase, int &$modules): bool
@@ -375,7 +450,8 @@ function database_transfer_phase_move(int &$modules, int $shift, int $from, int 
 function database_transfer_phase_finally(int &$modules, int $shift): bool
 {
     if ((($modules >> $shift) & 0xF) === 0) { return false; }
-    $modules &= ~(0xF << $shift);
+    // Metadata preserves its table/check callers; table layout is a root scope.
+    $modules = $shift === 12 ? $modules & ((0xF << 16) | (0xF << 24)) : 0;
     return true;
 }
 
