@@ -20,17 +20,14 @@ final class ServerCheckAdmission
     /** @param Table $table */
     public static function verify(PDO $db, array $table): void
     {
-        server_check_admission_phase(phase: 180);
         $configuration = DatabaseSession::get($db)?->configuration;
         $clauses = $configuration?->engine === 'mariadb' && in_array($configuration->role, ['writer', 'control'], strict: true)
             ? ServerMetadataAdmission::checks($db, $table['name']) : server_check_admission_clauses($db, $table);
-        server_check_admission_phase(phase: 181);
         if (count($clauses) !== count($table['checks'])) { self::refuse(); }
         foreach ($table['checks'] as $check) {
             if (($clauses[$check['name']] ?? null) === ServerExpression::canonical($check['expression'])) { continue; }
             self::refuse();
         }
-        server_check_admission_phase(phase: 182);
     }
     /** @param Column $expected */
     public static function generated(array $expected, array $actual): void
@@ -52,14 +49,12 @@ final class ServerCheckAdmission
  * @return array<string, string> */
 function server_check_admission_clauses(PDO $db, array $table): array
 {
-    server_check_admission_phase(phase: 183);
     $mysql = DatabaseSession::get($db)?->configuration->engine === 'mysql';
     // MariaDB requires schema-level visibility even for direct CHECK metadata; callers use the admitted metadata account.
     $query = $mysql
         ? 'SELECT c.CONSTRAINT_NAME AS name, c.CHECK_CLAUSE AS clause, t.ENFORCED AS enforced FROM information_schema.CHECK_CONSTRAINTS c JOIN information_schema.TABLE_CONSTRAINTS t ON t.CONSTRAINT_SCHEMA = c.CONSTRAINT_SCHEMA AND t.CONSTRAINT_NAME = c.CONSTRAINT_NAME WHERE t.TABLE_SCHEMA = DATABASE() AND t.TABLE_NAME = ? AND t.CONSTRAINT_TYPE = ?'
         : 'SELECT CONSTRAINT_NAME AS name, CHECK_CLAUSE AS clause FROM information_schema.CHECK_CONSTRAINTS WHERE CONSTRAINT_SCHEMA = DATABASE() AND TABLE_NAME = ?';
     $checks = ServerSchema::rows($db, $query, $mysql ? [$table['name'], 'CHECK'] : [$table['name']]);
-    server_check_admission_phase(phase: 184);
     if (count($checks) !== count($table['checks'])) { throw new DatabaseFailure('schema'); }
     $clauses = [];
     foreach ($checks as $check) {
@@ -69,12 +64,5 @@ function server_check_admission_clauses(PDO $db, array $table): array
         $clause = $mysql ? ServerExpression::decodeMysqlMetadata($check['clause']) : $check['clause'];
         $clauses[$check['name']] = $mysql ? ServerExpression::canonicalMysqlCheck($clause, $table) : ServerExpression::canonical($clause);
     }
-    server_check_admission_phase(phase: 185);
     return $clauses;
-}
-
-/** Observer-only forwarding never autoloads the transfer facade or observer host. */
-function server_check_admission_phase(int $phase): void
-{
-    if (function_exists('Tablo\\database_transfer_phase_mark')) { database_transfer_phase_mark($phase); }
 }

@@ -19,23 +19,17 @@ final class ServerMetadataAdmission
      * @return Observation */
     public static function observe(#[\SensitiveParameter] DatabaseConfiguration $configuration, ?int $version = null, ?array $expectedTables = null): array
     {
-        server_metadata_admission_phase(phase: 150);
         $db = null;
         try {
             $metadata = $configuration->metadata(); $db = ServerPdoConnection::open($metadata);
-            server_metadata_admission_phase(phase: 151);
             ServerMetadataPrivileges::verify($db, $metadata);
-            server_metadata_admission_phase(phase: 152);
             $objects = ServerMetadataInventory::read($db);
             $names = ServerMetadataInventory::tables($objects);
-            server_metadata_admission_phase(phase: 153);
             if ($version !== null) { self::expected($db, $names, $version, $expectedTables); }
-            server_metadata_admission_phase(phase: 154);
-            server_metadata_admission_phase(phase: 155);
             return ['server' => ServerMetadataIdentity::server($db), 'account' => ServerMetadataIdentity::grantee($db, $metadata), 'objects' => $objects,
                 'installation' => ServerMetadataIdentity::installation($db, $names), 'checks' => server_metadata_check_observation($db, $configuration, $version, $expectedTables)];
-        } catch (\PDOException $error) { server_metadata_admission_phase(phase: 901); throw DatabaseFailure::fromNative($error); }
-        finally { $db = null; server_metadata_admission_phase(phase: 156); }
+        } catch (\PDOException $error) { throw DatabaseFailure::fromNative($error); }
+        finally { $db = null; }
     }
 
     /** @param Observation $observation */
@@ -95,15 +89,7 @@ function server_metadata_expected_tables(PDO $db, ?array $expectedTables): array
 function server_metadata_check_observation(PDO $db, DatabaseConfiguration $configuration, ?int $version, ?array $expectedTables = null): array
 {
     if ($configuration->engine !== 'mariadb' || !in_array($configuration->role, ['writer', 'control'], strict: true) || $version !== 10) { return []; }
-    server_metadata_admission_phase(phase: 186);
     $checks = [];
     foreach (server_metadata_expected_tables($db, $expectedTables) as $table) { $checks[$table['name']] = ServerCheckAdmission::clauses($db, $table); }
-    server_metadata_admission_phase(phase: 187);
     return $checks;
-}
-
-/** Observer-only forwarding never autoloads the transfer facade or observer host. */
-function server_metadata_admission_phase(int $phase): void
-{
-    if (function_exists('Tablo\\database_transfer_phase_mark')) { database_transfer_phase_mark($phase); }
 }

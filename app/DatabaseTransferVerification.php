@@ -52,7 +52,6 @@ final class DatabaseTransferVerification
  * @param \Tablo\DatabaseTransferManifest::Header $header */
 function database_transfer_verification_scratch(PDO $scratch, #[\SensitiveParameter] string $directory, array $header, #[\SensitiveParameter] TokenVault $vault): void
 {
-    database_transfer_verification_phase(66);
     foreach (DatabaseTransferManifest::tables() as $index => $table) {
         $receipt = $header['tables'][$index] ?? throw new DatabaseFailure('schema');
         DatabaseTransferArchive::visit($directory, $table, $receipt, static function (array $values) use ($scratch, $table): void {
@@ -63,7 +62,6 @@ function database_transfer_verification_scratch(PDO $scratch, #[\SensitiveParame
     DatabaseTransferPreflight::quiescent($scratch);
     if (DatabaseTransferSequence::watermark($scratch) > $header['watermark']) { throw new DatabaseFailure('schema'); }
     ExternalKeyAuthentication::authenticateExternalKey($scratch, $vault);
-    database_transfer_verification_phase(67);
 }
 
 
@@ -72,14 +70,12 @@ function database_transfer_verification_scratch(PDO $scratch, #[\SensitiveParame
  * @param \Tablo\DatabaseTransferArchive::Receipt $receipt */
 function database_transfer_verification_table(PDO $db, array $table, array $receipt): void
 {
-    database_transfer_verification_phase(68);
     $rows = 0; $hash = hash_init('sha256');
     foreach (DatabaseTransferRows::read($db, $table) as $values) {
         $rows++; hash_update($hash, JsonEncoding::encode(DatabaseTransferRows::encode($values)) . "\n");
         unset($values);
     }
     if ([$rows, hash_final($hash)] !== [$receipt['rows'], $receipt['sha256']]) { throw new DatabaseFailure('schema'); }
-    database_transfer_verification_phase(69);
 }
 
 
@@ -87,7 +83,6 @@ function database_transfer_verification_table(PDO $db, array $table, array $rece
  * @param \Tablo\DatabaseTransferManifest::Header $header */
 function database_transfer_verification_database(PDO $db, array $header, #[\SensitiveParameter] TokenVault $vault): void
 {
-    database_transfer_verification_phase(70);
     foreach (DatabaseTransferManifest::tables() as $index => $table) { database_transfer_verification_table($db, $table, $header['tables'][$index] ?? throw new DatabaseFailure('schema')); }
     $floors = DatabaseTransferSequence::floors($db);
     foreach ($header['sequences'] as $table => $floor) { if (SqlColumn::integer($floors, $table) < $floor) { throw new DatabaseFailure('schema'); } }
@@ -99,31 +94,25 @@ function database_transfer_verification_database(PDO $db, array $header, #[\Sens
     if (SqlColumn::string($rows[0] ?? [], 'installation_id') !== $header['installation']
         || DatabaseTransferSequence::watermark($db) !== $watermark) { throw new DatabaseFailure('schema'); }
     ExternalKeyAuthentication::authenticateExternalKey($db, $vault);
-    database_transfer_verification_phase(71);
 }
 
 /**
  * @return array{header: \Tablo\DatabaseTransferManifest::Header, digest: string} */
 function database_transfer_header_manifest(#[\SensitiveParameter] string $directory, #[\SensitiveParameter] TokenVault $vault): array
 {
-    database_transfer_verification_phase(60);
     $path = DatabaseTransferManifest::path($directory, 'manifest.json');
     if (is_link($path)) { throw new DatabaseFailure('configuration'); }
     $bytes = RequiredFile::bytes(file_get_contents($path, length: DatabaseTransferManifest::MANIFEST_BYTES + 1));
     if (strlen($bytes) > DatabaseTransferManifest::MANIFEST_BYTES) { throw new DatabaseFailure('schema'); }
     $envelope = JsonRecord::decode($bytes);
-    database_transfer_verification_phase(61);
     if (JsonEncoding::encode($envelope) !== $bytes) { throw new DatabaseFailure('schema'); }
-    database_transfer_verification_phase(62);
     database_transfer_receipt_keys($envelope, ['payload', 'sha256']);
     /** @var array{payload: mixed, sha256: mixed} $envelope Exact keys checked above. */
     $header = JsonRecord::checked($envelope['payload']);
     database_transfer_receipt_keys($header, ['format', 'engine', 'logicalVersion', 'layout', 'columns', 'installation', 'verifier', 'sequences', 'watermark', 'tables']);
     /** @var array{format: mixed, engine: mixed, logicalVersion: mixed, layout: mixed, columns: mixed, installation: mixed, verifier: mixed, sequences: mixed, watermark: mixed, tables: mixed} $header Exact keys checked above. */
     $digest = hash('sha256', JsonEncoding::encode($header));
-    database_transfer_verification_phase(63);
     $expected = [1, 10, DatabaseTransferManifest::layout(), DatabaseTransferManifest::contract()];
-    database_transfer_verification_phase(64);
     if ([$header['format'], $header['logicalVersion'], $header['layout'], $header['columns']] !== $expected
         || ($envelope['sha256']) !== $digest) { throw new DatabaseFailure('schema'); }
     $installation = SqlColumn::string($header, 'installation');
@@ -141,7 +130,6 @@ function database_transfer_header_manifest(#[\SensitiveParameter] string $direct
     }
     if ($names !== DatabaseTransferManifest::TABLES) { throw new DatabaseFailure('schema'); }
     $header['columns'] = $expected[3];
-    database_transfer_verification_phase(65);
     /** @var \Tablo\DatabaseTransferManifest::Header $header Structure and finite identities validated above. */
     return ['header' => $header, 'digest' => $digest];
 }
@@ -193,9 +181,4 @@ function database_transfer_receipt_keys(#[\SensitiveParameter] array $record, ar
 {
     $actual = array_keys($record); sort($actual, SORT_STRING); sort($expected, SORT_STRING);
     if ($actual !== $expected) { throw new DatabaseFailure('schema'); }
-}
-
-function database_transfer_verification_phase(int $phase): void
-{
-    if (function_exists('Tablo\\database_transfer_phase_mark')) { database_transfer_phase_mark($phase); }
 }
