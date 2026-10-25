@@ -26,10 +26,6 @@ final class ReviewedDependenciesTest
             $destination = $directory->path . '/' . $path;
             if (!is_dir(dirname($destination))) { mkdir(dirname($destination), permissions: 0o700, recursive: true); }
             copy($root . '/' . $path, $destination);
-            if (!is_dir(dirname($directory->path . '/' . $path))) {
-                mkdir(dirname($directory->path . '/' . $path), permissions: 0o700, recursive: true);
-            }
-            copy($root . '/' . $path, $directory->path . '/' . $path);
         }
         foreach (['reviewed-dependencies.php', 'capture-reviewed-dependencies.php'] as $file) {
             copy($root . '/tools/' . $file, $directory->path . '/tools/' . $file);

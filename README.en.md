@@ -667,11 +667,58 @@ flushes, destroying the filter then emitting output, `exit`, or malicious shutdo
 output callbacks cannot guarantee a fixed HTTP response. The client still requires
 the exact successful status and body within its limits.
 
+### Optional HSTS
+
+HSTS is off by default. Export `TABLO_HSTS_MODE=direct` and
+`TABLO_HSTS_MAX_AGE=300` to the actual PHP service for direct TLS, or use mode
+`proxy` with process `TABLO_TRUSTED_PROXIES` containing the verified immediate
+socket peers. Restart the service after changing its environment. Modes are
+exactly `off`, `direct`, `proxy`; empty/unset mode means off. Enabled modes require
+canonical decimal seconds `0..31536000`; a nonempty age is validated even when
+off. Invalid configuration returns a fixed 500 before Composer or application
+state, with no HSTS. There are no includeSubDomains/preload options or new redirects.
+
+Both Web and API take one local-only **process** environment snapshot before
+Composer. A PHP project `.env` alone cannot configure HSTS, including proxy trust;
+later Dotenv values never replace this snapshot. Existing process values are
+authoritative. Compose's host `.env` interpolation becomes process variables only
+through the web service's `environment` entries; the worker is unchanged. The
+`.env.example` HSTS entries describe this process/Compose setup. On Windows an
+empty child variable may disappear; remove conflicting persisted settings and
+use explicit `off` when disabling HSTS.
+
+Direct mode accepts only SAPI-owned `HTTPS` strings `on` or `1`. Proxy mode needs
+the canonical raw `REMOTE_ADDR` in the process trust list and one
+`X-Forwarded-Proto: https` token (ASCII case-insensitive, outer spaces/tabs only,
+at most 64 bytes). Comma lists, duplicate tokens, parameters, controls and other
+values omit HSTS. Backend TLS never substitutes for external HTTPS in proxy mode.
+Do not restore REMOTE_ADDR with remoteip while using this application trust mode.
+At the external edge overwrite/sanitize X-Forwarded-Proto, enforce bypass ACLs,
+and explicitly preserve the external scheme across controlled additional hops.
+Qualify duplicate-header collapse in the actual SAPI: PHP cannot recover a field
+the server already discarded. Forwarded, Host, login client IP and Secure-cookie
+settings do not establish HSTS transport authority. Cookie/session/outbound
+policies remain independent.
+
+Select one HSTS response owner per public hostname. Application coverage includes
+ordinary Web responses and safe API final/error senders; health never reads HSTS
+and never emits it. Static files, server/edge/cache errors, broken/missing ingress
+or policy and already-flushed/terminated responses need the selected server/edge
+owner. Verify every public ingress before enabling. HSTS cannot protect the first
+insecure hop or make a bearer already sent over HTTP safe. Omission/off does not
+erase a browser's remembered policy: rollback needs `max-age=0` delivered over
+HTTPS from the same host. Parent includeSubDomains/preload policies can still
+apply; removing a child's policy does not remove a parent's or a preload entry.
+Automatically enabling includeSubDomains could break HTTP-only child hosts;
+preload enrollment requires a separate domain-wide rollout and removal process.
+
 ### Client address and trusted proxies
 
 Login limiting stores five failed attempts per address for 900 seconds in SQLite.
 Choose **one** of two mutually exclusive address-restoration modes. Switching
-modes does not change the schema. `TABLO_TRUSTED_PROXIES` does not affect HTTPS,
+modes does not change the schema. With explicit `TABLO_HSTS_MODE=proxy`,
+`TABLO_TRUSTED_PROXIES` also admits the immediate peer for HSTS as described below.
+It does not affect
 cookies, session duration, or outgoing site checks.
 
 **Application mode:** PHP receives the connection's original `REMOTE_ADDR`. Set
