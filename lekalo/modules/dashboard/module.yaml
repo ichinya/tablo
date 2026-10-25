@@ -4,8 +4,8 @@
         {
             "id": "dashboard",
             "kind": "module",
-            "version": 4,
-            "description": "One local administrator, guarded accepted history/incidents and one default-OFF encrypted webhook channel. Cohesive prospective checkpoint/three slots/site, bounded observed best-effort delivery after actual accepted transaction. No queue daemon or delivery guarantee."
+            "version": 5,
+            "description": "One local administrator, guarded accepted history/incidents and one default-OFF encrypted webhook channel. Cohesive prospective checkpoint/three slots/site, bounded observed best-effort delivery after actual accepted transaction. No queue daemon or delivery guarantee. Separate v1 readonly bearer ingress is a deliberately key-free logical SQL read capability; cookie-only token management retains existing Web/vault/session admission. External DTO is conservative; no browser polling adapter or dashboard-label extension."
         }
     ]
 }

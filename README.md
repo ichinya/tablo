@@ -1274,3 +1274,7 @@ single-class filename rule requires the class's case. Other files use the defaul
 rule. The adjacent expectations do not suppress independent violations; the gate still
 rejects a missing expectation or an independent `ini_set` violation. Composer's classmap
 uses the actual lowercase paths on both Windows and case-sensitive Linux.
+
+## Read API
+
+External scripts can read site configuration and latest state through the versioned, readonly bearer API. It starts off; the administrator creates, rotates or revokes its separate token in Settings. See [the v1 contract and privacy limits](docs/read-api.md) and [JSON schema](contracts/read-api-v1.schema.json).

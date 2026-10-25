@@ -9,6 +9,25 @@ set_error_handler(static function (int $severity): bool {
     throw new RuntimeException('Application initialization failed.');
 });
 $target = $_SERVER['REQUEST_URI'] ?? '';
+// External bearer reads must precede Composer bootstrap, vault, migration and browser sessions.
+if (str_starts_with($target, '/api')) {
+    try {
+        require_once dirname(__DIR__) . '/app/ReadApiRequest.php';
+        require_once dirname(__DIR__) . '/app/ReadApiResponse.php';
+        require_once dirname(__DIR__) . '/app/ReadApi.php';
+        \Tablo\ReadApi::serve();
+    } catch (Throwable) {
+        // This fixed fallback remains available when an API owner cannot load.
+        if (headers_sent()) { return; }
+        header_remove();
+        http_response_code(500);
+        header('Content-Type: application/json; charset=utf-8');
+        header('Cache-Control: no-store, private');
+        header('X-Content-Type-Options: nosniff');
+        echo '{"api_version":1,"error":{"code":"unavailable","message":"Service unavailable."}}';
+    }
+    return;
+}
 if ($target === '/_tablo/health' || str_starts_with($target, '/_tablo/health?') || str_starts_with($target, '/_tablo/health/')) {
     header('Content-Type: text/plain; charset=utf-8');
     header('Cache-Control: no-store');

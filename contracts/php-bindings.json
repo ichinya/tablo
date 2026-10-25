@@ -5,7 +5,7 @@
         "version": "0.1.0"
     },
     "project": "tablo",
-    "revision": "sha256:6edc7bb9dd46280f80666cefc9da229d4191b21e10ab8e5d90db96d79f3ceb0c",
+    "revision": "sha256:23a3faba8a7057c5617f4b539da7f1dab729712b260d3ced17c78314d50ae1e6",
     "symbols": [
         {
             "id": "dashboard.change_admin_password",
@@ -412,7 +412,7 @@
                 "path": "app/schema-layout-upgrade.php",
                 "line": 25
             },
-            "fingerprint": "sha256:45dcde750d1bb87481c5e199ddfd20e18cc6915a98ad99f743da23cfc4cd4387",
+            "fingerprint": "sha256:c793866b8996065803f0119e3e48c976d635a7d62ebf0330fceaaeed79f8691e",
             "signature": null,
             "effects": [],
             "shape": {
@@ -966,9 +966,9 @@
             "kind": "entity",
             "source": {
                 "path": "app/schema-layout-upgrade.php",
-                "line": 35
+                "line": 36
             },
-            "fingerprint": "sha256:45dcde750d1bb87481c5e199ddfd20e18cc6915a98ad99f743da23cfc4cd4387",
+            "fingerprint": "sha256:c793866b8996065803f0119e3e48c976d635a7d62ebf0330fceaaeed79f8691e",
             "signature": null,
             "effects": [],
             "shape": {
@@ -1947,6 +1947,155 @@
                     "subject": "dashboard.notification_settings"
                 }
             ]
+        },
+        {
+            "id": "dashboard.read_api_sites",
+            "kind": "query",
+            "source": {
+                "path": "app/read-api-repository.php",
+                "line": 396
+            },
+            "fingerprint": "sha256:db6f80e2b1f86145e747795940368c302c51a3d6ceada92a1459a77ca7dc315b",
+            "signature": {
+                "inputs": [],
+                "output": "dashboard.api_sites_response",
+                "reads": [
+                    "dashboard.site"
+                ]
+            },
+            "effects": []
+        },
+        {
+            "id": "dashboard.read_api_site",
+            "kind": "query",
+            "source": {
+                "path": "app/read-api-repository.php",
+                "line": 408
+            },
+            "fingerprint": "sha256:db6f80e2b1f86145e747795940368c302c51a3d6ceada92a1459a77ca7dc315b",
+            "signature": {
+                "inputs": [],
+                "output": "optional(dashboard.api_site_response)",
+                "reads": [
+                    "dashboard.site"
+                ]
+            },
+            "effects": []
+        },
+        {
+            "id": "dashboard.authenticate_read_api",
+            "kind": "query",
+            "source": {
+                "path": "app/read-api-token-repository.php",
+                "line": 6
+            },
+            "fingerprint": "sha256:ef992531510687c243d56cbf923be3c1bc3a565498341505f99d218867cce71d",
+            "signature": {
+                "inputs": [],
+                "output": "dashboard.flag",
+                "reads": [
+                    "dashboard.read_api_token",
+                    "dashboard.user"
+                ]
+            },
+            "effects": []
+        },
+        {
+            "id": "dashboard.read_api_token_metadata",
+            "kind": "query",
+            "source": {
+                "path": "app/read-api-token-repository.php",
+                "line": 15
+            },
+            "fingerprint": "sha256:ef992531510687c243d56cbf923be3c1bc3a565498341505f99d218867cce71d",
+            "signature": {
+                "inputs": [],
+                "output": "dashboard.read_api_token_status",
+                "reads": [
+                    "dashboard.read_api_token",
+                    "dashboard.user"
+                ]
+            },
+            "effects": []
+        },
+        {
+            "id": "dashboard.rotate_read_api_token",
+            "kind": "command",
+            "source": {
+                "path": "app/read-api-token-repository.php",
+                "line": 24
+            },
+            "fingerprint": "sha256:ef992531510687c243d56cbf923be3c1bc3a565498341505f99d218867cce71d",
+            "signature": {
+                "inputs": [],
+                "output": null,
+                "reads": []
+            },
+            "effects": [
+                {
+                    "kind": "create",
+                    "subject": "dashboard.read_api_token"
+                },
+                {
+                    "kind": "update",
+                    "subject": "dashboard.read_api_token"
+                }
+            ]
+        },
+        {
+            "id": "dashboard.revoke_read_api_token",
+            "kind": "command",
+            "source": {
+                "path": "app/read-api-token-repository.php",
+                "line": 36
+            },
+            "fingerprint": "sha256:ef992531510687c243d56cbf923be3c1bc3a565498341505f99d218867cce71d",
+            "signature": {
+                "inputs": [],
+                "output": null,
+                "reads": []
+            },
+            "effects": [
+                {
+                    "kind": "delete",
+                    "subject": "dashboard.read_api_token"
+                }
+            ]
+        },
+        {
+            "id": "dashboard.read_api_token",
+            "kind": "entity",
+            "source": {
+                "path": "app/read-api-token-schema.php",
+                "line": 8
+            },
+            "fingerprint": "sha256:43e5c9521e4b4d70a9266e80b0cc824fd55e6b64fd6b2c2bba04211188bf5885",
+            "signature": null,
+            "effects": [],
+            "shape": {
+                "fields": [
+                    {
+                        "name": "id",
+                        "type": "dashboard.number",
+                        "required": true
+                    },
+                    {
+                        "name": "secret_hash",
+                        "type": "dashboard.text",
+                        "required": true
+                    },
+                    {
+                        "name": "administrator_fingerprint",
+                        "type": "dashboard.text",
+                        "required": true
+                    },
+                    {
+                        "name": "created_at",
+                        "type": "dashboard.timestamp",
+                        "required": true
+                    }
+                ]
+            }
         }
     ]
 }

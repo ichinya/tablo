@@ -106,6 +106,58 @@
             "returns": {
                 "ref": "dashboard.number"
             }
+        },
+        {
+            "id": "dashboard.authenticate_read_api",
+            "kind": "query",
+            "version": 1,
+            "description": "Bearer syntax bounds before Composer/DB. Existing no-CREATE connection immediately query_only/current schema and necessary main metadata. Fixed digest hash_equals and current admin binding in one read snapshot; wrong/revoked token401 before resource/method/parameter disclosure. Deliberately key-free capability; existing browser/CLI/worker vault preconditions stay intact. No session/cookie/idle activity, provider, migration/WAL/checkpoint/FK scan/runtime initialization or selected DB writes. Transport inputs are validated by ReadApiRequest and the JSON contract; this pinned query IR has no input key.",
+            "reads": [
+                "dashboard.read_api_token",
+                "dashboard.user"
+            ],
+            "returns": {
+                "ref": "dashboard.flag"
+            }
+        },
+        {
+            "id": "dashboard.read_api_sites",
+            "kind": "query",
+            "version": 1,
+            "description": "Authenticated GET /api/v1/sites raw canonical limit1..100 default50 and int64 after_id default0. Explicit bounded byte projection, typed integer binds, numeric main.sites.id ASC primary-key keyset LIMIT+1; no JOIN/COUNT/OFFSET/N+1/provider. Entire DTO validates/encodes before success; fixed finite errors/private no-store/nosniff. Live pages, no snapshot across requests or total count. Transport inputs are validated by ReadApiRequest and the JSON contract; this pinned query IR has no input key.",
+            "reads": [
+                "dashboard.site"
+            ],
+            "returns": {
+                "ref": "dashboard.api_sites_response"
+            }
+        },
+        {
+            "id": "dashboard.read_api_site",
+            "kind": "query",
+            "version": 1,
+            "description": "Authenticated GET /api/v1/sites/{id}; canonical positive int64 string, no query/body, same exact whitelist. Missing404, malformed400, recognized unsupported method405 Allow GET; no HTML/redirect/CORS/JSONP/reflection. SAPI can normalize raw headers and suppress HEAD bodies. Transport inputs are validated by ReadApiRequest and the JSON contract; this pinned query IR has no input key.",
+            "reads": [
+                "dashboard.site"
+            ],
+            "returns": {
+                "optional": {
+                    "ref": "dashboard.api_site_response"
+                }
+            }
+        },
+        {
+            "id": "dashboard.read_api_token_metadata",
+            "kind": "query",
+            "version": 1,
+            "description": "Cookie-authenticated administrator settings presence/activity/createdUTC only; raw token/hash/binding never reaches metadata.",
+            "reads": [
+                "dashboard.read_api_token",
+                "dashboard.user"
+            ],
+            "returns": {
+                "ref": "dashboard.read_api_token_status"
+            }
         }
     ]
 }

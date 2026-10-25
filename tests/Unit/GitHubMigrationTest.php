@@ -13,7 +13,7 @@ final class GitHubMigrationTest
     #[Test]
     public function upgradesVersionTwoAtomicallyAndPreservesRowsOnFailure(): void
     {
-        foreach (['CREATE TABLE github_cooldowns', 'PRAGMA main.user_version = 9', 'COMMIT', null] as $failure) {
+        foreach (['CREATE TABLE github_cooldowns', 'PRAGMA main.user_version = ' . Database::CURRENT_SCHEMA_VERSION, 'COMMIT', null] as $failure) {
             $db = new MigrationPdo(':memory:');
             $db->exec(\Tablo\RequiredFile::bytes(file_get_contents(dirname(__DIR__) . '/fixtures/historical-schema/common2.sql')));
             $db->exec("

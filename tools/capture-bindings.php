@@ -54,6 +54,13 @@ $mapping = [
     'claim_notification' => ['app/notification-outbox.php', 'public function claim'],
     'ack_notification' => ['app/notification-outbox.php', 'public function acknowledge'],
     'deliver_notification' => ['app/notification-delivery.php', 'public function runOne'],
+    'read_api_sites' => ['app/read-api-repository.php', 'function read_api_sites('],
+    'read_api_site' => ['app/read-api-repository.php', 'function read_api_site('],
+    'authenticate_read_api' => ['app/read-api-token-repository.php', 'function authenticate_read_api'],
+    'read_api_token_metadata' => ['app/read-api-token-repository.php', 'function read_api_token_metadata'],
+    'rotate_read_api_token' => ['app/read-api-token-repository.php', 'function rotate_read_api_token'],
+    'revoke_read_api_token' => ['app/read-api-token-repository.php', 'function revoke_read_api_token'],
+    'read_api_token' => ['app/read-api-token-schema.php', 'CREATE TABLE read_api_token'],
 ];
 $symbols = [];
 foreach ($mapping as $name => [$path, $needle]) {
