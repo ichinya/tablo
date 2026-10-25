@@ -22,7 +22,7 @@ final class IncidentConcurrencyTest
     public function waitingMigratorRechecksActualSchemaFiveWithoutReplayOrDuplicateDdl(): void
     {
         $directory = new TemporaryDirectory('tablo-incidents-upgrade-');
-        $second = null; $first = null;
+        $second = null; $first = null; $db = null;
         try {
             $path = $directory->path . '/db.sqlite';
             $db = new MigrationPdo($path);
@@ -43,15 +43,41 @@ final class IncidentConcurrencyTest
             $statements = array_map(\Tablo\Tests\Support\FixtureValue::string(...), \Tablo\JsonRecord::checked(\Tablo\Tests\Support\FixtureValue::at($firstObservation, 'ddl_statements')));
             $idleStatements = array_values(array_filter($statements, static fn (string $sql): bool => str_starts_with($sql, 'ALTER TABLE installation_settings ADD COLUMN session_idle_timeout_minutes')));
             Assert::same(count($idleStatements), 1, 'exact idle ALTER executes once');
-            Assert::same(count($statements) - count($idleStatements), 14, 'preserve original endpoint/history/incident/notification DDL count');
-            Assert::same(\Tablo\Tests\Support\FixtureValue::at($firstObservation, 'ddl'), 15, 'original fourteen statements plus exactly one idle ALTER');
+            $tokenStatements = array_values(array_filter($statements, static fn (string $sql): bool => str_starts_with($sql, 'CREATE TABLE read_api_token')));
+            Assert::same($tokenStatements, [\Tablo\ReadApiTokenSchema::sql()], 'exact API token CREATE executes once');
+            $originalStatements = array_values(array_filter($statements, static fn (string $sql): bool => !in_array($sql, [...$idleStatements, ...$tokenStatements], strict: true)));
+            Assert::same(count($originalStatements), 14, 'preserve original endpoint/history/incident/notification DDL count');
+            // Frozen original schema-five migration DDL content and order; idle/token additions are checked separately.
+            Assert::same(array_map(static fn (string $sql): string => hash('sha256', $sql), $originalStatements), [
+                '4f176a1573788304019359ba6d825cfe61587a70b7104025f73a8e6e167cc9e2',
+                '699e8a6c856abf4e5f024a6cfb1a21a0b154df9399c63bc5f680acf54bff43b1',
+                'e43c4807b1df077bfe5244528212bb0d0fe60393f72ab63f54910e7495af69b2',
+                '6e013f9801acd3016aa987b1a03d45027e3e2ab6c560eb35730a5ec4d571d2c7',
+                '60d35c6a155ab2e8b12e6022ccc46cab8d875b21e253a8fd9c581570c8bfef92',
+                '630180b30de3b7c128734617813ef8983f5d6672837d151f4025d1ec6b622760',
+                'fdd3a4d6c18ab48376b7f9a60514580b07f32ef81ec7279c8c5b32694c57a3ec',
+                '5ac1eb592f8b35bed74319ebde91e775810ad8a4bbaf155775c1e3deefc4fc9f',
+                '6b76556fb404c44bf5ce317cebd547b16f47447371bfb52c00f96eeee37a9677',
+                'fd2fb056357da1a696bee5ca375c41d2eb5f328dd16e3ef18a56c2479a082e7f',
+                'eb418331a4f38efa268aa37a33c640060376854e5194833a526979606f5fb1de',
+                '5ee08c08cb8642c86f74aafe80e089ab56fb825877dd7596a40c7f25b1547d1b',
+                '116e2fecdd1624b36957083165ef5579a82a16f08c918c0c7dacdabf330e8dc9',
+                '8a4070d31881a873114b8518413e329abefa57207a9caef94c0311ac7244e2ce',
+            ]);
+            Assert::same(array_slice($statements, offset: -2), [...$idleStatements, \Tablo\ReadApiTokenSchema::sql()], 'idle then API token DDL follow the unchanged original sequence');
+            Assert::same(\Tablo\Tests\Support\FixtureValue::at($firstObservation, 'ddl'), 16, 'original fourteen statements plus exactly one idle ALTER and one token CREATE');
             Assert::same(\Tablo\Tests\Support\FixtureValue::at(\Tablo\JsonRecord::checked(json_decode($b['stdout'], associative: true)), 'ddl'), 0);
             Assert::same(\Tablo\Tests\Support\FixtureValue::at(\Tablo\JsonRecord::decode($b['stdout']), 'ddl_statements'), [], 'waiting opener replays no DDL');
             $db = Database::connect($path);
             Assert::same((int) \Tablo\SqlStatement::checked($db->query('SELECT COUNT(*) FROM check_history'))->fetchColumn(), 1);
             Assert::same(\Tablo\SqlRows::all(\Tablo\SqlStatement::checked($db->query('SELECT * FROM incidents'))->fetchAll(), \Tablo\SqlIncidentsClockInvalidConfigRevisionEndReasonRow::checked(...)), []);
             Assert::same(\Tablo\SqlRows::all(\Tablo\SqlStatement::checked($db->query('SELECT * FROM incident_checkpoints'))->fetchAll(), \Tablo\SqlIncidentCheckpointsRow::checked(...)), []);
-        } finally { $second?->close(); $first?->close(); unset($sites, $db); $directory->close(); }
+        } catch (\Throwable $error) { $directory->retainFailure($error); throw $error; }
+        finally {
+            $directory->cleanup(static function () use ($second, $first, &$db, $directory): void {
+                $second?->close(); $first?->close(); $db = null; $directory->close();
+            });
+        }
     }
 
     #[Test]

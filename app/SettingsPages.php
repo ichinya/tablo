@@ -8,7 +8,9 @@ use Phalcon\Mvc\Micro;
 
 final class SettingsPages extends WebPage
 {
+    private ?ReadApiTokenRepository $readApiTokens = null;
     public function __construct(private readonly SettingsRepository $installation, private readonly NotificationSettings $notifications, private readonly NotificationOutbox $notificationOutbox, private readonly GitTokenRepository $tokens, PageResponse $page) { parent::__construct($page); }
+    public function withReadApiTokens(ReadApiTokenRepository $tokens): self { $this->readApiTokens = $tokens; return $this; }
     public function register(Micro $app): void
     {
         $web = $this;
@@ -27,7 +29,7 @@ final class SettingsPages extends WebPage
         $data = ['notice' => $_SESSION['notice'] ?? ''];
         unset($_SESSION['notice']);
         return $this->render('settings', $data + ['title' => 'Настройки', 'tokens' => $this->tokens->all(),
-            'providers' => GitProviders::available(), 'errors' => $errors,
+            'providers' => GitProviders::available(), 'errors' => $errors, 'read_api_token' => read_api_settings_metadata($this->readApiTokens),
             'notifications' => $this->notifications->get(),
             'notification_status' => $notificationSite===null?$this->notificationOutbox->status():$this->notificationOutbox->statusForSite($notificationSite),
             'notification_site_id' => $notificationSite,

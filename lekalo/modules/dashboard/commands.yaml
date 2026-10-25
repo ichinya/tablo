@@ -831,6 +831,46 @@
                 "dashboard.installation_settings_created",
                 "dashboard.installation_settings_updated"
             ]
+        },
+        {
+            "id": "dashboard.read_api_token_created",
+            "kind": "effect",
+            "version": 1,
+            "operation": "create",
+            "entity": "dashboard.read_api_token"
+        },
+        {
+            "id": "dashboard.read_api_token_updated",
+            "kind": "effect",
+            "version": 1,
+            "operation": "update",
+            "entity": "dashboard.read_api_token"
+        },
+        {
+            "id": "dashboard.read_api_token_deleted",
+            "kind": "effect",
+            "version": 1,
+            "operation": "delete",
+            "entity": "dashboard.read_api_token"
+        },
+        {
+            "id": "dashboard.rotate_read_api_token",
+            "kind": "command",
+            "version": 1,
+            "description": "Real cookie + CSRF DeliberateForm, short owned BEGIN IMMEDIATE revalidates current administrator fingerprint and current committed idle policy after lock. Atomic one high-entropy token replacement, last committed rotation wins; direct private committed server-rendered HTML reveals once. No URL/session flash/JS/ciphertext/log/trace persistence; lost reveal requires rotation. Browser logout/idle do not revoke; password change or rehash does. Only token row effects.",
+            "effects": [
+                "dashboard.read_api_token_created",
+                "dashboard.read_api_token_updated"
+            ]
+        },
+        {
+            "id": "dashboard.revoke_read_api_token",
+            "kind": "command",
+            "version": 1,
+            "description": "Same live cookie/CSRF/DeliberateForm and post-lock owner/policy admission; delete singleton token, no other effects. A read snapshot admitted before commit may finish; every later old-token request refuses.",
+            "effects": [
+                "dashboard.read_api_token_deleted"
+            ]
         }
     ]
 }

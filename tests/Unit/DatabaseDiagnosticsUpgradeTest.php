@@ -17,7 +17,7 @@ final class DatabaseDiagnosticsUpgradeTest
     #[Test]
     public function upgradesVersionOneDiagnosticsAtomicallyWithoutChangingExistingRows(): void
     {
-        foreach ([null, 'ALTER TABLE sites ADD COLUMN health_http_status', 'PRAGMA main.user_version = 9', 'COMMIT'] as $failure) {
+        foreach ([null, 'ALTER TABLE sites ADD COLUMN health_http_status', 'PRAGMA main.user_version = ' . Database::CURRENT_SCHEMA_VERSION, 'COMMIT'] as $failure) {
             $db = new MigrationPdo(':memory:');
             $db->exec(\Tablo\Tests\Support\DatabaseAssertions::schema());
             $db->exec("PRAGMA user_version = 1;

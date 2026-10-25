@@ -32,12 +32,22 @@ final class SessionSettingsMigrationTest extends CompositionSchemaFixtureCase
     {
         $db = self::versionEight();
         $before = self::snapshot($db);
+        // Retain the original isolated 8->9 transition invariant, then roll it back.
+        $db->exec('BEGIN IMMEDIATE'); $db->statements = [];
+        \Tablo\SchemaLayoutUpgrade::addSessionSettings($db);
+        $idleDdl = array_values(array_filter($db->statements, static fn(string $sql): bool => preg_match('/^(CREATE|ALTER|DROP)/', $sql) === 1));
+        Assert::same(count($idleDdl), 1);
+        Assert::true(str_starts_with(\Tablo\Tests\Support\FixtureValue::at($idleDdl, 0), 'ALTER TABLE installation_settings ADD COLUMN'));
+        Assert::same((new SettingsRepository($db))->getIdleTimeout(), 30);
+        $db->exec('ROLLBACK'); Assert::same(self::snapshot($db), $before);
         $db->statements = [];
         Database::migrate($db);
         $ddl = array_values(array_filter($db->statements, static fn(string $sql): bool => preg_match('/^(CREATE|ALTER|DROP)/', $sql) === 1));
-        Assert::same(count($ddl), 1);
+        Assert::same(count($ddl), 2);
         Assert::true(str_starts_with(\Tablo\Tests\Support\FixtureValue::at($ddl, 0), 'ALTER TABLE installation_settings ADD COLUMN'));
-        Assert::same((int) SqlStatement::checked($db->query('PRAGMA user_version'))->fetchColumn(), 9);
+        Assert::same(\Tablo\Tests\Support\FixtureValue::at($ddl, 1), \Tablo\ReadApiTokenSchema::sql());
+        Assert::same(\Tablo\SchemaShape::rows($db, 'SELECT * FROM read_api_token'), []);
+        Assert::same((int) SqlStatement::checked($db->query('PRAGMA user_version'))->fetchColumn(), Database::CURRENT_SCHEMA_VERSION);
         $settings = new SettingsRepository($db);
         Assert::same($settings->get(), 17);
         Assert::same($settings->getIdleTimeout(), 30);
@@ -48,7 +58,7 @@ final class SessionSettingsMigrationTest extends CompositionSchemaFixtureCase
         Database::migrate($db);
         Assert::same(self::snapshot($db), $current);
         Assert::same(array_values(array_filter($db->statements, static fn(string $sql): bool => preg_match('/^(BEGIN|CREATE|ALTER|DROP|INSERT|UPDATE|COMMIT)/', $sql) === 1)), []);
-        $db->exec('PRAGMA user_version=10'); $future = self::snapshot($db);
+        $db->exec('PRAGMA user_version=' . (Database::CURRENT_SCHEMA_VERSION + 1)); $future = self::snapshot($db);
         $refused = false;
         try { Database::migrate($db); } catch (\RuntimeException) { $refused = true; }
         Assert::true($refused); Assert::same(self::snapshot($db), $future);
@@ -57,7 +67,7 @@ final class SessionSettingsMigrationTest extends CompositionSchemaFixtureCase
     #[Test]
     public function failedAlterVersionAndCommitRollbackAndMissingSingletonStaysMissing(): void
     {
-        foreach (['ALTER TABLE installation_settings ADD COLUMN', 'PRAGMA main.user_version = 9', 'COMMIT'] as $stage) {
+        foreach (['ALTER TABLE installation_settings ADD COLUMN', 'PRAGMA main.user_version = ' . Database::CURRENT_SCHEMA_VERSION, 'COMMIT'] as $stage) {
             $db = self::versionEight(); $before = self::snapshot($db); $db->failBefore = $stage;
             $message = null;
             try { Database::migrate($db); } catch (\PDOException $error) { $message = $error->getMessage(); }

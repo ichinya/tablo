@@ -19,7 +19,7 @@ final class EndpointTokenMigrationTest
     #[Test]
     public function upgradeIsNullableAtomicAndCurrentOrFutureSchemasDoNoDdl(): void
     {
-        foreach (['ALTER TABLE sites ADD COLUMN endpoint_token', 'PRAGMA main.user_version = 9', 'COMMIT', null] as $failure) {
+        foreach (['ALTER TABLE sites ADD COLUMN endpoint_token', 'PRAGMA main.user_version = ' . Database::CURRENT_SCHEMA_VERSION, 'COMMIT', null] as $failure) {
             $db = new MigrationPdo(':memory:');
             $db->exec(\Tablo\RequiredFile::bytes(file_get_contents(dirname(__DIR__) . '/fixtures/historical-schema/common4.sql')));
             $db->exec("

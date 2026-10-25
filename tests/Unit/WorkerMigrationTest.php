@@ -15,7 +15,7 @@ final class WorkerMigrationTest
     {
         foreach (['ALTER TABLE sites ADD COLUMN config_revision', 'CREATE TABLE installation_settings',
             'INSERT INTO installation_settings', 'CREATE TABLE worker_runtime', 'INSERT INTO worker_runtime',
-            'CREATE TABLE worker_progress', 'PRAGMA main.user_version = 9', 'COMMIT', null] as $failure) {
+            'CREATE TABLE worker_progress', 'PRAGMA main.user_version = ' . Database::CURRENT_SCHEMA_VERSION, 'COMMIT', null] as $failure) {
             $db = new MigrationPdo(':memory:');
             $db->exec(\Tablo\RequiredFile::bytes(file_get_contents(dirname(__DIR__) . '/fixtures/historical-schema/common3.sql')));
             $db->exec("

@@ -385,6 +385,29 @@
             ]
         },
         {
+            "id": "dashboard.read_api_privacy_boundary",
+            "kind": "scenario",
+            "version": 1,
+            "summary": "Actual public ingress bearer-before-data; raw parameter/paging/detail/HEAD/errors/absent file/incompatible schema/output faults. Exact recursive DTO and future/credential/private canaries, null/zero/partial/offline/paused/fresh900/future/no-version. Selected schema and all main rows unchanged; query_only write refusal, no key/session/cookie/provider/worker effects.",
+            "covers": [
+                "dashboard.authenticate_read_api",
+                "dashboard.read_api_sites",
+                "dashboard.read_api_site"
+            ]
+        },
+        {
+            "id": "dashboard.read_api_token_lifecycle",
+            "kind": "scenario",
+            "version": 1,
+            "summary": "Real setup/login cookie CSRF rotate/revoke/one-time direct reveal, hash-only storage, failed commit/no reveal, current post-lock authority, serial rotations/revoke and password binding. Browser logout and idle remain separate. Atomic schema9->10 empty/OFF, old lineages and original403 meaningful identities/deadlines retained.",
+            "covers": [
+                "dashboard.read_api_token",
+                "dashboard.read_api_token_metadata",
+                "dashboard.rotate_read_api_token",
+                "dashboard.revoke_read_api_token"
+            ]
+        },
+        {
             "id": "dashboard.dashboard_modes",
             "kind": "scenario",
             "version": 1,

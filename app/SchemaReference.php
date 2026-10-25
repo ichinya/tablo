@@ -22,6 +22,7 @@ final class SchemaReference
         if ($version >= 6) { foreach (IncidentSchema::STATEMENTS as $statement) { $db->exec($statement); } }
         if ($version >= 7) { NotificationSchema::migrate($db); }
         if ($version >= 9) { SchemaLayoutUpgrade::addSessionSettings($db); }
+        if ($version >= 10) { ReadApiTokenSchema::migrate($db); }
         return $db;
     }
 }

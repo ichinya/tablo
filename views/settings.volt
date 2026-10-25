@@ -1,6 +1,15 @@
 {% extends "layout.volt" %}
 {% block content %}
 <section class="panel">
+<h2>Read API</h2>
+<p>Отдельный токен даёт внешним скриптам доступ только к списку сайтов и текущему состоянию. В браузере он не используется.</p>
+<p>{% if read_api_token['active'] %}Токен активен.{% elseif read_api_token['present'] %}Токен недействителен после смены пароля.{% else %}Токен не создан; доступ выключен.{% endif %}
+{% if read_api_token['created_at'] %}Создан: {{ read_api_token['created_at'] }}.{% endif %}</p>
+<p>При создании прежний токен заменяется. Новый секрет показывается один раз в ответе. Смена пароля аннулирует токен; выход и таймаут сессии на него не влияют.</p>
+<form method="post" action="/settings/read-api-token/rotate"><input type="hidden" name="_csrf" value="{{ csrf }}"><button class="button primary" type="submit">Создать новый токен</button></form>
+<form method="post" action="/settings/read-api-token/revoke"><input type="hidden" name="_csrf" value="{{ csrf }}"><button class="button secondary" type="submit">Отозвать токен</button></form>
+</section>
+<section class="panel">
 <h2>Сессия администратора</h2>
 <p>По умолчанию — 30 минут бездействия. Допустимо от 1 до 720 минут; отключить таймаут нельзя. Переходы по страницам и отправка допустимых форм продлевают только окно неактивности. Автоматические запросы его не продлевают. Через 12 часов после входа потребуется новый вход.</p>
 <form method="post" action="/settings/session-timeout">
