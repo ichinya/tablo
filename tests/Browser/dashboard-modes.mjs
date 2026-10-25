@@ -6,6 +6,7 @@ import assert from 'node:assert/strict';
 import crypto from 'node:crypto';
 import {spawn} from 'node:child_process';
 import {pathToFileURL} from 'node:url';
+import {pendingNavigation, ownDirectChild, settleOwnedCleanup} from './control-lifecycle.mjs';
 
 // The caller provisions qualified libraries/executable and an immutable source copy.
 // No package install, application API or installation environment is used here.
@@ -254,6 +255,8 @@ let pendingRouteRelease;
 let chromeExit;
 let browserPort;
 let launcherExit;
+let launcherOwner;
+let chromeOwner;
 let lines = [];
 let waiting = [];
 const nextLine = () => lines.length ? Promise.resolve(lines.shift()) : new Promise((resolve, reject) => {
@@ -390,7 +393,9 @@ try {
       if (waiting.length) waiting.shift()(line); else lines.push(line);
     }
   });
-  launcherExit = new Promise(resolve => launcher.once('close', (exit, signal) => { record('fixture-parent-closed', {pid: launcher.pid, exit, signal}); resolve(exit); }));
+  launcherOwner = ownDirectChild(launcher, 'PHP fixture launcher');
+  launcherExit = launcherOwner.closed.then(state => { record('fixture-parent-closed', {pid: state.pid, exit: state.exitCode, signal: state.signal}); return state.exitCode; });
+  launcherExit.catch(() => {}); // Awaited during cleanup; an early rejection must not escape ownership.
   record('fixture-parent-started', {pid: launcher.pid, php: config.php, source: config.source});
   fixture = JSON.parse(await nextLine());
   assert.equal(fixture.ready, true);
@@ -440,7 +445,9 @@ try {
   browserPort = Number(new URL(server.wsEndpoint()).port);
   const profile = chrome.spawnargs.find(argument => argument.startsWith('--user-data-dir='))?.slice('--user-data-dir='.length);
   assert.ok(profile?.replaceAll('\\', '/').startsWith(config.environment.TEMP.replaceAll('\\', '/') + '/'), 'browser profile outside owned TEMP');
-  chromeExit = new Promise(resolve => chrome.once('close', (exit, signal) => { record('browser-process-closed', {pid: chrome.pid, exit, signal}); resolve(exit); }));
+  chromeOwner = ownDirectChild(chrome, 'Chrome direct process');
+  chromeExit = chromeOwner.closed.then(state => { record('browser-process-closed', {pid: state.pid, exit: state.exitCode, signal: state.signal}); return state.exitCode; });
+  chromeExit.catch(() => {});
   record('browser-started', {pid: chrome.pid, executable: config.chrome, argv: chrome.spawnargs, profile, browserPort, childCensus: 'Direct PID observed; renderer/utility child census incomplete, no child closures claimed'});
   browser = await chromium.connect(server.wsEndpoint());
   assert.equal(browser.version(), config.chromeVersion);
@@ -542,40 +549,41 @@ try {
       assert.equal(await actions.locator('#site-search').inputValue(), '', 'native redirect has fresh filter state');
     }
     // Hold the actual native navigation in routing to observe pending controls, then release once.
-    let release;
-    const held = new Promise(resolve => { release = resolve; pendingRouteRelease = resolve; });
-    const holdLimit = setTimeout(release, 8000);
-    let entered;
-    const reached = new Promise(resolve => { entered = resolve; });
-    if (cdpTransport) nativeHold = {context: actionsContext, entered, held};
-    else await actionsContext.route('**/sites/*/check', async route => { record('pending-navigation-held'); entered(); await held; await route.fallback(); });
-    await mode(actions, 'table');
-    const beforeHeld = await command('state');
-    const postStart = requests.filter(request => request.method === 'POST').length;
-    let observe;
-    const observation = new Promise(resolve => { observe = resolve; });
-    await actions.exposeFunction('dashboardPendingObservation', result => { record('pending-dom-observation', result); observe(result); });
-    await actions.evaluate(ids => {
-      let observing = false;
-      document.getElementById(`check-site-${ids[0]}`).addEventListener('submit', () => {
-        if (observing) return;
-        observing = true;
-        const disabled = id => [...document.querySelectorAll(`button[form="check-site-${id}"]`)].map(node => node.disabled);
-        const before = disabled(ids[0]);
-        document.querySelector('[data-view="tile"]').click(); document.querySelector('[data-filter="attention"]').click();
-        window.dispatchEvent(new PageTransitionEvent('pageshow', {persisted: true})); document.getElementById(`check-site-${ids[0]}`).requestSubmit();
-        window.dashboardPendingObservation({before, after: disabled(ids[0]), paused: disabled(ids[4])}).catch(() => {});
-      });
-    }, fixture.ids);
-    const submitClick = actions.locator(`[data-dashboard-view="table"] [data-site-id="${fixture.ids[0]}"] [data-check-button]`).click({noWaitAfter: true});
-    await Promise.race([reached, submitClick.then(() => new Promise(() => {}))]);
-    record('pending-route-reached');
-    const pending = await observation;
-    assert.deepEqual(pending, {before: [true, true], after: [true, true], paused: [true, true]});
-    record('pending-both-disabled', pending);
-    assert.equal(requests.filter(request => request.method === 'POST').length, postStart + 1);
-    const heldNavigation = actions.waitForEvent('framenavigated', frame => frame === actions.mainFrame());
-    release(); clearTimeout(holdLimit); pendingRouteRelease = null; await submitClick; await heldNavigation; await actions.waitForLoadState('load'); await actions.locator('[data-dashboard-controls]').waitFor({state: 'visible'});
+    const {beforeHeld, submitClick, heldNavigation} = await pendingNavigation(async phase => {
+      pendingRouteRelease = phase.release;
+      if (cdpTransport) nativeHold = {context: actionsContext, entered: phase.entered, held: phase.held};
+      else await phase.wait(actionsContext.route('**/sites/*/check', async route => {
+        record('pending-navigation-held'); phase.entered(); await phase.held; await route.fallback();
+      }), 'pending-route-registration');
+      await phase.wait(mode(actions, 'table'), 'pending-view');
+      const beforeHeld = await phase.wait(command('state'), 'pending-fixture-state');
+      const postStart = requests.filter(request => request.method === 'POST').length;
+      await phase.wait(actions.exposeFunction('dashboardPendingObservation', result => {
+        if (phase.observe(result)) record('pending-dom-observation', result);
+      }), 'pending-observer-registration');
+      await phase.wait(actions.evaluate(ids => {
+        let observing = false;
+        document.getElementById(`check-site-${ids[0]}`).addEventListener('submit', () => {
+          if (observing) return;
+          observing = true;
+          const disabled = id => [...document.querySelectorAll(`button[form="check-site-${id}"]`)].map(node => node.disabled);
+          const before = disabled(ids[0]);
+          document.querySelector('[data-view="tile"]').click(); document.querySelector('[data-filter="attention"]').click();
+          window.dispatchEvent(new PageTransitionEvent('pageshow', {persisted: true})); document.getElementById(`check-site-${ids[0]}`).requestSubmit();
+          window.dashboardPendingObservation({before, after: disabled(ids[0]), paused: disabled(ids[4])}).catch(() => {});
+        });
+      }, fixture.ids), 'pending-listener-registration');
+      const submitClick = actions.locator(`[data-dashboard-view="table"] [data-site-id="${fixture.ids[0]}"] [data-check-button]`).click({noWaitAfter: true});
+      const pending = await phase.observationAfter(submitClick);
+      record('pending-route-reached');
+      assert.deepEqual(pending, {before: [true, true], after: [true, true], paused: [true, true]});
+      record('pending-both-disabled', pending);
+      assert.equal(requests.filter(request => request.method === 'POST').length, postStart + 1);
+      const heldNavigation = actions.waitForEvent('framenavigated', frame => frame === actions.mainFrame());
+      phase.release();
+      return {beforeHeld, submitClick, heldNavigation};
+    });
+    pendingRouteRelease = null; await submitClick; await heldNavigation; await actions.waitForLoadState('load'); await actions.locator('[data-dashboard-controls]').waitFor({state: 'visible'});
     const afterHeld = await command('state');
     assert.equal(afterHeld.peerCount, beforeHeld.peerCount + 2); assert.equal(afterHeld.counts.check_history, beforeHeld.counts.check_history + 1);
     if (cdpTransport) nativeHold = null;
@@ -632,6 +640,7 @@ try {
   fs.writeFileSync(`${directory}/failed-input.json`, JSON.stringify({config, fixture, requests, errors, pageErrors, unexpected, denials, consoleEvents, parsedScripts}, null, 2));
 } finally {
   pendingRouteRelease?.();
+  nativeHold = null;
   const releaseSteps = [
     async () => { if (fixture && launcher) { const released = await command('release_database'); assert.equal(released.databaseReleased, true); } },
     async () => { for (const ctx of contexts) await closeContext(ctx); },
@@ -641,15 +650,21 @@ try {
     async () => { if (fixture) for (const port of fixture.ports) assert.equal(await absent(port), true, 'owned app/peer port closure'); },
     async () => { if (browserPort) assert.equal(await absent(browserPort), true, 'owned browser websocket port closure'); },
   ];
-  let cleanupFailed = false;
-  for (const step of releaseSteps) {
-    try { await step(); }
-    catch (cleanup) { cleanupFailed = true; record('cleanup-failure', {message: String(cleanup)}); primary ||= cleanup; }
-  }
-  if (!cleanupFailed) record('closure-verified', {directBrowserExit: server ? 0 : null, directPhpExit: launcher ? 0 : null, portsAbsent: Boolean(fixture), rendererChildCensus: 'Incomplete; no renderer exit claims'});
-  fs.writeFileSync(`${directory}/requests.json`, JSON.stringify(requests, null, 2));
-  fs.writeFileSync(`${directory}/denials.json`, JSON.stringify({qualification, denials, consoleEvents, parsedScripts}, null, 2));
-  fs.writeFileSync(`${directory}/transport.json`, JSON.stringify(transportRecords, null, 2));
-  fs.writeFileSync(`${directory}/streams.json`, JSON.stringify(['fixture.stdout', 'fixture.stderr'].filter(file => fs.existsSync(`${directory}/${file}`)).map(file => ({file,sha256: digest(fs.readFileSync(`${directory}/${file}`))})), null, 2));
+  const labels = ['release-database', 'close-contexts', 'close-browser', 'close-chrome', 'close-php', 'observe-app-ports', 'observe-browser-port'];
+  const cleanup = await settleOwnedCleanup({primary, owners: [chromeOwner, launcherOwner].filter(Boolean), record,
+    steps: releaseSteps.map((run, index) => ({label: labels[index], run})),
+    retain: state => {
+      record('cleanup-settlement', {primary: state.primary ? String(state.primary) : null,
+        cleanupFailures: state.cleanupFailures, children: state.children, pendingSteps: state.pendingSteps,
+        complete: state.complete, descendantClosure: 'UNKNOWN', rendererClosure: 'UNKNOWN'});
+      if (state.primary) fs.writeFileSync(`${directory}/failed-input.json`, JSON.stringify({config, fixture, requests, errors, pageErrors, unexpected, denials, consoleEvents, parsedScripts}, null, 2));
+      fs.writeFileSync(`${directory}/requests.json`, JSON.stringify(requests, null, 2));
+      fs.writeFileSync(`${directory}/denials.json`, JSON.stringify({qualification, denials, consoleEvents, parsedScripts}, null, 2));
+      fs.writeFileSync(`${directory}/transport.json`, JSON.stringify(transportRecords, null, 2));
+      fs.writeFileSync(`${directory}/streams.json`, JSON.stringify(['fixture.stdout', 'fixture.stderr'].filter(file => fs.existsSync(`${directory}/${file}`)).map(file => ({file,sha256: digest(fs.readFileSync(`${directory}/${file}`))})), null, 2));
+    }});
+  primary = cleanup.primary;
+  if (cleanup.complete) record('closure-verified', {directBrowserExit: chromeOwner?.snapshot().exitCode ?? null,
+    directPhpExit: launcherOwner?.snapshot().exitCode ?? null, portsAbsent: Boolean(fixture), rendererChildCensus: 'Incomplete; no renderer exit claims'});
 }
 if (primary) { process.stderr.write(String(primary) + '\n'); process.exitCode = 1; }
