@@ -8,7 +8,7 @@
                 "Composer verify",
                 "Reviewed dependency capture"
             ],
-            "fingerprint": "sha256:31398391c8a6a19cdecde7d78e89ae9821cc53efd0e5d716f81d79dce46a4631"
+            "fingerprint": "sha256:bf19661ef6b6cadea32d4b856e6f47155311fd2e318e0617c45a5b310906a6fe"
         },
         {
             "path": "tools/reviewed-dependencies.php",
@@ -3971,7 +3971,7 @@
             "consumers": [
                 "Application and worker runtime selection"
             ],
-            "fingerprint": "sha256:631c1f0c87a2d47b3256cc324a67b3853c70f5c1fc6100f07247a15465df367e"
+            "fingerprint": "sha256:c833329314ec43661b6e80eecd8e0a8ac9669767665ca667728841da8babaa8d"
         },
         {
             "path": "contracts/check-output-v1.schema.json",
@@ -4026,7 +4026,7 @@
                 "Composer verify",
                 "Composer analyze"
             ],
-            "fingerprint": "sha256:f28571c647da9e57234c04c328b0688e5962872a26607f1f670a30c970a73087"
+            "fingerprint": "sha256:9daaaaf648c8d4d799a91b1e34ed879a58c43d8172565f93fe600d0102a05ceb"
         },
         {
             "path": "public/router.php",
@@ -4045,7 +4045,7 @@
                 "tablo/check/v1 local consumers",
                 "Administrator idle timeout policy"
             ],
-            "fingerprint": "sha256:455ba2905a4958146179df7b8495368234c9061eaffc4a914c0f647a0a54cdd9"
+            "fingerprint": "sha256:59814bda8f0a948c1153345f2faa10e6b07193d61ce2a38edfb258af48694da5"
         },
         {
             "path": "tests/browser-fixture.php",
@@ -5334,7 +5334,7 @@
                 "Composer verify",
                 "Composer analyze"
             ],
-            "fingerprint": "sha256:7cfe51548be8f86ab9c555c12a871e94dc6082035f988a48d5a70f4caa5217a4"
+            "fingerprint": "sha256:fdec7629c65af00a09c9aa2523423e719f735102d239b6b671f4ad791c098b70"
         },
         {
             "path": "tests/Network/AdminPasswordSelectionTest.php",
@@ -5354,7 +5354,7 @@
                 "Composer verify",
                 "Composer analyze"
             ],
-            "fingerprint": "sha256:3cb54fb5bfdca169c4dcb2c1afc2321e5fab87033c4923696555413e0568bad9"
+            "fingerprint": "sha256:c97e4c3d1166da8918173750cf1da361deb7e94fa9cbe04a6e00a36cee32b8df"
         },
         {
             "path": "tests/Network/AdminPasswordTest.php",
@@ -7417,7 +7417,7 @@
                 "Composer verify",
                 "Composer analyze"
             ],
-            "fingerprint": "sha256:8d3b0b31c9c4279b999702c8f26c8a727a32e2da63b5f45c740983b012ac674f"
+            "fingerprint": "sha256:8a4ec667162ff3dad61d7cae1b93c7f9dd66800ea0ec6a2de81254e85f13f9fb"
         },
         {
             "path": "tests/Support/WebhookCertificate.php",
@@ -8465,7 +8465,7 @@
                 "Composer verify",
                 "Composer analyze"
             ],
-            "fingerprint": "sha256:657e8ce06c6071fafde74c03a3e92feedced987f56ff55f14e9a3b71b2da1de4"
+            "fingerprint": "sha256:90ee94bd1e332d4194df4a05105ec41ed727c305eef0e022338c32a87393c331"
         },
         {
             "path": "tests/Unit/RuntimeIniTest.php",
@@ -9069,7 +9069,7 @@
                 "Composer verify",
                 "Composer analyze"
             ],
-            "fingerprint": "sha256:4ce72af72981561900045026add085fe778783cf800c7aea5d9ad5f6b699fc72"
+            "fingerprint": "sha256:79efc4c6f04ea7676a50dab7ee0b20d396ecc6064d8d49a3c677d2e59146e85b"
         },
         {
             "path": "views/incidents.volt",
@@ -9312,7 +9312,7 @@
                 "Composer verify",
                 "Native read API tests"
             ],
-            "fingerprint": "sha256:db6f80e2b1f86145e747795940368c302c51a3d6ceada92a1459a77ca7dc315b"
+            "fingerprint": "sha256:d239e616aeae59083c2ac6dee631e0540f4cceddeaa5df616d6125f36eaff9d2"
         },
         {
             "path": "app/read-api-token-repository.php",
@@ -9345,7 +9345,7 @@
                 "Composer verify",
                 "Native read API tests"
             ],
-            "fingerprint": "sha256:c7313a4fb5b53918128523f34c3589fe000aa4830065baa820b7013d6a554639"
+            "fingerprint": "sha256:8ea979442e08a8e8b71dcf2d350a5608c4cff9acd0eae781e9cceea425cfee7b"
         },
         {
             "path": "app/ReadApiConnection.php",
@@ -9389,7 +9389,7 @@
                 "Composer verify",
                 "Native read API tests"
             ],
-            "fingerprint": "sha256:85a3ea504bdaac48fb7b6985ca824136b14541c38c8942cee4f062b55e1533c9"
+            "fingerprint": "sha256:2dfc986a28692dc0a9772fce252dcf38d96fb651f0544300f55669e8a877bee7"
         },
         {
             "path": "app/ReadApiSchemaAdmission.php",
@@ -9460,7 +9460,7 @@
             "consumers": [
                 "Read API documentation and privacy review"
             ],
-            "fingerprint": "sha256:94eb953eced6ba2aa41af36cceda9e7f95f83bd4088dfaef70a3e69b8171781b"
+            "fingerprint": "sha256:468cd8bb8e6ecbe5b0606a81e082f252718fa4cefb8e34842fa51f92271ed9c0"
         },
         {
             "path": "tests/fixtures/read-api-router.php",
@@ -9548,7 +9548,7 @@
                 "Composer verify",
                 "Native read API tests"
             ],
-            "fingerprint": "sha256:2154447f21920532f4a6ccce81a2d67e90e41389e15294431f23e6a69535faca"
+            "fingerprint": "sha256:b74514e1c0bbff05d9dc0f203a0d5a9d89e6bd4dad77f594963722372cd1efd4"
         },
         {
             "path": "tests/Support/ReadApiAssertions.php",
@@ -9645,6 +9645,132 @@
                 "Read API documentation and privacy review"
             ],
             "fingerprint": "sha256:70d6cfbf260d23ab89c637e7b30c7a22360a03cc266c1a52edc3463aa649ceba"
+        },
+        {
+            "path": ".env.example",
+            "owner": "Example process and Dotenv configuration ownership",
+            "consumers": [
+                "HSTS deployment operator guidance"
+            ],
+            "fingerprint": "sha256:5536bacec41070394bc54396df6f94a186d7600ee538cf6a25ba46f3d3eb2fd9"
+        },
+        {
+            "path": "app/HstsConfigurationError.php",
+            "owner": "Tablo\\HstsConfigurationError",
+            "consumers": [
+                "Composer lint",
+                "Composer analyze",
+                "Composer verify",
+                "Native HSTS ingress tests"
+            ],
+            "fingerprint": "sha256:3cd3e805bf368901a00f144f21cbc0ff40ffe7f1963fd857ef27151744b06236"
+        },
+        {
+            "path": "app/HstsPolicy.php",
+            "owner": "Tablo\\HstsPolicy and pure hsts_age/hsts_proxies validation",
+            "consumers": [
+                "Composer lint",
+                "Composer analyze",
+                "Composer verify",
+                "Native HSTS ingress tests"
+            ],
+            "fingerprint": "sha256:b4ae88febe0588d33a11eec0c3526a33a36a37f2512ecbe6c3e48184afed16ec"
+        },
+        {
+            "path": "README.en.md",
+            "owner": "English operator documentation",
+            "consumers": [
+                "HSTS deployment operator guidance"
+            ],
+            "fingerprint": "sha256:fd3e778b0ee19b17762e5d22e52f4dc6f73eebea6f85c7603bfe8d5359897948"
+        },
+        {
+            "path": "tests/fixtures/hsts-router.php",
+            "owner": "Isolated genuine HSTS public index router",
+            "consumers": [
+                "Composer lint",
+                "Composer analyze",
+                "Composer verify",
+                "Native HSTS ingress tests"
+            ],
+            "fingerprint": "sha256:33ce85a3f3824e3626efafe405aa389cb17f1ee957893fae4b5314fd0af24ecb"
+        },
+        {
+            "path": "tests/fixtures/hsts-transport.php",
+            "owner": "Owned bounded sanitizing HSTS proxy fixture",
+            "consumers": [
+                "Composer lint",
+                "Composer analyze",
+                "Composer verify",
+                "Native HSTS ingress tests"
+            ],
+            "fingerprint": "sha256:e5535ded95fc8f87b11f0fe867dce5d022969502dbdfaf1f936b86d56943e2e0"
+        },
+        {
+            "path": "tests/Http/HstsBootstrapTest.php",
+            "owner": "Tablo\\Tests\\Http genuine HSTS bootstrap tests",
+            "consumers": [
+                "Composer lint",
+                "Composer analyze",
+                "Composer verify",
+                "Native HSTS ingress tests"
+            ],
+            "fingerprint": "sha256:c41607ac9800279ef4a0a06f910417b6eb6f9e3561152d58cb8d424c3531224e"
+        },
+        {
+            "path": "tests/Http/HstsReadApiTest.php",
+            "owner": "Tablo\\Tests\\Http\\HstsReadApiTest",
+            "consumers": [
+                "Composer lint",
+                "Composer analyze",
+                "Composer verify",
+                "Native HSTS ingress tests"
+            ],
+            "fingerprint": "sha256:08eac89c3a4284959464d7abdc325007841a1066b8fe2e44acb89bf12fa5b3f5"
+        },
+        {
+            "path": "tests/Http/HstsResponseTest.php",
+            "owner": "Tablo\\Tests\\Http\\HstsResponseTest",
+            "consumers": [
+                "Composer lint",
+                "Composer analyze",
+                "Composer verify",
+                "Native HSTS ingress tests"
+            ],
+            "fingerprint": "sha256:50467e728b5cc7cafa9c9ccee521caeac73ee67d68732385bd1fdf050d3032b3"
+        },
+        {
+            "path": "tests/Network/HstsTransportTest.php",
+            "owner": "Tablo\\Tests\\Network HSTS socket transport tests",
+            "consumers": [
+                "Composer lint",
+                "Composer analyze",
+                "Composer verify",
+                "Native HSTS ingress tests"
+            ],
+            "fingerprint": "sha256:0bf998ced4fdc7f6acbc217647153ac854ac5b767010c24909744cb9f6b10220"
+        },
+        {
+            "path": "tests/Support/HstsFixture.php",
+            "owner": "Tablo\\Tests\\Support\\HstsFixture",
+            "consumers": [
+                "Composer lint",
+                "Composer analyze",
+                "Composer verify",
+                "Native HSTS ingress tests"
+            ],
+            "fingerprint": "sha256:9f031439ee3149eac0d8d919c3be0ff18f36fdbc79c63d65d6a5339de7907743"
+        },
+        {
+            "path": "tests/Unit/HstsPolicyTest.php",
+            "owner": "Tablo\\Tests\\Unit HSTS grammar and transport policy tests",
+            "consumers": [
+                "Composer lint",
+                "Composer analyze",
+                "Composer verify",
+                "Native HSTS ingress tests"
+            ],
+            "fingerprint": "sha256:72ce6247c0bef320a3af1c6c850ca21c23c49d2d89673179b2ac665ef17e6fba"
         },
         {
             "path": "tests/Network/PasswordHelperFixtureObservationTest.php",

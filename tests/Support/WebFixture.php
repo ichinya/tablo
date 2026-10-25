@@ -24,6 +24,7 @@ final class WebFixture
                 'TABLO_TEST_GITHUB_LOG' => $this->directory->path . '/github-calls.log',
                 'TABLO_ALLOW_PRIVATE_NETWORK' => $allowPrivateNetwork ? '1' : '0', 'TABLO_COOKIE_SECURE' => '0',
                 'TABLO_TRUSTED_PROXIES' => $trustedProxies,
+                'TABLO_HSTS_MODE' => 'off', 'TABLO_HSTS_MAX_AGE' => '',
                 'TABLO_TEST_TRUSTED_PROXIES' => $trustedProxies,
                 // Assert that a legacy environment token cannot grant private repository access.
                 'GITHUB_TOKEN' => \Tablo\Tests\Support\FixtureCredentials::value(label: 'fixture-token'),

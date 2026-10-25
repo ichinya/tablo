@@ -7718,6 +7718,108 @@
       "Read API documentation and privacy review"
     ]
   },
+  ".env.example": {
+    "owner": "Example process and Dotenv configuration ownership",
+    "consumers": [
+      "HSTS deployment operator guidance"
+    ]
+  },
+  "app/HstsConfigurationError.php": {
+    "owner": "Tablo\\HstsConfigurationError",
+    "consumers": [
+      "Composer lint",
+      "Composer analyze",
+      "Composer verify",
+      "Native HSTS ingress tests"
+    ]
+  },
+  "app/HstsPolicy.php": {
+    "owner": "Tablo\\HstsPolicy and pure hsts_age/hsts_proxies validation",
+    "consumers": [
+      "Composer lint",
+      "Composer analyze",
+      "Composer verify",
+      "Native HSTS ingress tests"
+    ]
+  },
+  "README.en.md": {
+    "owner": "English operator documentation",
+    "consumers": [
+      "HSTS deployment operator guidance"
+    ]
+  },
+  "tests/fixtures/hsts-router.php": {
+    "owner": "Isolated genuine HSTS public index router",
+    "consumers": [
+      "Composer lint",
+      "Composer analyze",
+      "Composer verify",
+      "Native HSTS ingress tests"
+    ]
+  },
+  "tests/fixtures/hsts-transport.php": {
+    "owner": "Owned bounded sanitizing HSTS proxy fixture",
+    "consumers": [
+      "Composer lint",
+      "Composer analyze",
+      "Composer verify",
+      "Native HSTS ingress tests"
+    ]
+  },
+  "tests/Http/HstsBootstrapTest.php": {
+    "owner": "Tablo\\Tests\\Http genuine HSTS bootstrap tests",
+    "consumers": [
+      "Composer lint",
+      "Composer analyze",
+      "Composer verify",
+      "Native HSTS ingress tests"
+    ]
+  },
+  "tests/Http/HstsReadApiTest.php": {
+    "owner": "Tablo\\Tests\\Http\\HstsReadApiTest",
+    "consumers": [
+      "Composer lint",
+      "Composer analyze",
+      "Composer verify",
+      "Native HSTS ingress tests"
+    ]
+  },
+  "tests/Http/HstsResponseTest.php": {
+    "owner": "Tablo\\Tests\\Http\\HstsResponseTest",
+    "consumers": [
+      "Composer lint",
+      "Composer analyze",
+      "Composer verify",
+      "Native HSTS ingress tests"
+    ]
+  },
+  "tests/Network/HstsTransportTest.php": {
+    "owner": "Tablo\\Tests\\Network HSTS socket transport tests",
+    "consumers": [
+      "Composer lint",
+      "Composer analyze",
+      "Composer verify",
+      "Native HSTS ingress tests"
+    ]
+  },
+  "tests/Support/HstsFixture.php": {
+    "owner": "Tablo\\Tests\\Support\\HstsFixture",
+    "consumers": [
+      "Composer lint",
+      "Composer analyze",
+      "Composer verify",
+      "Native HSTS ingress tests"
+    ]
+  },
+  "tests/Unit/HstsPolicyTest.php": {
+    "owner": "Tablo\\Tests\\Unit HSTS grammar and transport policy tests",
+    "consumers": [
+      "Composer lint",
+      "Composer analyze",
+      "Composer verify",
+      "Native HSTS ingress tests"
+    ]
+  },
   "tests/Network/PasswordHelperFixtureObservationTest.php": {
     "owner": "Tablo\\Tests\\Network\\PasswordHelperFixtureObservationTest",
     "consumers": [
