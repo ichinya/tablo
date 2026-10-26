@@ -353,13 +353,12 @@ function dashboard_assert_windows_port(int $port): void
 {
     $directory = new TemporaryDirectory('tablo-dashboard-port-observer-');
     try {
-        $system = getenv('SystemRoot');
-        if ($system === false || $system === '') { throw new RuntimeException('Windows port observer is unavailable'); }
+        $host = dashboard_observer_host(getenv('TABLO_TEST_PWSH'), getenv('PATH'));
         $script = dirname(__DIR__) . '/fixtures/dashboard-port-observation.ps1';
         $scriptHash = hash_file('sha256', $script);
         if ($scriptHash === false) { throw new RuntimeException('Windows port observer input is unavailable'); }
         $journal = $directory->path . '/stages.jsonl';
-        $command = [$system . '/System32/WindowsPowerShell/v1.0/powershell.exe', '-NoLogo', '-NoProfile', '-NonInteractive', '-File', $script, '-Port', (string) $port, '-Journal', $journal];
+        $command = [$host, '-NoLogo', '-NoProfile', '-NonInteractive', '-File', $script, '-Port', (string) $port, '-Journal', $journal];
         $result = DashboardPortObserver::run($command, $directory);
         $observation = dashboard_accept_observer($result, $directory, $port);
         $available = dashboard_windows_observation($observation, $port);
@@ -374,6 +373,22 @@ function dashboard_assert_windows_port(int $port): void
         Assert::true($available, 'The Windows kernel grants exclusive use of the owned port');
     } catch (Throwable $error) { $directory->retainFailure($error); throw $error; }
     finally { $directory->cleanup(static fn () => dashboard_finish_observer($directory)); }
+}
+
+/** Select a regular executable path without starting or warming an observer process. */
+function dashboard_observer_host(string|false $configured, string|false $path): string
+{
+    if ($configured !== false && $configured !== '') {
+        $host = realpath($configured);
+        if ($host === false || !is_file($host)) { throw new RuntimeException('Configured PowerShell observer host is unavailable'); }
+        return $host;
+    }
+    foreach (explode(PATH_SEPARATOR, $path === false ? '' : $path) as $directory) {
+        if ($directory === '') { continue; }
+        $host = realpath($directory . '/pwsh.exe');
+        if ($host !== false && is_file($host)) { return $host; }
+    }
+    throw new RuntimeException('PowerShell observer host is unavailable');
 }
 
 /** @param array{exit_code: ?int, stdout: string, stderr: string, files: array{stdout: string, stderr: string, receipt: string}} $result
@@ -651,10 +666,33 @@ function dashboard_observer_contract_controls(): void
     $primary = null;
     try {
         dashboard_journal_controls($directory);
+        dashboard_observer_host_controls($directory);
         if (PHP_OS_FAMILY !== 'Windows') { return; }
         foreach (['late-entry', 'incomplete', 'lingering'] as $mode) { dashboard_observer_process_control($mode); }
     } catch (Throwable $error) { $primary = $error; $directory->retainFailure($error); throw $error; }
     finally { dashboard_finish_observer_control($directory, $primary); }
+}
+
+function dashboard_observer_host_controls(TemporaryDirectory $directory): void
+{
+    $first = $directory->path . '/first host'; $second = $directory->path . '/second host';
+    if (!mkdir($first) || !mkdir($second)) { throw new RuntimeException('Cannot create owned observer host controls'); }
+    foreach ([$first, $second] as $path) {
+        if (file_put_contents($path . '/pwsh.exe', data: 'path-selection-only') !== 19) { throw new RuntimeException('Cannot write owned observer host control'); }
+    }
+    $firstHost = FixtureValue::string(realpath($first . '/pwsh.exe'));
+    $secondHost = FixtureValue::string(realpath($second . '/pwsh.exe'));
+    Assert::same(dashboard_observer_host($secondHost, $first), $secondHost, 'The explicit configured host takes precedence');
+    Assert::same(dashboard_observer_host(false, $first . PATH_SEPARATOR . $second), $firstHost, 'PATH selects its first regular pwsh executable');
+    Assert::same(dashboard_observer_host('', $second), $secondHost, 'An empty optional override uses PATH');
+    Assert::same(dashboard_observer_host(false, PATH_SEPARATOR . $first), $firstHost, 'Empty PATH entries do not select the working directory');
+    foreach ([[$first, $second], [$firstHost . ' -NoProfile', $second], [$directory->path . '/missing.exe', $second],
+        [false, false], [false, ''], [false, $directory->path . '/missing']] as [$configured, $path]) {
+        $failure = null;
+        try { dashboard_observer_host($configured, $path); }
+        catch (RuntimeException $error) { $failure = $error; }
+        Assert::true($failure instanceof RuntimeException, 'Missing or non-file hosts fail without splitting tokens or silently replacing an explicit override');
+    }
 }
 
 function dashboard_journal_controls(TemporaryDirectory $directory): void
@@ -697,11 +735,10 @@ function dashboard_observer_process_control(string $mode): void
     $directory = new TemporaryDirectory('tablo-dashboard-observer-contract-');
     $primary = null;
     try {
-        $system = getenv('SystemRoot');
-        if ($system === false || $system === '') { throw new RuntimeException('Windows control observer is unavailable'); }
+        $host = dashboard_observer_host(getenv('TABLO_TEST_PWSH'), getenv('PATH'));
         $port = dashboard_observer_control_port();
         dashboard_write_observer_control($directory);
-        $command = [$system . '/System32/WindowsPowerShell/v1.0/powershell.exe', '-NoLogo', '-NoProfile', '-NonInteractive',
+        $command = [$host, '-NoLogo', '-NoProfile', '-NonInteractive',
             '-File', $directory->path . '/control.ps1', '-Observer', dirname(__DIR__) . '/fixtures/dashboard-port-observation.ps1',
             '-Port', (string) $port, '-Journal', $directory->path . '/stages.jsonl', '-Mode', $mode];
         if ($mode === 'lingering') { dashboard_lingering_observer($command, $directory, $port); return; }

@@ -33,7 +33,7 @@ final class GitFieldCheck
                 $absent = $field === 'latest_release' && $value === null;
                 $state['git_outcomes'][$field] = ['status' => $absent ? 'absent' : 'ok',
                     'reason' => $absent ? 'no-release' : 'ok', 'http_status' => null, 'eligible_at' => null];
-            } catch (\PDOException | SharedKeyFailure $error) { throw $error; }
+            } catch (\PDOException | DatabaseFailure | SharedKeyFailure $error) { throw $error; }
             catch (\Throwable $e) {
                 GitCheckResult::failed($field, $e, $fieldOrder, $state, $errors);
             }

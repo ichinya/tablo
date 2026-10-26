@@ -19,7 +19,7 @@ final class WorkerSitePriority
                 $available = array_filter($turns, static fn (string $field): bool =>
                     in_array($field, ['open_issues', 'open_prs'], strict: true) ? $eligible['search'] : $eligible['core'], ARRAY_FILTER_USE_KEY);
                 $priority = $available === [] ? PHP_INT_MAX : min($available);
-            } catch (\PDOException | SharedKeyFailure $error) { throw $error; }
+            } catch (\PDOException | DatabaseFailure | SharedKeyFailure $error) { throw $error; }
             catch (\Throwable) { $priority = PHP_INT_MAX; }
             $priorities[] = [$id, $priority, $position];
         }

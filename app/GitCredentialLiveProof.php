@@ -11,7 +11,7 @@ final class GitCredentialLiveProof
     {
             try { return hash_equals($proof->token, $sites->resolveToken($input, $fresh))
                 && hash_equals($proof->revision, $sites->credentialRevision($input, $fresh)); }
-            catch (\PDOException | SharedKeyFailure $error) { throw $error; }
+            catch (\PDOException | DatabaseFailure | SharedKeyFailure $error) { throw $error; }
             catch (\Throwable) { return false; }
     }
 }

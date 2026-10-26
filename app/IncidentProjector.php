@@ -11,6 +11,7 @@ final class IncidentProjector
     /** @param Input $row */
     public function accepted(int $historyId, array $row): void
     {
+        ServerWriterAdmission::borrow($this->db);
         $siteId = $row['site_id'];
         $checkpoint = \Tablo\SqlStatement::checked($this->db->prepare('SELECT * FROM incident_checkpoints WHERE site_id = ?'));
         try { $checkpoint->execute([$siteId]); $previous = \Tablo\SqlRows::one($checkpoint->fetch(), \Tablo\SqlIncidentCheckpointsRow::checked(...)); }
@@ -29,10 +30,15 @@ final class IncidentProjector
         try { $statement->execute([$siteId]); $openId = SqlValue::integerOrFalse($statement->fetchColumn()); }
         finally { $statement->closeCursor(); }
         (new IncidentTransition($this->db))->apply(new IncidentObservation($historyId,$row,$older),$openId);
-        $statement = \Tablo\SqlStatement::checked($this->db->prepare('INSERT INTO incident_checkpoints (site_id, last_history_id, config_revision, watermark)
+        $sqlite = 'INSERT INTO incident_checkpoints (site_id, last_history_id, config_revision, watermark)
             VALUES (?, ?, ?, ?) ON CONFLICT(site_id) DO UPDATE SET last_history_id = excluded.last_history_id,
-            config_revision = excluded.config_revision, watermark = excluded.watermark'));
-        try { $statement->execute([$siteId, $historyId, $row['config_revision'], max($watermark, $row['checked_at'])]); }
+            config_revision = excluded.config_revision, watermark = excluded.watermark';
+        $server = 'INSERT INTO incident_checkpoints (site_id, last_history_id, config_revision, watermark) VALUES (?, ?, ?, ?)
+            ON DUPLICATE KEY UPDATE last_history_id = ?, config_revision = ?, watermark = ?';
+        $statement = \Tablo\SqlStatement::checked($this->db->prepare(ServerDialect::choose($this->db, $sqlite, $server)));
+        $values = [$siteId, $historyId, $row['config_revision'], max($watermark, $row['checked_at'])];
+        if (DatabaseSession::server($this->db)) { $values = [...$values, $historyId, $row['config_revision'], max($watermark, $row['checked_at'])]; }
+        try { $statement->execute($values); }
         finally { $statement->closeCursor(); }
     }
 

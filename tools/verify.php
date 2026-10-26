@@ -19,11 +19,16 @@ function record_gate_state(?string $prefix, string $phase, array $state): void
         $state['stdout_sha256'] = hash_file('sha256', $prefix . '.stdout');
         $state['stderr_sha256'] = hash_file('sha256', $prefix . '.stderr');
     }
-    file_put_contents($prefix . '-' . $phase . '.json', json_encode($state, JSON_PRETTY_PRINT | JSON_THROW_ON_ERROR));
+    $output = fopen($prefix . '-' . $phase . '.json', mode: 'xb');
+    if ($output === false) { throw new RuntimeException('Cannot reserve gate receipt'); }
+    try {
+        $bytes = json_encode($state, JSON_PRETTY_PRINT | JSON_THROW_ON_ERROR);
+        if (fwrite($output, $bytes) !== strlen($bytes) || !fflush($output) || !fsync($output)) { throw new RuntimeException('Gate receipt write failed'); }
+    } finally { fclose($output); }
 }
 
 /** @param list<string> $command */
-function run_gate(array $command): void
+function run_gate(array $command): ?string
 {
     fwrite(STDOUT, '> ' . implode(' ', $command) . PHP_EOL);
     fflush(STDOUT);
@@ -77,6 +82,7 @@ function run_gate(array $command): void
     if ($exit !== 0) {
         throw new RuntimeException('Gate failed: ' . implode(' ', $command));
     }
+    return $capturePrefix;
 }
 
 try {
@@ -86,6 +92,8 @@ try {
     require __DIR__ . '/NativeTestAttachments.php';
     require __DIR__ . '/BindingsDeclaration.php';
     require_once __DIR__ . '/MagoProcessClosure.php';
+    require_once __DIR__ . '/ServerTestEvidence.php';
+    $nativeReport = Tablo\Tools\server_verify_native_output($root);
     $nativeMap = [];
     run_gate([PHP_BINARY, 'tools/lint.php']);
     run_gate([PHP_BINARY, 'tools/analyze.php']);
@@ -222,7 +230,8 @@ try {
 
     }
     run_gate([$lekalo, 'contract', 'check', '--module', 'dashboard', '--no-cache']);
-    run_gate([PHP_BINARY, 'vendor/bin/testo', 'run', '--path', 'tests/Unit', '--path', 'tests/Network', '--path', 'tests/Http']);
+    $nativeCapture = run_gate(Tablo\Tools\server_verify_native_command($nativeReport));
+    if ($nativeReport !== null) { Tablo\Tools\server_verify_native_export($root, $nativeReport, $nativeCapture); }
     if (!is_dir('artifacts')) { mkdir('artifacts'); }
     file_put_contents('artifacts/native-test-map.json', json_encode($nativeMap,
         JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES | JSON_THROW_ON_ERROR) . "\n");

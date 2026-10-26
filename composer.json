@@ -16,6 +16,7 @@
   },
   "autoload": { "classmap": ["app/"], "files": ["app/bootstrap.php"] },
   "require-dev": { "testo/testo": "^0.10.54" },
+  "suggest": { "ext-pdo_mysql": "Required only when TABLO_DB_DRIVER=mysql or mariadb is explicitly selected" },
   "autoload-dev": { "psr-4": { "Tablo\\Tests\\": "tests/" } },
   "scripts": {
     "serve": "php -S 127.0.0.1:8087 -t public public/router.php",
@@ -23,7 +24,8 @@
     "test": "@php vendor/bin/testo run",
     "lint": "@php tools/lint.php",
     "analyze": "@php tools/analyze.php",
-    "verify": "php tools/verify.php"
+    "verify": "@php tools/verify.php",
+    "verify:server": "@php tools/verify-server.php"
   },
   "config": { "sort-packages": true, "platform": { "php": "8.2.0" } }
 }

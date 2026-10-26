@@ -28,6 +28,12 @@ final class TokenVault
     // Policy only: never expose the selected path, key bytes or lifetime fingerprint.
     public function isExternal(): bool { return $this->external; }
 
+    public function serverVerifier(string $installationId): string
+    {
+        if (!$this->external || preg_match('/\A[0-9a-f]{32}\z/D', $installationId) !== 1) { throw new DatabaseFailure('key'); }
+        return hash_hmac('sha256', "tablo/server-key-verifier/v1\0" . $installationId, $this->keyFile->read());
+    }
+
 
 
 

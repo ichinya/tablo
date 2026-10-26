@@ -21,10 +21,18 @@ final class IdleTimeoutSettings
 
     public function update(mixed $input): void
     {
+        if (DatabaseSession::server($this->db) && !WriteTransaction::owns($this->db)) {
+            WriteTransaction::run($this->db, function () use ($input): void { $this->update($input); }); return;
+        }
         $value = IdleTimeoutInput::parse($input);
-        $statement = SqlStatement::checked($this->db->prepare('INSERT INTO installation_settings (id, session_idle_timeout_minutes) VALUES (1, ?)
-            ON CONFLICT(id) DO UPDATE SET session_idle_timeout_minutes = excluded.session_idle_timeout_minutes'));
-        try { $statement->bindValue(1, $value, \PDO::PARAM_INT); $statement->execute(); }
+        $statement = SqlStatement::checked($this->db->prepare(ServerDialect::choose($this->db,
+            'INSERT INTO installation_settings (id, session_idle_timeout_minutes) VALUES (1, ?) ON CONFLICT(id) DO UPDATE SET session_idle_timeout_minutes = excluded.session_idle_timeout_minutes',
+            'INSERT INTO installation_settings (id, session_idle_timeout_minutes) VALUES (1, ?) ON DUPLICATE KEY UPDATE session_idle_timeout_minutes = ?')));
+        try {
+            $statement->bindValue(1, $value, \PDO::PARAM_INT);
+            if (DatabaseSession::server($this->db)) { $statement->bindValue(2, $value, \PDO::PARAM_INT); }
+            $statement->execute();
+        }
         finally { $statement->closeCursor(); }
     }
 }

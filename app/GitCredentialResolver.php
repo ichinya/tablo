@@ -19,7 +19,7 @@ final class GitCredentialResolver
             if ($scope === 'authenticated' && $equivalentScope !== null) { $scope = $equivalentScope; }
             return new GitResolvedCredential($token, $revision, $scope, $equivalentScope);
         } catch (\RuntimeException $e) {
-            if (($this->worker || $this->propagateSharedFailures) && ($e instanceof \PDOException || $e instanceof SharedKeyFailure)) { throw $e; }
+            if (($this->worker || $this->propagateSharedFailures) && ($e instanceof \PDOException || $e instanceof DatabaseFailure || $e instanceof SharedKeyFailure)) { throw $e; }
             throw new ValidationException(['github_token' => $e->getMessage()]);
         }
     }

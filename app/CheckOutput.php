@@ -47,7 +47,7 @@ final class CheckOutput
     public static function fatalReason(\Throwable $error): string
     {
         return match (true) {
-            $error instanceof \PDOException => 'storage-failed',
+            $error instanceof \PDOException || $error instanceof DatabaseFailure => 'storage-failed',
             $error instanceof SharedKeyFailure => 'key-unavailable',
             default => 'check-failed',
         };

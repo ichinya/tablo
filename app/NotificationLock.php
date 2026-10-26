@@ -9,9 +9,14 @@ use RuntimeException;
 final class NotificationLock
 {
     private mixed $handle = null;
+    private ?ServerLock $serverLock = null;
 
     public function acquire(PDO $db): bool
     {
+        if (DatabaseSession::server($db)) {
+            $this->serverLock ??= new ServerLock();
+            return $this->serverLock->acquire($db, 'channel');
+        }
         $query = \Tablo\SqlStatement::checked($db->query('PRAGMA main.database_list'));
         try { $rows = \Tablo\SqlRows::all($query->fetchAll(), \Tablo\SqlFileNameSeqRow::checked(...)); } finally { $query->closeCursor(); }
         $file = '';
@@ -40,6 +45,7 @@ final class NotificationLock
 
     public function close(): void
     {
+        if ($this->serverLock !== null) { $this->serverLock->close(); $this->serverLock = null; }
         if (is_resource($this->handle)) { fclose($this->handle); }
         $this->handle = null; // Stable inode remains; never unlink a shared dispatch lock.
     }

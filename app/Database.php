@@ -18,6 +18,10 @@ final class Database
 
     public static function connect(#[\SensitiveParameter] ?string $path = null, #[\SensitiveParameter] ?TokenVault $vault = null): PDO
     {
+        $configuration = DatabaseConfiguration::fromEnvironment();
+        if ($configuration->server()) {
+            return DatabaseConnectionFactory::selected($configuration, $path, $vault);
+        }
         $vault ??= TokenVault::configured(); // Explicit file failure precedes any database open.
         $vault?->assertAvailable(KeyRequirement::Available);
         $path ??= ExistingConnection::resolvePath(path: null);
@@ -51,6 +55,10 @@ final class Database
 
     public static function preflightExternalKey(#[\SensitiveParameter] ?string $path = null): void
     {
+        if (DatabaseConfiguration::fromEnvironment()->server()) {
+            DatabaseConnectionFactory::selected(DatabaseConfiguration::fromEnvironment(), $path);
+            return;
+        }
         $vault = TokenVault::configured();
         if ($vault === null) { throw new SharedKeyFailure('External token key configuration is required for this preflight.'); }
         $db = ExistingConnection::openExistingConnection($path);
@@ -70,6 +78,10 @@ final class Database
 
     public static function openWorkerControl(#[\SensitiveParameter] ?string $path = null): PDO
     {
+        $configuration = DatabaseConfiguration::fromEnvironment('control');
+        if ($configuration->server()) {
+            return DatabaseConnectionFactory::selected($configuration, $path);
+        }
         $db = ExistingConnection::openExistingConnection($path);
         InstalledAdministrator::installationIdentity($db);
         if (SchemaVersion::schemaVersion($db) !== Database::CURRENT_SCHEMA_VERSION

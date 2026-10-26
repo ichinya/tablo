@@ -34,7 +34,7 @@ final class EndpointVersionCheck
                         $headers === [] ? null : substr($headers[0], strlen('Authorization: Bearer ')))];
                     $state['version_outcome']['status'] = 'ok';
                     $state['version_outcome']['reason'] = 'ok';
-            } catch (\PDOException | SharedKeyFailure $error) { throw $error; }
+            } catch (\PDOException | DatabaseFailure | SharedKeyFailure $error) { throw $error; }
             catch (\Throwable $e) {
                 $state['version_outcome']['reason'] = $e instanceof HttpFailure ? $e->reason : 'invalid-data';
                 $errors[] = 'Version: ' . ($e instanceof HttpFailure ? $e->getMessage() : 'Некорректный ответ проверки версии.');

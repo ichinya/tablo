@@ -7,6 +7,10 @@ final class SingletonAdministrator
 {
     public static function hash(\PDO $db): string
     {
+        if (DatabaseSession::server($db)) {
+            ServerSchema::admit($db);
+            return self::validatedHash($db, 'SELECT id, password_hash FROM users');
+        }
         $statement = \Tablo\SqlStatement::checked($db->query("SELECT sql FROM main.sqlite_schema WHERE type = 'table' AND name = 'users'"));
         // sqlite_schema.sql is native TEXT or NULL; an absent matching row remains false.
         try {
@@ -21,7 +25,12 @@ final class SingletonAdministrator
         if (!is_string($sql) || $normalize($sql) !== $normalize($expected)) {
             throw new InstallationException('Installation schema incompatible.');
         }
-        $statement = \Tablo\SqlStatement::checked($db->query('SELECT id, password_hash FROM main.users'));
+        return self::validatedHash($db, 'SELECT id, password_hash FROM main.users');
+    }
+
+    private static function validatedHash(\PDO $db, string $sql): string
+    {
+        $statement = \Tablo\SqlStatement::checked($db->query($sql));
         try { $users = \Tablo\SqlRows::all($statement->fetchAll(), \Tablo\SqlUsersIdPasswordHashRow::checked(...)); }
         finally { $statement->closeCursor(); }
         if (count($users) !== 1) { throw new InstallationException('Administrator unavailable.'); }

@@ -25,9 +25,12 @@ function rotate_read_api_token(\PDO $db, #[\SensitiveParameter] string $fingerpr
 {
     $secret = ReadApiToken::generate();
     ReadApiTokenRepository::locked($db, $fingerprint, $authorize, static function () use ($db, $secret, $fingerprint): void {
-        ReadApiTokenRepository::write($db, 'INSERT INTO main.read_api_token(id,secret_hash,administrator_fingerprint,created_at) VALUES(1,?,?,?)
-            ON CONFLICT(id) DO UPDATE SET secret_hash=excluded.secret_hash,administrator_fingerprint=excluded.administrator_fingerprint,created_at=excluded.created_at',
-            [ReadApiToken::digest($secret), $fingerprint, gmdate('Y-m-d\TH:i:s\Z')]);
+        $sqlite = 'INSERT INTO main.read_api_token(id,secret_hash,administrator_fingerprint,created_at) VALUES(1,?,?,?)
+            ON CONFLICT(id) DO UPDATE SET secret_hash=excluded.secret_hash,administrator_fingerprint=excluded.administrator_fingerprint,created_at=excluded.created_at';
+        $server = 'INSERT INTO read_api_token(id,secret_hash,administrator_fingerprint,created_at) VALUES(1,?,?,?)
+            ON DUPLICATE KEY UPDATE secret_hash=?,administrator_fingerprint=?,created_at=?';
+        $values = [ReadApiToken::digest($secret), $fingerprint, gmdate('Y-m-d\TH:i:s\Z')];
+        ReadApiTokenRepository::write($db, ServerDialect::choose($db, $sqlite, $server), DatabaseSession::server($db) ? [...$values, ...$values] : $values);
     });
     return $secret;
 }
@@ -36,13 +39,15 @@ function rotate_read_api_token(\PDO $db, #[\SensitiveParameter] string $fingerpr
 function revoke_read_api_token(\PDO $db, #[\SensitiveParameter] string $fingerprint, \Closure $authorize): void
 {
     ReadApiTokenRepository::locked($db, $fingerprint, $authorize, static function () use ($db): void {
-        ReadApiTokenRepository::write($db, 'DELETE FROM main.read_api_token WHERE id=1');
+        ReadApiTokenRepository::write($db, ServerDialect::choose($db, 'DELETE FROM main.read_api_token WHERE id=1', 'DELETE FROM read_api_token WHERE id=1'));
     });
 }
 
 function read_api_administrator(\PDO $db): ?string
     {
-        $statement = SqlStatement::checked($db->query('SELECT id, substr(CAST(password_hash AS BLOB),1,513) AS hash FROM main.users LIMIT 2'));
+        $statement = SqlStatement::checked($db->query(ServerDialect::choose($db,
+            'SELECT id, substr(CAST(password_hash AS BLOB),1,513) AS hash FROM main.users LIMIT 2',
+            'SELECT id, SUBSTRING(password_hash,1,513) AS hash FROM users LIMIT 2')));
         try { $rows = SqlRows::all($statement->fetchAll(\PDO::FETCH_ASSOC), static fn (array $row): array => $row); }
         finally { $statement->closeCursor(); }
         if (count($rows) !== 1) { return null; }
@@ -59,10 +64,12 @@ function read_api_administrator(\PDO $db): ?string
 /** @return array{secret_hash: string, administrator_fingerprint: string, created_at: string}|null */
 function read_api_stored_token(\PDO $db): ?array
     {
-        $statement = SqlStatement::checked($db->query("SELECT id,
+        $sqlite = "SELECT id,
             CASE WHEN typeof(secret_hash)='text' THEN substr(CAST(secret_hash AS BLOB),1,65) ELSE 0 END AS secret_hash,
             CASE WHEN typeof(administrator_fingerprint)='text' THEN substr(CAST(administrator_fingerprint AS BLOB),1,65) ELSE 0 END AS administrator_fingerprint,
-            CASE WHEN typeof(created_at)='text' THEN substr(CAST(created_at AS BLOB),1,21) ELSE 0 END AS created_at FROM main.read_api_token LIMIT 2"));
+            CASE WHEN typeof(created_at)='text' THEN substr(CAST(created_at AS BLOB),1,21) ELSE 0 END AS created_at FROM main.read_api_token LIMIT 2";
+        $server = 'SELECT id, SUBSTRING(secret_hash,1,65) AS secret_hash, SUBSTRING(administrator_fingerprint,1,65) AS administrator_fingerprint, SUBSTRING(created_at,1,21) AS created_at FROM read_api_token LIMIT 2';
+        $statement = SqlStatement::checked($db->query(ServerDialect::choose($db, $sqlite, $server)));
         try { $rows = SqlRows::all($statement->fetchAll(\PDO::FETCH_ASSOC), static fn (array $row): array => $row); }
         finally { $statement->closeCursor(); }
         if ($rows === []) { return null; }
@@ -81,16 +88,17 @@ function read_api_stored_token(\PDO $db): ?array
  * @param \Closure(): void $write */
 function read_api_token_locked(\PDO $db, #[\SensitiveParameter] string $expected, \Closure $authorize, #[\SensitiveParameter] \Closure $write): void
     {
-        $db->exec('BEGIN IMMEDIATE');
+        $transaction = WriteTransaction::begin($db);
         try {
             $current = ReadApiTokenRepository::administrator($db);
             if ($current === null || !ReadApiToken::validDigest($expected) || !hash_equals($current, $expected) || !$authorize()) {
                 throw new \RuntimeException('Administrator authorization expired.');
             }
             $write();
-            $db->exec('COMMIT');
-        } catch (\Throwable) {
-            try { $db->exec('ROLLBACK'); } catch (\Throwable $discardedCleanup) { unset($discardedCleanup); }
+            $transaction->commit();
+        } catch (\Throwable $error) {
+            $transaction->rollbackPreserving();
+            if ($error instanceof DatabaseFailure) { throw $error; }
             throw new \RuntimeException('Cannot update read API token.');
         }
     }

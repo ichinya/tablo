@@ -1,0 +1,475 @@
+<?php
+declare(strict_types=1);
+
+namespace Tablo\Tests\Unit;
+
+use Tablo\DatabaseConfiguration;
+use Tablo\DatabaseFailure;
+use Tablo\ServerMetadataPrivileges;
+use Testo\Assert;
+use Testo\Test;
+
+final class ServerMetadataPrivilegesTest
+{
+    #[Test]
+    public function mariaDbNoActiveRoleSentinelReachesTheCompleteDirectGrantChecks(): void
+    { metadata_privileges_sentinel(); metadata_checks_visible_to_select_only_writer(); }
+
+    #[Test]
+    public function actualEnabledRolesNeverHideBehindNullOrBecomePublicExceptions(): void
+    { metadata_privileges_enabled_roles(); }
+
+    #[Test]
+    public function inactiveApplicableRolesAndPublicRemainForbidden(): void
+    { metadata_privileges_applicable(); }
+
+    #[Test]
+    public function acceptingTheSentinelCannotSkipIdentityOrGrantValidation(): void
+    { metadata_privileges_grants(); }
+
+    #[Test]
+    public function mysqlRetainsItsExistingQueriesAndPartialRevokePolicy(): void
+    { metadata_privileges_mysql(); }
+}
+
+function metadata_checks_visible_to_select_only_writer(): void
+{
+    foreach (['mariadb', 'mysql'] as $engine) {
+        foreach (['writer', 'control', 'migrator', 'reader'] as $role) {
+            foreach (['', 'equivalent', 'missing', 'extra', 'duplicate', 'wrong-name', 'changed', 'unenforced'] as $fault) {
+                metadata_checks_role_case($engine, $role, $fault);
+            }
+        }
+    }
+    foreach (['writer', 'control'] as $role) { metadata_checks_bound_snapshot($role); }
+    metadata_records_engine_binding();
+    metadata_records_layout_selection();
+    metadata_records_default_selection();
+}
+
+function metadata_checks_role_case(string $engine, string $role, string $fault): void
+{
+    $db = new MetadataPrivilegesPdo($engine, fault: 'checks/' . $fault);
+    $configuration = metadata_checks_configuration($engine, $role);
+    $session = \Tablo\DatabaseSession::register($db, $configuration);
+    $privileged = $engine === 'mariadb' && in_array($role, ['writer', 'control'], strict: true);
+    $caught = null; $metadata = null;
+    try {
+        if ($privileged) { $metadata = metadata_checks_observation($db, $configuration); }
+        \Tablo\ServerCheckAdmission::verify($db, metadata_checks_table($engine));
+    } catch (DatabaseFailure $error) { $caught = $error; }
+    finally { $session->metadataObservation = null; }
+    Assert::same($db->opened, $db->closed);
+    if ($metadata !== null) { Assert::same($metadata->opened, $metadata->closed); }
+    $expected = in_array($fault, ['', 'equivalent'], strict: true) || ($engine === 'mariadb' && $fault === 'unenforced') ? null : 'schema';
+    Assert::same($caught?->category, $expected);
+    Assert::same($caught?->getPrevious(), null);
+    Assert::same(count(array_filter($db->queries, static fn (string $query): bool => str_contains($query, 'FROM information_schema.CHECK_CONSTRAINTS'))), $privileged ? 0 : 1);
+    if (!$privileged && $fault === '') { metadata_checks_direct_role($db, $configuration); }
+}
+
+function metadata_checks_configuration(string $engine, string $role): DatabaseConfiguration
+{
+    return DatabaseConfiguration::fromEnvironment(role: $role, environment: ['TABLO_DB_DRIVER' => $engine, 'TABLO_DB_NAME' => 'tablo_meta',
+        'TABLO_DB_HOST' => '127.0.0.1', 'TABLO_DB_PORT' => '3306', 'TABLO_DB_USER' => 'writer', 'TABLO_DB_PASSWORD' => '', 'TABLO_DB_TLS' => 'local',
+        'TABLO_DB_MIGRATE_USER' => 'migrator', 'TABLO_DB_MIGRATE_PASSWORD' => '', 'TABLO_DB_READ_USER' => 'reader', 'TABLO_DB_READ_PASSWORD' => '']);
+}
+
+function metadata_checks_direct_role(MetadataPrivilegesPdo $db, DatabaseConfiguration $configuration): void
+{
+    $queries = $db->queries;
+    Assert::true(class_exists(\Tablo\ServerMetadataAdmission::class));
+    Assert::same(\Tablo\server_metadata_check_observation($db, $configuration, version: 10), []);
+    Assert::same(\Tablo\server_metadata_check_observation($db, $configuration, version: 10, expectedTables: \Tablo\ServerSchema::layout($db)['tables']), []);
+    $caught = null;
+    try { \Tablo\ServerMetadataAdmission::checks($db, 'tablo_migration_journal'); } catch (DatabaseFailure $error) { $caught = $error; }
+    Assert::same($caught?->category, 'schema'); Assert::same($caught?->getPrevious(), null);
+    Assert::same($db->queries, $queries); Assert::same($db->opened, $db->closed);
+}
+
+/** @return \Tablo\ServerSchema::Table */
+function metadata_checks_table(string $engine, string $name = 'tablo_migration_journal'): array
+{
+    /** @var \Tablo\ServerSchema::Layout $layout Independent frozen pre-record descriptor oracle. */
+    $layout = json_decode(\Tablo\RequiredFile::bytes(file_get_contents(dirname(__DIR__, levels: 2) . '/tests/fixtures/server-layouts/v10/' . ($engine === 'mysql' ? 'mysql84' : 'mariadb114') . '-layout.json')),
+        associative: true, flags: JSON_THROW_ON_ERROR);
+    foreach ($layout['tables'] as $table) { if ($table['name'] === $name) { return $table; } }
+    throw new \RuntimeException('Missing public table descriptor.');
+}
+
+/** Models table-only SELECT filtering through both MariaDB metadata queries.
+ * @return list<array> */
+function metadata_checks_rows(MetadataPrivilegesPdo $db, string $query, string $name): array
+{
+    if ($db->engine === 'mariadb' && in_array(\Tablo\DatabaseSession::get($db)?->configuration->role, ['writer', 'control'], strict: true)) { return []; }
+    if ($db->engine === 'mysql' && !str_contains($query, 't.ENFORCED AS enforced')) { throw new \RuntimeException('MySQL enforcement query lost.'); }
+    $table = metadata_checks_table($db->engine, $name); $rows = [];
+    foreach ($table['checks'] as $check) {
+        $clause = $db->engine === 'mysql' ? strtr($check['expression'], ["'" => "\\'"]) : $check['expression'];
+        $rows[] = ['name' => $check['name'], 'clause' => $clause, 'enforced' => str_ends_with($db->fault, '/unenforced') ? 'NO' : 'YES'];
+    }
+    if ($db->fault === 'checks/missing') { array_pop($rows); }
+    if ($db->fault === 'checks/extra') { $rows[] = ['name' => 'unexpected', 'clause' => 'id = 1', 'enforced' => 'YES']; }
+    if ($db->fault === 'checks/duplicate') { $rows[0] = $rows[1] ?? throw new \RuntimeException('Missing public CHECK.'); }
+    if ($db->fault === 'checks/wrong-name') { $rows[0]['name'] = 'unexpected'; }
+    if ($db->fault === 'checks/changed') { $rows[0]['clause'] = 'step >= 1'; }
+    if ($db->fault === 'checks/equivalent' && $rows !== []) { $rows[0]['clause'] = '(' . $rows[0]['clause'] . ')'; }
+    return $rows;
+}
+
+/** @param array<int|string, mixed> $bindings
+ * @return list<array> */
+function metadata_checks_query(MetadataPrivilegesPdo $db, string $query, array $bindings): array
+{
+    $expected = $db->engine === 'mysql'
+        ? 'SELECT c.CONSTRAINT_NAME AS name, c.CHECK_CLAUSE AS clause, t.ENFORCED AS enforced FROM information_schema.CHECK_CONSTRAINTS c JOIN information_schema.TABLE_CONSTRAINTS t ON t.CONSTRAINT_SCHEMA = c.CONSTRAINT_SCHEMA AND t.CONSTRAINT_NAME = c.CONSTRAINT_NAME WHERE t.TABLE_SCHEMA = DATABASE() AND t.TABLE_NAME = ? AND t.CONSTRAINT_TYPE = ?'
+        : 'SELECT CONSTRAINT_NAME AS name, CHECK_CLAUSE AS clause FROM information_schema.CHECK_CONSTRAINTS WHERE CONSTRAINT_SCHEMA = DATABASE() AND TABLE_NAME = ?';
+    if ($query === $expected) { return metadata_checks_rows($db, $query, \Tablo\SqlColumn::string($bindings, key: '1')); }
+    if ($query === 'SELECT DATABASE() AS catalog, VERSION() AS version, @@version_comment AS comment, @@hostname AS host, @@port AS port, @@server_id AS server_id, @@server_uid AS server_uid') {
+        return [['catalog' => 'tablo_meta', 'version' => '11.4', 'comment' => 'fixture', 'host' => 'fixture', 'port' => 3306, 'server_id' => 1, 'server_uid' => 'fixture']];
+    }
+    throw new \RuntimeException('Unexpected CHECK metadata SQL.');
+}
+
+function metadata_checks_observation(MetadataPrivilegesPdo $writer, DatabaseConfiguration $configuration): MetadataPrivilegesPdo
+{
+    $metadata = new MetadataPrivilegesPdo('mariadb', fault: $writer->fault);
+    $environment = ['TABLO_DB_DRIVER' => 'mariadb', 'TABLO_DB_NAME' => 'tablo_meta', 'TABLO_DB_HOST' => '127.0.0.1', 'TABLO_DB_PORT' => '3306',
+        'TABLO_DB_USER' => 'writer', 'TABLO_DB_PASSWORD' => '', 'TABLO_DB_TLS' => 'local', 'TABLO_DB_METADATA_USER' => 'meta', 'TABLO_DB_METADATA_PASSWORD' => ''];
+    \Tablo\DatabaseSession::register($metadata, DatabaseConfiguration::fromEnvironment(environment: $environment)->metadata());
+    Assert::true(class_exists(\Tablo\ServerMetadataAdmission::class));
+    try { $checks = metadata_checks_invocation_tables($metadata, $configuration); }
+    finally { Assert::same($metadata->opened, $metadata->closed); }
+    $session = \Tablo\DatabaseSession::get($writer) ?? throw new \RuntimeException('Missing writer session.');
+    $session->metadataObservation = ['server' => \Tablo\ServerMetadataIdentity::server($writer), 'account' => "'meta'@'%'",
+        'objects' => [['name' => 'tablo_migration_journal', 'kind' => 'BASE TABLE']], 'installation' => [], 'checks' => $checks];
+    return $metadata;
+}
+
+/** Both paths use the existing closed metadata model, never a connection factory seam.
+ * @return array<string, array<string, string>> */
+function metadata_checks_invocation_tables(MetadataPrivilegesPdo $metadata, DatabaseConfiguration $configuration): array
+{
+    $tables = \Tablo\ServerSchema::layout($metadata)['tables']; $before = $tables;
+    $queryStart = count($metadata->queries);
+    $default = []; $provided = []; $defaultFailure = null; $providedFailure = null;
+    try { $default = \Tablo\server_metadata_check_observation($metadata, $configuration, version: 10); }
+    catch (DatabaseFailure $error) { $defaultFailure = $error; }
+    $defaultQueries = array_slice($metadata->queries, $queryStart);
+    try { $provided = \Tablo\server_metadata_check_observation($metadata, $configuration, version: 10, expectedTables: $tables); }
+    catch (DatabaseFailure $error) { $providedFailure = $error; }
+    metadata_checks_record_equivalence($metadata, $configuration, $default, $defaultFailure, $defaultQueries);
+    Assert::same($providedFailure?->category, $defaultFailure?->category);
+    Assert::same($providedFailure?->getPrevious(), null); Assert::same($tables, $before);
+    if ($defaultFailure !== null) { throw $defaultFailure; }
+    Assert::same($provided, $default);
+    Assert::same(array_keys($provided), array_column($tables, 'name'));
+    $tail = $tables[17] ?? throw new \RuntimeException('Missing final public table.');
+    $check = $tail['checks'][3] ?? throw new \RuntimeException('Missing final public CHECK.');
+    Assert::same([$tail['name'], $check['name']], ['read_api_token', 'read_api_token_c4']);
+    $fingerprint = hash('sha256', "tablo/check-canonical/v1\0" . \Tablo\ServerExpression::canonical($check['expression']));
+    Assert::same($default['read_api_token']['read_api_token_c4'] ?? null, $fingerprint);
+    Assert::same($provided['read_api_token']['read_api_token_c4'] ?? null, $fingerprint);
+    return $default;
+}
+
+function metadata_checks_bound_snapshot(string $role): void
+{
+    $db = new MetadataPrivilegesPdo('mariadb', fault: 'checks/');
+    $configuration = metadata_checks_configuration('mariadb', $role);
+    $session = \Tablo\DatabaseSession::register($db, $configuration);
+    // Both raw views are filtered for table-level SELECT; only the bound schema-level observation works.
+    $table = metadata_checks_table('mariadb');
+    $caught = null;
+    try { \Tablo\ServerCheckAdmission::clauses($db, $table); } catch (DatabaseFailure $error) { $caught = $error; }
+    Assert::same($caught?->category, 'schema');
+    metadata_checks_observation($db, $configuration);
+    $original = $session->metadataObservation ?? throw new \RuntimeException('Missing CHECK snapshot.');
+    metadata_checks_fingerprint_refusals($db, $table, $original);
+    foreach (['count', 'server', 'missing'] as $fault) {
+        $session->metadataObservation = $original; $candidate = $table;
+        if ($fault === 'count') { $candidate['checks'] = []; }
+        if ($fault === 'server') { $session->metadataObservation['server']['catalog'] = 'foreign'; }
+        if ($fault === 'missing') { unset($session->metadataObservation['checks'][$table['name']]); }
+        $borrowed = $session->metadataObservation;
+        $caught = null;
+        try { \Tablo\ServerCheckAdmission::verify($db, $candidate); } catch (DatabaseFailure $error) { $caught = $error; }
+        Assert::same($caught?->category, 'schema'); Assert::same($caught?->getPrevious(), null);
+        Assert::same($session->metadataObservation, $borrowed);
+    }
+    metadata_layout_invocation_refusals($db, $original);
+    metadata_layout_bound_snapshot($db, $original);
+    $session->metadataObservation = null;
+    $caught = null;
+    try { \Tablo\ServerCheckAdmission::verify($db, $table); } catch (DatabaseFailure $error) { $caught = $error; }
+    Assert::same($caught?->category, 'configuration', 'cleared snapshots must request a fresh admitted observation');
+    Assert::same($db->opened, $db->closed);
+}
+
+/** @param \Tablo\ServerSchema::Table $table
+ * @param \Tablo\ServerMetadataAdmission::Observation $original */
+function metadata_checks_fingerprint_refusals(MetadataPrivilegesPdo $db, array $table, array $original): void
+{
+    $session = \Tablo\DatabaseSession::get($db) ?? throw new \RuntimeException('Missing CHECK session.');
+    $check = $table['checks'][0] ?? throw new \RuntimeException('Missing public CHECK.');
+    $canonical = \Tablo\ServerExpression::canonical($check['expression']);
+    $clauses = $original['checks'][$table['name']] ?? throw new \RuntimeException('Missing public CHECK snapshot.');
+    $fingerprint = \Tablo\SqlColumn::string($clauses, $check['name']);
+    Assert::same($fingerprint, hash('sha256', "tablo/check-canonical/v1\0" . $canonical));
+    Assert::same(strlen($fingerprint), 64); Assert::false($fingerprint === $canonical);
+    try {
+        foreach (['canonical', 'sql', 'wrong-domain', 'changed', 'malformed', 'nonstring'] as $fault) {
+            $borrowed = $original;
+            $borrowed['checks'][$table['name']][$check['name']] = match ($fault) {
+                'canonical' => $canonical, 'sql' => $check['expression'],
+                'wrong-domain' => hash('sha256', "tablo/other/v1\0" . $canonical),
+                'changed' => hash('sha256', "tablo/check-canonical/v1\0" . \Tablo\ServerExpression::canonical('step = 999')),
+                'malformed' => str_repeat('x', times: 64), default => null,
+            };
+            // Deliberately inject a runtime-invalid value to exercise the admission refusal boundary.
+            (new \ReflectionProperty(\Tablo\DatabaseSession::class, property: 'metadataObservation'))->setValue($session, $borrowed);
+            $caught = null;
+            try { \Tablo\ServerCheckAdmission::verify($db, $table); } catch (DatabaseFailure $error) { $caught = $error; }
+            Assert::same($caught?->category, 'schema'); Assert::same($caught?->getPrevious(), null);
+            Assert::same($session->metadataObservation, $borrowed);
+        }
+    } finally { $session->metadataObservation = $original; }
+}
+
+/** A partial bound inventory must refuse with either descriptor path; no fake SQL surface is expanded.
+ * @param \Tablo\ServerMetadataAdmission::Observation $observation */
+function metadata_layout_invocation_refusals(MetadataPrivilegesPdo $db, array $observation): void
+{
+    $session = \Tablo\DatabaseSession::get($db) ?? throw new \RuntimeException('Missing admitted session.');
+    $tables = \Tablo\ServerSchema::layout($db)['tables']; $session->metadataObservation = $observation;
+    foreach ([0, 9, 10, 11] as $version) {
+        foreach ([null, $tables, metadata_checks_records('mariadb')] as $provided) {
+            $caught = null;
+            try { \Tablo\ServerMetadataAdmission::objects($db, $version, expectedTables: $provided); }
+            catch (DatabaseFailure $error) { $caught = $error; }
+            Assert::same($caught?->category, 'schema'); Assert::same($caught?->getPrevious(), null);
+            Assert::same($session->metadataObservation, $observation);
+        }
+    }
+}
+
+/** @param \Tablo\ServerMetadataAdmission::Observation $observation */
+function metadata_layout_bound_snapshot(MetadataPrivilegesPdo $db, array $observation): void
+{
+    $session = \Tablo\DatabaseSession::get($db) ?? throw new \RuntimeException('Missing admitted session.');
+    try {
+        foreach (['server', 'objects'] as $fault) {
+            $borrowed = $observation;
+            if ($fault === 'server') { $borrowed['server']['catalog'] = 'foreign'; }
+            if ($fault === 'objects') { $borrowed['objects'] = []; }
+            $session->metadataObservation = $borrowed; $caught = null;
+            try { \Tablo\ServerSchema::validateLayout($db); } catch (DatabaseFailure $error) { $caught = $error; }
+            Assert::same($caught?->category, 'schema'); Assert::same($caught?->getPrevious(), null);
+            Assert::same($session->metadataObservation, $borrowed);
+        }
+    } finally { $session->metadataObservation = null; }
+    $queries = $db->queries; $caught = null;
+    try { \Tablo\ServerSchema::validateLayout($db); } catch (DatabaseFailure $error) { $caught = $error; }
+    Assert::same($caught?->category, 'configuration'); Assert::same($caught?->getPrevious(), null);
+    Assert::same($session->metadataObservation, null); Assert::same($db->queries, $queries);
+    Assert::same($db->opened, $db->closed);
+}
+
+function metadata_privileges_sentinel(): void
+{
+    foreach ([[], [null], [null, null]] as $roles) {
+        $db = new MetadataPrivilegesPdo('mariadb', $roles); metadata_privileges_check($db);
+        Assert::same(count($db->queries), 7);
+    }
+}
+
+function metadata_privileges_enabled_roles(): void
+{
+    foreach (['staff', 'PUBLIC', 'NULL', ''] as $role) {
+        foreach ([[$role], [null, $role], [$role, null]] as $roles) { metadata_privileges_check(new MetadataPrivilegesPdo('mariadb', $roles), expected: 'schema'); }
+    }
+}
+
+function metadata_privileges_applicable(): void
+{
+    foreach (['mysql', 'mariadb'] as $engine) {
+        foreach (['staff', 'PUBLIC', 'NULL', null] as $role) {
+            metadata_privileges_check(new MetadataPrivilegesPdo($engine, $engine === 'mysql' ? [] : [null], [$role]), expected: 'schema');
+        }
+    }
+}
+
+function metadata_privileges_grants(): void
+{
+    foreach (['identity', 'global', 'missing', 'extra', 'grant-option', 'catalog', 'table', 'column'] as $fault) {
+        metadata_privileges_check(new MetadataPrivilegesPdo('mariadb', [null], fault: $fault), expected: 'schema');
+    }
+}
+
+function metadata_privileges_mysql(): void
+{
+    $db = new MetadataPrivilegesPdo('mysql'); metadata_privileges_check($db); Assert::same(count($db->queries), 8);
+    Assert::true(in_array('SELECT 1 AS unsupported FROM information_schema.ENABLED_ROLES LIMIT 1', $db->queries, strict: true));
+    foreach ([[null], ['staff'], ['PUBLIC']] as $roles) { metadata_privileges_check(new MetadataPrivilegesPdo('mysql', $roles), expected: 'schema'); }
+    metadata_privileges_check(new MetadataPrivilegesPdo('mysql', fault: 'partial-revokes'), expected: 'schema');
+}
+
+function metadata_privileges_check(MetadataPrivilegesPdo $db, ?string $expected = null): void
+{
+    $configuration = DatabaseConfiguration::fromEnvironment(environment: ['TABLO_DB_DRIVER' => $db->engine, 'TABLO_DB_NAME' => 'tablo_meta',
+        'TABLO_DB_HOST' => '127.0.0.1', 'TABLO_DB_PORT' => '3306', 'TABLO_DB_USER' => 'meta', 'TABLO_DB_PASSWORD' => '', 'TABLO_DB_TLS' => 'local']);
+    $failure = null;
+    try { ServerMetadataPrivileges::verify($db, $configuration); } catch (DatabaseFailure $error) { $failure = $error->category; }
+    finally { Assert::same($db->opened, $db->closed); }
+    Assert::same($failure, $expected);
+}
+
+/** Construct the real sealed owner through its private fixture seam, never an unchecked table subset. */
+function metadata_checks_records(string $engine): \Tablo\ServerAdmissionRecords
+{
+    $stem = match ($engine) { 'mysql' => 'mysql84', 'mariadb' => 'mariadb114', default => throw new \RuntimeException('Unknown source fixture engine.') };
+    $loader = new \ReflectionMethod(\Tablo\ServerAdmissionRecords::class, 'fromSource');
+    /** @var mixed $owner Reflection must be narrowed by the runtime instance assertion. */
+    $owner = $loader->invoke(null, dirname(__DIR__, levels: 2) . '/database/' . $stem . '-layout.jsonl', $engine);
+    Assert::instanceOf($owner, \Tablo\ServerAdmissionRecords::class);
+    return $owner;
+}
+
+/** @param array<string, array<string, string>> $expected
+ * @param list<string> $queries */
+function metadata_checks_record_equivalence(MetadataPrivilegesPdo $metadata, DatabaseConfiguration $configuration, array $expected, ?DatabaseFailure $failure, array $queries): void
+{
+    $records = metadata_checks_records($configuration->engine); $recorded = []; $caught = null; $start = count($metadata->queries);
+    try { $recorded = \Tablo\server_metadata_check_observation($metadata, $configuration, version: 10, expectedTables: $records); }
+    catch (DatabaseFailure $error) { $caught = $error; }
+    Assert::same($caught?->category, $failure?->category); Assert::same($caught?->getPrevious(), null);
+    Assert::same($recorded, $expected); Assert::same(array_slice($metadata->queries, $start), $queries);
+}
+
+function metadata_records_engine_binding(): void
+{
+    $records = metadata_checks_records('mariadb'); $db = new MetadataPrivilegesPdo('mysql');
+    $configuration = metadata_checks_configuration('mysql', role: 'writer');
+    $session = \Tablo\DatabaseSession::register($db, $configuration);
+    $borrowed = $session->metadataObservation; $queries = $db->queries;
+    $names = $records->names(); sort($names, SORT_STRING);
+    $expected = new \ReflectionMethod(\Tablo\ServerMetadataAdmission::class, 'expected');
+    foreach ([
+        static fn () => \Tablo\ServerMetadataAdmission::observe($configuration, version: 10, expectedTables: $records),
+        static fn () => \Tablo\ServerMetadataAdmission::objects($db, version: 10, expectedTables: $records),
+        static fn () => $expected->invoke(null, $db, $names, 10, $records),
+        static fn () => \Tablo\server_metadata_check_observation($db, $configuration, version: 10, expectedTables: $records),
+    ] as $operation) {
+        $caught = null;
+        try { $operation(); } catch (DatabaseFailure $error) { $caught = $error; }
+        Assert::same($caught?->category, 'schema'); Assert::same($caught?->getPrevious(), null);
+        Assert::same($session->metadataObservation, $borrowed); Assert::same($db->queries, $queries); Assert::same($db->opened, $db->closed);
+    }
+}
+
+/** The real selector leaves every array/borrowed route intact and owns no observation itself. */
+function metadata_records_layout_selection(): void
+{
+    foreach (['mysql', 'mariadb'] as $engine) {
+        foreach (['writer', 'control', 'migrator', 'reader'] as $role) {
+            foreach ([9, 10] as $version) { metadata_records_layout_case($engine, $role, $version); }
+        }
+    }
+}
+
+function metadata_records_layout_case(string $engine, string $role, int $version): void
+{
+    $db = new MetadataPrivilegesPdo($engine, fault: 'checks/'); $configuration = metadata_checks_configuration($engine, $role);
+    $session = \Tablo\DatabaseSession::register($db, $configuration);
+    $source = \Tablo\server_table_admission_source($db, $session, $version);
+    $selected = $engine === 'mariadb' && in_array($role, ['writer', 'control'], strict: true) && $version === 10;
+    Assert::same($source instanceof \Tablo\ServerAdmissionRecords, $selected);
+    Assert::same($session->metadataObservation, null); Assert::same($db->queries, []);
+    if (!$selected) { Assert::true(is_array($source)); return; }
+    metadata_checks_observation($db, $configuration);
+    $borrowed = $session->metadataObservation ?? throw new \RuntimeException('Missing borrowed fixture observation.');
+    try { metadata_records_borrowed_selection($db, $session, $version, $borrowed); }
+    finally { $session->metadataObservation = null; }
+}
+
+/** @param \Tablo\ServerMetadataAdmission::Observation $borrowed */
+function metadata_records_borrowed_selection(MetadataPrivilegesPdo $db, \Tablo\DatabaseSession $session, int $version, array $borrowed): void
+{
+    $queries = $db->queries; $cursors = [$db->opened, $db->closed];
+    $source = \Tablo\server_table_admission_source($db, $session, $version);
+    Assert::instanceOf($source, \Tablo\ServerAdmissionRecords::class);
+    Assert::same(iterator_to_array($source->tables($version), preserve_keys: false), metadata_records_golden_projection($db->engine));
+    Assert::same($session->metadataObservation, $borrowed); Assert::same($db->queries, $queries);
+    Assert::same([$db->opened, $db->closed], $cursors);
+}
+
+function metadata_records_default_selection(): void
+{
+    foreach (['mysql', 'mariadb'] as $engine) {
+        foreach (['writer', 'control', 'migrator', 'reader', 'metadata'] as $role) { metadata_records_default_case($engine, $role); }
+        metadata_records_default_explicit($engine);
+        metadata_records_default_foreign($engine);
+    }
+}
+
+function metadata_records_default_case(string $engine, string $role): void
+{
+    $db = new MetadataPrivilegesPdo($engine); $configuration = metadata_records_default_configuration($engine, $role);
+    $session = \Tablo\DatabaseSession::register($db, $configuration); $borrowed = $session->metadataObservation;
+    $source = \Tablo\server_metadata_expected_tables($db, expectedTables: null);
+    Assert::same($source instanceof \Tablo\ServerAdmissionRecords, $engine === 'mariadb');
+    $actual = $source instanceof \Tablo\ServerAdmissionRecords ? iterator_to_array($source->tables(), preserve_keys: false) : $source;
+    $golden = metadata_records_golden_projection($engine); Assert::same($actual, $golden);
+    foreach ([9, 10] as $version) {
+        $selected = array_values(array_filter($golden, static fn (array $table): bool => $version === 10 || $table['name'] !== 'read_api_token'));
+        $names = array_column($selected, 'name'); sort($names, SORT_STRING);
+        \Tablo\server_metadata_expected_names($db, $names, $version, expectedTables: null);
+        if ($source instanceof \Tablo\ServerAdmissionRecords) {
+            Assert::same(\Tablo\server_metadata_expected_tables($db, $source), $source);
+            Assert::same(iterator_to_array($source->tables($version), preserve_keys: false), $selected);
+        }
+    }
+    Assert::same($session->metadataObservation, $borrowed); Assert::same($db->queries, []); Assert::same([$db->opened, $db->closed], [0, 0]);
+}
+
+/** Explicit arrays must return before session inspection, including an empty array. */
+function metadata_records_default_explicit(string $engine): void
+{
+    $db = new MetadataPrivilegesPdo($engine);
+    foreach ([[], metadata_records_golden_projection($engine)] as $provided) {
+        $before = $provided;
+        Assert::same(\Tablo\server_metadata_expected_tables($db, $provided), $provided);
+        Assert::same($provided, $before);
+    }
+    Assert::same($db->queries, []); Assert::same([$db->opened, $db->closed], [0, 0]);
+}
+
+function metadata_records_default_foreign(string $engine): void
+{
+    $db = new MetadataPrivilegesPdo($engine); $configuration = metadata_checks_configuration($engine, role: 'writer');
+    $session = \Tablo\DatabaseSession::register($db, $configuration); $borrowed = $session->metadataObservation;
+    $records = metadata_checks_records($engine === 'mysql' ? 'mariadb' : 'mysql'); $caught = null;
+    try { \Tablo\server_metadata_expected_tables($db, $records); } catch (DatabaseFailure $error) { $caught = $error; }
+    Assert::same($caught?->category, 'schema'); Assert::same($caught?->getPrevious(), null);
+    Assert::same($session->metadataObservation, $borrowed); Assert::same($db->queries, []); Assert::same([$db->opened, $db->closed], [0, 0]);
+}
+
+function metadata_records_default_configuration(string $engine, string $role): DatabaseConfiguration
+{
+    if ($role !== 'metadata') { return metadata_checks_configuration($engine, $role); }
+    return DatabaseConfiguration::fromEnvironment(environment: ['TABLO_DB_DRIVER' => $engine, 'TABLO_DB_NAME' => 'tablo_meta',
+        'TABLO_DB_HOST' => '127.0.0.1', 'TABLO_DB_PORT' => '3306', 'TABLO_DB_USER' => 'writer', 'TABLO_DB_PASSWORD' => '', 'TABLO_DB_TLS' => 'local',
+        'TABLO_DB_METADATA_USER' => 'meta', 'TABLO_DB_METADATA_PASSWORD' => ''])->metadata();
+}
+
+/** @return list<\Tablo\ServerSchema::AdmissionTable> */
+function metadata_records_golden_projection(string $engine): array
+{
+    $stem = match ($engine) { 'mysql' => 'mysql84', 'mariadb' => 'mariadb114', default => throw new \RuntimeException('Unknown independent layout fixture.') };
+    /** @var \Tablo\ServerSchema::Layout $layout Independent frozen full JSON, not the record reader. */
+    $layout = json_decode(\Tablo\RequiredFile::bytes(file_get_contents(dirname(__DIR__, levels: 2) . '/tests/fixtures/server-layouts/v10/' . $stem . '-layout.json')),
+        associative: true, flags: JSON_THROW_ON_ERROR);
+    $expected = [];
+    foreach ($layout['tables'] as $table) { unset($table['create'], $table['checksum']); $expected[] = $table; }
+    return $expected;
+}

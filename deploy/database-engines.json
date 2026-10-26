@@ -1,0 +1,18 @@
+{
+  "format": 1,
+  "platform": "linux/amd64",
+  "mysql": {
+    "family": "8.4",
+    "imageLabel": "8.4.12",
+    "image": "container-registry.oracle.com/mysql/community-server@sha256:7dcc4add9183664de3a214daf85a50c3ba6cccfd7534f700b6561bf5b41885be",
+    "config": "sha256:c9570e7b94230d3717b88a334acaea49a4fe6b162f68a8f2927eaaf866b7f867",
+    "versionAttestation": "Required independently from authenticated VERSION() and package bytes"
+  },
+  "mariadb": {
+    "family": "11.4",
+    "imageLabel": "11.4.13",
+    "image": "docker.io/library/mariadb@sha256:f2f5e00999bd335343e09091e27e39c9386eb1822efcd0e0bac40b0003fa47e3",
+    "config": "sha256:ab3dff582d246358b6f6a1f6212f29ac64609fad883eb3dcfb0a89f6f7d0700e",
+    "versionAttestation": "Required independently from authenticated VERSION() and package bytes"
+  }
+}

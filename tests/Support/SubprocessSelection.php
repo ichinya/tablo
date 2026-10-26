@@ -18,4 +18,19 @@ final class SubprocessSelection
         } while (microtime(true) < $deadline);
         SubprocessFailure::raise($state, 'selection', new RuntimeException('Password selection barrier failed'));
     }
+
+    public static function waitForExit(SubprocessState $state, float $timeout = 5): void
+    {
+        if (!is_finite($timeout) || $timeout < 0) { throw new RuntimeException('Invalid test command exit observation timeout'); }
+        $state->event('exit-selection', ['timeout_seconds' => $timeout]);
+        $deadline = microtime(true) + $timeout;
+        do {
+            if (!SubprocessObservation::running($state)) {
+                if (SubprocessObservation::stopped($state)['observed']) { return; }
+                break;
+            }
+            usleep(20_000);
+        } while (microtime(true) < $deadline);
+        SubprocessFailure::raise($state, 'exit-selection', new RuntimeException('Direct test child exit not observed'));
+    }
 }

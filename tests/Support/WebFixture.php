@@ -12,9 +12,11 @@ final class WebFixture
     public readonly TemporaryDirectory $directory;
     public readonly TestServer $server;
     private ?PDO $database = null;
+    private readonly ?EngineFixture $engine;
 
     public function __construct(bool $allowPrivateNetwork = false, string $trustedProxies = '', string $host = '127.0.0.1', ?string $router = null, array $environment = [])
     {
+        $this->engine = EngineFixture::forWeb($environment);
         $this->directory = new TemporaryDirectory('tablo-http-');
         $root = dirname(__DIR__, levels: 2);
         try {
@@ -78,22 +80,20 @@ final class WebFixture
 
     public function database(): PDO
     {
-        if ($this->database === null) {
-            $this->database = new PDO('sqlite:' . $this->directory->path . '/test.sqlite', options:
-                [PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION, PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC]);
-            $this->database->exec('PRAGMA foreign_keys = ON; PRAGMA busy_timeout = 5000;');
-        }
+        $this->database ??= $this->engine?->database() ?? EngineFixture::sqliteWeb($this->directory->path . '/test.sqlite');
         return $this->database;
     }
 
     public function reopenDatabase(): void
     {
         $this->database = null;
+        $this->engine?->close();
     }
 
     public function close(): void
     {
         $this->database = null;
+        $this->engine?->close();
         $this->server->close();
         $this->directory->close();
     }

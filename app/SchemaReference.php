@@ -8,9 +8,10 @@ use PDO;
 final class SchemaReference
 {
     /** @param array{endpoint: bool} $features */
-    public static function reference(int $version, array $features): PDO
+    public static function reference(int $version, array $features, ?PDO $db = null): PDO
     {
-        $db = new PDO('sqlite::memory:', null, null, [PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION]);
+        $db ??= new PDO('sqlite::memory:', null, null, [PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION]);
+        if ($db->getAttribute(PDO::ATTR_DRIVER_NAME) !== 'sqlite') { throw new \LogicException('SQLite schema reference requires its own SQLite connection.'); }
         BaseSchema::migrateToVersionOne($db);
         if ($version >= 2) { BaseSchema::migrateToVersionTwo($db); }
         if ($version >= 3) { BaseSchema::migrateToVersionThree($db); }

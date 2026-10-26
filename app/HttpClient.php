@@ -31,7 +31,7 @@ class HttpClient
     public function get(#[\SensitiveParameter] string $url, #[\SensitiveParameter] array $headers = []): array
     {
         try { return (new CurlGetTransport($this->allowPrivate, $this->resolve(...), $this->deadline))->request($url, $headers); }
-        catch (\PDOException | SharedKeyFailure $error) { throw $error; }
+        catch (\PDOException | DatabaseFailure | SharedKeyFailure $error) { throw $error; }
         catch (\Throwable $error) {
             // Native frames/options/callback captures are discarded, including previous chains.
             // Only a genuine typed contract reason crosses this boundary.
@@ -52,7 +52,7 @@ class HttpClient
             $transport = new CurlGetTransport($this->allowPrivate, $this->resolve(...), $this->deadline);
             return EndpointChain::run($url, $headers, $maxRedirects, min($deadline ?? PHP_INT_MAX, $this->deadline ?? PHP_INT_MAX), $transport->request(...));
         }
-        catch (\PDOException | SharedKeyFailure $error) { throw $error; }
+        catch (\PDOException | DatabaseFailure | SharedKeyFailure $error) { throw $error; }
         catch (\Throwable $error) {
             $reason = $error instanceof HttpFailure ? $error->reason : 'check-error';
             unset($error);
