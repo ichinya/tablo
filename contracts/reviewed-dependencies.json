@@ -3494,7 +3494,7 @@
                 "tools/ServerFixtureCatalog.php",
                 "tests/Server/EngineMigrationPreviousTest.php"
             ],
-            "fingerprint": "sha256:666af54ac5175e1ba9e183f8ed54e8239b3dc39e25ec067aa12d1fafa1a6aee6"
+            "fingerprint": "sha256:670ad6af524ef19f919be9e9d9b7af5b0bae1b600bf9703a228cf60dcba4c630"
         },
         {
             "path": "app/ServerSchemaState.php",
@@ -3567,7 +3567,7 @@
                 "Composer verify",
                 "app/ServerSchema.php"
             ],
-            "fingerprint": "sha256:ea42c2cbe5739865e782a46ad4bf298974fd47aed40ca0c8ca9ae510ff51cbfc"
+            "fingerprint": "sha256:eca8929c3c342c1a3b2c12bff966a61f27dde6db90d16e31644f94b626a8d9ed"
         },
         {
             "path": "app/ServerTls.php",
@@ -10787,7 +10787,7 @@
                 "Composer analyze",
                 "Composer verify"
             ],
-            "fingerprint": "sha256:f245da4f8afc8cb385348ea094a0568d11de415960612673b783806a478f732e"
+            "fingerprint": "sha256:3c9127dc2f15f5a00b9dff3418eb8e63bb9a7edea0778cbc3e75f9dc9586891b"
         },
         {
             "path": "tests/Unit/SqlStatementTest.php",
@@ -11400,7 +11400,7 @@
                 "Composer analyze",
                 "Composer verify:server --cross"
             ],
-            "fingerprint": "sha256:4b3e21589ce617baa15bf23cdeaa1f675c9a408b506c4ae6ad88b59e185a0dc2"
+            "fingerprint": "sha256:42ba0322d029a46ca853731d8ff35dba3788af7994c138c37ababb3e31768738"
         },
         {
             "path": "tools/server-supervisor.cjs",
@@ -11549,7 +11549,7 @@
                 "tests/Server/EngineMetadataAdmissionTest.php",
                 "tests/Support/EngineBoundaryProbe.php"
             ],
-            "fingerprint": "sha256:a1c70be67af50d955cb3bc79842dcbc74a25947ebd8e7b5af665486b13b872b6"
+            "fingerprint": "sha256:a5740a27e0402ce55873b37880078f59a838925b05aef6e97a110b373163e16b"
         },
         {
             "path": "tests/Server/EngineMetadataAdmissionTest.php",

@@ -81,7 +81,7 @@ final class ServerMetadataAdmission
  * @return list<\Tablo\ServerSchema::ExpectedTable> */
 function server_metadata_expected_tables(PDO $db, ?array $expectedTables): array
 {
-    return $expectedTables ?? ServerSchemaDescriptor::admissionTables(ServerSchema::layout($db));
+    return $expectedTables ?? ServerSchemaDescriptor::admission($db);
 }
 
 /** Complete writer and control admission need privileged CHECK visibility. Migrators read their own post-DDL metadata.

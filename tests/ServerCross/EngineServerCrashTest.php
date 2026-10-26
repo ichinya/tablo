@@ -74,7 +74,19 @@ final class EngineServerCrashTest
             Assert::same(count(ServerSchema::objects($db)), 18);
             Assert::same($fixture->scalar("SELECT COUNT(*) FROM tablo_migration_journal WHERE phase = 'done'", $db), 18);
             ServerSchema::validateLayout($db);
-            foreach (['writer', 'reader'] as $role) { Assert::same($fixture->scalar('SELECT 1', $fixture->independent($role)), 1); }
+            Assert::same($fixture->scalar("SELECT COUNT(*) FROM tablo_migration_journal WHERE phase <> 'done' OR failure_category IS NOT NULL", $db), 0);
+            $readiness = [];
+            foreach (['writer', 'reader'] as $role) {
+                $connection = $fixture->independent($role);
+                Assert::same($fixture->scalar('SELECT 1', $connection), 1);
+                $readiness[$role] = ['role' => DatabaseSession::get($connection)?->configuration->role,
+                    'state' => ServerSchema::rows($connection, 'SELECT id,format,logical_version,phase FROM tablo_database_state')];
+                unset($connection);
+            }
+            Assert::same($readiness, [
+                'writer' => ['role' => 'writer', 'state' => [['id' => 1, 'format' => 1, 'logical_version' => 10, 'phase' => 'ready']]],
+                'reader' => ['role' => 'reader', 'state' => [['id' => 1, 'format' => 1, 'logical_version' => 10, 'phase' => 'ready']]],
+            ]);
         } finally { $fixture->close(); }
     }
 

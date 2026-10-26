@@ -13,7 +13,7 @@ final class ServerMetadataPrivilegesTest
 {
     #[Test]
     public function mariaDbNoActiveRoleSentinelReachesTheCompleteDirectGrantChecks(): void
-    { metadata_privileges_sentinel(); metadata_checks_visible_to_select_only_writer(); }
+    { metadata_privileges_sentinel(); metadata_checks_visible_to_select_only_writer(); metadata_admission_source_projection(); }
 
     #[Test]
     public function actualEnabledRolesNeverHideBehindNullOrBecomePublicExceptions(): void
@@ -316,4 +316,100 @@ function metadata_privileges_check(MetadataPrivilegesPdo $db, ?string $expected 
     try { ServerMetadataPrivileges::verify($db, $configuration); } catch (DatabaseFailure $error) { $failure = $error->category; }
     finally { Assert::same($db->opened, $db->closed); }
     Assert::same($failure, $expected);
+}
+
+
+/** Complete source proof is required before the compact admission graph is published. */
+function metadata_admission_source_projection(): void
+{
+    $loader = new \ReflectionFunction('Tablo\\server_schema_descriptor_admission');
+    Assert::true(stream_wrapper_register('tabloadmissionfixture', \Tablo\Tests\Server\EngineSchemaDescriptorStream::class));
+    try {
+        foreach (['mysql' => 'mysql84', 'mariadb' => 'mariadb114'] as $engine => $stem) {
+            $path = dirname(__DIR__, levels: 2) . '/database/' . $stem . '-layout.jsonl';
+            $bytes = \Tablo\RequiredFile::bytes(file_get_contents($path)); $before = hash_file('sha256', $path);
+            metadata_admission_projection_engine($loader, $engine, $path, $bytes);
+            metadata_admission_projection_faults($loader, $engine, $bytes);
+            Assert::same(hash_file('sha256', $path), $before);
+        }
+    } finally {
+        stream_wrapper_unregister('tabloadmissionfixture');
+        \Tablo\Tests\Server\EngineSchemaDescriptorStream::$bytes = '';
+    }
+}
+
+/** @return \Tablo\ServerSchema::Layout */
+function metadata_admission_golden(string $engine): array
+{
+    [$stem, $digest] = $engine === 'mysql'
+        ? ['mysql84', 'c38753d3032251af4cfaff02729aaef222c34fb929f690c1fc45964d9400a01e']
+        : ['mariadb114', 'ed9fb39e4c0a1c74461d0c19af6ef6cae5db581d7531a58e5e6ec4e5a776c704'];
+    $path = dirname(__DIR__) . '/fixtures/server-layouts/v10/' . $stem . '-layout.json';
+    Assert::same(hash_file('sha256', $path), $digest);
+    /** @var \Tablo\ServerSchema::Layout $layout Independent pre-record golden data, never produced by this parser. */
+    $layout = json_decode(\Tablo\RequiredFile::bytes(file_get_contents($path)), associative: true, flags: JSON_THROW_ON_ERROR);
+    Assert::same($layout['engine'], $engine);
+    return $layout;
+}
+
+function metadata_admission_projection_engine(\ReflectionFunction $loader, string $engine, string $path, string $bytes): void
+{
+    $golden = metadata_admission_golden($engine); $before = \Tablo\JsonEncoding::encode($golden);
+    $expected = \Tablo\ServerSchemaDescriptor::admissionTables($golden);
+    Assert::same($loader->invoke($path, $engine), $expected);
+    Assert::same(metadata_admission_projected_read($loader, $bytes, $engine)['tables'], $expected);
+    Assert::same(metadata_admission_projected_read($loader, str_replace("\n", replace: "\r\n", subject: $bytes), $engine)['tables'], $expected);
+    $db = new MetadataPrivilegesPdo($engine); \Tablo\DatabaseSession::register($db, metadata_checks_configuration($engine, role: 'migrator'));
+    Assert::same(\Tablo\ServerSchemaDescriptor::admission($db), $expected); Assert::same($db->queries, []);
+    Assert::same(count($expected), 18); Assert::same(array_column($expected, 'name'), array_column($golden['tables'], 'name'));
+    foreach ($expected as $table) { Assert::same(array_keys($table), ['name', 'columns', 'primary', 'checks', 'indexes', 'foreign']); }
+    Assert::same(\Tablo\ServerSchemaDescriptor::forEngine($engine), $golden); Assert::same(\Tablo\JsonEncoding::encode($golden), $before);
+}
+
+function metadata_admission_projection_faults(\ReflectionFunction $loader, string $engine, string $bytes): void
+{
+    foreach ([
+        str_replace('"records":2', replace: '"records":1', subject: $bytes),
+        str_replace('"format":1', replace: '"format":0', subject: $bytes),
+        str_replace('"engine":"' . $engine . '"', replace: '"engine":"other"', subject: $bytes),
+        substr($bytes, offset: 0, length: -1), $bytes . "\n", $bytes . "\0", substr($bytes, offset: 0, length: -80),
+    ] as $broken) {
+        Assert::false($broken === $bytes, 'The hostile source mutation must change actual input bytes.');
+        metadata_admission_projection_refused(metadata_admission_projected_read($loader, $broken, $engine));
+    }
+    foreach ([0, 17] as $index) {
+        foreach ([['create' => 'changed-after-signature'], ['checksum' => str_repeat('0', times: 64)], ['create' => null], ['checksum' => 1], ['unexpected' => true]] as $change) {
+            $lines = explode("\n", $bytes);
+            $frame = \Tablo\JsonRecord::decode($lines[1 + $index] ?? throw new \RuntimeException('Late record fixture absent.'));
+            $table = \Tablo\server_schema_descriptor_table($frame); $lines[1 + $index] = \Tablo\JsonEncoding::encode(['tables' => [array_replace($table, $change)]]);
+            metadata_admission_projection_refused(metadata_admission_projected_read($loader, implode("\n", $lines), $engine));
+        }
+    }
+    foreach ([['failAt' => 0], ['failAt' => 9000], ['failAt' => strlen($bytes)], ['failOpen' => true], ['failClose' => true]] as $options) {
+        metadata_admission_projection_refused(metadata_admission_projected_read($loader, $bytes, $engine, $options));
+    }
+}
+
+/** @param array{tables: ?array, failure: ?DatabaseFailure} $result */
+function metadata_admission_projection_refused(array $result): void
+{
+    Assert::null($result['tables']); Assert::instanceOf($result['failure'], DatabaseFailure::class);
+    $failure = $result['failure'];
+    Assert::same($failure->category, 'schema'); Assert::null($failure->getPrevious());
+    Assert::false(str_contains($failure->getMessage(), 'admission-private')); Assert::false(str_contains($failure->getMessage(), 'tabloadmissionfixture'));
+}
+
+/** @param array{failAt?: ?int, failClose?: bool, failOpen?: bool} $options
+ * @return array{tables: ?array, failure: ?DatabaseFailure} */
+function metadata_admission_projected_read(\ReflectionFunction $loader, string $bytes, string $engine, array $options = []): array
+{
+    $fixture = \Tablo\Tests\Server\EngineSchemaDescriptorStream::class;
+    $fixture::$bytes = $bytes; $fixture::$position = 0; $fixture::$opens = 0; $fixture::$closes = 0;
+    $fixture::$failAt = $options['failAt'] ?? null; $fixture::$failClose = $options['failClose'] ?? false; $fixture::$failOpen = $options['failOpen'] ?? false;
+    $streams = array_keys(get_resources('stream')); $tables = null; $failure = null;
+    try { $tables = \Tablo\JsonRecord::checked($loader->invoke('tabloadmissionfixture://admission-private-sentinel', $engine)); }
+    catch (DatabaseFailure $error) { $failure = $error; }
+    Assert::same($fixture::$opens, 1); Assert::same($fixture::$closes, $fixture::$failOpen ? 0 : 1);
+    Assert::same(array_keys(get_resources('stream')), $streams); Assert::same($fixture::$bytes, $bytes);
+    return ['tables' => $tables, 'failure' => $failure];
 }
