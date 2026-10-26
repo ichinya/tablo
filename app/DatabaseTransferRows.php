@@ -126,8 +126,6 @@ function database_transfer_rows_projection(array $columns): string
  * @param \Tablo\DatabaseTransferRows::Values $values */
 function database_transfer_rows_insert(PDO $db, array $table, #[\SensitiveParameter] array $values): void
 {
-    database_transfer_codec_stage(501);
-    try {
     $columns = DatabaseTransferManifest::columns($table);
     $names = implode(',', array_map(static fn (array $column): string => '`' . $column['name'] . '`', $columns));
     $sql = 'INSERT INTO `' . $table['name'] . '` (' . $names . ') VALUES (' . implode(',', array_fill(0, count($columns), value: '?')) . ')';
@@ -142,7 +140,6 @@ function database_transfer_rows_insert(PDO $db, array $table, #[\SensitiveParame
         }
         $statement->execute();
     } finally { $statement->closeCursor(); }
-    } finally { database_transfer_codec_stage(0); }
 }
 
 
@@ -222,21 +219,15 @@ function database_transfer_codec_line(#[\SensitiveParameter] string $line, array
  * @return \Tablo\DatabaseTransferRows::Values */
 function database_transfer_codec_consume_line(#[\SensitiveParameter] string &$line, array $table): array
 {
-    database_transfer_codec_stage(301);
-    try {
     $input = JsonRecord::decode($line);
-    database_transfer_codec_stage(302);
     // Speculative wire encoding must not precede the typed decoder's failure.
     try { $canonicalWire = database_transfer_codec_wire($input, $line); }
     catch (\JsonException) { $canonicalWire = false; }
     $line = '';
-    database_transfer_codec_stage(303);
     $values = database_transfer_codec_decode($input, $table);
-    database_transfer_codec_stage(304);
     // Successful typed decoding proves encode(values) === input, including list shapes.
     if (!$canonicalWire) { throw new DatabaseFailure('schema'); }
     return $values;
-    } finally { database_transfer_codec_stage(0); }
 }
 
 
@@ -327,10 +318,4 @@ function database_transfer_codec_wire_fragment(#[\SensitiveParameter] string $fr
     if ($length !== 0 && substr_compare($line, $fragment, $offset, $length) !== 0) { return false; }
     $offset += $length;
     return true;
-}
-
-/** Temporary dispatch never autoloads an observer. */
-function database_transfer_codec_stage(int $code): void
-{
-    if (class_exists(ColdTransferCoarsePeak::class, autoload: false)) { ColdTransferCoarsePeak::stage($code); }
 }

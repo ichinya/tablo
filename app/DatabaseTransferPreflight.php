@@ -140,10 +140,11 @@ function database_transfer_source_admitted(PDO $db, #[\SensitiveParameter] Token
         SchemaLayout::observe($db, 10);
     }
     $rows = 0; $bytes = 0;
-    foreach (DatabaseTransferManifest::tables() as $table) {
+    foreach (DatabaseTransferManifest::iterate() as $table) {
         database_transfer_preflight_row_envelope($db, $table); $size = database_transfer_preflight_footprint($db, $table);
         if ($size['rows'] > DatabaseTransferManifest::MAX_ROWS - $rows || $size['bytes'] > DatabaseTransferManifest::MAX_RAW_BYTES - $bytes) { throw new DatabaseFailure('schema'); }
         $rows += $size['rows']; $bytes += $size['bytes'];
+        unset($table);
     }
     ExternalKeyAuthentication::authenticateExternalKey($db, $vault);
     database_transfer_preflight_quiescent($db);

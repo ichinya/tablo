@@ -45,9 +45,10 @@ function database_transfer_import_server(PDO $db, #[\SensitiveParameter] string 
             return;
         }
         $plan = DatabaseTransferTarget::plan($digest);
-        foreach (DatabaseTransferManifest::tables() as $index => $table) {
+        foreach (DatabaseTransferManifest::iterate($header['columns']) as $index => $table) {
             $lock->assertOwned();
             database_transfer_cursor_table($db, $directory, $table, $header['tables'][$index] ?? throw new DatabaseFailure('schema'), ['plan' => $plan, 'step' => $index]);
+            unset($table);
         }
         DatabaseTransferSequence::apply($db, $header['sequences'], $header['watermark']);
         DatabaseTransferVerification::database($db, $header, $vault);

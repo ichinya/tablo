@@ -2843,14 +2843,6 @@
       "tests/Server/EngineMetadataAdmissionTest.php"
     ]
   },
-  "app/ColdTransferCoarsePeak.php": {
-    "owner": "Temporary numeric-only cold transfer localization",
-    "consumers": ["app/bootstrap.php", "app/DatabaseConnectionFactory.php", "app/DatabaseTransfer.php", "app/DatabaseTransferArchive.php", "app/DatabaseTransferRows.php", "app/JsonEncoding.php"]
-  },
-  "tools/collect-cold-r81.ps1": {
-    "owner": "Temporary strict numeric-only cold localization receiver",
-    "consumers": [".github/workflows/verify.yml"]
-  },
   "app/ServerAdmissionRecords.php": {
     "owner": "Tablo\\ServerAdmissionRecords and internal sealed source-record ownership",
     "consumers": [

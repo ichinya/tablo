@@ -52,12 +52,13 @@ final class DatabaseTransferVerification
  * @param \Tablo\DatabaseTransferManifest::Header $header */
 function database_transfer_verification_scratch(PDO $scratch, #[\SensitiveParameter] string $directory, array $header, #[\SensitiveParameter] TokenVault $vault): void
 {
-    foreach (DatabaseTransferManifest::tables() as $index => $table) {
+    foreach (DatabaseTransferManifest::iterate($header['columns']) as $index => $table) {
         $receipt = $header['tables'][$index] ?? throw new DatabaseFailure('schema');
         DatabaseTransferArchive::visit($directory, $table, $receipt, static function (array $values) use ($scratch, $table): void {
             DatabaseTransferPreflight::row($scratch, $table, $values);
         });
         DatabaseTransferPreflight::rowEnvelope($scratch, $table);
+        unset($table);
     }
     DatabaseTransferPreflight::quiescent($scratch);
     if (DatabaseTransferSequence::watermark($scratch) > $header['watermark']) { throw new DatabaseFailure('schema'); }
@@ -83,7 +84,10 @@ function database_transfer_verification_table(PDO $db, array $table, array $rece
  * @param \Tablo\DatabaseTransferManifest::Header $header */
 function database_transfer_verification_database(PDO $db, array $header, #[\SensitiveParameter] TokenVault $vault): void
 {
-    foreach (DatabaseTransferManifest::tables() as $index => $table) { database_transfer_verification_table($db, $table, $header['tables'][$index] ?? throw new DatabaseFailure('schema')); }
+    foreach (DatabaseTransferManifest::iterate($header['columns']) as $index => $table) {
+        database_transfer_verification_table($db, $table, $header['tables'][$index] ?? throw new DatabaseFailure('schema'));
+        unset($table);
+    }
     $floors = DatabaseTransferSequence::floors($db);
     foreach ($header['sequences'] as $table => $floor) { if (SqlColumn::integer($floors, $table) < $floor) { throw new DatabaseFailure('schema'); } }
     $rows = ServerSchema::rows($db, 'SELECT installation_id FROM notification_settings WHERE id = 1');

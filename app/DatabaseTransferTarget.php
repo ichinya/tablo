@@ -61,7 +61,7 @@ function database_transfer_target_prepare(PDO $db, array $header, string $digest
     }
     if ($state['version'] !== 10 || $state['phase'] !== 'ready') { throw new DatabaseFailure('schema'); }
     database_transfer_persistence_atomic($db, static function () use ($db, $header, $digest): void {
-        database_transfer_target_empty($db);
+        database_transfer_target_empty($db, $header);
         $first = $header['tables'][0] ?? throw new DatabaseFailure('schema');
         (new ServerMigrationJournal($db, database_transfer_target_plan($digest)))->intent(0, $first['sha256'], 10, 10, 'users');
         foreach (['installation_settings', 'worker_runtime', 'notification_settings'] as $table) { $db->exec('DELETE FROM ' . $table); }
@@ -73,16 +73,18 @@ function database_transfer_target_prepare(PDO $db, array $header, string $digest
 }
 
 
-function database_transfer_target_empty(PDO $db): void
+/** @param \Tablo\DatabaseTransferManifest::Header $header */
+function database_transfer_target_empty(PDO $db, array $header): void
 {
     $installation = DatabaseSession::get($db)->installationId ?? throw new DatabaseFailure('schema');
     $seeds = ['installation_settings' => [1, 10, 30], 'worker_runtime' => [1, null, 0, 0],
         'notification_settings' => [1, $installation, 0, 0, 0, 0, null, null, 1, 1, 1, 0, 0]];
-    foreach (DatabaseTransferManifest::tables() as $table) {
+    foreach (DatabaseTransferManifest::iterate($header['columns']) as $table) {
         $expected = array_key_exists($table['name'], $seeds) ? [$seeds[$table['name']]] : [];
         if (DatabaseTransferSequence::scalar($db, 'SELECT COUNT(*) AS value FROM `' . $table['name'] . '`') !== count($expected)) { throw new DatabaseFailure('schema'); }
         $rows = iterator_to_array(DatabaseTransferRows::read($db, $table));
         if ($rows !== $expected) { throw new DatabaseFailure('schema'); }
+        unset($table);
     }
 }
 

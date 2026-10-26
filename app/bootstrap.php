@@ -25,19 +25,3 @@ try {
     // Parser diagnostics may include credentials from the invalid line.
     throw new RuntimeException('Не удалось загрузить .env: проверьте синтаксис и кодировку файла.');
 }
-
-
-// Temporary coarse diagnostic; Composer's include scope has no local argv.
-if (PHP_SAPI === 'cli' && is_array($_SERVER['argv'] ?? null)) {
-    $coldCoarseArguments = $_SERVER['argv'];
-    if (count($coldCoarseArguments) === 3
-        && ($coldCoarseArguments[1] ?? null) === 'transfer-working-data'
-        && ($coldCoarseArguments[2] ?? null) === 'transfer-working-data'
-        && str_ends_with(str_replace(search: '\\', replace: '/', subject: $coldCoarseArguments[0]), '/tests/server-child.php')
-        && in_array(getenv('TABLO_TEST_COLD_R81'), ['observe', 'inactive'], strict: true)) {
-        require_once __DIR__ . '/ColdTransferCoarsePeak.php';
-        \Tablo\ColdTransferCoarsePeak::setup();
-    }
-}
-
-unset($coldCoarseArguments);

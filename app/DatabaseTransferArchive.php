@@ -88,24 +88,18 @@ function database_transfer_archive_stream(PDO $source, PDO $scratch, array $tabl
 {
     if ($remainingChunks < 0 || $remainingChunks > DatabaseTransferManifest::MAX_CHUNKS) { throw new DatabaseFailure('configuration'); }
     $chunks = []; $rows = 0; $chunk = database_transfer_archive_pending_chunk(); $hash = hash_init('sha256');
-    database_transfer_archive_stage(101);
     try {
         foreach (DatabaseTransferRows::read($source, $table) as $values) {
-            database_transfer_archive_stage(102);
             $line = DatabaseTransferWire::completeLine($values);
-            database_transfer_archive_stage(103);
             if (strlen($line) > DatabaseTransferManifest::CHUNK_BYTES) { throw new DatabaseFailure('schema'); }
             if ($chunk['rows'] === DatabaseTransferManifest::CHUNK_ROWS || $chunk['bytes'] + strlen($line) > DatabaseTransferManifest::CHUNK_BYTES) {
                 $chunks[] = database_transfer_archive_chunk($chunk); $chunk = database_transfer_archive_pending_chunk();
             }
             if ($chunk['rows'] === 0 && count($chunks) >= $remainingChunks) { throw new DatabaseFailure('schema'); }
-            database_transfer_archive_stage(104);
             DatabaseTransferPreflight::row($scratch, $table, $values);
-            database_transfer_archive_stage(105);
             database_transfer_archive_append($chunk, $directory, $table['name'], count($chunks), $line);
             $rows++; hash_update($hash, $line);
             unset($line, $values);
-            database_transfer_archive_stage(101);
         }
         if ($chunk['rows'] !== 0) { $chunks[] = database_transfer_archive_chunk($chunk); }
         return ['name' => $table['name'], 'rows' => $rows, 'sha256' => hash_final($hash), 'chunks' => $chunks];
@@ -113,7 +107,6 @@ function database_transfer_archive_stream(PDO $source, PDO $scratch, array $tabl
         // Failure can leave a partial private chunk; close it without masking the primary failure.
         $handle = $chunk['handle'];
         if (is_resource($handle)) { NativeWarning::ignore(static fn (): bool => fclose($handle)); }
-        database_transfer_archive_stage(0);
     }
 }
 
@@ -193,7 +186,6 @@ function database_transfer_chunk_read(#[\SensitiveParameter] string $directory, 
             if (!NativeWarning::ignore(static fn (): bool => rewind($handle))) { throw new DatabaseFailure('unavailable'); }
             foreach ($lines as $commitment) {
                 $line = database_transfer_chunk_line($handle, $commitment);
-                database_transfer_archive_stage(402);
                 hash_update($hash, $line); $line = substr($line, offset: 0, length: -1);
                 $rows++; $values = DatabaseTransferRows::consumeLine($line, $table);
                 unset($line);
@@ -283,10 +275,4 @@ function database_transfer_chunk_line(#[\SensitiveParameter] mixed $handle, arra
 function database_transfer_chunk_close(#[\SensitiveParameter] mixed $handle): void
 {
     if (is_resource($handle)) { NativeWarning::ignore(static fn (): bool => fclose($handle)); }
-}
-
-/** Temporary dispatch never autoloads an observer. */
-function database_transfer_archive_stage(int $code): void
-{
-    if (class_exists(ColdTransferCoarsePeak::class, autoload: false)) { ColdTransferCoarsePeak::stage($code); }
 }

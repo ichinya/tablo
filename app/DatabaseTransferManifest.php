@@ -8,6 +8,7 @@ namespace Tablo;
  *
  * @phpstan-type Column array{name: string, type: string, nullable: bool}
  * @phpstan-type Table array{name: string, columns: list<Column>, primary: list<string>}
+ * @phpstan-type Cache array{list<string>, list<array{string, string|list<Column>, list<string>}>}
  *
  * @phpstan-import-type Receipt from DatabaseTransferArchive
  *
@@ -15,7 +16,7 @@ namespace Tablo;
  */
 final class DatabaseTransferManifest
 {
-    /** @var list<Table>|null */
+    /** @var Cache|null */
     private static ?array $dataTables = null;
     public const TABLES = ['users', 'git_tokens', 'installation_settings', 'worker_runtime', 'github_cooldowns',
         'notification_settings', 'read_api_token', 'sites', 'worker_progress', 'check_history', 'incidents',
@@ -31,21 +32,43 @@ final class DatabaseTransferManifest
  * @return list<Table> */
     public static function tables(): array
     {
+        return iterator_to_array(self::iterate(), preserve_keys: false);
+    }
+
+    /** @internal Columns may come only from capture() or the fully checked manifest() receipt.
+     * @param list<array{name: string, columns: list<Column>}>|null $checkedColumns
+     * @return \Generator<int, Table> */
+    public static function iterate(?array $checkedColumns = null): \Generator
+    {
+        $cache = self::cache();
+        foreach ($cache[1] as $index => $record) {
+            $columns = database_transfer_manifest_expand($record[1], $cache[0], $checkedColumns, $index);
+            yield ['name' => $record[0], 'columns' => $columns, 'primary' => $record[2]];
+            unset($columns);
+        }
+    }
+
+    /** @return Cache */
+    private static function cache(): array
+    {
         if (self::$dataTables !== null) { return self::$dataTables; }
         $layout = ServerSchemaDescriptor::forEngine('mysql');
-        $tables = [];
+        $tables = []; $pool = []; $primaries = []; $names = array_column($layout['tables'], 'name');
         foreach (self::TABLES as $name) {
-            $matches = array_values(array_filter($layout['tables'], static fn (array $table): bool => $table['name'] === $name));
-            $table = $matches[0] ?? throw new DatabaseFailure('schema');
+            $index = array_search($name, $names, strict: true);
+            $table = $index === false ? throw new DatabaseFailure('schema') : ($layout['tables'][$index] ?? throw new DatabaseFailure('schema'));
             $columns = [];
             foreach ($table['columns'] as $column) {
                 if (array_key_exists('generated', $column)) { continue; }
                 $columns[] = ['name' => $column['name'], 'type' => $column['type'], 'nullable' => $column['nullable']];
             }
-            $tables[] = ['name' => $table['name'], 'columns' => $columns, 'primary' => $table['primary']];
+            $primary = $table['primary']; $key = serialize($primary);
+            // Primary metadata is a list of strings, so serialization is lossless at every precision.
+            $primary = $primaries[$key] ?? $primary; $primaries[$key] = $primary;
+            $tables[] = [$table['name'], database_transfer_manifest_pack($columns, $pool), $primary];
         }
-        self::$dataTables = $tables;
-        return $tables;
+        self::$dataTables = [$pool, $tables];
+        return self::$dataTables;
     }
 
     /**
@@ -58,15 +81,17 @@ final class DatabaseTransferManifest
 
     public static function layout(): string
     {
-        return hash('sha256', JsonEncoding::encode(array_map(static fn (array $table): array =>
-            ['name' => $table['name'], 'columns' => self::columns($table), 'primary' => $table['primary']], self::tables())));
+        $hash = hash_init('sha256'); hash_update($hash, data: '['); $separator = '';
+        foreach (self::iterate() as $table) { hash_update($hash, $separator . JsonEncoding::encode($table)); $separator = ','; }
+        hash_update($hash, data: ']');
+        return hash_final($hash);
     }
 
     /**
  * @return list<array{name: string, columns: list<Column>}> */
     public static function contract(): array
     {
-        return array_map(static fn (array $table): array => ['name' => $table['name'], 'columns' => self::columns($table)], self::tables());
+        return database_transfer_manifest_contract(self::iterate(), self::cache());
     }
 
     /**
@@ -89,4 +114,65 @@ final class DatabaseTransferManifest
         }
         return $directory . '/' . $name;
     }
+}
+
+/** @internal Lossless native fallback preserves unsupported projected values.
+ * @template T of list<array{name: mixed, type: mixed, nullable: mixed}>
+ * @param T $columns
+ * @param list<string> $pool
+ * @return string|T */
+function database_transfer_manifest_pack(array $columns, array &$pool): string|array
+{
+    $bytes = '';
+    foreach ($columns as $column) {
+        if (!is_string($column['name']) || !is_string($column['type']) || !is_bool($column['nullable'])) { return $columns; }
+        foreach ([$column['name'], $column['type']] as $part) {
+            $index = array_search($part, $pool, strict: true);
+            if ($index === false) { $index = count($pool); if ($index > 255) { return $columns; } $pool[] = $part; }
+            $bytes .= chr($index);
+        }
+        $bytes .= $column['nullable'] ? "\1" : "\0";
+    }
+    return $bytes;
+}
+
+/** @internal
+ * @template T of array
+ * @param string|T $record
+ * @param list<string> $pool
+ * @param list<array{name: string, columns: list<\Tablo\DatabaseTransferManifest::Column>}>|null $checkedColumns
+ * @return T|list<\Tablo\DatabaseTransferManifest::Column> */
+function database_transfer_manifest_expand(string|array $record, array $pool, ?array $checkedColumns = null, int $index = 0): array
+{
+    if ($checkedColumns !== null) { return $checkedColumns[$index]['columns'] ?? throw new DatabaseFailure('schema'); }
+    if (is_array($record)) { return $record; }
+    $columns = []; $length = strlen($record);
+    for ($offset = 0; $offset < $length; $offset += 3) {
+        $columns[] = ['name' => $pool[ord($record[$offset])] ?? throw new DatabaseFailure('schema'),
+            'type' => $pool[ord($record[$offset + 1])] ?? throw new DatabaseFailure('schema'),
+            'nullable' => $record[$offset + 2] === "\1"];
+    }
+    return $columns;
+}
+
+/** @internal
+ * @param \Generator<int, \Tablo\DatabaseTransferManifest::Table> $tables
+ * @param \Tablo\DatabaseTransferManifest::Cache $cache
+ * @return list<array{name: string, columns: list<\Tablo\DatabaseTransferManifest::Column>}> */
+function database_transfer_manifest_contract(\Generator $tables, array $cache): array
+{
+    $contract = []; $pool = [];
+    foreach ($tables as $tableIndex => $table) {
+        // Native fallback values, including signed zero, must keep their exact representation.
+        if (is_string($cache[1][$tableIndex][1] ?? throw new DatabaseFailure('schema'))) {
+            foreach ($table['columns'] as $index => $column) {
+                $key = array_search($column, $pool, strict: true);
+                if ($key === false) { $key = count($pool); $pool[] = $column; }
+                $table['columns'][$index] = $pool[$key] ?? throw new DatabaseFailure('schema');
+            }
+        }
+        $contract[] = ['name' => $table['name'], 'columns' => $table['columns']];
+        unset($table);
+    }
+    return $contract;
 }

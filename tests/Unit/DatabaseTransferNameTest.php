@@ -22,6 +22,7 @@ final class DatabaseTransferNameTest
     #[Test]
     public function varcharNamesCountCodePointsAndKeepExactPermittedBytes(): void
     {
+        database_transfer_manifest_public_contract();
         database_transfer_wire_byte_oracles();
         $column = TransferSqliteFixture::table('git_tokens')['columns'][1] ?? throw new \RuntimeException('Fixed token name absent.');
         Assert::same([$column['name'], $column['type']], ['name', 'varchar(80)']);
@@ -81,6 +82,35 @@ final class DatabaseTransferNameTest
         } catch (\Throwable $error) { $fixture->directory->retainFailure($error); throw $error; }
         finally { $target = null; $source = null; $fixture->directory->close(); }
     }
+}
+
+/** Public wire, shared-header ownership and mutations stay independent of cache storage. */
+function database_transfer_manifest_public_contract(): void
+{
+    $layout = '58a779e680f9479d0b41a89fbcc72683d80608f12addef16b029b48ee2b1d4e8';
+    $contractDigest = '536b4f80f2bea4ca8216bf5473a8200e1dd19621f4996c1ff5415ee3a7960b32';
+    $tables = \Tablo\DatabaseTransferManifest::tables();
+    Assert::same(count($tables), 15);
+    Assert::same(hash('sha256', JsonEncoding::encode($tables)), $layout);
+    Assert::same(\Tablo\DatabaseTransferManifest::layout(), $layout);
+    $contract = \Tablo\DatabaseTransferManifest::contract();
+    Assert::same(hash('sha256', JsonEncoding::encode($contract)), $contractDigest);
+    Assert::same(iterator_to_array(\Tablo\DatabaseTransferManifest::iterate(), preserve_keys: false), $tables);
+    $views = iterator_to_array(\Tablo\DatabaseTransferManifest::iterate($contract), preserve_keys: false);
+    Assert::same($views, $tables);
+    $views[0]['columns'][0]['name'] = 'changed-view';
+    $tables[0]['columns'][0]['name'] = 'changed-table';
+    $tables[0]['primary'][0] = 'changed-primary';
+    Assert::same($contract[0]['columns'][0]['name'] ?? null, 'id');
+    $contract[0]['columns'][0]['name'] = 'changed-contract';
+    Assert::same(\Tablo\DatabaseTransferManifest::layout(), $layout);
+    Assert::same(hash('sha256', JsonEncoding::encode(\Tablo\DatabaseTransferManifest::contract())), $contractDigest);
+    $first = \Tablo\DatabaseTransferManifest::iterate(); $second = \Tablo\DatabaseTransferManifest::iterate();
+    $first->rewind(); $second->rewind();
+    Assert::same($first->current()['name'], 'users');
+    $first->next();
+    Assert::same($first->current()['name'], 'git_tokens');
+    Assert::same($second->current()['name'], 'users');
 }
 
 /** The unchanged public encoder is the independent byte oracle; this helper adds no test identity. */
