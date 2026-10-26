@@ -8,7 +8,7 @@
                 "Composer verify",
                 "Reviewed dependency capture"
             ],
-            "fingerprint": "sha256:e8cfa5db3bbf61148de49ab4bd51499de83ae4b0cae8c6aec284bea1ca0f1548"
+            "fingerprint": "sha256:a3cc299001a2ab35189469922ab59262d409c1f0c27d66be4633d3d9a842d168"
         },
         {
             "path": "tools/reviewed-dependencies.php",
@@ -106,7 +106,7 @@
                 "Composer analyze",
                 "Composer verify"
             ],
-            "fingerprint": "sha256:be7608799c31675fbca2b62f17a7532c1e905b5a4c81c0d3f0840572020b4b43"
+            "fingerprint": "sha256:80727b22e382cb68547c8808378916d3ca01b3226f216269ac78ae2ab918c6b7"
         },
         {
             "path": "tests/Support/TransferPublicationFault.php",
@@ -156,7 +156,7 @@
                 "tools/server-io-uring-php-grammar.test.php",
                 "tools/server-supervisor-linux-fallback-unit.c"
             ],
-            "fingerprint": "sha256:3214590ceda9dee074cabc5f2bec4b3664a0b6f9966811724ae5635093d8ad87"
+            "fingerprint": "sha256:7ad5d59c2c6de08c5d1ad9b0f09243fee6e1063c04483e8449722074fbb58a2f"
         },
         {
             "path": "app/AddressRange.php",
@@ -271,7 +271,7 @@
                 "Composer verify",
                 "Composer analyze"
             ],
-            "fingerprint": "sha256:346fddda023e01252f583ef28f33c7898dacc6882e6b075663288687693ccb63"
+            "fingerprint": "sha256:77d732510341dff3b9ffe351b8d40ea0180b8d48b3ce0605c421b5fccc641a5c"
         },
         {
             "path": "app/BranchPresentation.php",
@@ -631,7 +631,7 @@
                 "tests/Support/EngineFixture.php",
                 "tests/Server/EngineMetadataAdmissionTest.php"
             ],
-            "fingerprint": "sha256:fb37f41ef21389ca2331920ae6d6d98a75bf6fa1980665ce26b10e86d990ed4c"
+            "fingerprint": "sha256:965ca94c7bd3a26529be36f8db1402e17966207057523b46241f67f4ab90ce32"
         },
         {
             "path": "app/DatabaseEnvironment.php",
@@ -861,7 +861,7 @@
                 "tests/Server/EngineTransferTest.php",
                 "tests/ServerCross/EngineCrossTransferTest.php"
             ],
-            "fingerprint": "sha256:13f57a40c6f2f665e2bcd8ac0dc64fd281ba3f7f012b8fe08ac25a8920b3206d"
+            "fingerprint": "sha256:2e204f44743a0c4239551398882226360b981317c59d9449270420064021b52f"
         },
         {
             "path": "app/DatabaseTransferArchive.php",
@@ -875,7 +875,7 @@
                 "app/DatabaseTransferManifest.php",
                 "app/DatabaseTransferVerification.php"
             ],
-            "fingerprint": "sha256:098f4f25b57ab811238bbf7fc3dd6a60a200b4cf67f54b026fdd038feb304725"
+            "fingerprint": "sha256:d384f82162fdbfe17907f9fed2997cf1057c3576f77c9a4ceca3228f42bb125e"
         },
         {
             "path": "app/DatabaseTransferImport.php",
@@ -906,7 +906,7 @@
                 "tests/ServerCross/EngineCrossTransferTest.php",
                 "tests/Server/EngineMetadataAdmissionTest.php"
             ],
-            "fingerprint": "sha256:872267af4e41e01e4cb2cd8e742445ece6a301a409ff1f2b12dd6828c0aaca4a"
+            "fingerprint": "sha256:ba94eb0ad74ddb2af75d53b89e15cf45d9924c3140ebb216996023edd2963060"
         },
         {
             "path": "app/DatabaseTransferPreflight.php",
@@ -938,7 +938,7 @@
                 "tests/Server/EngineTransferAdmissionTest.php",
                 "tests/Server/EngineTransferEnvelopeTest.php"
             ],
-            "fingerprint": "sha256:a154642e0dba955fad148535a3d50950918158c7f48f3146e94937264b26d753"
+            "fingerprint": "sha256:6222a8a48a2f83e8dfc04e849f8260123f63991797793d73f67a218209cb4a0e"
         },
         {
             "path": "app/DatabaseTransferSequence.php",
@@ -982,7 +982,7 @@
                 "tests/Server/EngineTransferTest.php",
                 "tests/Server/EngineTransferEnvelopeTest.php"
             ],
-            "fingerprint": "sha256:2f0510503dd6a902b0adfdfa3b1ac6aa63e822a37264ff246e1c8400ab3e9640"
+            "fingerprint": "sha256:0dc01d8d6c68d469cea2bfa60747d9a278436a083f6be064a48fbfe48c5424ad"
         },
         {
             "path": "app/DeploymentFields.php",
@@ -2068,7 +2068,7 @@
                 "Composer verify",
                 "app/ServerMetadataAdmission.php"
             ],
-            "fingerprint": "sha256:9911a1049672514818a09f6173bf11adaec917350ae0520099ed401b410365be"
+            "fingerprint": "sha256:c7c8b75ab5d54eb33d2f999fd4d7955a3a7369922f578820e610b83f8321d95c"
         },
         {
             "path": "app/JsonField.php",
@@ -3478,29 +3478,6 @@
                 "tests/Server/EngineMetadataAdmissionTest.php"
             ],
             "fingerprint": "sha256:b30171d4215a2e928790fd4aad7a2c47136388af1b49087e10747cf288edc0d5"
-        },
-        {
-            "path": "app/ColdTransferCoarsePeak.php",
-            "owner": "Temporary numeric-only complete-transfer peak localization",
-            "consumers": [
-                "app/bootstrap.php",
-                "app/DatabaseConnectionFactory.php",
-                "app/DatabaseTransfer.php",
-                "app/DatabaseTransferArchive.php",
-                "app/DatabaseTransferRows.php",
-                "app/DatabaseTransferManifest.php",
-                "app/DatabaseTransferVerification.php",
-                "app/JsonEncoding.php"
-            ],
-            "fingerprint": "sha256:2d194e933c1e0541a205b309c716298685f5af8cba04a437bd0f26f66a4c5e29"
-        },
-        {
-            "path": "tools/collect-cold-r81.ps1",
-            "owner": "Temporary strict numeric-only peak localization receiver",
-            "consumers": [
-                ".github/workflows/verify.yml"
-            ],
-            "fingerprint": "sha256:c652e1da94ded989794ce3eba522dd5d61e6039197457b47259c0b2b04be52d6"
         },
         {
             "path": "app/ServerAdmissionRecords.php",
@@ -11270,7 +11247,7 @@
                 "Composer analyze",
                 "tools/server-supervisor.cjs"
             ],
-            "fingerprint": "sha256:392303c76afc245e596efd9c3a1fe48ec45939b6b3f3643b5a19e9c91d711c9a"
+            "fingerprint": "sha256:4dae8a647b8f1f74e2b6c98597d670c27f3bb40c6e9b324d9ca2aaf1b10b7ab1"
         },
         {
             "path": "tools/verify.php",
@@ -11425,7 +11402,7 @@
                 "tests/Server/EngineVerificationTest.php",
                 "tools/server-io-uring-php-grammar.test.php"
             ],
-            "fingerprint": "sha256:6a8c3a2479d33096160c21d9fdc2b5093845e021be47dc5c116afecb48189e07"
+            "fingerprint": "sha256:113f71fa6123d03feab6480552d0f9537bf4486317102095fb7e26e91294b8b3"
         },
         {
             "path": "tests/ServerCross/EngineServerCrashTest.php",
@@ -11462,7 +11439,7 @@
                 "tools/server-native-denial.test.cjs",
                 "tools/server-io-uring-fallback.test.cjs"
             ],
-            "fingerprint": "sha256:07de0f0ed4774b44cb960eae8023df24dc598b61b2cfaa03a009febdf5aa812f"
+            "fingerprint": "sha256:2e4f5679ad564b957c8679b65009e9548fd1dfc4d64c6379b9a05b4cf2c697f7"
         },
         {
             "path": "tools/server-supervisor-windows.ps1",
@@ -12154,7 +12131,7 @@
                 "dashboard.list_sites native test",
                 "dashboard.check_site native test"
             ],
-            "fingerprint": "sha256:00ab7e33090bffa5d12e483d974acabc103bf18fa229013bab2bc3b70557950a"
+            "fingerprint": "sha256:cd30e40eeb9cd2c2433eef7be95a48977a26b8ba3efd3afeaef0e9154f10e197"
         },
         {
             "path": "tests/Support/DashboardModesFixture.php",

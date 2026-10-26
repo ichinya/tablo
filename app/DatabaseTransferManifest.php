@@ -52,9 +52,7 @@ final class DatabaseTransferManifest
     private static function cache(): array
     {
         if (self::$dataTables !== null) { return self::$dataTables; }
-        database_transfer_manifest_stage(601);
         $layout = ServerSchemaDescriptor::forEngine('mysql');
-        database_transfer_manifest_stage(602);
         $tables = []; $pool = []; $primaries = []; $names = array_column($layout['tables'], 'name');
         foreach (self::TABLES as $name) {
             $index = array_search($name, $names, strict: true);
@@ -69,9 +67,7 @@ final class DatabaseTransferManifest
             $primary = $primaries[$key] ?? $primary; $primaries[$key] = $primary;
             $tables[] = [$table['name'], database_transfer_manifest_pack($columns, $pool), $primary];
         }
-        database_transfer_manifest_stage(603);
         self::$dataTables = [$pool, $tables];
-        database_transfer_manifest_stage(0);
         return self::$dataTables;
     }
 
@@ -85,21 +81,16 @@ final class DatabaseTransferManifest
 
     public static function layout(): string
     {
-        database_transfer_manifest_stage(611);
         $hash = hash_init('sha256'); hash_update($hash, data: '['); $separator = '';
-        foreach (self::iterate() as $table) { database_transfer_manifest_stage(611); hash_update($hash, $separator . JsonEncoding::encode($table)); $separator = ','; }
-        database_transfer_manifest_stage(611);
+        foreach (self::iterate() as $table) { hash_update($hash, $separator . JsonEncoding::encode($table)); $separator = ','; }
         hash_update($hash, data: ']');
-        $digest = hash_final($hash);
-        database_transfer_manifest_stage(0);
-        return $digest;
+        return hash_final($hash);
     }
 
     /**
  * @return list<array{name: string, columns: list<Column>}> */
     public static function contract(): array
     {
-        database_transfer_manifest_stage(612);
         return database_transfer_manifest_contract(self::iterate(), self::cache());
     }
 
@@ -153,18 +144,15 @@ function database_transfer_manifest_pack(array $columns, array &$pool): string|a
  * @return T|list<\Tablo\DatabaseTransferManifest::Column> */
 function database_transfer_manifest_expand(string|array $record, array $pool, ?array $checkedColumns = null, int $index = 0): array
 {
-    database_transfer_manifest_stage(615);
-    try {
-        if ($checkedColumns !== null) { return $checkedColumns[$index]['columns'] ?? throw new DatabaseFailure('schema'); }
-        if (is_array($record)) { return $record; }
-        $columns = []; $length = strlen($record);
-        for ($offset = 0; $offset < $length; $offset += 3) {
-            $columns[] = ['name' => $pool[ord($record[$offset])] ?? throw new DatabaseFailure('schema'),
-                'type' => $pool[ord($record[$offset + 1])] ?? throw new DatabaseFailure('schema'),
-                'nullable' => $record[$offset + 2] === "\1"];
-        }
-        return $columns;
-    } finally { database_transfer_manifest_stage(0); }
+    if ($checkedColumns !== null) { return $checkedColumns[$index]['columns'] ?? throw new DatabaseFailure('schema'); }
+    if (is_array($record)) { return $record; }
+    $columns = []; $length = strlen($record);
+    for ($offset = 0; $offset < $length; $offset += 3) {
+        $columns[] = ['name' => $pool[ord($record[$offset])] ?? throw new DatabaseFailure('schema'),
+            'type' => $pool[ord($record[$offset + 1])] ?? throw new DatabaseFailure('schema'),
+            'nullable' => $record[$offset + 2] === "\1"];
+    }
+    return $columns;
 }
 
 /** @internal
@@ -173,28 +161,18 @@ function database_transfer_manifest_expand(string|array $record, array $pool, ?a
  * @return list<array{name: string, columns: list<\Tablo\DatabaseTransferManifest::Column>}> */
 function database_transfer_manifest_contract(\Generator $tables, array $cache): array
 {
-    database_transfer_manifest_stage(612);
-    try {
-        $contract = []; $pool = [];
-        foreach ($tables as $tableIndex => $table) {
-            database_transfer_manifest_stage(612);
-            // Native fallback values, including signed zero, must keep their exact representation.
-            if (is_string($cache[1][$tableIndex][1] ?? throw new DatabaseFailure('schema'))) {
-                foreach ($table['columns'] as $index => $column) {
-                    $key = array_search($column, $pool, strict: true);
-                    if ($key === false) { $key = count($pool); $pool[] = $column; }
-                    $table['columns'][$index] = $pool[$key] ?? throw new DatabaseFailure('schema');
-                }
+    $contract = []; $pool = [];
+    foreach ($tables as $tableIndex => $table) {
+        // Native fallback values, including signed zero, must keep their exact representation.
+        if (is_string($cache[1][$tableIndex][1] ?? throw new DatabaseFailure('schema'))) {
+            foreach ($table['columns'] as $index => $column) {
+                $key = array_search($column, $pool, strict: true);
+                if ($key === false) { $key = count($pool); $pool[] = $column; }
+                $table['columns'][$index] = $pool[$key] ?? throw new DatabaseFailure('schema');
             }
-            $contract[] = ['name' => $table['name'], 'columns' => $table['columns']];
-            unset($table);
         }
-        return $contract;
-    } finally { database_transfer_manifest_stage(0); }
-}
-
-/** @internal Temporary dispatch never autoloads the actor-only preloaded observer. */
-function database_transfer_manifest_stage(int $code): void
-{
-    if (class_exists(ColdTransferCoarsePeak::class, autoload: false)) { ColdTransferCoarsePeak::stage($code); }
+        $contract[] = ['name' => $table['name'], 'columns' => $table['columns']];
+        unset($table);
+    }
+    return $contract;
 }

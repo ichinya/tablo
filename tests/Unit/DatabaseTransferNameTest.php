@@ -24,6 +24,7 @@ final class DatabaseTransferNameTest
     {
         database_transfer_manifest_public_contract();
         database_transfer_wire_byte_oracles();
+        database_transfer_codec_public_oracles();
         $column = TransferSqliteFixture::table('git_tokens')['columns'][1] ?? throw new \RuntimeException('Fixed token name absent.');
         Assert::same([$column['name'], $column['type']], ['name', 'varchar(80)']);
         $valid = ['a', str_repeat('a', times: 80), str_repeat("\xf0\x9f\xa7\xaa", times: 80), str_repeat("e\xcc\x81", times: 40), 'Café '];
@@ -137,4 +138,104 @@ function database_transfer_wire_byte_case(array $values): void
     $expected = JsonEncoding::encode(DatabaseTransferRows::encode($values)) . "\n";
     Assert::same(DatabaseTransferWire::completeLine($values), $expected);
     Assert::same($values, $before);
+}
+
+/** Consume the public encoder's exact wire and retain an independent caller alias. */
+function database_transfer_codec_public_oracles(): void
+{
+    $table = database_transfer_codec_public_table();
+    $bytes = implode('', array_map(chr(...), range(0, end: 255)));
+    foreach ([null, '', 'ASCII punctuation !#$%&()*+,-.:;<=>?@[]^_`{|}~', $bytes, "\0\xff\xc0\x80", 'Café 🧪'] as $payload) {
+        database_transfer_codec_value_case([null, PHP_INT_MIN, PHP_INT_MAX, $payload, 'Café 🧪'], $table);
+    }
+    foreach ([3071, 3072, 3073, 4095, 4096, 4097, 90_000] as $size) {
+        database_transfer_codec_value_case([null, PHP_INT_MIN, PHP_INT_MAX, str_repeat('x', times: $size), null], $table);
+    }
+    database_transfer_codec_value_case([null, PHP_INT_MIN, PHP_INT_MAX, str_repeat("\xff", times: 90_000), ''], $table);
+    $binary = ['name' => 'codec', 'columns' => [['name' => 'payload', 'type' => 'longblob', 'nullable' => true]], 'primary' => ['payload']];
+    database_transfer_codec_wire_refusals($binary);
+    database_transfer_codec_typed_refusals($binary);
+}
+
+/** @return \Tablo\DatabaseTransferManifest::Table */
+function database_transfer_codec_public_table(): array
+{
+    return ['name' => 'codec', 'columns' => [
+        ['name' => 'optional', 'type' => 'bigint', 'nullable' => true],
+        ['name' => 'minimum', 'type' => 'bigint', 'nullable' => false],
+        ['name' => 'maximum', 'type' => 'bigint', 'nullable' => false],
+        ['name' => 'payload', 'type' => 'longblob', 'nullable' => true],
+        ['name' => 'note', 'type' => 'longtext', 'nullable' => true],
+    ], 'primary' => ['minimum']];
+}
+
+/** @param \Tablo\DatabaseTransferRows::Values $values
+ * @param \Tablo\DatabaseTransferManifest::Table $table */
+function database_transfer_codec_value_case(array $values, array $table): void
+{
+    $before = $values;
+    $wire = JsonEncoding::encode(DatabaseTransferRows::encode($values));
+    $line = $wire; $alias = $line;
+    Assert::same(DatabaseTransferRows::line($wire, $table), $values);
+    Assert::same(DatabaseTransferRows::consumeLine($line, $table), $values);
+    Assert::same($line, ''); Assert::same($alias, $wire); Assert::same($values, $before);
+    Assert::same(DatabaseTransferWire::completeLine($values), $wire . "\n");
+}
+
+/** @param \Tablo\DatabaseTransferManifest::Table $table */
+function database_transfer_codec_wire_refusals(array $table): void
+{
+    foreach (['[["b\u0079tes","QQ=="]]', '[["bytes","\u0051Q=="]]', '[["bytes","/w=="]]',
+        ' [["bytes","QQ=="]]', '[["bytes","QQ=="]] ', '{"0":["bytes","QQ=="]}',
+        '[{"0":"bytes","1":"QQ=="}]'] as $wire) {
+        database_transfer_codec_failure_case($wire, $table, [DatabaseFailure::class, 'schema', '']);
+    }
+    foreach (["\n", "\x7f", 'é', '"', '\\'] as $payload) {
+        database_transfer_codec_failure_case(JsonEncoding::encode([['bytes', $payload]]), $table, [DatabaseFailure::class, 'schema', '']);
+    }
+}
+
+/** @param \Tablo\DatabaseTransferManifest::Table $table */
+function database_transfer_codec_typed_refusals(array $table): void
+{
+    foreach (['[["bytes","!"]]', '[["bytes","QQ"]]', '[["unknown","QQ=="]]',
+        '[["integer","9223372036854775808"]]', '[["integer","01"]]', '[["integer","0"]]'] as $wire) {
+        database_transfer_codec_failure_case($wire, $table, [DatabaseFailure::class, 'schema', '']);
+    }
+    foreach (['[[]]', '[null]', '["bytes"]', '[["bytes"]]', '[["bytes",7]]'] as $wire) {
+        database_transfer_codec_failure_case($wire, $table, [\RuntimeException::class, null, '']);
+    }
+    foreach (['null', 'false'] as $wire) {
+        database_transfer_codec_failure_case($wire, $table, [\RuntimeException::class, null, $wire]);
+    }
+    foreach (['[', '[["bytes","' . "\xff" . '"]]'] as $wire) {
+        database_transfer_codec_failure_case($wire, $table, [\JsonException::class, null, $wire]);
+    }
+}
+
+/** @param \Tablo\DatabaseTransferManifest::Table $table
+ * @param array{class-string<\Throwable>, ?string, string} $expected */
+function database_transfer_codec_failure_case(string $wire, array $table, array $expected): void
+{
+    $reference = database_transfer_codec_failure(static fn (): array => DatabaseTransferRows::line($wire, $table));
+    Assert::same($reference, ['exception' => $expected[0], 'category' => $expected[1], 'previous' => null, 'output' => '']);
+    $line = $wire; $alias = $line;
+    $actual = database_transfer_codec_failure(static function () use (&$line, $table): array {
+        return DatabaseTransferRows::consumeLine($line, $table);
+    });
+    Assert::same($actual, $reference); Assert::same($line, $expected[2]); Assert::same($alias, $wire);
+}
+
+/** @param \Closure(): array $read
+ * @return array{exception: class-string<\Throwable>|null, category: ?string, previous: class-string<\Throwable>|null, output: string} */
+function database_transfer_codec_failure(\Closure $read): array
+{
+    $caught = null; ob_start();
+    try { $read(); } catch (\Throwable $error) { $caught = $error; }
+    finally { $output = ob_get_clean(); }
+    if ($output === false) { throw new \RuntimeException('Codec output capture unavailable.'); }
+    $previous = $caught?->getPrevious();
+    return ['exception' => $caught === null ? null : $caught::class,
+        'category' => $caught instanceof DatabaseFailure ? $caught->category : null,
+        'previous' => $previous === null ? null : $previous::class, 'output' => $output];
 }
