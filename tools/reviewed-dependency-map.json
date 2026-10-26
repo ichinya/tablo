@@ -1,4 +1,12 @@
 {
+  "app/ColdTransferCoarsePeak.php": {
+    "owner": "Temporary fixed-scalar coarse peak localization; remove before acceptance",
+    "consumers": ["Composer lint", "Composer analyze", "Composer verify"]
+  },
+  "tools/collect-cold-r81.ps1": {
+    "owner": "Temporary bounded numeric-only localization projection; remove before acceptance",
+    "consumers": ["Composer verify", ".github/workflows/verify.yml"]
+  },
   "app/DatabaseTransferWire.php": {
     "owner": "Canonical bounded-fragment typed transfer line writer",
     "consumers": ["Composer lint", "Composer analyze", "Composer verify"]

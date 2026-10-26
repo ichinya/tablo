@@ -20,15 +20,6 @@ final class ServerSchemaDescriptor
         return self::forEngine($engine);
     }
 
-    /** @internal Validate and project every source record before publishing any admission table.
-     * @return list<AdmissionTable> */
-    public static function admission(PDO $db): array
-    {
-        $engine = DatabaseSession::get($db)?->configuration->engine;
-        $file = match ($engine) { 'mysql' => 'mysql84', 'mariadb' => 'mariadb114', default => throw new DatabaseFailure('configuration') };
-        return server_schema_descriptor_admission(dirname(__DIR__) . '/database/' . $file . '-layout.jsonl', $engine);
-    }
-
     /** @internal Project only a fully validated source layout for table and metadata admission.
      * @param Layout $layout
      * @return list<AdmissionTable> */
@@ -108,28 +99,14 @@ final class ServerSchemaDescriptor
 
 }
 
-/** @internal Validate the complete source before returning its compact admission graph.
- * @return list<\Tablo\ServerSchema::AdmissionTable> */
-function server_schema_descriptor_admission(#[\SensitiveParameter] string $path, string $engine): array
-{
-    $layout = server_schema_descriptor_read($path, static function (array $table): array {
-        server_schema_descriptor_integrity($table); unset($table['create'], $table['checksum']); return $table;
-    });
-    $tables = JsonRecord::checked($layout['tables'] ?? null);
-    if (($layout['format'] ?? null) !== 1 || ($layout['engine'] ?? null) !== $engine || count($tables) !== 18) { throw new DatabaseFailure('schema'); }
-    /** @var list<\Tablo\ServerSchema::AdmissionTable> $tables All records, CREATE hashes, EOF and reader closure were checked before publication. */
-    return $tables;
-}
-
-/** @internal Read the single finite source and positively close before publishing its graph.
- * @param (\Closure(array): array)|null $project */
-function server_schema_descriptor_read(#[\SensitiveParameter] string $path, ?\Closure $project = null): array
+/** @internal Read the single finite source and positively close before publishing its graph. */
+function server_schema_descriptor_read(#[\SensitiveParameter] string $path): array
 {
     $stream = null; $layout = null; $primary = null;
     try {
         $stream = NativeWarning::ignore(static fn () => fopen($path, mode: 'rb'));
         if ($stream === false) { throw new DatabaseFailure('schema'); }
-        $layout = server_schema_descriptor_parse($stream, $project);
+        $layout = server_schema_descriptor_parse($stream);
     } catch (\Throwable) { $primary = new DatabaseFailure('schema'); }
     finally { $closed = server_schema_descriptor_close($stream); }
     if ($primary !== null) { throw $primary; }
@@ -147,15 +124,13 @@ function server_schema_descriptor_close($stream): bool
 }
 
 /** @internal
- * @param resource $stream
- * @param (\Closure(array): array)|null $project */
-function server_schema_descriptor_parse($stream, ?\Closure $project = null): array
+ * @param resource $stream */
+function server_schema_descriptor_parse($stream): array
 {
     $layout = server_schema_descriptor_header(server_schema_descriptor_record($stream));
     $layout['tables'] = [];
     for ($index = 0; $index < 18; $index++) {
-        $table = server_schema_descriptor_table(server_schema_descriptor_record($stream));
-        $layout['tables'][] = $project === null ? $table : $project($table); unset($table);
+        $layout['tables'][] = server_schema_descriptor_table(server_schema_descriptor_record($stream));
     }
     if (NativeWarning::ignore(static fn () => fgetc($stream)) !== false || !feof($stream)) { throw new DatabaseFailure('schema'); }
     return $layout;
@@ -210,17 +185,11 @@ function server_schema_descriptor_layout(array $layout, string $engine): array
     if (($layout['format'] ?? null) !== 1 || ($layout['engine'] ?? null) !== $engine || count($tables) !== 18) { throw new DatabaseFailure('schema'); }
     foreach (array_keys($tables) as $key) {
         $table = JsonRecord::checked($tables[$key] ?? null);
-        server_schema_descriptor_integrity($table);
+        if (!is_string($table['checksum'] ?? null) || !is_string($table['create'] ?? null)
+            || !hash_equals($table['checksum'], hash('sha256', $table['create']))) { throw new DatabaseFailure('schema'); }
     }
     /** @var \Tablo\ServerSchema::Layout $layout Checked-in finite graph after framing and original full-graph integrity checks. */
     return $layout;
-}
-
-/** @internal Identical CREATE type/hash policy for complete layouts and streamed admission projections. */
-function server_schema_descriptor_integrity(array $table): void
-{
-    if (!is_string($table['checksum'] ?? null) || !is_string($table['create'] ?? null)
-        || !hash_equals($table['checksum'], hash('sha256', $table['create']))) { throw new DatabaseFailure('schema'); }
 }
 
 /** Compare only source-proven MySQL printers for the descriptor's printable ASCII string literals.

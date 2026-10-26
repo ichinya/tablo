@@ -24,7 +24,7 @@ final class ServerTableAdmission
     {
         $session = DatabaseSession::get($db); $owned = false;
         try {
-            $allTables = ServerSchemaDescriptor::admission($db);
+            $allTables = ServerSchemaDescriptor::admissionTables(ServerSchema::layout($db));
             $tables = array_values(array_filter($allTables, static fn (array $table): bool => $version === 10 || $table['name'] !== 'read_api_token'));
             $expected = array_column($tables, 'name'); sort($expected, SORT_STRING);
             if ($version === 10 && $session?->configuration->engine === 'mariadb'

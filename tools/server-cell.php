@@ -1172,7 +1172,7 @@ function server_cell_start_environment(array $plan): array
         'TABLO_SERVER_LINUX_ADAPTER', 'TABLO_SERVER_LINUX_ADAPTER_SHA256', 'TABLO_SERVER_LINUX_BUILD', 'TABLO_SERVER_LINUX_BUILD_SHA256',
         'TABLO_SERVER_LINUX_QUALIFICATION', 'TABLO_SERVER_LINUX_QUALIFICATION_SHA256',
         'TABLO_SERVER_LINUX_SHELL', 'TABLO_SERVER_LINUX_SHELL_SHA256',
-        'TABLO_TEST_BASELINE_PHASE_FILE', 'TABLO_TEST_BASELINE_PHASE_SHA256'] as $name) {
+        'TABLO_TEST_BASELINE_PHASE_FILE', 'TABLO_TEST_BASELINE_PHASE_SHA256', 'TABLO_TEST_COLD_R81'] as $name) {
         $value = getenv($name); if (is_string($value)) { $environment[$name] = $value; }
     }
     $composer = JsonRecord::checked($plan['composer'] ?? null); $lekalo = JsonRecord::checked($plan['lekalo'] ?? null);

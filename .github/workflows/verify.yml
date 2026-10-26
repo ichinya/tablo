@@ -394,6 +394,8 @@ jobs:
     env:
       LEKALO_REF: 9510dd0767a56c0ab34b8d3c8ceb2a14db8de825
       COMPOSER_PROCESS_TIMEOUT: '1800'
+      # Temporary paired localization; neither mode qualifies the original cold budget.
+      TABLO_TEST_COLD_R81: ${{ github.event_name == 'push' && 'observe' || 'inactive' }}
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
       - name: Seed safe declaration status before input preparation
@@ -716,6 +718,17 @@ jobs:
             }
             $progress = @(Get-ChildItem -LiteralPath (Join-Path $plan.runtime 'evidence') -Filter 'native-*.json' -File -ErrorAction SilentlyContinue | Sort-Object Name | ForEach-Object { Get-Content -LiteralPath $_.FullName -Raw | ConvertFrom-Json })
             $status.nativeProgress = $progress
+            $coarsePath = Join-Path $plan.runtime 'cases/transfer-working-data/cold-r81.json'
+            $status.coarseDiagnostic = 'missing'
+            if (Test-Path -LiteralPath $coarsePath) {
+              try {
+                & tools/collect-cold-r81.ps1 -InputPath $coarsePath -OutputPath (Join-Path $cellDirectory 'safe-cold-r81.json') -RunId $env:GITHUB_RUN_ID -Head (git rev-parse HEAD) -Nonce $plan.nonce -Engine '${{ matrix.engine }}' -Php '${{ matrix.php }}' -Mode $env:TABLO_TEST_COLD_R81
+                if (!$?) { throw 'Numeric-only coarse localization refused' }
+                $status.coarseDiagnostic = 'retained'
+              } catch {
+                $status.coarseDiagnostic = 'invalid-or-incomplete'
+              }
+            }
           }
           [IO.File]::WriteAllText((Join-Path $cellDirectory 'safe-summary.json'), ($status | ConvertTo-Json -Depth 30), [Text.UTF8Encoding]::new($false))
       - name: Upload safe server-cell summary
