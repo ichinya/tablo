@@ -42,6 +42,8 @@ function metadata_checks_visible_to_select_only_writer(): void
         }
     }
     foreach (['writer', 'control'] as $role) { metadata_checks_bound_snapshot($role); }
+    metadata_records_engine_binding();
+    metadata_records_layout_selection();
 }
 
 function metadata_checks_role_case(string $engine, string $role, string $fault): void
@@ -148,11 +150,14 @@ function metadata_checks_observation(MetadataPrivilegesPdo $writer, DatabaseConf
 function metadata_checks_invocation_tables(MetadataPrivilegesPdo $metadata, DatabaseConfiguration $configuration): array
 {
     $tables = \Tablo\ServerSchema::layout($metadata)['tables']; $before = $tables;
+    $queryStart = count($metadata->queries);
     $default = []; $provided = []; $defaultFailure = null; $providedFailure = null;
     try { $default = \Tablo\server_metadata_check_observation($metadata, $configuration, version: 10); }
     catch (DatabaseFailure $error) { $defaultFailure = $error; }
+    $defaultQueries = array_slice($metadata->queries, $queryStart);
     try { $provided = \Tablo\server_metadata_check_observation($metadata, $configuration, version: 10, expectedTables: $tables); }
     catch (DatabaseFailure $error) { $providedFailure = $error; }
+    metadata_checks_record_equivalence($metadata, $configuration, $default, $defaultFailure, $defaultQueries);
     Assert::same($providedFailure?->category, $defaultFailure?->category);
     Assert::same($providedFailure?->getPrevious(), null); Assert::same($tables, $before);
     if ($defaultFailure !== null) { throw $defaultFailure; }
@@ -237,7 +242,7 @@ function metadata_layout_invocation_refusals(MetadataPrivilegesPdo $db, array $o
     $session = \Tablo\DatabaseSession::get($db) ?? throw new \RuntimeException('Missing admitted session.');
     $tables = \Tablo\ServerSchema::layout($db)['tables']; $session->metadataObservation = $observation;
     foreach ([0, 9, 10, 11] as $version) {
-        foreach ([null, $tables] as $provided) {
+        foreach ([null, $tables, metadata_checks_records('mariadb')] as $provided) {
             $caught = null;
             try { \Tablo\ServerMetadataAdmission::objects($db, $version, expectedTables: $provided); }
             catch (DatabaseFailure $error) { $caught = $error; }
@@ -316,4 +321,73 @@ function metadata_privileges_check(MetadataPrivilegesPdo $db, ?string $expected 
     try { ServerMetadataPrivileges::verify($db, $configuration); } catch (DatabaseFailure $error) { $failure = $error->category; }
     finally { Assert::same($db->opened, $db->closed); }
     Assert::same($failure, $expected);
+}
+
+/** Construct the real sealed owner through its private fixture seam, never an unchecked table subset. */
+function metadata_checks_records(string $engine): \Tablo\ServerAdmissionRecords
+{
+    $stem = match ($engine) { 'mysql' => 'mysql84', 'mariadb' => 'mariadb114', default => throw new \RuntimeException('Unknown source fixture engine.') };
+    $loader = new \ReflectionMethod(\Tablo\ServerAdmissionRecords::class, 'fromSource');
+    /** @var mixed $owner Reflection must be narrowed by the runtime instance assertion. */
+    $owner = $loader->invoke(null, dirname(__DIR__, levels: 2) . '/database/' . $stem . '-layout.jsonl', $engine);
+    Assert::instanceOf($owner, \Tablo\ServerAdmissionRecords::class);
+    return $owner;
+}
+
+/** @param array<string, array<string, string>> $expected
+ * @param list<string> $queries */
+function metadata_checks_record_equivalence(MetadataPrivilegesPdo $metadata, DatabaseConfiguration $configuration, array $expected, ?DatabaseFailure $failure, array $queries): void
+{
+    $records = metadata_checks_records($configuration->engine); $recorded = []; $caught = null; $start = count($metadata->queries);
+    try { $recorded = \Tablo\server_metadata_check_observation($metadata, $configuration, version: 10, expectedTables: $records); }
+    catch (DatabaseFailure $error) { $caught = $error; }
+    Assert::same($caught?->category, $failure?->category); Assert::same($caught?->getPrevious(), null);
+    Assert::same($recorded, $expected); Assert::same(array_slice($metadata->queries, $start), $queries);
+}
+
+function metadata_records_engine_binding(): void
+{
+    $records = metadata_checks_records('mariadb'); $db = new MetadataPrivilegesPdo('mysql');
+    $configuration = metadata_checks_configuration('mysql', role: 'writer');
+    $session = \Tablo\DatabaseSession::register($db, $configuration);
+    $borrowed = $session->metadataObservation; $queries = $db->queries;
+    $names = $records->names(); sort($names, SORT_STRING);
+    $expected = new \ReflectionMethod(\Tablo\ServerMetadataAdmission::class, 'expected');
+    foreach ([
+        static fn () => \Tablo\ServerMetadataAdmission::observe($configuration, version: 10, expectedTables: $records),
+        static fn () => \Tablo\ServerMetadataAdmission::objects($db, version: 10, expectedTables: $records),
+        static fn () => $expected->invoke(null, $db, $names, 10, $records),
+        static fn () => \Tablo\server_metadata_check_observation($db, $configuration, version: 10, expectedTables: $records),
+    ] as $operation) {
+        $caught = null;
+        try { $operation(); } catch (DatabaseFailure $error) { $caught = $error; }
+        Assert::same($caught?->category, 'schema'); Assert::same($caught?->getPrevious(), null);
+        Assert::same($session->metadataObservation, $borrowed); Assert::same($db->queries, $queries); Assert::same($db->opened, $db->closed);
+    }
+}
+
+/** The real selector leaves every array/borrowed route intact and owns no observation itself. */
+function metadata_records_layout_selection(): void
+{
+    foreach (['mysql', 'mariadb'] as $engine) {
+        foreach (['writer', 'control', 'migrator', 'reader'] as $role) {
+            foreach ([9, 10] as $version) { metadata_records_layout_case($engine, $role, $version); }
+        }
+    }
+}
+
+function metadata_records_layout_case(string $engine, string $role, int $version): void
+{
+    $db = new MetadataPrivilegesPdo($engine, fault: 'checks/'); $configuration = metadata_checks_configuration($engine, $role);
+    $session = \Tablo\DatabaseSession::register($db, $configuration);
+    $source = \Tablo\server_table_admission_source($db, $session, $version);
+    $selected = $engine === 'mariadb' && in_array($role, ['writer', 'control'], strict: true) && $version === 10;
+    Assert::same($source instanceof \Tablo\ServerAdmissionRecords, $selected);
+    Assert::same($session->metadataObservation, null); Assert::same($db->queries, []);
+    if (!$selected) { Assert::true(is_array($source)); return; }
+    metadata_checks_observation($db, $configuration); $borrowed = $session->metadataObservation;
+    try {
+        Assert::true(is_array(\Tablo\server_table_admission_source($db, $session, $version)));
+        Assert::same($session->metadataObservation, $borrowed);
+    } finally { $session->metadataObservation = null; }
 }

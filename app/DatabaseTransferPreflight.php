@@ -133,36 +133,20 @@ function database_transfer_source_snapshot(PDO $db): void
 
 function database_transfer_source_admitted(PDO $db, #[\SensitiveParameter] TokenVault $vault): void
 {
-    database_transfer_preflight_coarse_snapshot(200);
     database_transfer_source_stream($db);
-    database_transfer_preflight_coarse_snapshot(201);
-    if (DatabaseSession::server($db)) {
-        ServerSchema::admit($db);
-        database_transfer_preflight_coarse_snapshot(202);
-        ServerKeyIdentity::authenticate($db, $vault);
-    }
-    database_transfer_preflight_coarse_snapshot(203);
+    if (DatabaseSession::server($db)) { ServerSchema::admit($db); ServerKeyIdentity::authenticate($db, $vault); }
     if (!DatabaseSession::server($db)) {
         if (SchemaVersion::schemaVersion($db) !== 10) { throw new DatabaseFailure('schema'); }
         SchemaLayout::observe($db, 10);
     }
-    $rows = 0; $bytes = 0; $ordinal = 0;
+    $rows = 0; $bytes = 0;
     foreach (DatabaseTransferManifest::tables() as $table) {
         database_transfer_preflight_row_envelope($db, $table); $size = database_transfer_preflight_footprint($db, $table);
         if ($size['rows'] > DatabaseTransferManifest::MAX_ROWS - $rows || $size['bytes'] > DatabaseTransferManifest::MAX_RAW_BYTES - $bytes) { throw new DatabaseFailure('schema'); }
         $rows += $size['rows']; $bytes += $size['bytes'];
-        database_transfer_preflight_coarse_snapshot(204 + $ordinal++);
     }
     ExternalKeyAuthentication::authenticateExternalKey($db, $vault);
-    database_transfer_preflight_coarse_snapshot(219);
     database_transfer_preflight_quiescent($db);
-    database_transfer_preflight_coarse_snapshot(220);
-}
-
-/** Temporary dispatch never autoloads an observer outside the exact bootstrap gate. */
-function database_transfer_preflight_coarse_snapshot(int $checkpoint): void
-{
-    if (class_exists(ColdTransferCoarsePeak::class, autoload: false)) { ColdTransferCoarsePeak::snapshot($checkpoint); }
 }
 
 

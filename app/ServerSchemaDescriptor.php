@@ -55,25 +55,24 @@ final class ServerSchemaDescriptor
     public static function checksum(PDO $db, int $version = 10): string
     {
         if (!in_array($version, [9, 10], strict: true)) { self::refuse(); }
-        $tables = array_values(array_filter(self::layout($db)['tables'],
-            static fn (array $table): bool => $version === 10 || $table['name'] !== 'read_api_token'));
-        return self::checksumTables($tables);
+        $engine = DatabaseSession::get($db)?->configuration->engine;
+        $file = match ($engine) { 'mysql' => 'mysql84', 'mariadb' => 'mariadb114', default => throw new DatabaseFailure('configuration') };
+        return self::sourceChecksum(dirname(__DIR__) . '/database/' . $file . '-layout.jsonl', $engine, $version);
+    }
+
+    private static function sourceChecksum(#[\SensitiveParameter] string $path, string $engine, int $version): string
+    {
+        return server_schema_descriptor_checksum_read($path, $engine, $version);
     }
 
     /** @param list<array> $tables */
-    private static function checksumTables(array $tables): string
+    private static function _checksumTables(array $tables): string
     {
         $hash = hash_init('sha256');
         hash_update($hash, data: '[');
         $separator = '';
         foreach ($tables as $table) {
-            $encoded = JsonEncoding::encode([$table]);
-            hash_update($hash, $separator);
-            $limit = strlen($encoded) - 1;
-            for ($offset = 1; $offset < $limit; $offset += 4096) {
-                hash_update($hash, substr($encoded, $offset, min(4096, $limit - $offset)));
-            }
-            unset($encoded);
+            server_schema_descriptor_checksum_table($hash, $separator, $table);
             $separator = ',';
         }
         hash_update($hash, data: ']');
@@ -140,6 +139,13 @@ function server_schema_descriptor_parse($stream): array
  * @param resource $stream */
 function server_schema_descriptor_record($stream): array
 {
+    return JsonRecord::checked(json_decode(server_schema_descriptor_record_bytes($stream), associative: true, flags: JSON_THROW_ON_ERROR));
+}
+
+/** @internal The same bounded wrapped source record, retained without re-encoding.
+ * @param resource $stream */
+function server_schema_descriptor_record_bytes($stream): string
+{
     $line = '';
     while (true) {
         $chunk = NativeWarning::ignore(static fn () => fgets($stream, length: 4096));
@@ -147,7 +153,7 @@ function server_schema_descriptor_record($stream): array
         $complete = str_ends_with($chunk, "\n");
         $line .= $chunk;
         unset($chunk);
-        if ($complete) { return JsonRecord::checked(json_decode($line, associative: true, flags: JSON_THROW_ON_ERROR)); }
+        if ($complete) { return $line; }
     }
 }
 
@@ -185,8 +191,7 @@ function server_schema_descriptor_layout(array $layout, string $engine): array
     if (($layout['format'] ?? null) !== 1 || ($layout['engine'] ?? null) !== $engine || count($tables) !== 18) { throw new DatabaseFailure('schema'); }
     foreach (array_keys($tables) as $key) {
         $table = JsonRecord::checked($tables[$key] ?? null);
-        if (!is_string($table['checksum'] ?? null) || !is_string($table['create'] ?? null)
-            || !hash_equals($table['checksum'], hash('sha256', $table['create']))) { throw new DatabaseFailure('schema'); }
+        if (!server_schema_descriptor_create_valid($table)) { throw new DatabaseFailure('schema'); }
     }
     /** @var \Tablo\ServerSchema::Layout $layout Checked-in finite graph after framing and original full-graph integrity checks. */
     return $layout;
@@ -213,4 +218,61 @@ function server_schema_mysql_default(mixed $actual, array $expected, string $ext
 function server_schema_mysql_default_escape(string $value): string
 {
     return strtr($value, ['\\' => '\\\\', "'" => "\\'", "\0" => '\\0', "\n" => '\\n', "\r" => '\\r', chr(26) => '\\Z']);
+}
+
+/** @internal Shared original CREATE integrity guard for full graphs and sealed records. */
+function server_schema_descriptor_create_valid(array $table): bool
+{
+    return is_string($table['checksum'] ?? null) && is_string($table['create'] ?? null)
+        && hash_equals($table['checksum'], hash('sha256', $table['create']));
+}
+
+/** @internal Exact original one-table JSON array wire, without its outer brackets. */
+function server_schema_descriptor_checksum_table(\HashContext $hash, string $separator, array $table): void
+{
+    $encoded = JsonEncoding::encode([$table]);
+    hash_update($hash, $separator);
+    $limit = strlen($encoded) - 1;
+    for ($offset = 1; $offset < $limit; $offset += 4096) {
+        hash_update($hash, substr($encoded, $offset, min(4096, $limit - $offset)));
+    }
+}
+
+/** @internal Owned finite-source reader; a checksum is published only after positive close. */
+function server_schema_descriptor_checksum_read(#[\SensitiveParameter] string $path, string $engine, int $version): string
+{
+    $stream = null; $state = null; $primary = null;
+    try {
+        $stream = NativeWarning::ignore(static fn () => fopen($path, mode: 'rb'));
+        if ($stream === false) { throw new DatabaseFailure('schema'); }
+        $state = server_schema_descriptor_checksum_parse($stream, $engine, $version);
+    } catch (\Throwable) { $primary = new DatabaseFailure('schema'); }
+    finally { $closed = server_schema_descriptor_close($stream); }
+    if ($primary !== null) { throw $primary; }
+    if (!$closed || $state === null || !$state['valid']) { throw new DatabaseFailure('schema'); }
+    if ($state['encoding'] !== null) { throw $state['encoding']; }
+    return $state['checksum'];
+}
+
+/** @internal Retain one record and bounded failure state, including the version9-excluded tail.
+ * @param resource $stream
+ * @return array{checksum: string, valid: bool, encoding: ?\Throwable} */
+function server_schema_descriptor_checksum_parse($stream, string $engine, int $version): array
+{
+    $header = server_schema_descriptor_header(server_schema_descriptor_record($stream));
+    $valid = ($header['format'] ?? null) === 1 && ($header['engine'] ?? null) === $engine; unset($header);
+    $hash = hash_init('sha256'); hash_update($hash, data: '['); $separator = ''; $encoding = null;
+    for ($index = 0; $index < 18; $index++) {
+        $table = server_schema_descriptor_table(server_schema_descriptor_record($stream));
+        $valid = server_schema_descriptor_create_valid($table) && $valid;
+        if ($version === 10 || ($table['name'] ?? null) !== 'read_api_token') {
+            try { server_schema_descriptor_checksum_table($hash, $separator, $table); }
+            catch (\Throwable $error) { $encoding ??= $error; unset($error); }
+            $separator = ',';
+        }
+        unset($table);
+    }
+    if (NativeWarning::ignore(static fn () => fgetc($stream)) !== false || !feof($stream)) { throw new DatabaseFailure('schema'); }
+    hash_update($hash, data: ']');
+    return ['checksum' => hash_final($hash), 'valid' => $valid, 'encoding' => $encoding];
 }

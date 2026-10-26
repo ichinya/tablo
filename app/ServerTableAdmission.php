@@ -24,28 +24,23 @@ final class ServerTableAdmission
     {
         $session = DatabaseSession::get($db); $owned = false;
         try {
-            server_table_coarse_layout(300);
-            $allTables = ServerSchemaDescriptor::admissionTables(ServerSchema::layout($db));
-            server_table_coarse_layout(301);
-            $tables = array_values(array_filter($allTables, static fn (array $table): bool => $version === 10 || $table['name'] !== 'read_api_token'));
-            $expected = array_column($tables, 'name'); sort($expected, SORT_STRING);
-            server_table_coarse_layout(302);
+            $allTables = server_table_admission_source($db, $session, $version);
+            $selection = server_table_admission_selection($allTables, $version);
+            $tables = $selection['tables']; $expected = $selection['expected']; unset($selection);
+            sort($expected, SORT_STRING);
             if ($version === 10 && $session?->configuration->engine === 'mariadb'
                 && in_array($session->configuration->role, ['writer', 'control'], strict: true) && $session->metadataObservation === null) {
                 // One admission owns one fresh observation; a factory snapshot stays borrowed.
                 $session->metadataObservation = ServerMetadataAdmission::observe($session->configuration, $version, expectedTables: $allTables); $owned = true;
             }
-            server_table_coarse_layout(303);
             if (ServerMetadataAdmission::objects($db, $version, expectedTables: $allTables) !== $expected) { self::refuse(); }
             unset($allTables, $expected);
-            server_table_coarse_layout(304); $ordinal = 0;
+            if ($tables instanceof \Generator) { server_table_admission_record_tables($db, $tables); return; }
             foreach (array_keys($tables) as $key) {
                 $table = $tables[$key] ?? throw new DatabaseFailure('schema'); unset($tables[$key]);
                 ServerTableAdmission::verify($db, $table);
                 unset($table);
-                server_table_coarse_layout(305 + $ordinal++);
             }
-            server_table_coarse_layout(323);
         } finally { if ($owned && $session !== null) { $session->metadataObservation = null; } }
     }
 
@@ -53,8 +48,31 @@ final class ServerTableAdmission
 
 }
 
-/** Temporary diagnostic dispatcher; never autoload an observer. */
-function server_table_coarse_layout(int $checkpoint): void
+/** @internal Only an initially fresh MariaDB writer/control layout selects sealed records.
+ * Ownership is still decided again after source validation by layout's original condition.
+ * @return list<\Tablo\ServerSchema::AdmissionTable>|ServerAdmissionRecords */
+function server_table_admission_source(PDO $db, ?DatabaseSession $session, int $version): array|ServerAdmissionRecords
 {
-    if (class_exists(ColdTransferCoarsePeak::class, autoload: false)) { ColdTransferCoarsePeak::layout($checkpoint); }
+    if ($version === 10 && $session?->configuration->engine === 'mariadb'
+        && in_array($session->configuration->role, ['writer', 'control'], strict: true) && $session->metadataObservation === null) {
+        return ServerAdmissionRecords::forConnection($db);
+    }
+    return ServerSchemaDescriptor::admissionTables(ServerSchema::layout($db));
+}
+
+/** @internal
+ * @param \Generator<int, \Tablo\ServerSchema::AdmissionTable> $tables */
+function server_table_admission_record_tables(PDO $db, \Generator $tables): void
+{
+    foreach ($tables as $table) { ServerTableAdmission::verify($db, $table); unset($table); }
+}
+
+/** @internal
+ * @param list<\Tablo\ServerSchema::AdmissionTable>|ServerAdmissionRecords $source
+ * @return array{tables: list<\Tablo\ServerSchema::AdmissionTable>|\Generator<int, \Tablo\ServerSchema::AdmissionTable>, expected: list<string>} */
+function server_table_admission_selection(array|ServerAdmissionRecords $source, int $version): array
+{
+    if ($source instanceof ServerAdmissionRecords) { return ['tables' => $source->tables($version), 'expected' => $source->names($version)]; }
+    $tables = array_values(array_filter($source, static fn (array $table): bool => $version === 10 || $table['name'] !== 'read_api_token'));
+    return ['tables' => $tables, 'expected' => array_column($tables, 'name')];
 }

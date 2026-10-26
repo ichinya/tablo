@@ -15,26 +15,22 @@ use PDO;
  */
 final class ServerMetadataAdmission
 {
-    /** @param list<Table>|null $expectedTables Validated invocation-owned source tables only.
+    /** @param list<Table>|ServerAdmissionRecords|null $expectedTables Validated invocation-owned source tables only.
      * @return Observation */
-    public static function observe(#[\SensitiveParameter] DatabaseConfiguration $configuration, ?int $version = null, ?array $expectedTables = null): array
+    public static function observe(#[\SensitiveParameter] DatabaseConfiguration $configuration, ?int $version = null, array|ServerAdmissionRecords|null $expectedTables = null): array
     {
         $db = null;
+        if ($expectedTables instanceof ServerAdmissionRecords) { $expectedTables->assertEngine($configuration->engine); }
         try {
-            server_metadata_coarse_layout(350);
             $metadata = $configuration->metadata(); $db = ServerPdoConnection::open($metadata);
-            server_metadata_coarse_layout(351);
             ServerMetadataPrivileges::verify($db, $metadata);
-            server_metadata_coarse_layout(352);
             $objects = ServerMetadataInventory::read($db);
             $names = ServerMetadataInventory::tables($objects);
-            server_metadata_coarse_layout(353);
             if ($version !== null) { self::expected($db, $names, $version, $expectedTables); }
-            server_metadata_coarse_layout(354);
             return ['server' => ServerMetadataIdentity::server($db), 'account' => ServerMetadataIdentity::grantee($db, $metadata), 'objects' => $objects,
                 'installation' => ServerMetadataIdentity::installation($db, $names), 'checks' => server_metadata_check_observation($db, $configuration, $version, $expectedTables)];
         } catch (\PDOException $error) { throw DatabaseFailure::fromNative($error); }
-        finally { $db = null; server_metadata_coarse_layout(355); }
+        finally { $db = null; }
     }
 
     /** @param Observation $observation */
@@ -47,11 +43,12 @@ final class ServerMetadataAdmission
         }
     }
 
-    /** @param list<Table>|null $expectedTables Validated invocation-owned source tables only.
+    /** @param list<Table>|ServerAdmissionRecords|null $expectedTables Validated invocation-owned source tables only.
      * @return list<string> */
-    public static function objects(PDO $db, ?int $version = null, ?array $expectedTables = null): array
+    public static function objects(PDO $db, ?int $version = null, array|ServerAdmissionRecords|null $expectedTables = null): array
     {
         $session = DatabaseSession::get($db) ?? throw new DatabaseFailure('schema');
+        if ($expectedTables instanceof ServerAdmissionRecords) { $expectedTables->assertEngine($session->configuration->engine); }
         $observation = $session->metadataObservation ?? self::observe($session->configuration, $version, $expectedTables);
         self::bind($db, $observation);
         $names = ServerMetadataInventory::tables($observation['objects']);
@@ -72,42 +69,57 @@ final class ServerMetadataAdmission
     }
 
     /** @param list<string> $names
-     * @param list<Table>|null $expectedTables */
-    private static function expected(PDO $db, array $names, int $version, ?array $expectedTables = null): void
+     * @param list<Table>|ServerAdmissionRecords|null $expectedTables */
+    private static function expected(PDO $db, array $names, int $version, array|ServerAdmissionRecords|null $expectedTables = null): void
     {
-        $tables = array_values(array_filter(server_metadata_expected_tables($db, $expectedTables), static fn (array $table): bool => $version === 10 || $table['name'] !== 'read_api_token'));
-        $expected = array_column($tables, 'name'); sort($expected, SORT_STRING);
-        if (!in_array($version, [9, 10], strict: true) || implode("\0", $names) !== implode("\0", $expected)) { throw new DatabaseFailure('schema'); }
+        server_metadata_expected_names($db, $names, $version, $expectedTables);
     }
 }
 
-/** Internal fallback projects the validated default layout; supplied tables are returned unchanged.
- * @param list<\Tablo\ServerSchema::ExpectedTable>|null $expectedTables
- * @return list<\Tablo\ServerSchema::ExpectedTable> */
-function server_metadata_expected_tables(PDO $db, ?array $expectedTables): array
+/** @internal
+ * @param list<string> $names
+ * @param list<\Tablo\ServerSchema::ExpectedTable>|ServerAdmissionRecords|null $expectedTables */
+function server_metadata_expected_names(PDO $db, array $names, int $version, array|ServerAdmissionRecords|null $expectedTables): void
 {
+    $source = server_metadata_expected_tables($db, $expectedTables);
+    $expected = $source instanceof ServerAdmissionRecords ? $source->names($version)
+        : array_column(array_values(array_filter($source, static fn (array $table): bool => $version === 10 || $table['name'] !== 'read_api_token')), 'name');
+    sort($expected, SORT_STRING);
+    if (!in_array($version, [9, 10], strict: true) || implode("\0", $names) !== implode("\0", $expected)) { throw new DatabaseFailure('schema'); }
+}
+
+/** Internal fallback projects the validated default layout; supplied tables are returned unchanged.
+ * @param list<\Tablo\ServerSchema::ExpectedTable>|ServerAdmissionRecords|null $expectedTables
+ * @return list<\Tablo\ServerSchema::ExpectedTable>|ServerAdmissionRecords */
+function server_metadata_expected_tables(PDO $db, array|ServerAdmissionRecords|null $expectedTables): array|ServerAdmissionRecords
+{
+    if ($expectedTables instanceof ServerAdmissionRecords) { $expectedTables->assertEngine(DatabaseSession::get($db)?->configuration->engine); return $expectedTables; }
     return $expectedTables ?? ServerSchemaDescriptor::admissionTables(ServerSchema::layout($db));
 }
 
 /** Complete writer and control admission need privileged CHECK visibility. Migrators read their own post-DDL metadata.
- * @param list<\Tablo\ServerSchema::ExpectedTable>|null $expectedTables Complete source tables already validated in this invocation, never external data.
+ * @param list<\Tablo\ServerSchema::ExpectedTable>|ServerAdmissionRecords|null $expectedTables Complete source tables already validated in this invocation, never external data.
  * @return array<string, array<string, string>> */
-function server_metadata_check_observation(PDO $db, DatabaseConfiguration $configuration, ?int $version, ?array $expectedTables = null): array
+function server_metadata_check_observation(PDO $db, DatabaseConfiguration $configuration, ?int $version, array|ServerAdmissionRecords|null $expectedTables = null): array
 {
+    if ($expectedTables instanceof ServerAdmissionRecords) { $expectedTables->assertEngine($configuration->engine); }
     if ($configuration->engine !== 'mariadb' || !in_array($configuration->role, ['writer', 'control'], strict: true) || $version !== 10) { return []; }
     $tables = server_metadata_expected_tables($db, $expectedTables); unset($expectedTables);
-    $checks = []; $ordinal = 0; server_metadata_coarse_layout(370);
+    if ($tables instanceof ServerAdmissionRecords) { return server_metadata_record_checks($db, $tables); }
+    $checks = [];
     foreach (array_keys($tables) as $key) {
         $table = $tables[$key] ?? throw new DatabaseFailure('schema'); unset($tables[$key]);
         $checks[$table['name']] = ServerCheckAdmission::clauses($db, $table);
         unset($table);
-        server_metadata_coarse_layout(371 + $ordinal++);
     }
     return $checks;
 }
 
-/** Temporary diagnostic dispatcher; never autoload an observer. */
-function server_metadata_coarse_layout(int $checkpoint): void
+/** @internal Each yielded table is complete and comes from the engine-bound validated source.
+ * @return array<string, array<string, string>> */
+function server_metadata_record_checks(PDO $db, ServerAdmissionRecords $records): array
 {
-    if (class_exists(ColdTransferCoarsePeak::class, autoload: false)) { ColdTransferCoarsePeak::layout($checkpoint); }
+    $checks = [];
+    foreach ($records->tables() as $table) { $checks[$table['name']] = ServerCheckAdmission::clauses($db, $table); unset($table); }
+    return $checks;
 }

@@ -190,7 +190,7 @@ function engine_schema_checksum_public_equivalence(PDO $db): void
 /** Pure coverage invokes the same private algorithm used by the public checksum. */
 function engine_schema_checksum_streaming_contract(): void
 {
-    $method = new \ReflectionMethod(\Tablo\ServerSchemaDescriptor::class, 'checksumTables');
+    $method = new \ReflectionMethod(\Tablo\ServerSchemaDescriptor::class, '_checksumTables');
     foreach ([[], [[]], [['name' => 'one']], [
         ['name' => 'first', 'values' => [null, false, true, 0, 1, -1, 1.0, 1.5, -0.0, '1', '', [], ['nested' => []]]],
         ['name' => 'second', 'payload' => "quote\" slash/ backslash\\ control\0\r\n\t Café\u{2028}"],
@@ -236,7 +236,8 @@ function engine_schema_descriptor_digests(string $engine): array
 function engine_schema_descriptor_records_contract(): void
 {
     $loader = new \ReflectionMethod(\Tablo\ServerSchemaDescriptor::class, 'sourceLayout');
-    $checksum = new \ReflectionMethod(\Tablo\ServerSchemaDescriptor::class, 'checksumTables');
+    $checksum = new \ReflectionMethod(\Tablo\ServerSchemaDescriptor::class, '_checksumTables');
+    $sourceChecksum = new \ReflectionMethod(\Tablo\ServerSchemaDescriptor::class, 'sourceChecksum');
     Assert::true(stream_wrapper_register('tabloschemafixture', EngineSchemaDescriptorStream::class));
     try {
         engine_schema_descriptor_engine_selection();
@@ -251,23 +252,21 @@ function engine_schema_descriptor_records_contract(): void
             Assert::same(\Tablo\ServerSchemaDescriptor::forEngine($engine), $golden);
             $loaded = engine_schema_descriptor_source($loader, $bytes, $engine);
             Assert::same($loaded['layout'], $golden); Assert::null($loaded['failure']);
-            Assert::same(array_keys($golden), ['format', 'engine', 'logicalVersion', 'syntheticPredecessor', 'collation', 'tables']);
-            Assert::same(count($golden['tables']), 18);
-            foreach ($golden['tables'] as $table) {
-                Assert::same(array_keys($table), ['name', 'columns', 'primary', 'checks', 'indexes', 'foreign', 'create', 'checksum']);
-                Assert::same(hash('sha256', $table['create']), $table['checksum']);
-            }
+            engine_schema_descriptor_golden_contract($golden);
             foreach ([9, 10] as $version) {
                 $tables = array_values(array_filter($golden['tables'], static fn (array $table): bool => $version === 10 || $table['name'] !== 'read_api_token'));
                 $reference = hash('sha256', \Tablo\JsonEncoding::encode($tables));
                 Assert::same($reference, engine_schema_descriptor_digest($engine, $version));
                 Assert::same($checksum->invoke(null, $tables), $reference);
+                Assert::same($sourceChecksum->invoke(null, $root . '/database/' . $stem . '-layout.jsonl', $engine, $version), $reference);
+                engine_schema_source_checksum_contract($sourceChecksum, $bytes, $engine, $version, $reference);
             }
             Assert::same(engine_schema_descriptor_source($loader, str_replace("\n", replace: "\r\n", subject: $bytes), $engine)['layout'], $golden);
             engine_schema_descriptor_framing($loader, $bytes, $engine);
             engine_schema_descriptor_integrity($loader, $bytes, $engine);
             engine_schema_descriptor_io($loader, $bytes, $engine);
             engine_schema_admission_projection_contract($engine);
+            engine_schema_admission_records_contract($bytes, $engine, $golden);
         }
         $missing = null;
         try { $loader->invoke(null, dirname(__DIR__) . '/fixtures/server-layouts/v10/absent-layout.jsonl', 'mysql'); }
@@ -276,6 +275,17 @@ function engine_schema_descriptor_records_contract(): void
         engine_schema_descriptor_native_values();
         engine_schema_descriptor_manifest_contract();
     } finally { stream_wrapper_unregister('tabloschemafixture'); EngineSchemaDescriptorStream::$bytes = ''; }
+}
+
+/** @param \Tablo\ServerSchema::Layout $golden */
+function engine_schema_descriptor_golden_contract(array $golden): void
+{
+    Assert::same(array_keys($golden), ['format', 'engine', 'logicalVersion', 'syntheticPredecessor', 'collation', 'tables']);
+    Assert::same(count($golden['tables']), 18);
+    foreach ($golden['tables'] as $table) {
+        Assert::same(array_keys($table), ['name', 'columns', 'primary', 'checks', 'indexes', 'foreign', 'create', 'checksum']);
+        Assert::same(hash('sha256', $table['create']), $table['checksum']);
+    }
 }
 
 function engine_schema_descriptor_engine_selection(): void
@@ -978,4 +988,268 @@ MARIADB_LOGICAL9_D0,
         default => throw new \RuntimeException('Explicit predecessor fixture engine required.'),
     };
     return JsonRecord::decode($json);
+}
+
+/** The actual sealed owner keeps one immutable complete source and native per-record decoding.
+ * @param \Tablo\ServerSchema::Layout $golden */
+function engine_schema_admission_records_contract(string $bytes, string $engine, array $golden): void
+{
+    $loader = engine_schema_admission_records_sealed();
+    $reference = \Tablo\ServerSchemaDescriptor::admissionTables($golden);
+    foreach ([$bytes, str_replace("\n", replace: "\r\n", subject: $bytes)] as $input) {
+        engine_schema_admission_records_positive($loader, $input, $engine, $reference);
+    }
+    engine_schema_admission_records_integrity($loader, $bytes, $engine);
+    engine_schema_admission_records_framing($loader, $bytes, $engine);
+    engine_schema_admission_records_io($loader, $bytes, $engine);
+    engine_schema_admission_records_native();
+}
+
+function engine_schema_admission_records_sealed(): \ReflectionMethod
+{
+    $class = new \ReflectionClass(\Tablo\ServerAdmissionRecords::class);
+    Assert::true($class->isFinal()); Assert::true($class->isReadOnly());
+    $constructor = $class->getConstructor() ?? throw new \RuntimeException('Missing source owner constructor.');
+    Assert::true($constructor->isPrivate());
+    $raw = $class->getProperty('records'); Assert::true($raw->isPrivate()); Assert::true($raw->isReadOnly());
+    $loader = new \ReflectionMethod(\Tablo\ServerAdmissionRecords::class, 'fromSource');
+    Assert::true($loader->isPrivate());
+    return $loader;
+}
+
+/** @param list<\Tablo\ServerSchema::AdmissionTable> $reference */
+function engine_schema_admission_records_positive(\ReflectionMethod $loader, string $input, string $engine, array $reference): void
+{
+    $result = engine_schema_admission_records_source($loader, $input, $engine);
+    $owner = $result['owner'] ?? throw new \RuntimeException('Missing validated source owner.');
+    Assert::same($result['failure'], null); Assert::same($result['read'], strlen($input));
+    $owner->assertEngine($engine); $names = $owner->names();
+    Assert::same($names, array_column($reference, 'name')); $names[0] = 'caller-change';
+    Assert::same($owner->names(), array_column($reference, 'name'));
+    EngineSchemaDescriptorStream::$bytes = '';
+    foreach ([9, 10] as $version) {
+        $expected = array_values(array_filter($reference, static fn (array $table): bool => $version === 10 || $table['name'] !== 'read_api_token'));
+        Assert::same(iterator_to_array($owner->tables($version), preserve_keys: false), $expected);
+        Assert::same($owner->names($version), array_column($expected, 'name'));
+    }
+    Assert::same(EngineSchemaDescriptorStream::$opens, 1); Assert::same(EngineSchemaDescriptorStream::$closes, 1);
+    Assert::same(iterator_to_array($owner->tables(), preserve_keys: false), $reference, 'iteration never rereads a mutable source or returns a consumed cache');
+}
+
+/** @param array{failAt?: ?int, failClose?: bool, failOpen?: bool} $options
+ * @return array{owner: ?\Tablo\ServerAdmissionRecords, failure: ?\Tablo\DatabaseFailure, read: int} */
+function engine_schema_admission_records_source(\ReflectionMethod $loader, string $bytes, string $engine, array $options = []): array
+{
+    EngineSchemaDescriptorStream::$bytes = $bytes; EngineSchemaDescriptorStream::$position = 0;
+    EngineSchemaDescriptorStream::$opens = 0; EngineSchemaDescriptorStream::$closes = 0;
+    EngineSchemaDescriptorStream::$failAt = $options['failAt'] ?? null; EngineSchemaDescriptorStream::$failClose = $options['failClose'] ?? false;
+    $failOpen = $options['failOpen'] ?? false; EngineSchemaDescriptorStream::$failOpen = $failOpen;
+    $readers = array_keys(get_resources('stream')); $owner = null; $failure = null;
+    try {
+        /** @var mixed $actual Reflection must be narrowed by the runtime instance assertion. */
+        $actual = $loader->invoke(null, 'tabloschemafixture://descriptor-private-records-sentinel', $engine);
+        Assert::instanceOf($actual, \Tablo\ServerAdmissionRecords::class); $owner = $actual;
+    } catch (\Tablo\DatabaseFailure $error) { $failure = $error; }
+    finally {
+        Assert::same(EngineSchemaDescriptorStream::$opens, 1); Assert::same(EngineSchemaDescriptorStream::$closes, $failOpen ? 0 : 1);
+        Assert::same(array_keys(get_resources('stream')), $readers);
+    }
+    if ($failure !== null) { engine_schema_descriptor_refusal($failure); }
+    Assert::same(EngineSchemaDescriptorStream::$bytes, $bytes);
+    return ['owner' => $owner, 'failure' => $failure, 'read' => EngineSchemaDescriptorStream::$position];
+}
+
+function engine_schema_admission_records_integrity(\ReflectionMethod $loader, string $bytes, string $engine): void
+{
+    $lines = explode("\n", $bytes);
+    foreach ([0, 8, 17] as $index) {
+        foreach (['sha', 'create-type', 'checksum-type', 'name-type'] as $fault) {
+            $changed = $lines;
+            $changed[1 + $index] = engine_schema_admission_records_fault($changed[1 + $index] ?? '', $fault);
+            $input = implode("\n", $changed);
+            engine_schema_admission_records_invalid($loader, $input, $engine, expectedRead: strlen($input));
+        }
+    }
+    foreach ([str_replace('"format":1', replace: '"format":0', subject: $bytes),
+        str_replace('"engine":"' . $engine . '"', replace: '"engine":"other"', subject: $bytes)] as $input) {
+        engine_schema_admission_records_invalid($loader, $input, $engine, expectedRead: strlen($input));
+    }
+}
+
+function engine_schema_admission_records_fault(string $record, string $fault): string
+{
+    $table = \Tablo\server_schema_descriptor_table(JsonRecord::checked(json_decode($record, associative: true, flags: JSON_THROW_ON_ERROR)));
+    if ($fault === 'create-type') { $table['create'] = null; }
+    if ($fault === 'name-type') { $table['name'] = null; }
+    if ($fault !== 'name-type') { $table['checksum'] = $fault === 'checksum-type' ? null : str_repeat('0', times: 64); }
+    return \Tablo\JsonEncoding::encode(['tables' => [$table]]);
+}
+
+function engine_schema_admission_records_invalid(\ReflectionMethod $loader, string $input, string $engine, ?int $expectedRead = null): void
+{
+    $actual = engine_schema_admission_records_source($loader, $input, $engine);
+    engine_schema_descriptor_refusal($actual['failure']); Assert::same($actual['owner'], null);
+    if ($expectedRead !== null) { Assert::same($actual['read'], $expectedRead); }
+}
+
+function engine_schema_admission_records_framing(\ReflectionMethod $loader, string $bytes, string $engine): void
+{
+    $lines = explode("\n", $bytes); $tail = $lines[18] ?? throw new \RuntimeException('Missing final source record.');
+    foreach ([substr($bytes, offset: 0, length: -1), $bytes . "\n", $bytes . "\0", $bytes . $tail . "\n", substr($bytes, offset: 0, length: -80),
+        str_replace('"records":2', replace: '"records":1', subject: $bytes), str_replace('"format":1', replace: '"format":"1"', subject: $bytes),
+        str_replace('{"records":2,"layout":', replace: '{"unknown":0,"records":2,"layout":', subject: $bytes),
+        str_replace($tail, replace: str_replace('{"tables":', replace: '{"other":', subject: $tail), subject: $bytes)] as $input) {
+        engine_schema_admission_records_invalid($loader, $input, $engine);
+    }
+}
+
+function engine_schema_admission_records_io(\ReflectionMethod $loader, string $bytes, string $engine): void
+{
+    foreach ([['failAt' => 0], ['failAt' => 9000], ['failAt' => strlen($bytes)], ['failOpen' => true], ['failClose' => true]] as $options) {
+        $actual = engine_schema_admission_records_source($loader, $bytes, $engine, $options);
+        engine_schema_descriptor_refusal($actual['failure']); Assert::same($actual['owner'], null);
+    }
+    $primary = engine_schema_admission_records_source($loader, bytes: '{', engine: $engine)['failure'];
+    $closed = engine_schema_admission_records_source($loader, bytes: '{', engine: $engine, options: ['failClose' => true])['failure'];
+    engine_schema_descriptor_refusal($primary); engine_schema_descriptor_refusal($closed); Assert::same($closed?->getLine(), $primary?->getLine());
+    engine_schema_admission_records_handler($loader, $bytes, $engine);
+}
+
+function engine_schema_admission_records_handler(\ReflectionMethod $loader, string $bytes, string $engine): void
+{
+    set_error_handler(static function (int $severity, string $message): never { throw new \ErrorException($message, 0, $severity); });
+    try {
+        engine_schema_descriptor_refusal(engine_schema_admission_records_source($loader, $bytes, $engine, options: ['failAt' => 9000])['failure']);
+        $restored = false;
+        try { trigger_error('descriptor-private-records-handler-sentinel', E_USER_WARNING); } catch (\ErrorException) { $restored = true; }
+        Assert::true($restored);
+    } finally { restore_error_handler(); }
+}
+
+/** The new per-record decoder keeps the complete wrapped native JSON contract. */
+function engine_schema_admission_records_native(): void
+{
+    $special = <<<'JSON'
+"quote\" slash\/ backslash\\ control\u0000\r\n\t Caf\u00e9 \ud83e\uddea"
+JSON;
+    foreach (['null', 'false', 'true', '0', '1', '-1', '1.0', '1.5', '-0.0', '1e2', '"1"', '""', '[]', '{}',
+        '{"3":"three","1":"one"}', '[null,false,true,0,"1",[],{"nested":[]}]', $special] as $value) {
+        $record = engine_schema_descriptor_table_record('columns', $value) . "\n";
+        Assert::same(\Tablo\server_admission_records_table($record),
+            \Tablo\server_schema_descriptor_table(JsonRecord::checked(json_decode($record, associative: true, flags: JSON_THROW_ON_ERROR))));
+    }
+}
+
+/** Actual streamed source checksum retains the independent golden codec and source-custody controls. */
+function engine_schema_source_checksum_contract(\ReflectionMethod $loader, string $bytes, string $engine, int $version, string $reference): void
+{
+    $before = $bytes;
+    foreach ([$bytes, str_replace("\n", replace: "\r\n", subject: $bytes)] as $input) {
+        $actual = engine_schema_source_checksum_result($loader, $input, $engine, $version);
+        Assert::same($actual['checksum'], $reference); Assert::same($actual['failure'], null);
+        Assert::same($actual['read'], strlen($input));
+    }
+    engine_schema_source_checksum_integrity($loader, $bytes, $engine, $version);
+    engine_schema_source_checksum_framing($loader, $bytes, $engine, $version);
+    engine_schema_source_checksum_io($loader, $bytes, $engine, $version);
+    engine_schema_source_checksum_encoding($loader, $bytes, $engine, $version);
+    Assert::same($bytes, $before);
+}
+
+/** @param array{failAt?: ?int, failClose?: bool, failOpen?: bool} $options
+ * @return array{checksum: ?string, failure: ?\Tablo\DatabaseFailure, read: int} */
+function engine_schema_source_checksum_result(\ReflectionMethod $loader, string $bytes, string $engine, int $version, array $options = []): array
+{
+    EngineSchemaDescriptorStream::$bytes = $bytes; EngineSchemaDescriptorStream::$position = 0;
+    EngineSchemaDescriptorStream::$opens = 0; EngineSchemaDescriptorStream::$closes = 0;
+    EngineSchemaDescriptorStream::$failAt = $options['failAt'] ?? null; EngineSchemaDescriptorStream::$failClose = $options['failClose'] ?? false;
+    $failOpen = $options['failOpen'] ?? false; EngineSchemaDescriptorStream::$failOpen = $failOpen;
+    $readers = array_keys(get_resources('stream')); $checksum = null; $failure = null;
+    try {
+        /** @var mixed $actual Reflection must be narrowed by the native string check. */
+        $actual = $loader->invoke(null, 'tabloschemafixture://descriptor-private-checksum-sentinel', $engine, $version);
+        if (!is_string($actual)) { throw new \RuntimeException('Source checksum did not return a string.'); }
+        $checksum = $actual;
+    } catch (\Tablo\DatabaseFailure $error) { $failure = $error; }
+    finally {
+        Assert::same(EngineSchemaDescriptorStream::$opens, 1); Assert::same(EngineSchemaDescriptorStream::$closes, $failOpen ? 0 : 1);
+        Assert::same(array_keys(get_resources('stream')), $readers);
+    }
+    if ($failure !== null) { engine_schema_descriptor_refusal($failure); }
+    Assert::same(EngineSchemaDescriptorStream::$bytes, $bytes);
+    return ['checksum' => $checksum, 'failure' => $failure, 'read' => EngineSchemaDescriptorStream::$position];
+}
+
+function engine_schema_source_checksum_integrity(\ReflectionMethod $loader, string $bytes, string $engine, int $version): void
+{
+    $lines = explode("\n", $bytes);
+    foreach ([0, 8, 17] as $index) {
+        foreach (['sha', 'create-type', 'checksum-type'] as $fault) {
+            $changed = $lines;
+            $table = \Tablo\server_schema_descriptor_table(JsonRecord::checked(json_decode($changed[1 + $index] ?? '', associative: true, flags: JSON_THROW_ON_ERROR)));
+            if ($fault === 'create-type') { $table['create'] = null; }
+            $table['checksum'] = $fault === 'checksum-type' ? null : str_repeat('0', times: 64);
+            $changed[1 + $index] = \Tablo\JsonEncoding::encode(['tables' => [$table]]);
+            $input = implode("\n", $changed); $actual = engine_schema_source_checksum_result($loader, $input, $engine, $version);
+            engine_schema_descriptor_refusal($actual['failure']); Assert::same($actual['checksum'], null);
+            Assert::same($actual['read'], strlen($input), 'all records must be consumed even when version9 excludes the invalid tail');
+        }
+    }
+    foreach ([str_replace('"format":1', replace: '"format":0', subject: $bytes),
+        str_replace('"engine":"' . $engine . '"', replace: '"engine":"other"', subject: $bytes)] as $input) {
+        $actual = engine_schema_source_checksum_result($loader, $input, $engine, $version);
+        engine_schema_descriptor_refusal($actual['failure']); Assert::same($actual['checksum'], null); Assert::same($actual['read'], strlen($input));
+    }
+}
+
+function engine_schema_source_checksum_framing(\ReflectionMethod $loader, string $bytes, string $engine, int $version): void
+{
+    $lines = explode("\n", $bytes); $tail = $lines[18] ?? throw new \RuntimeException('Missing final source record.');
+    foreach ([substr($bytes, offset: 0, length: -1), $bytes . "\n", $bytes . "\0", $bytes . $tail . "\n", substr($bytes, offset: 0, length: -80),
+        str_replace('"records":2', replace: '"records":1', subject: $bytes), str_replace('"format":1', replace: '"format":"1"', subject: $bytes),
+        str_replace('{"records":2,"layout":', replace: '{"unknown":0,"records":2,"layout":', subject: $bytes),
+        str_replace($tail, replace: str_replace('{"tables":', replace: '{"other":', subject: $tail), subject: $bytes)] as $input) {
+        $actual = engine_schema_source_checksum_result($loader, $input, $engine, $version);
+        engine_schema_descriptor_refusal($actual['failure']); Assert::same($actual['checksum'], null);
+    }
+}
+
+function engine_schema_source_checksum_io(\ReflectionMethod $loader, string $bytes, string $engine, int $version): void
+{
+    foreach ([['failAt' => 0], ['failAt' => 9000], ['failAt' => strlen($bytes)], ['failOpen' => true], ['failClose' => true]] as $options) {
+        $actual = engine_schema_source_checksum_result($loader, $bytes, $engine, $version, $options);
+        engine_schema_descriptor_refusal($actual['failure']); Assert::same($actual['checksum'], null);
+    }
+    $primary = engine_schema_source_checksum_result($loader, bytes: '{', engine: $engine, version: $version)['failure'];
+    $closed = engine_schema_source_checksum_result($loader, bytes: '{', engine: $engine, version: $version, options: ['failClose' => true])['failure'];
+    engine_schema_descriptor_refusal($primary); engine_schema_descriptor_refusal($closed); Assert::same($closed?->getLine(), $primary?->getLine());
+    set_error_handler(static function (int $severity, string $message): never { throw new \ErrorException($message, 0, $severity); });
+    try {
+        engine_schema_descriptor_refusal(engine_schema_source_checksum_result($loader, $bytes, $engine, $version, options: ['failAt' => 9000])['failure']);
+        $restored = false;
+        try { trigger_error('descriptor-private-checksum-handler-sentinel', E_USER_WARNING); } catch (\ErrorException) { $restored = true; }
+        Assert::true($restored);
+    } finally { restore_error_handler(); }
+}
+
+/** A decodable overflowing JSON number must not change old encoding failure or source/close precedence. */
+function engine_schema_source_checksum_encoding(\ReflectionMethod $loader, string $bytes, string $engine, int $version): void
+{
+    $lines = explode("\n", $bytes);
+    $record = engine_schema_descriptor_table_record('columns', value: '[1e999]');
+    $lines[1] = str_replace('"checksum":""', replace: '"checksum":"' . hash('sha256', data: '') . '"', subject: $record);
+    $input = implode("\n", $lines);
+    $fullLoader = new \ReflectionMethod(\Tablo\ServerSchemaDescriptor::class, 'sourceLayout');
+    $full = engine_schema_descriptor_source($fullLoader, $input, $engine)['layout'] ?? throw new \RuntimeException('Encoding fixture was not parsed by the old full-layout path.');
+    // The full reader checked each ordered table frame before this encoding-failure oracle.
+    $tables = array_values(array_filter(JsonRecord::checked($full['tables'] ?? null), static fn (array $table): bool => $version === 10 || ($table['name'] ?? null) !== 'read_api_token'));
+    $method = new \ReflectionMethod(\Tablo\ServerSchemaDescriptor::class, '_checksumTables');
+    $expected = engine_schema_checksum_outcome(static fn () => $method->invoke(null, $tables)); Assert::true($expected['error'] !== null);
+    Assert::same(engine_schema_checksum_outcome(static fn () => engine_schema_source_checksum_result($loader, $input, $engine, $version)['checksum']), $expected);
+    $closed = engine_schema_source_checksum_result($loader, $input, $engine, $version, options: ['failClose' => true]);
+    engine_schema_descriptor_refusal($closed['failure']); Assert::same($closed['checksum'], null);
+    $last = \Tablo\server_schema_descriptor_table(JsonRecord::checked(json_decode($lines[18] ?? '', associative: true, flags: JSON_THROW_ON_ERROR)));
+    $last['checksum'] = str_repeat('0', times: 64); $lines[18] = \Tablo\JsonEncoding::encode(['tables' => [$last]]);
+    $actual = engine_schema_source_checksum_result($loader, implode("\n", $lines), $engine, $version);
+    engine_schema_descriptor_refusal($actual['failure']); Assert::same($actual['checksum'], null);
 }

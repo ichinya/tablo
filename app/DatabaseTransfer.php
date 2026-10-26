@@ -11,36 +11,24 @@ final class DatabaseTransfer
     public static function export(PDO $source, #[\SensitiveParameter] TokenVault $vault, #[\SensitiveParameter] string $directory,
         #[\SensitiveParameter] string $scratchPath, bool $offline = false): string
     {
-        $coarse = class_exists(ColdTransferCoarsePeak::class, autoload: false);
-        if ($coarse) { ColdTransferCoarsePeak::transfer(1); }
-        try { return database_transfer_facade_export($source, $vault, $directory, $scratchPath, $offline); }
-        finally { if ($coarse) { ColdTransferCoarsePeak::transfer(0); } }
+        return database_transfer_facade_export($source, $vault, $directory, $scratchPath, $offline);
     }
 
     public static function importServer(PDO $target, #[\SensitiveParameter] TokenVault $vault, #[\SensitiveParameter] string $directory,
         #[\SensitiveParameter] string $scratchPath, bool $offline = false): string
     {
-        $coarse = class_exists(ColdTransferCoarsePeak::class, autoload: false);
-        if ($coarse) { ColdTransferCoarsePeak::transfer(2); }
-        try { return database_transfer_facade_import_server($target, $vault, $directory, $scratchPath, $offline); }
-        finally { if ($coarse) { ColdTransferCoarsePeak::transfer(0); } }
+        return database_transfer_facade_import_server($target, $vault, $directory, $scratchPath, $offline);
     }
 
     public static function importSqlite(#[\SensitiveParameter] TokenVault $vault, #[\SensitiveParameter] string $directory,
         #[\SensitiveParameter] string $scratchPath, #[\SensitiveParameter] string $targetPath, bool $offline = false): string
     {
-        $coarse = class_exists(ColdTransferCoarsePeak::class, autoload: false);
-        if ($coarse) { ColdTransferCoarsePeak::transfer(3); }
-        try { return database_transfer_facade_import_sqlite($vault, $directory, $scratchPath, $targetPath, $offline); }
-        finally { if ($coarse) { ColdTransferCoarsePeak::transfer(0); } }
+        return database_transfer_facade_import_sqlite($vault, $directory, $scratchPath, $targetPath, $offline);
     }
 
     public static function verify(PDO $db, #[\SensitiveParameter] TokenVault $vault, #[\SensitiveParameter] string $directory, #[\SensitiveParameter] string $scratchPath): string
     {
-        $coarse = class_exists(ColdTransferCoarsePeak::class, autoload: false);
-        if ($coarse) { ColdTransferCoarsePeak::transfer(4); }
-        try { return database_transfer_facade_verify($db, $vault, $directory, $scratchPath); }
-        finally { if ($coarse) { ColdTransferCoarsePeak::transfer(0); } }
+        return database_transfer_facade_verify($db, $vault, $directory, $scratchPath);
     }
 
     public static function preflight(PDO $source, #[\SensitiveParameter] TokenVault $vault, #[\SensitiveParameter] string $scratchPath, bool $offline = false): int
@@ -164,48 +152,30 @@ function database_transfer_private_scratch_owner(PDO $scratch): WriteTransaction
 function database_transfer_snapshot_copy(PDO $source, #[\SensitiveParameter] TokenVault $vault, #[\SensitiveParameter] string $scratchPath, #[\SensitiveParameter] ?string $directory): array
 {
     DatabaseTransferPreflight::unowned($source);
-    database_transfer_coarse_snapshot(100);
     $scratch = DatabaseTransferPreflight::scratch($scratchPath);
-    database_transfer_coarse_snapshot(101);
     DatabaseTransferPreflight::snapshot($source);
-    database_transfer_coarse_snapshot(102);
     $scratchOwner = null;
     try {
         $scratchOwner = database_transfer_private_scratch_owner($scratch);
-        database_transfer_coarse_snapshot(103);
         DatabaseTransferPreflight::admitted($source, $vault);
-        database_transfer_coarse_snapshot(104);
-        $remaining = DatabaseTransferManifest::MAX_CHUNKS; $rows = 0; $receipts = []; $ordinal = 0;
+        $remaining = DatabaseTransferManifest::MAX_CHUNKS; $rows = 0; $receipts = [];
         foreach (DatabaseTransferManifest::tables() as $table) {
             $receipt = $directory === null
                 ? DatabaseTransferArchive::measure($source, $scratch, $table, $remaining)
                 : DatabaseTransferArchive::write($source, $scratch, $table, $directory, $remaining);
-            database_transfer_coarse_snapshot(105 + $ordinal++);
             $remaining -= count($receipt['chunks']); $rows += $receipt['rows']; $receipts[] = $receipt;
         }
         $header = DatabaseTransferManifest::capture($source, $vault, $receipts);
-        database_transfer_coarse_snapshot(120);
         $digest = hash('sha256', JsonEncoding::encode($header));
-        database_transfer_coarse_snapshot(121);
         $bytes = JsonEncoding::encode(['payload' => $header, 'sha256' => $digest]);
-        database_transfer_coarse_snapshot(122);
         if (strlen($bytes) > DatabaseTransferManifest::MANIFEST_BYTES) { throw new DatabaseFailure('schema'); }
         DatabaseTransferPreflight::quiescent($scratch);
-        database_transfer_coarse_snapshot(123);
         $scratchOwner->commit(); $scratchOwner = null;
-        database_transfer_coarse_snapshot(124);
         $source->commit();
-        database_transfer_coarse_snapshot(125);
         return ['rows' => $rows, 'bytes' => $bytes, 'digest' => $digest];
     } catch (\Throwable $error) {
         $scratchOwner?->rollbackPreserving();
         if ($source->inTransaction()) { try { $source->rollBack(); } catch (\Throwable $discarded) { unset($discarded); } }
         throw database_transfer_persistence_safe($error);
     }
-}
-
-/** Temporary dispatch never autoloads an observer outside the exact bootstrap gate. */
-function database_transfer_coarse_snapshot(int $checkpoint): void
-{
-    if (class_exists(ColdTransferCoarsePeak::class, autoload: false)) { ColdTransferCoarsePeak::snapshot($checkpoint); }
 }
