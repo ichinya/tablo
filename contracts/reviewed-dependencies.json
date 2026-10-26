@@ -280,7 +280,7 @@
                 "Composer verify",
                 "Composer analyze"
             ],
-            "fingerprint": "sha256:8cd3b74baa9f4d3f0aca692213a78f6e5d710cf6c50b92582f149f3f712777e0"
+            "fingerprint": "sha256:cecb0ac67846c2ef0130cba3ad59ba96e629764cc8b3de9255dd071114ed05e0"
         },
         {
             "path": "app/BranchPresentation.php",
@@ -5604,7 +5604,7 @@
                 "Composer verify",
                 "Composer analyze"
             ],
-            "fingerprint": "sha256:f6c9b4989e2b46f5100a8d0d5927769a9e7a44b00320d7913a6ad213c903b074"
+            "fingerprint": "sha256:f1343503f6f20e95ef545e91a14713df359a28dcf9d3a4bf2f8491a81c98c334"
         },
         {
             "path": "tests/fixtures/github-budget-cli.php",
@@ -9977,7 +9977,7 @@
                 "Composer verify",
                 "Composer analyze"
             ],
-            "fingerprint": "sha256:1114ad8a03c9f0774b8c9f376e571e947dc35417230ea029ff18894120fb20df"
+            "fingerprint": "sha256:c0d7a586045024300dfbad2f8c5ff6f500e219fc91167dfdc3541902be95cbee"
         },
         {
             "path": "tests/Unit/ExplicitHealthChecksTest.php",
@@ -11396,7 +11396,7 @@
                 "tests/Server/EngineVerificationTest.php",
                 "tools/server-io-uring-php-grammar.test.php"
             ],
-            "fingerprint": "sha256:c161685a2fac87c51990015cca6fc3fa42230bd8d471b4fa74b0c203d7235408"
+            "fingerprint": "sha256:0c471e8b5f21af4ebd641cc7996a2e16233514eae207d5c88cfb9282ce33f474"
         },
         {
             "path": "tests/ServerCross/EngineServerCrashTest.php",
@@ -11456,7 +11456,7 @@
                 "Composer analyze",
                 "Composer verify:server"
             ],
-            "fingerprint": "sha256:49a10887cfdb143149924ba6477b06976f03f4b3771b704e27baaf530bf8b309"
+            "fingerprint": "sha256:20cf963655851cb4d75b6b51e0afa25c2d3ed36866806350619d4e76dc42225b"
         },
         {
             "path": "tests/Server/EngineSourceInventoryTest.php",

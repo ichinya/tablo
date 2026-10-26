@@ -12,7 +12,7 @@ use Throwable;
 /** File-only evidence validation; authored records are never actual native process proof.
  * @phpstan-type Stream array{path: string, sha256: string}
  * @phpstan-type Streams array{stdout: Stream, stderr: Stream}
- * @phpstan-type Event array{utc: string, stage: string, argument_count?: int, type?: string, exit_code?: int, monotonic_ns?: int}
+ * @phpstan-type Event array{utc: string, stage: string, argument_count?: int, failure_stage?: string, type?: string, exit_code?: int, monotonic_ns?: int}
  * @phpstan-type Events list{Event, Event, Event}
  * @phpstan-type Receipt array{pid: ?int, exit_code: ?int, root_exit_observed: bool, platform: string, signaled: bool, term_signal: ?int, proc_close?: ?int, closed: bool, ownership: string, stream_eof: string, events: Events, streams: Streams}
  * @phpstan-type Record array{pid?: ?int, sourceReceipt: string, receiptCopy: string, receiptSha256: string, streams: Streams}
@@ -28,7 +28,7 @@ final class EngineObserverAuditTest
         $fixture = engine_observer_audit_fixture();
         try {
             engine_observer_audit_add($fixture, pid: 17);
-            engine_observer_audit_add($fixture);
+            engine_observer_audit_real_no_start($fixture);
             $valueError = engine_observer_audit_add($fixture);
             $events = $valueError['receipt']['events'];
             $events[1]['type'] = 'ValueError';
@@ -78,6 +78,38 @@ function engine_observer_audit_fixture(): array
     return ['directory' => $directory, 'runtime' => $runtime, 'sink' => $sink];
 }
 
+/** The original malformed-argument control calls the real producer but cannot create a native child.
+ * @param EngineObserverAuditTest::Fixture $fixture */
+function engine_observer_audit_real_no_start(array $fixture): void
+{
+    $directory = new TemporaryDirectory('tablo-real-no-start-', $fixture['runtime'] . '/tmp');
+    $before = getenv('TABLO_SESSION_EVIDENCE_DIRECTORY'); $caught = null;
+    try {
+        Assert::true(putenv('TABLO_SESSION_EVIDENCE_DIRECTORY=' . $fixture['sink']));
+        try { \Tablo\Tests\Support\Subprocess::run(["invalid\0synthetic-argv-secret"], $directory, []); }
+        catch (RuntimeException $error) { $caught = $error; }
+        Assert::instanceOf($caught, RuntimeException::class);
+        $message = $caught->getMessage();
+        Assert::true(str_contains($message, 'stage=spawn')); Assert::false(str_contains($message, 'synthetic-argv-secret'));
+        engine_observer_audit_real_no_start_receipt($directory);
+    } finally {
+        putenv($before === false ? 'TABLO_SESSION_EVIDENCE_DIRECTORY' : 'TABLO_SESSION_EVIDENCE_DIRECTORY=' . $before);
+        $directory->close();
+    }
+}
+
+function engine_observer_audit_real_no_start_receipt(TemporaryDirectory $directory): void
+{
+    $files = \Tablo\Tests\Support\FixtureFiles::matches($directory->path . '/command-*.json'); Assert::same(count($files), 1);
+    $receipt = \Tablo\Tests\Support\SubprocessReceipt::read($files[0] ?? throw new RuntimeException('Actual failed-spawn receipt missing.'));
+    Assert::same(array_column($receipt['events'], 'stage'), ['spawn', 'failure', 'closed']);
+    $failure = \Tablo\JsonRecord::checked($receipt['events'][1] ?? null);
+    Assert::same($failure['failure_stage'] ?? null, 'spawn');
+    Assert::true(in_array($failure['type'] ?? null, ['RuntimeException', 'ValueError'], strict: true));
+    Assert::same([$receipt['pid'], $receipt['exit_code'], $receipt['proc_close'] ?? null, $receipt['root_exit_observed']], [null, null, null, false]);
+    \server_cell_observer_no_start($receipt);
+}
+
 /** @param EngineObserverAuditTest::Fixture $fixture
  * @return EngineObserverAuditTest::State */
 function engine_observer_audit_add(array $fixture, ?int $pid = null): array
@@ -123,7 +155,8 @@ function engine_observer_audit_write(string $path, array|string $value): void
 
 /** @return array<string, \Closure(EngineObserverAuditTest::Fixture, EngineObserverAuditTest::State, EngineObserverAuditTest::State): void> */
 function engine_observer_audit_hostile_cases(): array
-{ return engine_observer_audit_union_cases() + engine_observer_audit_state_cases() + engine_observer_audit_event_cases() + engine_observer_audit_custody_cases(); }
+{ return engine_observer_audit_union_cases() + engine_observer_audit_state_cases() + engine_observer_audit_event_cases()
+    + engine_observer_audit_failure_event_cases() + engine_observer_audit_time_cases() + engine_observer_audit_custody_cases(); }
 
 /** @return array<string, \Closure(EngineObserverAuditTest::Fixture, EngineObserverAuditTest::State, EngineObserverAuditTest::State): void> */
 function engine_observer_audit_union_cases(): array
@@ -210,6 +243,45 @@ function engine_observer_audit_event_cases(): array
 }
 
 /** @return array<string, \Closure(EngineObserverAuditTest::Fixture, EngineObserverAuditTest::State, EngineObserverAuditTest::State): void> */
+function engine_observer_audit_failure_event_cases(): array
+{
+    return [
+        'missing failure stage' => /** @param EngineObserverAuditTest::Fixture $f
+             * @param EngineObserverAuditTest::State $s
+             * @param EngineObserverAuditTest::State $a */ static function (array $f, array $s, array $a): void { $events = $a['receipt']['events']; unset($events[1]['failure_stage']); engine_observer_audit_receipt($a, ['events' => $events]); },
+        'another failure stage is not failed spawn' => /** @param EngineObserverAuditTest::Fixture $f
+             * @param EngineObserverAuditTest::State $s
+             * @param EngineObserverAuditTest::State $a */ static function (array $f, array $s, array $a): void { $events = $a['receipt']['events']; $events[1]['failure_stage'] = 'timeout'; engine_observer_audit_receipt($a, ['events' => $events]); },
+        'old second spawn event is refused' => /** @param EngineObserverAuditTest::Fixture $f
+             * @param EngineObserverAuditTest::State $s
+             * @param EngineObserverAuditTest::State $a */ static function (array $f, array $s, array $a): void { $events = $a['receipt']['events']; $events[1]['stage'] = 'spawn'; engine_observer_audit_receipt($a, ['events' => $events]); },
+    ];
+}
+
+/** @return array<string, \Closure(EngineObserverAuditTest::Fixture, EngineObserverAuditTest::State, EngineObserverAuditTest::State): void> */
+function engine_observer_audit_time_cases(): array
+{
+    $cases = [];
+    foreach ([0, 1, 2] as $index) {
+        $cases['missing event utc ' . $index] = /** @param EngineObserverAuditTest::Fixture $f
+             * @param EngineObserverAuditTest::State $s
+             * @param EngineObserverAuditTest::State $a */ static function (array $f, array $s, array $a) use ($index): void {
+            $events = $a['receipt']['events'];
+            if (!array_key_exists($index, $events)) { throw new RuntimeException('Synthetic event index missing.'); }
+            unset($events[$index]['utc']); engine_observer_audit_receipt($a, ['events' => $events]);
+        };
+    }
+    foreach (['2026-10-18T00:00:00Z', '2026-10-18T00:00:00+01:00', ''] as $utc) {
+        $cases['noncanonical event utc ' . $utc] = /** @param EngineObserverAuditTest::Fixture $f
+             * @param EngineObserverAuditTest::State $s
+             * @param EngineObserverAuditTest::State $a */ static function (array $f, array $s, array $a) use ($utc): void {
+            $events = $a['receipt']['events']; $events[1]['utc'] = $utc; engine_observer_audit_receipt($a, ['events' => $events]);
+        };
+    }
+    return $cases;
+}
+
+/** @return array<string, \Closure(EngineObserverAuditTest::Fixture, EngineObserverAuditTest::State, EngineObserverAuditTest::State): void> */
 function engine_observer_audit_custody_cases(): array
 {
     return [
@@ -260,6 +332,6 @@ function engine_observer_audit_events(?int $pid): array
 {
     $started = $pid !== null;
     return [['utc' => '2026-10-18T00:00:00+00:00', 'stage' => 'spawn', 'argument_count' => 1],
-            ['utc' => '2026-10-18T00:00:00+00:00', 'stage' => $started ? 'exit' : 'spawn', ...($started ? ['exit_code' => 0] : ['type' => 'RuntimeException'])],
+            ['utc' => '2026-10-18T00:00:00+00:00', 'stage' => $started ? 'exit' : 'failure', ...($started ? ['exit_code' => 0] : ['failure_stage' => 'spawn', 'type' => 'RuntimeException'])],
             ['utc' => '2026-10-18T00:00:00+00:00', 'stage' => 'closed']];
 }

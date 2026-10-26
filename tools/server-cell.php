@@ -2470,6 +2470,7 @@ function server_cell_observer_no_start_event(array $event, int $index): ?int
         $arguments = SqlColumn::integer($event, 'argument_count');
         if ($arguments < 0 || $arguments > 64) { throw new RuntimeException('No-start argument count refused.'); }
     }
+    if ($index === 1 && ($event['failure_stage'] ?? null) !== 'spawn') { throw new RuntimeException('No-start failure stage refused.'); }
     if ($index === 1 && !in_array($event['type'] ?? null, ['RuntimeException', 'ValueError'], strict: true)) { throw new RuntimeException('No-start exception type refused.'); }
     if (!array_key_exists('monotonic_ns', $event)) { return null; }
     $current = SqlColumn::integer($event, 'monotonic_ns');
@@ -2479,8 +2480,8 @@ function server_cell_observer_no_start_event(array $event, int $index): ?int
 
 function server_cell_observer_no_start_shape(array $event, int $index): void
 {
-    $stage = $index === 2 ? 'closed' : 'spawn';
-    $fields = match ($index) { 0 => ['utc', 'stage', 'argument_count'], 1 => ['utc', 'stage', 'type'], default => ['utc', 'stage'] };
+    $stage = match ($index) { 0 => 'spawn', 1 => 'failure', default => 'closed' };
+    $fields = match ($index) { 0 => ['utc', 'stage', 'argument_count'], 1 => ['utc', 'stage', 'failure_stage', 'type'], default => ['utc', 'stage'] };
     if (($event['stage'] ?? null) !== $stage || array_diff(array_keys($event), [...$fields, 'monotonic_ns']) !== []
         || array_diff($fields, array_keys($event)) !== [] || preg_match('/\A[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}\+00:00\z/D', SqlColumn::string($event, 'utc')) !== 1) {
         throw new RuntimeException('No-start event refused.');

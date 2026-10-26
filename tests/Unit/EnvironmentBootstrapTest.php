@@ -25,6 +25,7 @@ final class EnvironmentBootstrapTest
             Assert::same(\Tablo\Tests\Support\FixtureValue::at($data, 'value'), 'value # with = signs');
             Assert::same(\Tablo\Tests\Support\FixtureValue::at($data, 'literal'), 'D:\\data dir\\file.sqlite');
         } finally { $directory->close(); }
+        $this->coldComposer();
     }
 
     #[Test]
@@ -82,6 +83,27 @@ final class EnvironmentBootstrapTest
     private function project(): TemporaryDirectory
     {
         return $this->createProject();
+    }
+
+    private function coldComposer(): void
+    {
+        foreach (['observe', 'inactive', 'missing-mode', 'wrong-argv'] as $mode) {
+            $directory = $this->createProject();
+            try {
+                copy(dirname(__DIR__, levels: 2) . '/app/ColdTransferDiagnostic.php', $directory->path . '/app/ColdTransferDiagnostic.php');
+                mkdir($directory->path . '/evidence');
+                $plan = $directory->path . '/evidence/started-cell.json';
+                file_put_contents($plan, data: '{}');
+                $result = $this->run($directory, ['TABLO_TEST_COLD_R77' => $mode === 'inactive' ? 'inactive' : 'observe',
+                    'TABLO_TEST_CELL_PLAN' => $plan], ['cold-composer', $mode]);
+                Assert::same([$result['exit_code'], $result['stderr']], [0, '']);
+                $enabled = in_array($mode, ['observe', 'inactive'], strict: true);
+                Assert::same(\Tablo\JsonRecord::decode($result['stdout']), ['before' => false, 'closureArgv' => false,
+                    'loaded' => $enabled, 'callback' => $enabled, 'sidecar' => $enabled]);
+                Assert::same(is_file($directory->path . '/evidence/cold-r77.json'), $enabled);
+                Assert::false(is_file($directory->path . '/data path/custom.sqlite'));
+            } finally { $directory->close(); }
+        }
     }
 
     #[Test]
