@@ -718,16 +718,30 @@ jobs:
             }
             $progress = @(Get-ChildItem -LiteralPath (Join-Path $plan.runtime 'evidence') -Filter 'native-*.json' -File -ErrorAction SilentlyContinue | Sort-Object Name | ForEach-Object { Get-Content -LiteralPath $_.FullName -Raw | ConvertFrom-Json })
             $status.nativeProgress = $progress
-            $coarsePath = Join-Path $plan.runtime 'cases/transfer-working-data/cold-r81.json'
             $status.coarseDiagnostic = 'missing'
-            if (Test-Path -LiteralPath $coarsePath) {
-              try {
+            try {
+              $coarseIdentity = 'Tablo\Tests\Server\EngineTransferTest::completeNativeRoundTripOverEightMiBUsesAtMostTwoMiBOfPhpWorkingData'
+              $coarseCases = (Get-Content -LiteralPath 'tools/server-native-tests.json' -Raw | ConvertFrom-Json -AsHashtable -Depth 100).cases.main
+              if ($coarseCases -isnot [array] -or $coarseCases.Count -lt 1 -or $coarseCases.Count -gt 1000) { throw 'Bounded main case declaration required' }
+              $coarseIndex = -1; $coarseMatches = 0
+              for ($coarseCandidate = 0; $coarseCandidate -lt $coarseCases.Count; $coarseCandidate++) {
+                $coarseCase = $coarseCases[$coarseCandidate]
+                if ($coarseCase -isnot [System.Collections.IDictionary] -or $coarseCase.identity -isnot [string]) { throw 'Scalar main identity required' }
+                if ($coarseCase.identity -ceq $coarseIdentity) { $coarseIndex = $coarseCandidate; $coarseMatches++ }
+              }
+              if ($coarseMatches -ne 1 -or $coarseIndex -lt 0 -or $coarseIndex -ge 1000) { throw 'Unique bounded cold case required' }
+              $coarseEngine = '${{ matrix.engine }}'
+              if ($coarseEngine -isnot [string] -or $coarseEngine -cnotin @('mysql','mariadb')) { throw 'Exact selected engine required' }
+              if ($plan.nonce -isnot [string] -or $plan.nonce -cnotmatch '\A[0-9a-f]{32}\z' -or $plan.runtime -isnot [string] -or $plan.runtime.Length -lt 1) { throw 'Owned runtime and scalar nonce required' }
+              $coarseRelative = 'cases/main-' + $coarseIndex + '/' + $coarseEngine + '/tablo-server-' + $plan.nonce + '/cases/transfer-working-data/cold-r81.json'
+              $coarsePath = Join-Path $plan.runtime $coarseRelative
+              if (Test-Path -LiteralPath $coarsePath) {
                 & tools/collect-cold-r81.ps1 -InputPath $coarsePath -OutputPath (Join-Path $cellDirectory 'safe-cold-r81.json') -RunId $env:GITHUB_RUN_ID -Head (git rev-parse HEAD) -Nonce $plan.nonce -Engine '${{ matrix.engine }}' -Php '${{ matrix.php }}' -Mode $env:TABLO_TEST_COLD_R81
                 if (!$?) { throw 'Numeric-only coarse localization refused' }
                 $status.coarseDiagnostic = 'retained'
-              } catch {
-                $status.coarseDiagnostic = 'invalid-or-incomplete'
               }
+            } catch {
+              $status.coarseDiagnostic = 'invalid-or-incomplete'
             }
           }
           [IO.File]::WriteAllText((Join-Path $cellDirectory 'safe-summary.json'), ($status | ConvertTo-Json -Depth 30), [Text.UTF8Encoding]::new($false))
