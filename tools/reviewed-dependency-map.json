@@ -1,4 +1,12 @@
 {
+  "tools/collect-cold-r77.ps1": {
+    "owner": "Temporary numeric-only cold-transfer diagnostic projection; remove before acceptance",
+    "consumers": ["Composer verify", ".github/workflows/verify.yml"]
+  },
+  "app/ColdTransferDiagnostic.php": {
+    "owner": "Temporary constant-space cold-transfer diagnostic; remove before acceptance",
+    "consumers": ["Composer lint", "Composer analyze", "Composer verify"]
+  },
   "tests/Unit/DatabaseFailureOutputTest.php": {
     "owner": "Typed storage failure HTTP propagation and partial JSON regression evidence",
     "consumers": [

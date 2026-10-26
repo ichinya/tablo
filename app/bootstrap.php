@@ -25,3 +25,11 @@ try {
     // Parser diagnostics may include credentials from the invalid line.
     throw new RuntimeException('Не удалось загрузить .env: проверьте синтаксис и кодировку файла.');
 }
+
+if (PHP_SAPI === 'cli' && count($argv ?? []) === 3 && ($argv[1] ?? null) === 'transfer-working-data'
+    && ($argv[2] ?? null) === 'transfer-working-data'
+    && str_ends_with(str_replace(search: '\\', replace: '/', subject: $argv[0]), '/tests/server-child.php')
+    && in_array(getenv('TABLO_TEST_COLD_R77'), ['observe', 'inactive'], strict: true)) {
+    require_once __DIR__ . '/ColdTransferDiagnostic.php';
+    \Tablo\ColdTransferDiagnostic::setup();
+}

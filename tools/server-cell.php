@@ -1172,7 +1172,7 @@ function server_cell_start_environment(array $plan): array
         'TABLO_SERVER_LINUX_ADAPTER', 'TABLO_SERVER_LINUX_ADAPTER_SHA256', 'TABLO_SERVER_LINUX_BUILD', 'TABLO_SERVER_LINUX_BUILD_SHA256',
         'TABLO_SERVER_LINUX_QUALIFICATION', 'TABLO_SERVER_LINUX_QUALIFICATION_SHA256',
         'TABLO_SERVER_LINUX_SHELL', 'TABLO_SERVER_LINUX_SHELL_SHA256',
-        'TABLO_TEST_BASELINE_PHASE_FILE', 'TABLO_TEST_BASELINE_PHASE_SHA256'] as $name) {
+        'TABLO_TEST_BASELINE_PHASE_FILE', 'TABLO_TEST_BASELINE_PHASE_SHA256', 'TABLO_TEST_COLD_R77'] as $name) {
         $value = getenv($name); if (is_string($value)) { $environment[$name] = $value; }
     }
     $composer = JsonRecord::checked($plan['composer'] ?? null); $lekalo = JsonRecord::checked($plan['lekalo'] ?? null);
@@ -1241,10 +1241,9 @@ function server_cell_execute(array &$context, ?array &$capabilityFailure = null)
     $services = JsonRecord::checked($plan['services'] ?? null);
     foreach (array_keys($services) as $engine) { server_cell_acquire($context, (string) $engine); server_cell_start_service($context, (string) $engine); }
     $context['plan']['schema'] = 'tablo/server-cell/v1'; $context['plan']['sourceState'] = 'STARTED_PENDING_NATIVE_VERIFICATION';
+    $context['plan']['generatedAutoloadFiles'] = server_cell_autoload($context, $context['environment']);
     $path = SqlColumn::string($plan, 'runtime') . '/evidence/started-cell.json';
     server_cell_private_write($path, \Tablo\JsonEncoding::encode($context['plan'], JSON_PRETTY_PRINT));
-    $environment = $context['environment'] + ['TABLO_TEST_CELL_PLAN' => $path, 'TABLO_TEST_CELL_PLAN_SHA256' => RequiredFile::digest($path)];
-    server_cell_autoload($context, $environment);
     server_cell_observer_audit(SqlColumn::string($plan, 'runtime') . '/evidence/closure');
     server_cell_observer_remaining();
     fwrite(STDOUT, data: "Native service admission prepared; pool and selected PDO admission pending.\n");
@@ -1309,7 +1308,7 @@ function server_cell_safe_lanes(array $actual, array $lanes): array
     return $native;
 }
 
-/** Verification never rewrites source or recaptures expectations. Only the two offline autoload outputs may differ. */
+/** Verification never rewrites source or recaptures expectations; generated outputs were frozen before continuation. */
 function server_cell_post_custody(array $plan): array
 {
     $manifest = JsonRecord::checked($plan['sourceManifest'] ?? null);
@@ -1319,14 +1318,7 @@ function server_cell_post_custody(array $plan): array
     $root = SqlColumn::string($plan, 'source'); $source = JsonRecord::checked($record['files'] ?? null);
     server_cell_inventory_unchanged($root, $source);
     server_cell_inventory_unchanged($root, JsonRecord::checked($plan['magoFiles'] ?? null));
-    $vendor = JsonRecord::checked($plan['vendorFiles'] ?? null); $changed = [];
-    foreach (array_keys($vendor) as $index) {
-        $file = JsonRecord::checked($vendor[$index] ?? null); $name = SqlColumn::string($file, 'path'); $path = $root . '/vendor/' . $name;
-        if (is_link($path)) { throw new RuntimeException('Linked vendor output refused.'); }
-        if (RequiredFile::digest($path) === SqlColumn::string($file, 'sha256')) { continue; }
-        if (!in_array($name, ['composer/autoload_classmap.php', 'composer/autoload_static.php'], strict: true)) { throw new RuntimeException('Unreviewed locked vendor mutation.'); }
-        $changed[] = ['path' => $name, 'sha256' => RequiredFile::digest($path)];
-    }
+    $vendor = JsonRecord::checked($plan['vendorFiles'] ?? null); $changed = server_cell_vendor_frozen_custody($plan);
     if (file_get_contents($root . '/.env') !== '') { throw new RuntimeException('Private empty environment changed.'); }
     server_cell_verify_tools($plan);
     return ['sourceFiles' => count($source), 'sourceUnchanged' => true, 'vendorFiles' => count($vendor), 'allowedAutoloadChanges' => $changed, 'emptyEnvironmentUnchanged' => true];
@@ -1341,13 +1333,84 @@ function server_cell_inventory_unchanged(string $root, array $files): void
 }
 
 /** @param array{plan: array, directory: TemporaryDirectory, environment: array<string, string>} $context
- * @param array<string, string> $environment */
-function server_cell_autoload(array $context, array $environment): void
+ * @param array<string, string> $environment
+ * @return list<array{path: string, sha256: string}> */
+function server_cell_autoload(array $context, array $environment): array
 {
     $composer = JsonRecord::checked($context['plan']['composer'] ?? null);
     $autoload = Subprocess::run([PHP_BINARY, SqlColumn::string($composer, 'path'), '--no-plugins', '--no-scripts', '--no-interaction', 'dump-autoload', '--optimize'],
         $context['directory'], $environment, new CommandOptions(timeout: 120, cwd: SqlColumn::string($context['plan'], 'source'), replacementEnvironment: $environment));
-    if ($autoload['exit_code'] !== 0) { throw new RuntimeException('Offline native autoload preparation failed.'); }
+    return server_cell_autoload_freeze($context['plan'], $autoload['exit_code']);
+}
+
+/** Only these existing Composer outputs may change during the owned successful command.
+ * @return list<string> */
+function server_cell_autoload_outputs(): array
+{ return ['composer/autoload_classmap.php', 'composer/autoload_files.php', 'composer/autoload_static.php']; }
+
+/** Fresh inventory traversal rejects missing, added, linked and nonregular vendor entries.
+ * @return array{initial: list<array{path: string, sha256: string}>, actual: list<array{path: string, sha256: string}>} */
+function server_cell_vendor_snapshot(array $plan): array
+{
+    $initial = JsonRecord::checked($plan['vendorFiles'] ?? null);
+    if (!array_is_list($initial) || $initial === []) { throw new RuntimeException('Frozen vendor inventory required.'); }
+    $actual = \Tablo\Tools\server_fixture_plan_vendor_files(SqlColumn::string($plan, 'source') . '/vendor');
+    if (count($actual) !== count($initial)) { throw new RuntimeException('Frozen vendor inventory membership changed.'); }
+    foreach (array_keys($initial) as $index) {
+        $file = JsonRecord::checked($initial[$index] ?? null); $current = $actual[$index] ?? throw new RuntimeException('Frozen vendor entry absent.');
+        if (array_keys($file) !== ['path', 'sha256'] || ($file['path'] ?? null) !== $current['path']
+            || preg_match('/\A[0-9a-f]{64}\z/D', SqlColumn::string($file, 'sha256')) !== 1) { throw new RuntimeException('Frozen vendor inventory record refused.'); }
+    }
+    /** @var list<array{path: string, sha256: string}> $initial Ordered names match the actual regular-file inventory; digests were checked above. */
+    return ['initial' => $initial, 'actual' => $actual];
+}
+
+/** Exact internal continuation data; it cannot designate another path or omit an output.
+ * @return list<array{path: string, sha256: string}> */
+function server_cell_autoload_frozen(array $files): array
+{
+    if (!array_is_list($files) || count($files) !== 3) { throw new RuntimeException('Complete frozen autoload outputs required.'); }
+    $names = [];
+    foreach (array_keys($files) as $index) {
+        $file = JsonRecord::checked($files[$index] ?? null);
+        if (array_keys($file) !== ['path', 'sha256'] || preg_match('/\A[0-9a-f]{64}\z/D', SqlColumn::string($file, 'sha256')) !== 1) {
+            throw new RuntimeException('Frozen autoload output record refused.');
+        }
+        $names[] = SqlColumn::string($file, 'path');
+    }
+    if ($names !== server_cell_autoload_outputs()) { throw new RuntimeException('Exact frozen autoload output paths required.'); }
+    /** @var list<array{path: string, sha256: string}> $files Exact ordered output names and digests were checked above. */
+    return $files;
+}
+
+/** Freeze only after successful owned Composer execution, while all other vendor bytes still match the original inventory.
+ * @return list<array{path: string, sha256: string}> */
+function server_cell_autoload_freeze(array $plan, ?int $exit): array
+{
+    if ($exit !== 0) { throw new RuntimeException('Offline native autoload preparation failed.'); }
+    if (array_key_exists('generatedAutoloadFiles', $plan)) { throw new RuntimeException('Autoload outputs cannot be refrozen.'); }
+    $snapshot = server_cell_vendor_snapshot($plan); $generated = [];
+    foreach ($snapshot['actual'] as $index => $file) {
+        if (in_array($file['path'], server_cell_autoload_outputs(), strict: true)) { $generated[] = $file; continue; }
+        $initial = $snapshot['initial'][$index] ?? throw new RuntimeException('Frozen vendor entry absent.');
+        if (!hash_equals($initial['sha256'], $file['sha256'])) { throw new RuntimeException('Unreviewed locked vendor mutation.'); }
+    }
+    return server_cell_autoload_frozen($generated);
+}
+
+/** Every post-test byte must match either the original inventory or its exact pre-test generated digest.
+ * @return list<array{path: string, sha256: string}> */
+function server_cell_vendor_frozen_custody(array $plan): array
+{
+    $generated = server_cell_autoload_frozen(JsonRecord::checked($plan['generatedAutoloadFiles'] ?? null));
+    $expected = []; foreach ($generated as $file) { $expected[$file['path']] = $file['sha256']; }
+    $snapshot = server_cell_vendor_snapshot($plan); $changed = [];
+    foreach ($snapshot['actual'] as $index => $file) {
+        $initial = $snapshot['initial'][$index] ?? throw new RuntimeException('Frozen vendor entry absent.');
+        if (!hash_equals($expected[$file['path']] ?? $initial['sha256'], $file['sha256'])) { throw new RuntimeException('Frozen post-autoload vendor output changed.'); }
+        if (!hash_equals($initial['sha256'], $file['sha256'])) { $changed[] = $file; }
+    }
+    return $changed;
 }
 
 function server_cell_overall_remaining(float $deadline): float

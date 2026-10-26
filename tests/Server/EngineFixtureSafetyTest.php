@@ -32,7 +32,7 @@ final class EngineFixtureSafetyTest
 
     #[Test]
     public function controllerTemporaryFilesStayInsideItsFreshPrivateRootAndRejectOtherParents(): void
-    { engine_fixture_private_controller_parent(); engine_fixture_materialized_source_children(); }
+    { engine_fixture_private_controller_parent(); engine_fixture_materialized_source_children(); engine_fixture_vendor_autoload_custody(); }
 
     #[Test]
     public function failedCatalogBootstrapKeepsUnknownIntentsAndCannotReplayOrResetThem(): void
@@ -590,6 +590,101 @@ function engine_fixture_materialized_source_children(): void
         }
     } catch (\Throwable $error) { $owner->retainFailure($error); throw $error; }
     finally { $owner->close(); }
+}
+
+/** Synthetic files exercise the real freeze/custody helpers without running Composer or an engine. */
+function engine_fixture_vendor_autoload_custody(): void
+{
+    require_once dirname(__DIR__, levels: 2) . '/tools/server-cell.php';
+    require_once dirname(__DIR__, levels: 2) . '/tools/ServerFixturePlan.php';
+    $owner = new \Tablo\Tests\Support\TemporaryDirectory('tablo-vendor-custody-'); $root = $owner->path . '/source';
+    try {
+        $plan = engine_fixture_vendor_autoload_inputs($root);
+        $continued = engine_fixture_vendor_autoload_generation($root, $plan);
+        engine_fixture_vendor_autoload_mutations($root, $continued);
+        engine_fixture_vendor_autoload_missing($root, $plan, $continued);
+        engine_fixture_vendor_autoload_records($continued);
+    } catch (\Throwable $error) { $owner->retainFailure($error); throw $error; }
+    finally { $owner->close(); }
+}
+
+/** Independent literal fixture contract, never supplied by generated continuation data.
+ * @return list<string> */
+function engine_fixture_vendor_generated_names(): array
+{ return ['composer/autoload_classmap.php', 'composer/autoload_files.php', 'composer/autoload_static.php']; }
+
+function engine_fixture_vendor_autoload_inputs(string $root): array
+{
+    foreach (['composer', 'package'] as $name) { Assert::true(mkdir($root . '/vendor/' . $name, permissions: 0o700, recursive: true)); }
+    foreach ([...engine_fixture_vendor_generated_names(), 'package/locked.php'] as $name) {
+        $bytes = 'initial:' . $name; Assert::same(file_put_contents($root . '/vendor/' . $name, $bytes), strlen($bytes));
+    }
+    return ['source' => $root, 'vendorFiles' => \Tablo\Tools\server_fixture_plan_vendor_files($root . '/vendor')];
+}
+
+function engine_fixture_vendor_autoload_generation(string $root, array $plan): array
+{
+    foreach (engine_fixture_vendor_generated_names() as $name) {
+        $bytes = 'generated:' . $name; Assert::same(file_put_contents($root . '/vendor/' . $name, $bytes), strlen($bytes));
+    }
+    foreach ([null, 1, 125] as $exit) {
+        Assert::instanceOf(engine_fixture_observer_error(static fn (): array => \server_cell_autoload_freeze($plan, $exit)), \RuntimeException::class);
+    }
+    $frozen = \server_cell_autoload_freeze($plan, exit: 0);
+    Assert::same(array_column($frozen, 'path'), engine_fixture_vendor_generated_names());
+    foreach ($frozen as $file) { Assert::same($file['sha256'], \Tablo\RequiredFile::digest($root . '/vendor/' . $file['path'])); }
+    $continued = $plan + ['generatedAutoloadFiles' => $frozen];
+    Assert::same(\server_cell_vendor_frozen_custody($continued), $frozen);
+    Assert::instanceOf(engine_fixture_observer_error(static fn (): array => \server_cell_autoload_freeze($continued, exit: 0)), \RuntimeException::class);
+    return $continued;
+}
+
+function engine_fixture_vendor_autoload_mutations(string $root, array $continued): void
+{
+    foreach ([...engine_fixture_vendor_generated_names(), 'package/locked.php'] as $name) {
+        $path = $root . '/vendor/' . $name; $before = \Tablo\RequiredFile::bytes(file_get_contents($path));
+        foreach (['later:' . $name, 'initial:' . $name] as $bytes) {
+            if ($bytes === $before) { continue; }
+            Assert::same(file_put_contents($path, $bytes), strlen($bytes));
+            Assert::instanceOf(engine_fixture_observer_error(static fn (): array => \server_cell_vendor_frozen_custody($continued)), \RuntimeException::class);
+        }
+        Assert::same(file_put_contents($path, $before), strlen($before));
+    }
+    $extra = $root . '/vendor/unlisted.php'; Assert::same(file_put_contents($extra, data: 'extra'), 5);
+    Assert::instanceOf(engine_fixture_observer_error(static fn (): array => \server_cell_vendor_frozen_custody($continued)), \RuntimeException::class);
+    $original = $continued; unset($original['generatedAutoloadFiles']);
+    Assert::instanceOf(engine_fixture_observer_error(static fn (): array => \server_cell_autoload_freeze($original, exit: 0)), \RuntimeException::class);
+    Assert::true(unlink($extra));
+}
+
+function engine_fixture_vendor_autoload_missing(string $root, array $plan, array $continued): void
+{
+    $locked = $root . '/vendor/package/locked.php'; $bytes = \Tablo\RequiredFile::bytes(file_get_contents($locked));
+    Assert::same(file_put_contents($locked, data: 'changed-before-freeze'), 21);
+    Assert::instanceOf(engine_fixture_observer_error(static fn (): array => \server_cell_autoload_freeze($plan, exit: 0)), \RuntimeException::class);
+    Assert::same(file_put_contents($locked, $bytes), strlen($bytes));
+    foreach (engine_fixture_vendor_generated_names() as $name) {
+        $path = $root . '/vendor/' . $name; $before = \Tablo\RequiredFile::bytes(file_get_contents($path)); Assert::true(unlink($path));
+        Assert::instanceOf(engine_fixture_observer_error(static fn (): array => \server_cell_autoload_freeze($plan, exit: 0)), \RuntimeException::class);
+        Assert::instanceOf(engine_fixture_observer_error(static fn (): array => \server_cell_vendor_frozen_custody($continued)), \RuntimeException::class);
+        Assert::same(file_put_contents($path, $before), strlen($before));
+    }
+}
+
+function engine_fixture_vendor_autoload_records(array $continued): void
+{
+    $frozen = \Tablo\JsonRecord::checked($continued['generatedAutoloadFiles'] ?? null);
+    $first = \Tablo\JsonRecord::checked($frozen[0] ?? null);
+    $invalid = [null, [], array_slice($frozen, offset: 0, length: 2), [...$frozen, $first],
+        array_replace($frozen, [0 => array_replace($first, ['path' => '../outside.php'])]),
+        array_replace($frozen, [0 => array_replace($first, ['sha256' => 'invalid'])]),
+        array_replace($frozen, [0 => $first + ['unreviewed' => true]])];
+    foreach ($invalid as $files) {
+        $candidate = array_replace($continued, ['generatedAutoloadFiles' => $files]);
+        Assert::instanceOf(engine_fixture_observer_error(static fn (): array => \server_cell_vendor_frozen_custody($candidate)), \RuntimeException::class);
+    }
+    unset($continued['generatedAutoloadFiles']);
+    Assert::instanceOf(engine_fixture_observer_error(static fn (): array => \server_cell_vendor_frozen_custody($continued)), \RuntimeException::class);
 }
 
 /** Authored PDO diagnostics test redaction and typing only; these are never engine-availability evidence. */

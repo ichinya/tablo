@@ -11,24 +11,36 @@ final class DatabaseTransfer
     public static function export(PDO $source, #[\SensitiveParameter] TokenVault $vault, #[\SensitiveParameter] string $directory,
         #[\SensitiveParameter] string $scratchPath, bool $offline = false): string
     {
-        return database_transfer_facade_export($source, $vault, $directory, $scratchPath, $offline);
+        $diagnostic = class_exists(ColdTransferDiagnostic::class, autoload: false);
+        if ($diagnostic) { ColdTransferDiagnostic::enter(1); }
+        try { return database_transfer_facade_export($source, $vault, $directory, $scratchPath, $offline); }
+        finally { if ($diagnostic) { ColdTransferDiagnostic::leave(); } }
     }
 
     public static function importServer(PDO $target, #[\SensitiveParameter] TokenVault $vault, #[\SensitiveParameter] string $directory,
         #[\SensitiveParameter] string $scratchPath, bool $offline = false): string
     {
-        return database_transfer_facade_import_server($target, $vault, $directory, $scratchPath, $offline);
+        $diagnostic = class_exists(ColdTransferDiagnostic::class, autoload: false);
+        if ($diagnostic) { ColdTransferDiagnostic::enter(2); }
+        try { return database_transfer_facade_import_server($target, $vault, $directory, $scratchPath, $offline); }
+        finally { if ($diagnostic) { ColdTransferDiagnostic::leave(); } }
     }
 
     public static function importSqlite(#[\SensitiveParameter] TokenVault $vault, #[\SensitiveParameter] string $directory,
         #[\SensitiveParameter] string $scratchPath, #[\SensitiveParameter] string $targetPath, bool $offline = false): string
     {
-        return database_transfer_facade_import_sqlite($vault, $directory, $scratchPath, $targetPath, $offline);
+        $diagnostic = class_exists(ColdTransferDiagnostic::class, autoload: false);
+        if ($diagnostic) { ColdTransferDiagnostic::enter(3); }
+        try { return database_transfer_facade_import_sqlite($vault, $directory, $scratchPath, $targetPath, $offline); }
+        finally { if ($diagnostic) { ColdTransferDiagnostic::leave(); } }
     }
 
     public static function verify(PDO $db, #[\SensitiveParameter] TokenVault $vault, #[\SensitiveParameter] string $directory, #[\SensitiveParameter] string $scratchPath): string
     {
-        return database_transfer_facade_verify($db, $vault, $directory, $scratchPath);
+        $diagnostic = class_exists(ColdTransferDiagnostic::class, autoload: false);
+        if ($diagnostic) { ColdTransferDiagnostic::enter(4); }
+        try { return database_transfer_facade_verify($db, $vault, $directory, $scratchPath); }
+        finally { if ($diagnostic) { ColdTransferDiagnostic::leave(); } }
     }
 
     public static function preflight(PDO $source, #[\SensitiveParameter] TokenVault $vault, #[\SensitiveParameter] string $scratchPath, bool $offline = false): int

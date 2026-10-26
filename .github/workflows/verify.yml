@@ -394,6 +394,8 @@ jobs:
     env:
       LEKALO_REF: 9510dd0767a56c0ab34b8d3c8ceb2a14db8de825
       COMPOSER_PROCESS_TIMEOUT: '1800'
+      # Temporary paired diagnostics; neither mode qualifies the original cold memory budget.
+      TABLO_TEST_COLD_R77: ${{ github.event_name == 'push' && 'observe' || 'inactive' }}
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
       - name: Seed safe declaration status before input preparation
@@ -716,6 +718,18 @@ jobs:
             }
             $progress = @(Get-ChildItem -LiteralPath (Join-Path $plan.runtime 'evidence') -Filter 'native-*.json' -File -ErrorAction SilentlyContinue | Sort-Object Name | ForEach-Object { Get-Content -LiteralPath $_.FullName -Raw | ConvertFrom-Json })
             $status.nativeProgress = $progress
+            $coldDiagnostic = Join-Path $plan.runtime 'evidence/cold-r77.json'
+            $status.coldDiagnostic = 'missing'
+            if (Test-Path -LiteralPath $coldDiagnostic) {
+              try {
+                & tools/collect-cold-r77.ps1 -InputPath $coldDiagnostic -OutputPath (Join-Path $cellDirectory 'safe-cold-r77.json') -RunId $env:GITHUB_RUN_ID -Head (git rev-parse HEAD) -Nonce $plan.nonce -Engine '${{ matrix.engine }}' -Php '${{ matrix.php }}'
+                if (!$?) { throw 'Numeric-only cold diagnostic projection refused' }
+                $status.coldDiagnostic = 'retained'
+              } catch {
+                # A killed actor can leave its preopened sidecar empty. Preserve the original cell evidence.
+                $status.coldDiagnostic = 'invalid-or-incomplete'
+              }
+            }
           }
           [IO.File]::WriteAllText((Join-Path $cellDirectory 'safe-summary.json'), ($status | ConvertTo-Json -Depth 30), [Text.UTF8Encoding]::new($false))
       - name: Upload safe server-cell summary

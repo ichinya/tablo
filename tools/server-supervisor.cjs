@@ -398,6 +398,8 @@ function environment(inherited) {
   for (const [name, value] of Object.entries(inherited)) {
     if (/^(systemroot|windir|path|pathext|comspec|userprofile|localappdata|appdata)$/i.test(name)) clean[name] = value;
   }
+  // Temporary finite diagnostic mode; all unrelated inherited variables remain refused.
+  if (['observe', 'inactive'].includes(inherited.TABLO_TEST_COLD_R77)) clean.TABLO_TEST_COLD_R77 = inherited.TABLO_TEST_COLD_R77;
   return { ...clean, TABLO_DB_DRIVER: 'sqlite', TABLO_DB: ':memory:', TABLO_TOKEN_KEY_FILE: '', PHP_INI_SCAN_DIR: '' };
 }
 
@@ -1463,6 +1465,12 @@ function registerTests() {
     const clean = environment({ PATH: '/synthetic/tools', TABLO_DB: 'private', TABLO_DB_PASSWORD: 'private',
       TABLO_TOKEN_KEY_FILE: 'private', DOCKER_HOST: 'remote', PHPRC: 'private', HOME: 'private', NODE_OPTIONS: '--inspect' });
     assert.deepEqual(clean, { PATH: '/synthetic/tools', TABLO_DB_DRIVER: 'sqlite', TABLO_DB: ':memory:', TABLO_TOKEN_KEY_FILE: '', PHP_INI_SCAN_DIR: '' });
+    for (const mode of ['observe', 'inactive']) {
+      assert.deepEqual(environment({ PATH: '/synthetic/tools', TABLO_TEST_COLD_R77: mode, TABLO_DB_PASSWORD: 'private' }), { ...clean, TABLO_TEST_COLD_R77: mode });
+    }
+    for (const mode of ['', 'other', 'observe\n', true, 1, null]) {
+      assert.deepEqual(environment({ PATH: '/synthetic/tools', TABLO_TEST_COLD_R77: mode }), clean);
+    }
   });
 }
 
