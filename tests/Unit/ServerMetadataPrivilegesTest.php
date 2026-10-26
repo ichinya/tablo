@@ -44,6 +44,7 @@ function metadata_checks_visible_to_select_only_writer(): void
     foreach (['writer', 'control'] as $role) { metadata_checks_bound_snapshot($role); }
     metadata_records_engine_binding();
     metadata_records_layout_selection();
+    metadata_records_default_selection();
 }
 
 function metadata_checks_role_case(string $engine, string $role, string $fault): void
@@ -385,9 +386,90 @@ function metadata_records_layout_case(string $engine, string $role, int $version
     Assert::same($source instanceof \Tablo\ServerAdmissionRecords, $selected);
     Assert::same($session->metadataObservation, null); Assert::same($db->queries, []);
     if (!$selected) { Assert::true(is_array($source)); return; }
-    metadata_checks_observation($db, $configuration); $borrowed = $session->metadataObservation;
-    try {
-        Assert::true(is_array(\Tablo\server_table_admission_source($db, $session, $version)));
-        Assert::same($session->metadataObservation, $borrowed);
-    } finally { $session->metadataObservation = null; }
+    metadata_checks_observation($db, $configuration);
+    $borrowed = $session->metadataObservation ?? throw new \RuntimeException('Missing borrowed fixture observation.');
+    try { metadata_records_borrowed_selection($db, $session, $version, $borrowed); }
+    finally { $session->metadataObservation = null; }
+}
+
+/** @param \Tablo\ServerMetadataAdmission::Observation $borrowed */
+function metadata_records_borrowed_selection(MetadataPrivilegesPdo $db, \Tablo\DatabaseSession $session, int $version, array $borrowed): void
+{
+    $queries = $db->queries; $cursors = [$db->opened, $db->closed];
+    $source = \Tablo\server_table_admission_source($db, $session, $version);
+    Assert::instanceOf($source, \Tablo\ServerAdmissionRecords::class);
+    Assert::same(iterator_to_array($source->tables($version), preserve_keys: false), metadata_records_golden_projection($db->engine));
+    Assert::same($session->metadataObservation, $borrowed); Assert::same($db->queries, $queries);
+    Assert::same([$db->opened, $db->closed], $cursors);
+}
+
+function metadata_records_default_selection(): void
+{
+    foreach (['mysql', 'mariadb'] as $engine) {
+        foreach (['writer', 'control', 'migrator', 'reader', 'metadata'] as $role) { metadata_records_default_case($engine, $role); }
+        metadata_records_default_explicit($engine);
+        metadata_records_default_foreign($engine);
+    }
+}
+
+function metadata_records_default_case(string $engine, string $role): void
+{
+    $db = new MetadataPrivilegesPdo($engine); $configuration = metadata_records_default_configuration($engine, $role);
+    $session = \Tablo\DatabaseSession::register($db, $configuration); $borrowed = $session->metadataObservation;
+    $source = \Tablo\server_metadata_expected_tables($db, expectedTables: null);
+    Assert::same($source instanceof \Tablo\ServerAdmissionRecords, $engine === 'mariadb');
+    $actual = $source instanceof \Tablo\ServerAdmissionRecords ? iterator_to_array($source->tables(), preserve_keys: false) : $source;
+    $golden = metadata_records_golden_projection($engine); Assert::same($actual, $golden);
+    foreach ([9, 10] as $version) {
+        $selected = array_values(array_filter($golden, static fn (array $table): bool => $version === 10 || $table['name'] !== 'read_api_token'));
+        $names = array_column($selected, 'name'); sort($names, SORT_STRING);
+        \Tablo\server_metadata_expected_names($db, $names, $version, expectedTables: null);
+        if ($source instanceof \Tablo\ServerAdmissionRecords) {
+            Assert::same(\Tablo\server_metadata_expected_tables($db, $source), $source);
+            Assert::same(iterator_to_array($source->tables($version), preserve_keys: false), $selected);
+        }
+    }
+    Assert::same($session->metadataObservation, $borrowed); Assert::same($db->queries, []); Assert::same([$db->opened, $db->closed], [0, 0]);
+}
+
+/** Explicit arrays must return before session inspection, including an empty array. */
+function metadata_records_default_explicit(string $engine): void
+{
+    $db = new MetadataPrivilegesPdo($engine);
+    foreach ([[], metadata_records_golden_projection($engine)] as $provided) {
+        $before = $provided;
+        Assert::same(\Tablo\server_metadata_expected_tables($db, $provided), $provided);
+        Assert::same($provided, $before);
+    }
+    Assert::same($db->queries, []); Assert::same([$db->opened, $db->closed], [0, 0]);
+}
+
+function metadata_records_default_foreign(string $engine): void
+{
+    $db = new MetadataPrivilegesPdo($engine); $configuration = metadata_checks_configuration($engine, role: 'writer');
+    $session = \Tablo\DatabaseSession::register($db, $configuration); $borrowed = $session->metadataObservation;
+    $records = metadata_checks_records($engine === 'mysql' ? 'mariadb' : 'mysql'); $caught = null;
+    try { \Tablo\server_metadata_expected_tables($db, $records); } catch (DatabaseFailure $error) { $caught = $error; }
+    Assert::same($caught?->category, 'schema'); Assert::same($caught?->getPrevious(), null);
+    Assert::same($session->metadataObservation, $borrowed); Assert::same($db->queries, []); Assert::same([$db->opened, $db->closed], [0, 0]);
+}
+
+function metadata_records_default_configuration(string $engine, string $role): DatabaseConfiguration
+{
+    if ($role !== 'metadata') { return metadata_checks_configuration($engine, $role); }
+    return DatabaseConfiguration::fromEnvironment(environment: ['TABLO_DB_DRIVER' => $engine, 'TABLO_DB_NAME' => 'tablo_meta',
+        'TABLO_DB_HOST' => '127.0.0.1', 'TABLO_DB_PORT' => '3306', 'TABLO_DB_USER' => 'writer', 'TABLO_DB_PASSWORD' => '', 'TABLO_DB_TLS' => 'local',
+        'TABLO_DB_METADATA_USER' => 'meta', 'TABLO_DB_METADATA_PASSWORD' => ''])->metadata();
+}
+
+/** @return list<\Tablo\ServerSchema::AdmissionTable> */
+function metadata_records_golden_projection(string $engine): array
+{
+    $stem = match ($engine) { 'mysql' => 'mysql84', 'mariadb' => 'mariadb114', default => throw new \RuntimeException('Unknown independent layout fixture.') };
+    /** @var \Tablo\ServerSchema::Layout $layout Independent frozen full JSON, not the record reader. */
+    $layout = json_decode(\Tablo\RequiredFile::bytes(file_get_contents(dirname(__DIR__, levels: 2) . '/tests/fixtures/server-layouts/v10/' . $stem . '-layout.json')),
+        associative: true, flags: JSON_THROW_ON_ERROR);
+    $expected = [];
+    foreach ($layout['tables'] as $table) { unset($table['create'], $table['checksum']); $expected[] = $table; }
+    return $expected;
 }

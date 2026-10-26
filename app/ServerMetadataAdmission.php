@@ -88,13 +88,15 @@ function server_metadata_expected_names(PDO $db, array $names, int $version, arr
     if (!in_array($version, [9, 10], strict: true) || implode("\0", $names) !== implode("\0", $expected)) { throw new DatabaseFailure('schema'); }
 }
 
-/** Internal fallback projects the validated default layout; supplied tables are returned unchanged.
+/** Internal fallback uses sealed MariaDB records; explicit sources are returned unchanged.
  * @param list<\Tablo\ServerSchema::ExpectedTable>|ServerAdmissionRecords|null $expectedTables
  * @return list<\Tablo\ServerSchema::ExpectedTable>|ServerAdmissionRecords */
 function server_metadata_expected_tables(PDO $db, array|ServerAdmissionRecords|null $expectedTables): array|ServerAdmissionRecords
 {
     if ($expectedTables instanceof ServerAdmissionRecords) { $expectedTables->assertEngine(DatabaseSession::get($db)?->configuration->engine); return $expectedTables; }
-    return $expectedTables ?? ServerSchemaDescriptor::admissionTables(ServerSchema::layout($db));
+    if ($expectedTables !== null) { return $expectedTables; }
+    if (DatabaseSession::get($db)?->configuration->engine === 'mariadb') { return ServerAdmissionRecords::forConnection($db); }
+    return ServerSchemaDescriptor::admissionTables(ServerSchema::layout($db));
 }
 
 /** Complete writer and control admission need privileged CHECK visibility. Migrators read their own post-DDL metadata.

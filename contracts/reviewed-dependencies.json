@@ -3582,7 +3582,7 @@
                 "Composer verify",
                 "app/ServerSchema.php"
             ],
-            "fingerprint": "sha256:0675938b613d8d950e2e56f03ee0ff7a7e5c88d7923a2e4de9cad0097d910981"
+            "fingerprint": "sha256:0936e09c186a302941bd33b9bd902f3cff2ff6fd15b6860e8f5f14f89f2453fa"
         },
         {
             "path": "app/ServerTls.php",
@@ -10802,7 +10802,7 @@
                 "Composer analyze",
                 "Composer verify"
             ],
-            "fingerprint": "sha256:2c398927bc762ffa712d579df7a26d272c9b2fed3d53c09a477d18acd6d455c8"
+            "fingerprint": "sha256:138f9e74f26c81691644b49cc4e1f801f0a56e9271807eb501a11c0514f23c96"
         },
         {
             "path": "tests/Unit/SqlStatementTest.php",
@@ -11564,7 +11564,7 @@
                 "tests/Server/EngineMetadataAdmissionTest.php",
                 "tests/Support/EngineBoundaryProbe.php"
             ],
-            "fingerprint": "sha256:7e19dbc5f1e398244b0b05ef46fe09f54fcaaf59a8b3532b08e6b0352f293e22"
+            "fingerprint": "sha256:2ff4f494fc669ecad9ae7c22549d5ac1a89306a89fa58c8bab250677b3d00210"
         },
         {
             "path": "tests/Server/EngineMetadataAdmissionTest.php",

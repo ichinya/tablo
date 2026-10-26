@@ -48,13 +48,13 @@ final class ServerTableAdmission
 
 }
 
-/** @internal Only an initially fresh MariaDB writer/control layout selects sealed records.
+/** @internal Version10 MariaDB writer/control layout selects sealed records independently of observation ownership.
  * Ownership is still decided again after source validation by layout's original condition.
  * @return list<\Tablo\ServerSchema::AdmissionTable>|ServerAdmissionRecords */
 function server_table_admission_source(PDO $db, ?DatabaseSession $session, int $version): array|ServerAdmissionRecords
 {
     if ($version === 10 && $session?->configuration->engine === 'mariadb'
-        && in_array($session->configuration->role, ['writer', 'control'], strict: true) && $session->metadataObservation === null) {
+        && in_array($session->configuration->role, ['writer', 'control'], strict: true)) {
         return ServerAdmissionRecords::forConnection($db);
     }
     return ServerSchemaDescriptor::admissionTables(ServerSchema::layout($db));
