@@ -8,7 +8,7 @@
                 "Composer verify",
                 "Reviewed dependency capture"
             ],
-            "fingerprint": "sha256:a3cc299001a2ab35189469922ab59262d409c1f0c27d66be4633d3d9a842d168"
+            "fingerprint": "sha256:175b17c88c1d0bc7112c3bf593eb020be64d8c69ce9b9ab274ac3dd0d7c2b073"
         },
         {
             "path": "tools/reviewed-dependencies.php",
@@ -156,7 +156,7 @@
                 "tools/server-io-uring-php-grammar.test.php",
                 "tools/server-supervisor-linux-fallback-unit.c"
             ],
-            "fingerprint": "sha256:7ad5d59c2c6de08c5d1ad9b0f09243fee6e1063c04483e8449722074fbb58a2f"
+            "fingerprint": "sha256:3214590ceda9dee074cabc5f2bec4b3664a0b6f9966811724ae5635093d8ad87"
         },
         {
             "path": "app/AddressRange.php",
@@ -271,7 +271,7 @@
                 "Composer verify",
                 "Composer analyze"
             ],
-            "fingerprint": "sha256:77d732510341dff3b9ffe351b8d40ea0180b8d48b3ce0605c421b5fccc641a5c"
+            "fingerprint": "sha256:346fddda023e01252f583ef28f33c7898dacc6882e6b075663288687693ccb63"
         },
         {
             "path": "app/BranchPresentation.php",
@@ -631,7 +631,7 @@
                 "tests/Support/EngineFixture.php",
                 "tests/Server/EngineMetadataAdmissionTest.php"
             ],
-            "fingerprint": "sha256:965ca94c7bd3a26529be36f8db1402e17966207057523b46241f67f4ab90ce32"
+            "fingerprint": "sha256:fb37f41ef21389ca2331920ae6d6d98a75bf6fa1980665ce26b10e86d990ed4c"
         },
         {
             "path": "app/DatabaseEnvironment.php",
@@ -861,7 +861,7 @@
                 "tests/Server/EngineTransferTest.php",
                 "tests/ServerCross/EngineCrossTransferTest.php"
             ],
-            "fingerprint": "sha256:352b7fb62916c134ad99e5415c735c1f8859f2e3bf55359c72c97da38a4da298"
+            "fingerprint": "sha256:7709fa9fb92a556809b6a880498d0b72e3a8a182ffbb1d1241ca97f356ccfe8e"
         },
         {
             "path": "app/DatabaseTransferArchive.php",
@@ -875,7 +875,7 @@
                 "app/DatabaseTransferManifest.php",
                 "app/DatabaseTransferVerification.php"
             ],
-            "fingerprint": "sha256:d384f82162fdbfe17907f9fed2997cf1057c3576f77c9a4ceca3228f42bb125e"
+            "fingerprint": "sha256:098f4f25b57ab811238bbf7fc3dd6a60a200b4cf67f54b026fdd038feb304725"
         },
         {
             "path": "app/DatabaseTransferImport.php",
@@ -938,7 +938,7 @@
                 "tests/Server/EngineTransferAdmissionTest.php",
                 "tests/Server/EngineTransferEnvelopeTest.php"
             ],
-            "fingerprint": "sha256:d632d795eaea7ff0422217a3b61c9be9e219f918e9cbcdfd396f1357ed0fd6c0"
+            "fingerprint": "sha256:a154642e0dba955fad148535a3d50950918158c7f48f3146e94937264b26d753"
         },
         {
             "path": "app/DatabaseTransferSequence.php",
@@ -2068,7 +2068,7 @@
                 "Composer verify",
                 "app/ServerMetadataAdmission.php"
             ],
-            "fingerprint": "sha256:c7c8b75ab5d54eb33d2f999fd4d7955a3a7369922f578820e610b83f8321d95c"
+            "fingerprint": "sha256:9911a1049672514818a09f6173bf11adaec917350ae0520099ed401b410365be"
         },
         {
             "path": "app/JsonField.php",
@@ -3478,6 +3478,27 @@
                 "tests/Server/EngineMetadataAdmissionTest.php"
             ],
             "fingerprint": "sha256:b30171d4215a2e928790fd4aad7a2c47136388af1b49087e10747cf288edc0d5"
+        },
+        {
+            "path": "app/ColdTransferCoarsePeak.php",
+            "owner": "Temporary numeric-only cold transfer localization",
+            "consumers": [
+                "app/bootstrap.php",
+                "app/DatabaseConnectionFactory.php",
+                "app/DatabaseTransfer.php",
+                "app/DatabaseTransferArchive.php",
+                "app/DatabaseTransferRows.php",
+                "app/JsonEncoding.php"
+            ],
+            "fingerprint": "sha256:9136748976af65c81c2a929cdf6408fe2ec4d53ebb916019169c47fc25d75e4d"
+        },
+        {
+            "path": "tools/collect-cold-r81.ps1",
+            "owner": "Temporary strict numeric-only cold localization receiver",
+            "consumers": [
+                ".github/workflows/verify.yml"
+            ],
+            "fingerprint": "sha256:8601f9cd3a68d9009d68b759c0bc5ec2b106dd39882a1f28e1b21fcc65e3988c"
         },
         {
             "path": "app/ServerAdmissionRecords.php",
@@ -11247,7 +11268,7 @@
                 "Composer analyze",
                 "tools/server-supervisor.cjs"
             ],
-            "fingerprint": "sha256:4dae8a647b8f1f74e2b6c98597d670c27f3bb40c6e9b324d9ca2aaf1b10b7ab1"
+            "fingerprint": "sha256:392303c76afc245e596efd9c3a1fe48ec45939b6b3f3643b5a19e9c91d711c9a"
         },
         {
             "path": "tools/verify.php",
@@ -11402,7 +11423,7 @@
                 "tests/Server/EngineVerificationTest.php",
                 "tools/server-io-uring-php-grammar.test.php"
             ],
-            "fingerprint": "sha256:113f71fa6123d03feab6480552d0f9537bf4486317102095fb7e26e91294b8b3"
+            "fingerprint": "sha256:6a8c3a2479d33096160c21d9fdc2b5093845e021be47dc5c116afecb48189e07"
         },
         {
             "path": "tests/ServerCross/EngineServerCrashTest.php",
@@ -11439,7 +11460,7 @@
                 "tools/server-native-denial.test.cjs",
                 "tools/server-io-uring-fallback.test.cjs"
             ],
-            "fingerprint": "sha256:2e4f5679ad564b957c8679b65009e9548fd1dfc4d64c6379b9a05b4cf2c697f7"
+            "fingerprint": "sha256:07de0f0ed4774b44cb960eae8023df24dc598b61b2cfaa03a009febdf5aa812f"
         },
         {
             "path": "tools/server-supervisor-windows.ps1",
