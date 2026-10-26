@@ -21,15 +21,20 @@ final class ServerMetadataAdmission
     {
         $db = null;
         try {
+            server_metadata_coarse_layout(350);
             $metadata = $configuration->metadata(); $db = ServerPdoConnection::open($metadata);
+            server_metadata_coarse_layout(351);
             ServerMetadataPrivileges::verify($db, $metadata);
+            server_metadata_coarse_layout(352);
             $objects = ServerMetadataInventory::read($db);
             $names = ServerMetadataInventory::tables($objects);
+            server_metadata_coarse_layout(353);
             if ($version !== null) { self::expected($db, $names, $version, $expectedTables); }
+            server_metadata_coarse_layout(354);
             return ['server' => ServerMetadataIdentity::server($db), 'account' => ServerMetadataIdentity::grantee($db, $metadata), 'objects' => $objects,
                 'installation' => ServerMetadataIdentity::installation($db, $names), 'checks' => server_metadata_check_observation($db, $configuration, $version, $expectedTables)];
         } catch (\PDOException $error) { throw DatabaseFailure::fromNative($error); }
-        finally { $db = null; }
+        finally { $db = null; server_metadata_coarse_layout(355); }
     }
 
     /** @param Observation $observation */
@@ -91,11 +96,18 @@ function server_metadata_check_observation(PDO $db, DatabaseConfiguration $confi
 {
     if ($configuration->engine !== 'mariadb' || !in_array($configuration->role, ['writer', 'control'], strict: true) || $version !== 10) { return []; }
     $tables = server_metadata_expected_tables($db, $expectedTables); unset($expectedTables);
-    $checks = [];
+    $checks = []; $ordinal = 0; server_metadata_coarse_layout(370);
     foreach (array_keys($tables) as $key) {
         $table = $tables[$key] ?? throw new DatabaseFailure('schema'); unset($tables[$key]);
         $checks[$table['name']] = ServerCheckAdmission::clauses($db, $table);
         unset($table);
+        server_metadata_coarse_layout(371 + $ordinal++);
     }
     return $checks;
+}
+
+/** Temporary diagnostic dispatcher; never autoload an observer. */
+function server_metadata_coarse_layout(int $checkpoint): void
+{
+    if (class_exists(ColdTransferCoarsePeak::class, autoload: false)) { ColdTransferCoarsePeak::layout($checkpoint); }
 }

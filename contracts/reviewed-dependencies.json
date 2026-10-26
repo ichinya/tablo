@@ -45,7 +45,7 @@
                 "Composer analyze",
                 "Composer verify"
             ],
-            "fingerprint": "sha256:4103c54404b78928ba2a385c616b23721faed5909e6a8d05b66991dd745f1c73"
+            "fingerprint": "sha256:0120c1de51925f1e8768995cc1f5fd2fb00c8f5b453f67a30dbbd2204febf148"
         },
         {
             "path": "tools/collect-cold-r81.ps1",
@@ -54,7 +54,7 @@
                 "Composer verify",
                 ".github/workflows/verify.yml"
             ],
-            "fingerprint": "sha256:ca9f9e4cf5c21c94880b8b0dd52450c025d8133f3ce95a13eb6e9f0e467562d3"
+            "fingerprint": "sha256:da537b8801c03211732220e3e8f67febbbaa61f1737a0c4510713c918943f8d6"
         },
         {
             "path": "app/DatabaseTransferWire.php",
@@ -3586,7 +3586,7 @@
                 "Composer verify",
                 "app/ServerSchema.php"
             ],
-            "fingerprint": "sha256:ea42c2cbe5739865e782a46ad4bf298974fd47aed40ca0c8ca9ae510ff51cbfc"
+            "fingerprint": "sha256:76397d2856aaa5c3c378059a1f96ac7c197a857660e8dcea44f160a50f8ec563"
         },
         {
             "path": "app/ServerTls.php",
@@ -11568,7 +11568,7 @@
                 "tests/Server/EngineMetadataAdmissionTest.php",
                 "tests/Support/EngineBoundaryProbe.php"
             ],
-            "fingerprint": "sha256:a1c70be67af50d955cb3bc79842dcbc74a25947ebd8e7b5af665486b13b872b6"
+            "fingerprint": "sha256:86b7e764205918ea19191312d123737ac64aff46eae7a1b3c49825aaf9a95778"
         },
         {
             "path": "tests/Server/EngineMetadataAdmissionTest.php",

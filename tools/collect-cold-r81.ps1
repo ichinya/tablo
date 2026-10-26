@@ -52,7 +52,9 @@ if ($value.mode -ne $expectedMode -or $value.engineId -ne $expectedEngine -or $v
 if ($value.peakPhpBytes -lt $value.baselinePhpBytes -or $value.peakPhpWorkingBytes -ne $value.peakPhpBytes - $value.baselinePhpBytes -or $value.winnerPeakPhpBytes -gt $value.peakPhpBytes -or $value.winnerUsedPhpBytes -gt $value.winnerPeakPhpBytes) { throw 'Diagnostic peak equation refused' }
 if ($value.winnerPhase -notin @(0,10,11,20,30,40,41,51,52,53,54,55,56,57,
     100,101,102,103,104,105,106,107,108,109,110,111,112,113,114,115,116,117,118,119,120,121,122,123,124,
-    200,201,202,203,204,205,206,207,208,209,210,211,212,213,214,215,216,217,218,219,250,251) -or $value.winnerFactory -gt 3) { throw 'Diagnostic interval refused' }
+    200,201,202,203,204,205,206,207,208,209,210,211,212,213,214,215,216,217,218,219,250,251,
+    300,301,302,303,304,305,306,307,308,309,310,311,312,313,314,315,316,317,318,319,320,321,322,
+    350,351,352,353,354,370,371,372,373,374,375,376,377,378,379,380,381,382,383,384,385,386,387) -or $value.winnerFactory -gt 3) { throw 'Diagnostic interval refused' }
 if ($value.tailUnknown -eq $value.winnerPeakKnown) { throw 'Diagnostic known/unknown union refused' }
 if ($value.winnerPeakKnown -and ($value.mode -ne 1 -or $value.broken -or $value.winnerPeakPhpBytes -ne $value.peakPhpBytes)) { throw 'Diagnostic localization refused' }
 if ($value.mode -eq 0 -and ($value.winnerPeakKnown -or $value.broken -or $value.winnerPeakPhpBytes -ne 0 -or $value.winnerUsedPhpBytes -ne 0 -or $value.winnerPhase -ne 0 -or $value.winnerFactory -ne 0)) { throw 'Inactive diagnostic state refused' }

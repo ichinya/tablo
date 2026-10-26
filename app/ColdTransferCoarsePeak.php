@@ -19,6 +19,7 @@ final class ColdTransferCoarsePeak
     public static function transfer(int $operation): void { cold_coarse_transfer($operation); }
     public static function factory(int $step): void { cold_coarse_factory($step); }
     public static function snapshot(int $checkpoint): void { cold_coarse_snapshot($checkpoint); }
+    public static function layout(int $checkpoint): void { cold_coarse_layout($checkpoint); }
     public static function capture(#[\SensitiveParameter] mixed $value): void { cold_coarse_capture($value); }
 }
 
@@ -100,6 +101,28 @@ function cold_coarse_admission(int $checkpoint): void
 function cold_coarse_admission_previous(int $checkpoint): int
 {
     return match ($checkpoint) { 200 => 103, 202, 250 => 201, 252 => 251, default => $checkpoint - 1 };
+}
+
+/** Layout300 source projection,301 selection,302 owned observation,303 object admission,
+ * 304..321 native tables0..17,322 loop cleanup;323 restores250.
+ * Observation350 connection,351 privileges,352 inventory,353 expected names,354 identity/return;
+ * 355 restores302. CHECK370..387 tables0..17;388 restores354. */
+function cold_coarse_layout(int $checkpoint): void
+{
+    if (!cold_coarse_layout_active($checkpoint)) { return; }
+    cold_coarse_sample();
+    $previous = match ($checkpoint) { 300 => 250, 350 => 302, 370 => 354, default => $checkpoint - 1 };
+    if (!(($checkpoint >= 300 && $checkpoint <= 323) || ($checkpoint >= 350 && $checkpoint <= 355)
+        || ($checkpoint >= 370 && $checkpoint <= 388)) || Coarse::$phase !== $previous) { Coarse::$broken = true; return; }
+    Coarse::$phase = match ($checkpoint) { 323 => 250, 355 => 302, 388 => 354, default => $checkpoint };
+}
+
+function cold_coarse_layout_active(int $checkpoint): bool
+{
+    if (Coarse::$mode !== 1 || Coarse::$broken || Coarse::$transfer !== 11
+        || Coarse::$snapshotStep !== 103 || Coarse::$factoryStep !== 0) { return false; }
+    if (Coarse::$phase !== 250 && (Coarse::$phase < 300 || Coarse::$phase > 387)) { return false; }
+    return $checkpoint < 350 || Coarse::$phase === 302 || Coarse::$phase >= 350;
 }
 
 function cold_coarse_sample(): void
