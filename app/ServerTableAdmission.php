@@ -33,7 +33,12 @@ final class ServerTableAdmission
                 $session->metadataObservation = ServerMetadataAdmission::observe($session->configuration, $version, expectedTables: $allTables); $owned = true;
             }
             if (ServerMetadataAdmission::objects($db, $version, expectedTables: $allTables) !== $expected) { self::refuse(); }
-            foreach ($tables as $table) { ServerTableAdmission::verify($db, $table); }
+            unset($allTables, $expected);
+            foreach (array_keys($tables) as $key) {
+                $table = $tables[$key] ?? throw new DatabaseFailure('schema'); unset($tables[$key]);
+                ServerTableAdmission::verify($db, $table);
+                unset($table);
+            }
         } finally { if ($owned && $session !== null) { $session->metadataObservation = null; } }
     }
 

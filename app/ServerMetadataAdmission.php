@@ -90,7 +90,12 @@ function server_metadata_expected_tables(PDO $db, ?array $expectedTables): array
 function server_metadata_check_observation(PDO $db, DatabaseConfiguration $configuration, ?int $version, ?array $expectedTables = null): array
 {
     if ($configuration->engine !== 'mariadb' || !in_array($configuration->role, ['writer', 'control'], strict: true) || $version !== 10) { return []; }
+    $tables = server_metadata_expected_tables($db, $expectedTables); unset($expectedTables);
     $checks = [];
-    foreach (server_metadata_expected_tables($db, $expectedTables) as $table) { $checks[$table['name']] = ServerCheckAdmission::clauses($db, $table); }
+    foreach (array_keys($tables) as $key) {
+        $table = $tables[$key] ?? throw new DatabaseFailure('schema'); unset($tables[$key]);
+        $checks[$table['name']] = ServerCheckAdmission::clauses($db, $table);
+        unset($table);
+    }
     return $checks;
 }

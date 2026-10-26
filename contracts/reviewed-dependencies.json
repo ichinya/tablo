@@ -3263,7 +3263,7 @@
                 "app/ServerExpressionAtom.php",
                 "app/ServerExpressionOperator.php"
             ],
-            "fingerprint": "sha256:761f9111d4138a5e5688978b90642e8aedd8d4ec3fd4cba74100dc048e49233b"
+            "fingerprint": "sha256:63057adc3fa2601ca1592e5435d130d3a5a2b789d804ff3c961092a2c93079a3"
         },
         {
             "path": "app/ServerForeignAdmission.php",
@@ -3557,7 +3557,7 @@
                 "Composer verify",
                 "app/ServerSchema.php"
             ],
-            "fingerprint": "sha256:9f4d42b20b49a6e410b30ce2d55f8c38a5a4b2cf626251f2c3c70846fe24507c"
+            "fingerprint": "sha256:ea42c2cbe5739865e782a46ad4bf298974fd47aed40ca0c8ca9ae510ff51cbfc"
         },
         {
             "path": "app/ServerTls.php",
@@ -10777,7 +10777,7 @@
                 "Composer analyze",
                 "Composer verify"
             ],
-            "fingerprint": "sha256:88565a76f8f1fe7059a1458382a8ffd2847836f40762527cfc43bff827a76d63"
+            "fingerprint": "sha256:f245da4f8afc8cb385348ea094a0568d11de415960612673b783806a478f732e"
         },
         {
             "path": "tests/Unit/SqlStatementTest.php",
@@ -11539,7 +11539,7 @@
                 "tests/Server/EngineMetadataAdmissionTest.php",
                 "tests/Support/EngineBoundaryProbe.php"
             ],
-            "fingerprint": "sha256:69bc9208308d6b1b088dbf425fb2a79de63ae5f9daf9a093ecf6ae7bdb0b7d39"
+            "fingerprint": "sha256:a1c70be67af50d955cb3bc79842dcbc74a25947ebd8e7b5af665486b13b872b6"
         },
         {
             "path": "tests/Server/EngineMetadataAdmissionTest.php",
@@ -11550,7 +11550,7 @@
                 "Composer verify:server",
                 "All native binding admission prerequisites"
             ],
-            "fingerprint": "sha256:db97439f74f8c3d4e3e1f44054c7c3e4381a064db7d08c7f2a0f58d517c11245"
+            "fingerprint": "sha256:7489116cff8cb63dd2821b2bd198f5edb50a6e42e6b14d5ecc3291e7acdd7334"
         },
         {
             "path": "tools/server-supervisor-linux.c",

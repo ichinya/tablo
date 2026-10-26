@@ -158,6 +158,12 @@ function metadata_checks_invocation_tables(MetadataPrivilegesPdo $metadata, Data
     if ($defaultFailure !== null) { throw $defaultFailure; }
     Assert::same($provided, $default);
     Assert::same(array_keys($provided), array_column($tables, 'name'));
+    $tail = $tables[17] ?? throw new \RuntimeException('Missing final public table.');
+    $check = $tail['checks'][3] ?? throw new \RuntimeException('Missing final public CHECK.');
+    Assert::same([$tail['name'], $check['name']], ['read_api_token', 'read_api_token_c4']);
+    $fingerprint = hash('sha256', "tablo/check-canonical/v1\0" . \Tablo\ServerExpression::canonical($check['expression']));
+    Assert::same($default['read_api_token']['read_api_token_c4'] ?? null, $fingerprint);
+    Assert::same($provided['read_api_token']['read_api_token_c4'] ?? null, $fingerprint);
     return $default;
 }
 

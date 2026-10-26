@@ -155,6 +155,14 @@ function engine_metadata_invocation_tables(\PDO $db, DatabaseConfiguration $conf
     $provided = ServerMetadataAdmission::observe($configuration, version: 10, expectedTables: $tables);
     Assert::same(engine_metadata_sorted_observation($provided), engine_metadata_sorted_observation($observation));
     Assert::same($tables, $before);
+    if ($configuration->engine === 'mariadb') {
+        $tail = $tables[17] ?? throw new \RuntimeException('Missing final public table.');
+        $check = $tail['checks'][3] ?? throw new \RuntimeException('Missing final public CHECK.');
+        Assert::same([$tail['name'], $check['name']], ['read_api_token', 'read_api_token_c4']);
+        $fingerprint = hash('sha256', "tablo/check-canonical/v1\0" . \Tablo\ServerExpression::canonical($check['expression']));
+        Assert::same($observation['checks']['read_api_token']['read_api_token_c4'] ?? null, $fingerprint);
+        Assert::same($provided['checks']['read_api_token']['read_api_token_c4'] ?? null, $fingerprint);
+    }
     // This borrowed inventory exercises the existing version-9 name rule, not a real version-9 catalog.
     $withoutApi = $provided;
     $withoutApi['objects'] = array_values(array_filter($provided['objects'], static fn (array $object): bool => $object['name'] !== 'read_api_token'));
@@ -234,26 +242,52 @@ function engine_metadata_borrowed_layout(\PDO $db, array $observation): void
 function engine_metadata_owned_layout_failure(EngineFixture $fixture, \PDO $db, DatabaseConfiguration $configuration, array $observation): void
 {
     $session = \Tablo\DatabaseSession::get($db) ?? throw new \RuntimeException('Missing admitted session.');
-    $maintenance = $fixture->maintenance(); $changed = false;
-    try {
-        $maintenance->exec('ALTER TABLE tablo_database_state DROP CONSTRAINT tablo_database_state_c3, ADD CONSTRAINT tablo_database_state_c3 CHECK (logical_version BETWEEN 0 AND 11)');
-        $changed = true;
-        $observed = ServerMetadataAdmission::observe($configuration, 10);
-        $before = $observation['checks']['tablo_database_state'] ?? throw new \RuntimeException('Missing admitted state CHECKs.');
-        $after = $observed['checks']['tablo_database_state'] ?? throw new \RuntimeException('Missing observed state CHECKs.');
-        Assert::same(count($after), count($before));
-        Assert::same($after['tablo_database_state_c3'] ?? null,
-            hash('sha256', "tablo/check-canonical/v1\0" . \Tablo\ServerExpression::canonical('logical_version BETWEEN 0 AND 11')));
-        Assert::same($session->metadataObservation, null);
-        $caught = null;
-        try { ServerSchema::validateLayout($db); } catch (DatabaseFailure $error) { $caught = $error; }
-        Assert::same($caught?->category, 'schema'); Assert::same($caught?->getPrevious(), null);
-        Assert::same($session->metadataObservation, null, 'later CHECK admission failure clears the locally owned observation');
-        Assert::false($db->inTransaction()); Assert::false(\Tablo\WriteTransaction::owns($db));
-    } finally {
-        if ($changed) { $maintenance->exec('ALTER TABLE tablo_database_state DROP CONSTRAINT tablo_database_state_c3, ADD CONSTRAINT tablo_database_state_c3 CHECK (logical_version BETWEEN 0 AND 10)'); }
+    $tail = ServerSchema::layout($db)['tables'][17] ?? throw new \RuntimeException('Missing final public table.');
+    $check = $tail['checks'][3] ?? throw new \RuntimeException('Missing final public CHECK.');
+    Assert::same([$tail['name'], $check['name']], ['read_api_token', 'read_api_token_c4']);
+    $maintenance = $fixture->maintenance();
+    foreach ([['table' => 'tablo_database_state', 'constraint' => 'tablo_database_state_c3',
+        'original' => 'logical_version BETWEEN 0 AND 10', 'replacement' => 'logical_version BETWEEN 0 AND 11'],
+        ['table' => 'read_api_token', 'constraint' => 'read_api_token_c4',
+            'original' => $check['expression'], 'replacement' => 'OCTET_LENGTH(`created_at`) >= 0']] as $change) {
+        $changed = false;
+        try {
+            $maintenance->exec('ALTER TABLE ' . $change['table'] . ' DROP CONSTRAINT ' . $change['constraint']
+                . ', ADD CONSTRAINT ' . $change['constraint'] . ' CHECK (' . $change['replacement'] . ')');
+            $changed = true;
+            $observed = ServerMetadataAdmission::observe($configuration, 10);
+            $before = $observation['checks'][$change['table']] ?? throw new \RuntimeException('Missing admitted CHECKs.');
+            $after = $observed['checks'][$change['table']] ?? throw new \RuntimeException('Missing observed CHECKs.');
+            Assert::same(count($after), count($before));
+            Assert::same($after[$change['constraint']] ?? null,
+                hash('sha256', "tablo/check-canonical/v1\0" . \Tablo\ServerExpression::canonical($change['replacement'])));
+            Assert::false($after[$change['constraint']] === ($before[$change['constraint']] ?? null));
+            engine_metadata_changed_layout_refusal($db);
+            if ($change['table'] === 'read_api_token') { engine_metadata_changed_layout_refusal($db, $observed); }
+        } finally {
+            $session->metadataObservation = null;
+            if ($changed) {
+                $maintenance->exec('ALTER TABLE ' . $change['table'] . ' DROP CONSTRAINT ' . $change['constraint']
+                    . ', ADD CONSTRAINT ' . $change['constraint'] . ' CHECK (' . $change['original'] . ')');
+            }
+        }
+        ServerSchema::validateLayout($db); Assert::same($session->metadataObservation, null);
     }
-    ServerSchema::validateLayout($db); Assert::same($session->metadataObservation, null);
+}
+
+/** @param \Tablo\ServerMetadataAdmission::Observation|null $borrowed */
+function engine_metadata_changed_layout_refusal(\PDO $db, ?array $borrowed = null): void
+{
+    $session = \Tablo\DatabaseSession::get($db) ?? throw new \RuntimeException('Missing admitted session.');
+    Assert::same($session->metadataObservation, null);
+    if ($borrowed !== null) { $session->metadataObservation = $borrowed; }
+    $caught = null;
+    try { ServerSchema::validateLayout($db); } catch (DatabaseFailure $error) { $caught = $error; }
+    Assert::same($caught?->category, 'schema'); Assert::same($caught?->getPrevious(), null);
+    Assert::same($session->metadataObservation, $borrowed, $borrowed === null
+        ? 'later CHECK admission failure clears the locally owned observation'
+        : 'the altered final CHECK leaves its borrowed observation unchanged');
+    Assert::false($db->inTransaction()); Assert::false(\Tablo\WriteTransaction::owns($db));
 }
 
 function engine_metadata_journal_checks(EngineFixture $fixture, \PDO $writer, DatabaseConfiguration $configuration): void
