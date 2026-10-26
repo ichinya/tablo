@@ -242,7 +242,8 @@ function engine_metadata_owned_layout_failure(EngineFixture $fixture, \PDO $db, 
         $before = $observation['checks']['tablo_database_state'] ?? throw new \RuntimeException('Missing admitted state CHECKs.');
         $after = $observed['checks']['tablo_database_state'] ?? throw new \RuntimeException('Missing observed state CHECKs.');
         Assert::same(count($after), count($before));
-        Assert::same($after['tablo_database_state_c3'] ?? null, \Tablo\ServerExpression::canonical('logical_version BETWEEN 0 AND 11'));
+        Assert::same($after['tablo_database_state_c3'] ?? null,
+            hash('sha256', "tablo/check-canonical/v1\0" . \Tablo\ServerExpression::canonical('logical_version BETWEEN 0 AND 11')));
         Assert::same($session->metadataObservation, null);
         $caught = null;
         try { ServerSchema::validateLayout($db); } catch (DatabaseFailure $error) { $caught = $error; }

@@ -146,6 +146,7 @@ function engine_verification_failed_report(): void
     engine_verification_failed_caller($root, $failure, $private, $project);
     engine_verification_failed_report_invalid($root, $identity, $failure, $private);
     engine_verification_failed_memory();
+    engine_verification_failed_subprocess($root, $failure, $private);
 }
 
 function engine_verification_failed_memory(): void
@@ -311,6 +312,86 @@ function engine_verification_failed_category(array $failure, string $private, \C
     }
     $value = array_replace($failure, ['exception' => 'RuntimeException', 'message' => 'Database busy.']);
     Assert::same(\Tablo\SqlColumn::string($project(['status' => 'failed', 'failures' => [$value]]), 'category'), 'UNKNOWN');
+}
+
+/** One existing pure method exercises the wrapper label without starting a subprocess. */
+function engine_verification_failed_subprocess(string $root, array $failure, string $private): void
+{
+    $identity = \Tablo\SqlColumn::string($failure, 'test');
+    $sources = [...engine_verification_public_sources(), 'tests/Support/SubprocessFailure.php', 'tests/Support/SubprocessCompletion.php'];
+    $project = static fn (array $report): array => \Tablo\Tools\server_native_failure($root, \Tablo\JsonEncoding::encode($report), $identity, $sources);
+    $prefix = 'Test command timed out; stage=timeout; ';
+    $caller = '#0 ' . $root . '/tests/Support/SubprocessCompletion.php:2: safe(' . $private . ')';
+    $value = array_replace($failure, ['exception' => 'RuntimeException', 'status' => 'error',
+        'message' => $prefix . 'receipt=' . $root . '/private; stdout=' . $private,
+        'file' => $root . '/tests/Support/SubprocessFailure.php', 'line' => 1,
+        'trace' => [$caller]]);
+    $before = $value; $actual = $project(['status' => 'failed', 'failures' => [$value]]);
+    Assert::same([$actual['category'], $actual['type'], $actual['rootCause'], $actual['origin'], $actual['source'], $actual['callerSource']],
+        ['subprocess-timeout', 'runtime', 'UNKNOWN', 'exception', 'tests/Support/SubprocessFailure.php', 'tests/Support/SubprocessCompletion.php']);
+    Assert::same($value, $before);
+    Assert::false(str_contains(\Tablo\JsonEncoding::encode($actual), $private)); Assert::false(str_contains(\Tablo\JsonEncoding::encode($actual), $root));
+    Assert::same(array_keys($actual), ['schema', 'rootCause', 'reportStatus', 'type', 'origin', 'source', 'line', 'category', 'callerSource', 'callerLine']);
+    $bounded = array_replace($value, ['file' => str_replace('/', replace: '\\', subject: $root . '/tests/Support/SubprocessFailure.php'), 'line' => 100_000,
+        'trace' => [$private, '#1 ' . $root . '/tests/Support/SubprocessCompletion.php:100000: safe()']]);
+    Assert::same($project(['status' => 'failed', 'failures' => [$bounded]])['category'], 'subprocess-timeout');
+    engine_verification_failed_subprocess_messages($value, $prefix, $private, $project);
+    engine_verification_failed_subprocess_origins($root, $value, $caller, $private, $project);
+    engine_verification_failed_subprocess_envelope($root, $value, $sources, $private, $project);
+}
+
+/** @param list<string> $sources
+ * @param \Closure(array): array $project */
+function engine_verification_failed_subprocess_envelope(string $root, array $value, array $sources, string $private, \Closure $project): void
+{
+    $identity = \Tablo\SqlColumn::string($value, 'test');
+    foreach ([[], ['tests/Support/SubprocessFailure.php'], ['tests/Support/SubprocessCompletion.php']] as $incomplete) {
+        $wire = \Tablo\JsonEncoding::encode(['status' => 'failed', 'failures' => [$value], 'publicSources' => $sources]);
+        Assert::same(\Tablo\Tools\server_native_failure($root, $wire, $identity, $incomplete)['category'], 'UNKNOWN');
+    }
+    foreach ([['status' => 'passed', 'failures' => [$value]], ['status' => 'failed', 'failures' => [$value, $value]],
+        ['status' => 'failed', 'failures' => [array_replace($value, ['test' => $private])]]] as $invalid) {
+        Assert::same(\Tablo\SqlColumn::string($project($invalid), 'category'), 'UNKNOWN');
+    }
+}
+
+/** @param \Closure(array): array $project */
+function engine_verification_failed_subprocess_messages(array $value, string $prefix, string $private, \Closure $project): void
+{
+    foreach ([null, [], 1, '', $private . $prefix, strtolower($prefix), rtrim($prefix),
+        str_replace('stage=timeout', replace: 'stage=selection', subject: $prefix),
+        str_replace('stage=timeout', replace: 'stage=spawn', subject: $prefix),
+        str_replace('stage=timeout', replace: 'stage=input', subject: $prefix), 'Test command timed out; ' . $private] as $message) {
+        $actual = $project(['status' => 'failed', 'failures' => [array_replace($value, ['message' => $message])]]);
+        Assert::same(\Tablo\SqlColumn::string($actual, 'category'), 'UNKNOWN'); Assert::false(str_contains(\Tablo\JsonEncoding::encode($actual), $private));
+    }
+    foreach (['Tablo\\DatabaseFailure', 'LogicException', 'Error', $private, null] as $type) {
+        Assert::same(\Tablo\SqlColumn::string($project(['status' => 'failed', 'failures' => [array_replace($value, ['exception' => $type])]]), 'category'), 'UNKNOWN');
+    }
+    $missing = $value; unset($missing['message'], $missing['exception']);
+    Assert::same(\Tablo\SqlColumn::string($project(['status' => 'failed', 'failures' => [$missing]]), 'category'), 'UNKNOWN');
+}
+
+/** @param \Closure(array): array $project */
+function engine_verification_failed_subprocess_origins(string $root, array $value, string $caller, string $private, \Closure $project): void
+{
+    foreach ([$root . '/vendor/testo/assert/Assert.php', $root . '/tests/Support/SubprocessCompletion.php',
+        $root . '/app/DatabaseTransfer.php', $root . '/storage/' . $private . '.php', null] as $file) {
+        Assert::same(\Tablo\SqlColumn::string($project(['status' => 'failed', 'failures' => [array_replace($value, ['file' => $file])]]), 'category'), 'UNKNOWN');
+    }
+    foreach ([0, 100_001, '20', null] as $line) {
+        Assert::same(\Tablo\SqlColumn::string($project(['status' => 'failed', 'failures' => [array_replace($value, ['line' => $line])]]), 'category'), 'UNKNOWN');
+    }
+    foreach ([null, [], ['key' => $caller], [str_repeat('x', times: 4097)],
+        ['#0 ' . $root . '/tests/Support/SubprocessCompletion.php:0: safe()'],
+        ['#0 ' . $root . '/tests/Support/SubprocessCompletion.php:100001: safe()'],
+        ['#0 ' . $root . '/app/DatabaseTransfer.php:2: safe()', $caller],
+        [...array_fill(0, count: 8, value: $private), $caller]] as $trace) {
+        $actual = $project(['status' => 'failed', 'failures' => [array_replace($value, ['trace' => $trace])]]);
+        Assert::same(\Tablo\SqlColumn::string($actual, 'category'), 'UNKNOWN'); Assert::false(str_contains(\Tablo\JsonEncoding::encode($actual), $private));
+    }
+    $missing = $value; unset($missing['file'], $missing['line'], $missing['trace']);
+    Assert::same(\Tablo\SqlColumn::string($project(['status' => 'failed', 'failures' => [$missing]]), 'category'), 'UNKNOWN');
 }
 
 /** @param \Closure(array): array $project */

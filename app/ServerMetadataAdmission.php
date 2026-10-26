@@ -54,7 +54,8 @@ final class ServerMetadataAdmission
         return $names;
     }
 
-    /** Fresh outside factory admission; the factory's one-shot observation is cleared before returning its PDO.
+    /** Domain-separated canonical CHECK fingerprints, fresh outside factory admission.
+     * The factory's one-shot observation is cleared before returning its PDO.
      * @return array<string, string> */
     public static function checks(PDO $db, string $table): array
     {

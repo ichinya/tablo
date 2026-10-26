@@ -12,7 +12,9 @@ use PDO;
  */
 final class ServerCheckAdmission
 {
-    /** Raw metadata read; the static entry also makes cold-start function loading explicit.
+    /** Full metadata parsing followed by compact, domain-separated SHA256 fingerprints.
+     * These transient values use the same computational equality assumption as layout checksums.
+     * No SQL/archive format is changed and no raw expression is accepted as a fingerprint.
      * @param Table $table
      * @return array<string, string> */
     public static function clauses(PDO $db, array $table): array { return server_check_admission_clauses($db, $table); }
@@ -25,9 +27,17 @@ final class ServerCheckAdmission
             ? ServerMetadataAdmission::checks($db, $table['name']) : server_check_admission_clauses($db, $table);
         if (count($clauses) !== count($table['checks'])) { self::refuse(); }
         foreach ($table['checks'] as $check) {
-            if (($clauses[$check['name']] ?? null) === ServerExpression::canonical($check['expression'])) { continue; }
+            if (($clauses[$check['name']] ?? null) === self::fingerprint(ServerExpression::canonical($check['expression']))) { continue; }
             self::refuse();
         }
+    }
+    /** @internal Input must be the complete validated canonical JSON, never raw SQL. */
+    public static function fingerprint(string $canonical): string
+    {
+        $hash = hash_init('sha256');
+        hash_update($hash, data: "tablo/check-canonical/v1\0");
+        hash_update($hash, $canonical);
+        return hash_final($hash);
     }
     /** @param Column $expected */
     public static function generated(array $expected, array $actual): void
@@ -57,12 +67,15 @@ function server_check_admission_clauses(PDO $db, array $table): array
     $checks = ServerSchema::rows($db, $query, $mysql ? [$table['name'], 'CHECK'] : [$table['name']]);
     if (count($checks) !== count($table['checks'])) { throw new DatabaseFailure('schema'); }
     $clauses = [];
-    foreach ($checks as $check) {
+    foreach (array_keys($checks) as $key) {
+        $check = $checks[$key] ?? throw new DatabaseFailure('schema'); unset($checks[$key]);
         if (!is_string($check['name'] ?? null) || !is_string($check['clause'] ?? null)) { throw new DatabaseFailure('schema'); }
         if (array_key_exists($check['name'], $clauses)) { throw new DatabaseFailure('schema'); }
         if ($mysql && ($check['enforced'] ?? null) !== 'YES') { throw new DatabaseFailure('schema'); }
-        $clause = $mysql ? ServerExpression::decodeMysqlMetadata($check['clause']) : $check['clause'];
-        $clauses[$check['name']] = $mysql ? ServerExpression::canonicalMysqlCheck($clause, $table) : ServerExpression::canonical($clause);
+        $name = $check['name']; $clause = $check['clause']; unset($check);
+        if ($mysql) { $clause = ServerExpression::decodeMysqlMetadata($clause); }
+        $clauses[$name] = ServerCheckAdmission::fingerprint($mysql ? ServerExpression::canonicalMysqlCheck($clause, $table) : ServerExpression::canonical($clause));
+        unset($clause);
     }
     return $clauses;
 }

@@ -11,6 +11,7 @@ final class ServerExpression
         $position = 0;
         $tree = (new ServerExpressionOperator())->parse($tokens, $position);
         if ($position !== count($tokens)) { throw new DatabaseFailure('schema'); }
+        unset($tokens);
         return JsonEncoding::encode($tree);
     }
 
@@ -21,6 +22,7 @@ final class ServerExpression
         $position = 0;
         $tree = (new ServerExpressionOperator())->parse($tokens, $position);
         if ($position !== count($tokens)) { throw new DatabaseFailure('schema'); }
+        unset($tokens);
         $binaryColumns = [];
         foreach ($expectedTable['columns'] as $column) {
             if (preg_match('/\A(?:varbinary\([1-9][0-9]*\)|longblob)\z/D', strtolower($column['type'])) !== 1) { continue; }

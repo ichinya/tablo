@@ -36,7 +36,7 @@ function metadata_checks_visible_to_select_only_writer(): void
 {
     foreach (['mariadb', 'mysql'] as $engine) {
         foreach (['writer', 'control', 'migrator', 'reader'] as $role) {
-            foreach (['', 'missing', 'extra', 'duplicate', 'wrong-name', 'changed', 'unenforced'] as $fault) {
+            foreach (['', 'equivalent', 'missing', 'extra', 'duplicate', 'wrong-name', 'changed', 'unenforced'] as $fault) {
                 metadata_checks_role_case($engine, $role, $fault);
             }
         }
@@ -58,7 +58,7 @@ function metadata_checks_role_case(string $engine, string $role, string $fault):
     finally { $session->metadataObservation = null; }
     Assert::same($db->opened, $db->closed);
     if ($metadata !== null) { Assert::same($metadata->opened, $metadata->closed); }
-    $expected = $fault === '' || ($engine === 'mariadb' && $fault === 'unenforced') ? null : 'schema';
+    $expected = in_array($fault, ['', 'equivalent'], strict: true) || ($engine === 'mariadb' && $fault === 'unenforced') ? null : 'schema';
     Assert::same($caught?->category, $expected);
     Assert::same($caught?->getPrevious(), null);
     Assert::same(count(array_filter($db->queries, static fn (string $query): bool => str_contains($query, 'FROM information_schema.CHECK_CONSTRAINTS'))), $privileged ? 0 : 1);
@@ -110,6 +110,7 @@ function metadata_checks_rows(MetadataPrivilegesPdo $db, string $query, string $
     if ($db->fault === 'checks/duplicate') { $rows[0] = $rows[1] ?? throw new \RuntimeException('Missing public CHECK.'); }
     if ($db->fault === 'checks/wrong-name') { $rows[0]['name'] = 'unexpected'; }
     if ($db->fault === 'checks/changed') { $rows[0]['clause'] = 'step >= 1'; }
+    if ($db->fault === 'checks/equivalent' && $rows !== []) { $rows[0]['clause'] = '(' . $rows[0]['clause'] . ')'; }
     return $rows;
 }
 
@@ -172,6 +173,7 @@ function metadata_checks_bound_snapshot(string $role): void
     Assert::same($caught?->category, 'schema');
     metadata_checks_observation($db, $configuration);
     $original = $session->metadataObservation ?? throw new \RuntimeException('Missing CHECK snapshot.');
+    metadata_checks_fingerprint_refusals($db, $table, $original);
     foreach (['count', 'server', 'missing'] as $fault) {
         $session->metadataObservation = $original; $candidate = $table;
         if ($fault === 'count') { $candidate['checks'] = []; }
@@ -190,6 +192,36 @@ function metadata_checks_bound_snapshot(string $role): void
     try { \Tablo\ServerCheckAdmission::verify($db, $table); } catch (DatabaseFailure $error) { $caught = $error; }
     Assert::same($caught?->category, 'configuration', 'cleared snapshots must request a fresh admitted observation');
     Assert::same($db->opened, $db->closed);
+}
+
+/** @param \Tablo\ServerSchema::Table $table
+ * @param \Tablo\ServerMetadataAdmission::Observation $original */
+function metadata_checks_fingerprint_refusals(MetadataPrivilegesPdo $db, array $table, array $original): void
+{
+    $session = \Tablo\DatabaseSession::get($db) ?? throw new \RuntimeException('Missing CHECK session.');
+    $check = $table['checks'][0] ?? throw new \RuntimeException('Missing public CHECK.');
+    $canonical = \Tablo\ServerExpression::canonical($check['expression']);
+    $clauses = $original['checks'][$table['name']] ?? throw new \RuntimeException('Missing public CHECK snapshot.');
+    $fingerprint = \Tablo\SqlColumn::string($clauses, $check['name']);
+    Assert::same($fingerprint, hash('sha256', "tablo/check-canonical/v1\0" . $canonical));
+    Assert::same(strlen($fingerprint), 64); Assert::false($fingerprint === $canonical);
+    try {
+        foreach (['canonical', 'sql', 'wrong-domain', 'changed', 'malformed', 'nonstring'] as $fault) {
+            $borrowed = $original;
+            $borrowed['checks'][$table['name']][$check['name']] = match ($fault) {
+                'canonical' => $canonical, 'sql' => $check['expression'],
+                'wrong-domain' => hash('sha256', "tablo/other/v1\0" . $canonical),
+                'changed' => hash('sha256', "tablo/check-canonical/v1\0" . \Tablo\ServerExpression::canonical('step = 999')),
+                'malformed' => str_repeat('x', times: 64), default => null,
+            };
+            // Deliberately inject a runtime-invalid value to exercise the admission refusal boundary.
+            (new \ReflectionProperty(\Tablo\DatabaseSession::class, property: 'metadataObservation'))->setValue($session, $borrowed);
+            $caught = null;
+            try { \Tablo\ServerCheckAdmission::verify($db, $table); } catch (DatabaseFailure $error) { $caught = $error; }
+            Assert::same($caught?->category, 'schema'); Assert::same($caught?->getPrevious(), null);
+            Assert::same($session->metadataObservation, $borrowed);
+        }
+    } finally { $session->metadataObservation = $original; }
 }
 
 /** A partial bound inventory must refuse with either descriptor path; no fake SQL surface is expanded.

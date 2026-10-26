@@ -33,7 +33,7 @@ function server_native_failure(string $root, #[\SensitiveParameter] string $byte
         $caller = server_native_failure_trace($root, $failure, $publicSources);
         return ['schema' => 'tablo/server-native-failure/v2', 'rootCause' => 'UNKNOWN', 'reportStatus' => SqlColumn::string($failure, 'status'),
             'type' => $type, 'origin' => $location['origin'], 'source' => $location['source'], 'line' => $location['line'],
-            'category' => server_native_failure_category($failure), 'callerSource' => $caller['source'], 'callerLine' => $caller['line']];
+            'category' => server_native_failure_category($failure, $location, $caller), 'callerSource' => $caller['source'], 'callerLine' => $caller['line']];
     } catch (\Throwable) { return $unknown; }
 }
 
@@ -123,11 +123,18 @@ function server_native_failure_trace(string $root, #[\SensitiveParameter] array 
     return ['origin' => 'UNKNOWN', 'source' => null, 'line' => null];
 }
 
-/** Match complete fixed public DatabaseFailure messages, never a native or partial diagnostic. */
-function server_native_failure_category(#[\SensitiveParameter] array $failure): string
+/** The timeout label identifies only the wrapper branch, never its cause or closure.
+ * @param array{origin: string, source: ?string, line: ?int} $location
+ * @param array{origin: string, source: ?string, line: ?int} $caller */
+function server_native_failure_category(#[\SensitiveParameter] array $failure, array $location, array $caller): string
 {
+    /** @var mixed $message Private report bytes are compared, never retained in the public projection. */
+    $message = $failure['message'] ?? null;
+    if (($failure['exception'] ?? null) === 'RuntimeException' && $location['origin'] === 'exception'
+        && $location['source'] === 'tests/Support/SubprocessFailure.php' && $caller['source'] === 'tests/Support/SubprocessCompletion.php'
+        && is_string($message) && str_starts_with($message, 'Test command timed out; stage=timeout; ')) { return 'subprocess-timeout'; }
     if (($failure['exception'] ?? null) !== 'Tablo\\DatabaseFailure') { return 'UNKNOWN'; }
-    return match ($failure['message'] ?? null) {
+    return match ($message) {
         'Database configuration invalid.' => 'configuration', 'Selected PDO driver unavailable.' => 'driver',
         'Unsupported database engine.' => 'engine', 'Database schema incompatible or in progress.' => 'schema',
         'Installation key unavailable.' => 'key', 'Database busy.' => 'busy', 'Storage outcome uncertain.' => 'uncertain',
