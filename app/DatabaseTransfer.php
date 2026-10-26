@@ -118,6 +118,8 @@ function database_transfer_facade_verify(PDO $db, #[\SensitiveParameter] TokenVa
         if (PHP_SAPI !== 'cli') { throw new DatabaseFailure('configuration'); }
         DatabaseTransferPreflight::stream($db);
         $manifest = DatabaseTransferVerification::manifest($directory, $vault);
+        $coarse = class_exists(ColdTransferCoarsePeak::class, autoload: false);
+        if ($coarse) { ColdTransferCoarsePeak::stage(104); }
         $scratch = DatabaseTransferPreflight::scratch($scratchPath);
         $owner = database_transfer_private_scratch_owner($scratch);
         try { DatabaseTransferVerification::scratch($scratch, $directory, $manifest['header'], $vault); $owner->commit(); }

@@ -72,11 +72,18 @@ function database_transfer_verification_scratch(PDO $scratch, #[\SensitiveParame
 function database_transfer_verification_table(PDO $db, array $table, array $receipt): void
 {
     $rows = 0; $hash = hash_init('sha256');
-    foreach (DatabaseTransferRows::read($db, $table) as $values) {
-        $rows++; hash_update($hash, DatabaseTransferWire::completeLine($values));
-        unset($values);
-    }
-    if ([$rows, hash_final($hash)] !== [$receipt['rows'], $receipt['sha256']]) { throw new DatabaseFailure('schema'); }
+    $coarse = class_exists(ColdTransferCoarsePeak::class, autoload: false);
+    if ($coarse) { ColdTransferCoarsePeak::stage(101); }
+    try {
+        foreach (DatabaseTransferRows::read($db, $table) as $values) {
+            if ($coarse) { ColdTransferCoarsePeak::stage(102); }
+            $rows++; hash_update($hash, DatabaseTransferWire::completeLine($values));
+            unset($values);
+            if ($coarse) { ColdTransferCoarsePeak::stage(101); }
+        }
+        if ($coarse) { ColdTransferCoarsePeak::stage(103); }
+        if ([$rows, hash_final($hash)] !== [$receipt['rows'], $receipt['sha256']]) { throw new DatabaseFailure('schema'); }
+    } finally { if ($coarse) { ColdTransferCoarsePeak::stage(0); } }
 }
 
 
@@ -88,16 +95,20 @@ function database_transfer_verification_database(PDO $db, array $header, #[\Sens
         database_transfer_verification_table($db, $table, $header['tables'][$index] ?? throw new DatabaseFailure('schema'));
         unset($table);
     }
-    $floors = DatabaseTransferSequence::floors($db);
-    foreach ($header['sequences'] as $table => $floor) { if (SqlColumn::integer($floors, $table) < $floor) { throw new DatabaseFailure('schema'); } }
-    $rows = ServerSchema::rows($db, 'SELECT installation_id FROM notification_settings WHERE id = 1');
-    // SQLite schema10 represents its activation frontier with sqlite_sequence.
-    // A server rollback may reserve IDs beyond its separately committed watermark.
-    $watermark = DatabaseSession::server($db) ? $header['watermark']
-        : max($header['watermark'], $header['sequences']['check_history']);
-    if (SqlColumn::string($rows[0] ?? [], 'installation_id') !== $header['installation']
-        || DatabaseTransferSequence::watermark($db) !== $watermark) { throw new DatabaseFailure('schema'); }
-    ExternalKeyAuthentication::authenticateExternalKey($db, $vault);
+    $coarse = class_exists(ColdTransferCoarsePeak::class, autoload: false);
+    if ($coarse) { ColdTransferCoarsePeak::stage(105); }
+    try {
+        $floors = DatabaseTransferSequence::floors($db);
+        foreach ($header['sequences'] as $table => $floor) { if (SqlColumn::integer($floors, $table) < $floor) { throw new DatabaseFailure('schema'); } }
+        $rows = ServerSchema::rows($db, 'SELECT installation_id FROM notification_settings WHERE id = 1');
+        // SQLite schema10 represents its activation frontier with sqlite_sequence.
+        // A server rollback may reserve IDs beyond its separately committed watermark.
+        $watermark = DatabaseSession::server($db) ? $header['watermark']
+            : max($header['watermark'], $header['sequences']['check_history']);
+        if (SqlColumn::string($rows[0] ?? [], 'installation_id') !== $header['installation']
+            || DatabaseTransferSequence::watermark($db) !== $watermark) { throw new DatabaseFailure('schema'); }
+        ExternalKeyAuthentication::authenticateExternalKey($db, $vault);
+    } finally { if ($coarse) { ColdTransferCoarsePeak::stage(0); } }
 }
 
 /**
