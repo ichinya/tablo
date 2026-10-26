@@ -44,7 +44,7 @@
                 "Composer verify",
                 ".github/workflows/verify.yml"
             ],
-            "fingerprint": "sha256:3df2daca9035a945b5529fae6c435729b2fc26e91df7357692375ece534320e6"
+            "fingerprint": "sha256:6cbe7ddc5be8056f4b06b7866574f1929a8dfcb8aa5ec984d7b9ae6d09a9a0a5"
         },
         {
             "path": "app/ColdTransferDiagnostic.php",

@@ -30,6 +30,7 @@ $integers = @('baselinePhpBytes','peakPhpBytes','peakPhpWorkingBytes','winnerKin
 $keys = @('schema','mode','status','phases') + $booleans + $integers
 if ($value -isnot [System.Collections.IDictionary] -or $value.Count -ne $keys.Count) { throw 'Diagnostic object shape refused' }
 foreach ($key in $keys) { if (!$value.Contains($key)) { throw 'Diagnostic field missing' } }
+if ($value.schema -isnot [string] -or $value.mode -isnot [string] -or $value.status -isnot [string]) { throw 'Scalar diagnostic vocabulary required' }
 if ($value.schema -cne 'tablo/cold-r77/v1' -or $value.mode -cnotin @('observe','inactive') -or $value.status -cnotin @('captured','incomplete')) { throw 'Diagnostic vocabulary refused' }
 foreach ($key in $booleans) { if ($value[$key] -isnot [bool]) { throw 'Diagnostic boolean refused' } }
 if (!$value.instrumentedOnly -or !$value.observerContaminated) { throw 'Diagnostic scope refused' }
