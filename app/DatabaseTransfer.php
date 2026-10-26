@@ -11,36 +11,24 @@ final class DatabaseTransfer
     public static function export(PDO $source, #[\SensitiveParameter] TokenVault $vault, #[\SensitiveParameter] string $directory,
         #[\SensitiveParameter] string $scratchPath, bool $offline = false): string
     {
-        $diagnostic = class_exists(ColdTransferDiagnostic::class, autoload: false);
-        if ($diagnostic) { ColdTransferDiagnostic::enter(1); }
-        try { return database_transfer_facade_export($source, $vault, $directory, $scratchPath, $offline); }
-        finally { if ($diagnostic) { ColdTransferDiagnostic::leave(); } }
+        return database_transfer_facade_export($source, $vault, $directory, $scratchPath, $offline);
     }
 
     public static function importServer(PDO $target, #[\SensitiveParameter] TokenVault $vault, #[\SensitiveParameter] string $directory,
         #[\SensitiveParameter] string $scratchPath, bool $offline = false): string
     {
-        $diagnostic = class_exists(ColdTransferDiagnostic::class, autoload: false);
-        if ($diagnostic) { ColdTransferDiagnostic::enter(2); }
-        try { return database_transfer_facade_import_server($target, $vault, $directory, $scratchPath, $offline); }
-        finally { if ($diagnostic) { ColdTransferDiagnostic::leave(); } }
+        return database_transfer_facade_import_server($target, $vault, $directory, $scratchPath, $offline);
     }
 
     public static function importSqlite(#[\SensitiveParameter] TokenVault $vault, #[\SensitiveParameter] string $directory,
         #[\SensitiveParameter] string $scratchPath, #[\SensitiveParameter] string $targetPath, bool $offline = false): string
     {
-        $diagnostic = class_exists(ColdTransferDiagnostic::class, autoload: false);
-        if ($diagnostic) { ColdTransferDiagnostic::enter(3); }
-        try { return database_transfer_facade_import_sqlite($vault, $directory, $scratchPath, $targetPath, $offline); }
-        finally { if ($diagnostic) { ColdTransferDiagnostic::leave(); } }
+        return database_transfer_facade_import_sqlite($vault, $directory, $scratchPath, $targetPath, $offline);
     }
 
     public static function verify(PDO $db, #[\SensitiveParameter] TokenVault $vault, #[\SensitiveParameter] string $directory, #[\SensitiveParameter] string $scratchPath): string
     {
-        $diagnostic = class_exists(ColdTransferDiagnostic::class, autoload: false);
-        if ($diagnostic) { ColdTransferDiagnostic::enter(4); }
-        try { return database_transfer_facade_verify($db, $vault, $directory, $scratchPath); }
-        finally { if ($diagnostic) { ColdTransferDiagnostic::leave(); } }
+        return database_transfer_facade_verify($db, $vault, $directory, $scratchPath);
     }
 
     public static function preflight(PDO $source, #[\SensitiveParameter] TokenVault $vault, #[\SensitiveParameter] string $scratchPath, bool $offline = false): int
@@ -75,7 +63,10 @@ function database_transfer_facade_import_server(PDO $target, #[\SensitiveParamet
         DatabaseTransferPreflight::stream($target);
         $manifest = DatabaseTransferVerification::manifest($directory, $vault);
         $scratch = DatabaseTransferPreflight::scratch($scratchPath);
-        DatabaseTransferVerification::scratch($scratch, $directory, $manifest['header'], $vault);
+        $owner = database_transfer_private_scratch_owner($scratch);
+        try { DatabaseTransferVerification::scratch($scratch, $directory, $manifest['header'], $vault); $owner->commit(); }
+        catch (\Throwable $error) { $owner->rollbackPreserving(); throw $error; }
+        $owner = null;
         DatabaseTransferImport::server($target, $directory, $manifest['header'], $manifest['digest'], $vault);
         return $manifest['digest'];
     } catch (\Throwable $error) { throw database_transfer_persistence_safe($error); }
@@ -91,10 +82,14 @@ function database_transfer_facade_import_sqlite(#[\SensitiveParameter] TokenVaul
     try {
         $manifest = DatabaseTransferVerification::manifest($directory, $vault);
         $scratch = DatabaseTransferPreflight::scratch($scratchPath);
-        DatabaseTransferVerification::scratch($scratch, $directory, $manifest['header'], $vault);
-        DatabaseTransferImport::sqlite($scratch, $manifest['header']);
-        DatabaseTransferVerification::database($scratch, $manifest['header'], $vault);
-        $scratch = null;
+        $owner = database_transfer_private_scratch_owner($scratch);
+        try {
+            DatabaseTransferVerification::scratch($scratch, $directory, $manifest['header'], $vault);
+            DatabaseTransferImport::sqlite($scratch, $manifest['header']);
+            DatabaseTransferVerification::database($scratch, $manifest['header'], $vault);
+            $owner->commit();
+        } catch (\Throwable $error) { $owner->rollbackPreserving(); throw $error; }
+        $owner = null; $scratch = null;
         // Same-filesystem exclusive publication refuses an existing target atomically.
         if (!NativeWarning::ignore(static fn (): bool => link($scratchPath, $targetPath))) { throw new DatabaseFailure('unavailable'); }
         // Exclusive publication commits success. Cleanup cannot turn a published database into a failed import.
@@ -112,7 +107,10 @@ function database_transfer_facade_verify(PDO $db, #[\SensitiveParameter] TokenVa
         DatabaseTransferPreflight::stream($db);
         $manifest = DatabaseTransferVerification::manifest($directory, $vault);
         $scratch = DatabaseTransferPreflight::scratch($scratchPath);
-        DatabaseTransferVerification::scratch($scratch, $directory, $manifest['header'], $vault);
+        $owner = database_transfer_private_scratch_owner($scratch);
+        try { DatabaseTransferVerification::scratch($scratch, $directory, $manifest['header'], $vault); $owner->commit(); }
+        catch (\Throwable $error) { $owner->rollbackPreserving(); throw $error; }
+        $owner = null;
         DatabaseTransferVerification::database($db, $manifest['header'], $vault);
         return $manifest['digest'];
     } catch (\Throwable $error) { throw database_transfer_persistence_safe($error); }
@@ -140,13 +138,25 @@ function database_transfer_persistence_safe(#[\SensitiveParameter] \Throwable $e
     return $error instanceof \PDOException ? DatabaseFailure::fromNative($error) : new DatabaseFailure('schema');
 }
 
+/** Only freshly allocated private SQLite staging may acquire this owner; no application writer lock is held.
+ * Reading source/archive data while owning this private file does not borrow a live application's writer transaction. */
+function database_transfer_private_scratch_owner(PDO $scratch): WriteTransaction
+{
+    if ($scratch->getAttribute(PDO::ATTR_DRIVER_NAME) !== 'sqlite' || $scratch->inTransaction() || WriteTransaction::owns($scratch)) {
+        throw new \LogicException('Unexpected private scratch transaction.');
+    }
+    return WriteTransaction::begin($scratch);
+}
+
 /** @return array{rows: int, bytes: string, digest: string} */
 function database_transfer_snapshot_copy(PDO $source, #[\SensitiveParameter] TokenVault $vault, #[\SensitiveParameter] string $scratchPath, #[\SensitiveParameter] ?string $directory): array
 {
     DatabaseTransferPreflight::unowned($source);
     $scratch = DatabaseTransferPreflight::scratch($scratchPath);
     DatabaseTransferPreflight::snapshot($source);
+    $scratchOwner = null;
     try {
+        $scratchOwner = database_transfer_private_scratch_owner($scratch);
         DatabaseTransferPreflight::admitted($source, $vault);
         $remaining = DatabaseTransferManifest::MAX_CHUNKS; $rows = 0; $receipts = [];
         foreach (DatabaseTransferManifest::tables() as $table) {
@@ -160,9 +170,11 @@ function database_transfer_snapshot_copy(PDO $source, #[\SensitiveParameter] Tok
         $bytes = JsonEncoding::encode(['payload' => $header, 'sha256' => $digest]);
         if (strlen($bytes) > DatabaseTransferManifest::MANIFEST_BYTES) { throw new DatabaseFailure('schema'); }
         DatabaseTransferPreflight::quiescent($scratch);
+        $scratchOwner->commit(); $scratchOwner = null;
         $source->commit();
         return ['rows' => $rows, 'bytes' => $bytes, 'digest' => $digest];
     } catch (\Throwable $error) {
+        $scratchOwner?->rollbackPreserving();
         if ($source->inTransaction()) { try { $source->rollBack(); } catch (\Throwable $discarded) { unset($discarded); } }
         throw database_transfer_persistence_safe($error);
     }

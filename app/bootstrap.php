@@ -25,16 +25,3 @@ try {
     // Parser diagnostics may include credentials from the invalid line.
     throw new RuntimeException('Не удалось загрузить .env: проверьте синтаксис и кодировку файла.');
 }
-
-// Composer's static include scope has no local argv; CLI supplies the superglobal independently.
-if (PHP_SAPI === 'cli' && is_array($_SERVER['argv'] ?? null)) {
-    $coldTransferArguments = $_SERVER['argv'];
-    if (count($coldTransferArguments) === 3
-        && ($coldTransferArguments[1] ?? null) === 'transfer-working-data'
-        && ($coldTransferArguments[2] ?? null) === 'transfer-working-data'
-        && str_ends_with(str_replace(search: '\\', replace: '/', subject: $coldTransferArguments[0]), '/tests/server-child.php')
-        && in_array(getenv('TABLO_TEST_COLD_R77'), ['observe', 'inactive'], strict: true)) {
-        require_once __DIR__ . '/ColdTransferDiagnostic.php';
-        \Tablo\ColdTransferDiagnostic::setup();
-    }
-}

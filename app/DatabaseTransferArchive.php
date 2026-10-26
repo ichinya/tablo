@@ -90,7 +90,7 @@ function database_transfer_archive_stream(PDO $source, PDO $scratch, array $tabl
     $chunks = []; $rows = 0; $chunk = database_transfer_archive_pending_chunk(); $hash = hash_init('sha256');
     try {
         foreach (DatabaseTransferRows::read($source, $table) as $values) {
-            $line = JsonEncoding::encode(DatabaseTransferRows::encode($values)) . "\n";
+            $line = DatabaseTransferWire::completeLine($values);
             if (strlen($line) > DatabaseTransferManifest::CHUNK_BYTES) { throw new DatabaseFailure('schema'); }
             if ($chunk['rows'] === DatabaseTransferManifest::CHUNK_ROWS || $chunk['bytes'] + strlen($line) > DatabaseTransferManifest::CHUNK_BYTES) {
                 $chunks[] = database_transfer_archive_chunk($chunk); $chunk = database_transfer_archive_pending_chunk();

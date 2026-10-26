@@ -72,7 +72,7 @@ function database_transfer_verification_table(PDO $db, array $table, array $rece
 {
     $rows = 0; $hash = hash_init('sha256');
     foreach (DatabaseTransferRows::read($db, $table) as $values) {
-        $rows++; hash_update($hash, JsonEncoding::encode(DatabaseTransferRows::encode($values)) . "\n");
+        $rows++; hash_update($hash, DatabaseTransferWire::completeLine($values));
         unset($values);
     }
     if ([$rows, hash_final($hash)] !== [$receipt['rows'], $receipt['sha256']]) { throw new DatabaseFailure('schema'); }
