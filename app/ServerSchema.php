@@ -20,8 +20,11 @@ final class ServerSchema
     public static function checksum(PDO $db, int $version = 10): string { return ServerSchemaDescriptor::checksum($db, $version); }
     public static function admit(PDO $db): void
     {
+        server_schema_coarse_snapshot(250);
         if (DatabaseSession::get($db)?->configuration->role !== 'reader') { ServerTableAdmission::layout($db); }
+        server_schema_coarse_snapshot(251);
         ServerSchemaState::ready($db);
+        server_schema_coarse_snapshot(252);
     }
     public static function validateLayout(PDO $db, int $version = 10): void { ServerTableAdmission::layout($db, $version); }
     /** @param Table $table */
@@ -44,4 +47,10 @@ final class ServerSchema
             return SqlRows::all($statement->fetchAll(PDO::FETCH_ASSOC), static fn (array $row): array => $row);
         } finally { $statement->closeCursor(); }
     }
+}
+
+/** Temporary dispatch never autoloads an observer outside the exact bootstrap gate. */
+function server_schema_coarse_snapshot(int $checkpoint): void
+{
+    if (class_exists(ColdTransferCoarsePeak::class, autoload: false)) { ColdTransferCoarsePeak::snapshot($checkpoint); }
 }

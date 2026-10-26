@@ -8,7 +8,7 @@ use Tablo\ColdTransferCoarsePeak as Coarse;
 /** Temporary scalar state, explicitly preloaded before the protected actor baseline. */
 final class ColdTransferCoarsePeak
 {
-    public static int $mode = -1, $phase = 0, $transfer = 0, $factoryParent = 0, $factoryStep = 0;
+    public static int $mode = -1, $phase = 0, $transfer = 0, $factoryParent = 0, $factoryStep = 0, $snapshotStep = 99;
     /** @var array{int,int,int,int,int} Fixed export/import/SQLite/verify/factory counters. */
     public static array $counts = [0, 0, 0, 0, 0];
     /** @var array{int,int,int,int} Fixed peak/used/phase/factory localization. */
@@ -18,6 +18,7 @@ final class ColdTransferCoarsePeak
     public static function setup(): void { self::$mode = getenv('TABLO_TEST_COLD_R81') === 'observe' ? 1 : 0; }
     public static function transfer(int $operation): void { cold_coarse_transfer($operation); }
     public static function factory(int $step): void { cold_coarse_factory($step); }
+    public static function snapshot(int $checkpoint): void { cold_coarse_snapshot($checkpoint); }
     public static function capture(#[\SensitiveParameter] mixed $value): void { cold_coarse_capture($value); }
 }
 
@@ -27,7 +28,8 @@ function cold_coarse_transfer(int $operation): void
     if (Coarse::$mode !== 1 || Coarse::$broken) { return; }
     cold_coarse_sample();
     if ($operation === 0) {
-        if (Coarse::$transfer === 0 || Coarse::$factoryStep !== 0) { Coarse::$broken = true; return; }
+        if (Coarse::$transfer === 0 || Coarse::$factoryStep !== 0
+            || (Coarse::$transfer === 11 && Coarse::$snapshotStep !== 125)) { Coarse::$broken = true; return; }
         Coarse::$transfer = 0; Coarse::$phase = 0; return;
     }
     if (Coarse::$transfer !== 0 || Coarse::$factoryStep !== 0) { Coarse::$broken = true; return; }
@@ -59,6 +61,45 @@ function cold_coarse_factory(int $step): void
     if ($step === 8) { Coarse::$phase = Coarse::$factoryParent; Coarse::$factoryStep = 0; return; }
     if ($step !== 1 && $step !== Coarse::$factoryStep + 1) { Coarse::$broken = true; return; }
     Coarse::$factoryStep = $step; Coarse::$phase = 50 + $step;
+}
+
+/** Reverse export only: checkpoint100 starts scratch allocation; 101 snapshot, 102 owner, 103 admission,
+ * 104..118 archive tables0..14, 119 header capture, 120 header digest, 121 manifest encoding/bounds,
+ * 122 quiescence, 123 scratch commit, 124 source commit. Checkpoint125 restores phase11.
+ * Sampling always belongs to the prior interval, never an allocation-cause claim. */
+function cold_coarse_snapshot(int $checkpoint): void
+{
+    if (!cold_coarse_snapshot_active($checkpoint)) { return; }
+    cold_coarse_sample();
+    if ($checkpoint >= 200) { cold_coarse_admission($checkpoint); return; }
+    if (Coarse::$factoryStep !== 0 || $checkpoint < 100 || $checkpoint > 125
+        || $checkpoint !== Coarse::$snapshotStep + 1) { Coarse::$broken = true; return; }
+    Coarse::$snapshotStep = $checkpoint;
+    Coarse::$phase = $checkpoint === 125 ? 11 : $checkpoint;
+}
+
+/** Other ServerSchema callers remain inert, including the three standalone factories. */
+function cold_coarse_snapshot_active(int $checkpoint): bool
+{
+    if (Coarse::$mode !== 1 || Coarse::$broken || Coarse::$transfer !== 11) { return false; }
+    return $checkpoint < 250 || $checkpoint > 252 || (Coarse::$snapshotStep === 103
+        && (Coarse::$phase === 201 || Coarse::$phase === 250 || Coarse::$phase === 251));
+}
+
+/** Admission200 stream, 201 schema, 202 key, 203..217 footprints0..14, 218 external key, 219 quiescence.
+ * Checkpoint220 restores103. Schema250 layout and251 readiness; checkpoint252 restores201. */
+function cold_coarse_admission(int $checkpoint): void
+{
+    if (Coarse::$snapshotStep !== 103 || Coarse::$factoryStep !== 0
+        || ($checkpoint > 220 && ($checkpoint < 250 || $checkpoint > 252))) { Coarse::$broken = true; return; }
+    $previous = cold_coarse_admission_previous($checkpoint);
+    if (Coarse::$phase !== $previous) { Coarse::$broken = true; return; }
+    Coarse::$phase = match ($checkpoint) { 220 => 103, 252 => 201, default => $checkpoint };
+}
+
+function cold_coarse_admission_previous(int $checkpoint): int
+{
+    return match ($checkpoint) { 200 => 103, 202, 250 => 201, 252 => 251, default => $checkpoint - 1 };
 }
 
 function cold_coarse_sample(): void
@@ -116,7 +157,7 @@ function cold_coarse_complete(int $peak): bool
 {
     return Coarse::$mode === 1 && !Coarse::$broken && Coarse::$transfer === 0 && Coarse::$factoryStep === 0
         && Coarse::$counts[0] === 2 && Coarse::$counts[1] === 1 && Coarse::$counts[2] === 1 && Coarse::$counts[3] === 2
-        && Coarse::$counts[4] === 3 && Coarse::$winner[0] === $peak;
+        && Coarse::$counts[4] === 3 && Coarse::$snapshotStep === 125 && Coarse::$winner[0] === $peak;
 }
 
 /** Native warnings and exceptions are secondary; output allocation occurs only after actor metric capture. */

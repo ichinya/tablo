@@ -45,7 +45,7 @@
                 "Composer analyze",
                 "Composer verify"
             ],
-            "fingerprint": "sha256:4617934d39ee9bcab6f937b7b7db53a1ef938c082266067283c8a82e6e7a9b77"
+            "fingerprint": "sha256:4103c54404b78928ba2a385c616b23721faed5909e6a8d05b66991dd745f1c73"
         },
         {
             "path": "tools/collect-cold-r81.ps1",
@@ -54,7 +54,7 @@
                 "Composer verify",
                 ".github/workflows/verify.yml"
             ],
-            "fingerprint": "sha256:7405f139a7bbaa570549b80a066dbddfdf525af94ed1d7888d808347951b0257"
+            "fingerprint": "sha256:ca9f9e4cf5c21c94880b8b0dd52450c025d8133f3ce95a13eb6e9f0e467562d3"
         },
         {
             "path": "app/DatabaseTransferWire.php",
@@ -880,7 +880,7 @@
                 "tests/Server/EngineTransferTest.php",
                 "tests/ServerCross/EngineCrossTransferTest.php"
             ],
-            "fingerprint": "sha256:7709fa9fb92a556809b6a880498d0b72e3a8a182ffbb1d1241ca97f356ccfe8e"
+            "fingerprint": "sha256:4f9f708d1b44b19704d074606315dee8a0d6a77e0fe456b1b2c4ffe253c149b3"
         },
         {
             "path": "app/DatabaseTransferArchive.php",
@@ -939,7 +939,7 @@
                 "app/DatabaseTransferRows.php",
                 "app/DatabaseTransferVerification.php"
             ],
-            "fingerprint": "sha256:954e4514acb9db3d1cfa7900a0751ebdf079222ffd3ca7fb032cec6c5b576c1f"
+            "fingerprint": "sha256:9fc0b1d9d8bedd12a9310a4d67a143972c9280f74a73f1953dd4f4a1ad52d8c8"
         },
         {
             "path": "app/DatabaseTransferRows.php",
@@ -3496,7 +3496,7 @@
                 "app/ServerMetadataAdmission.php",
                 "tests/Server/EngineMetadataAdmissionTest.php"
             ],
-            "fingerprint": "sha256:b30171d4215a2e928790fd4aad7a2c47136388af1b49087e10747cf288edc0d5"
+            "fingerprint": "sha256:b880168fafe790646a22a79082b74a153484a070e71dcdd42cfaaff16f4e0cf3"
         },
         {
             "path": "app/ServerSchemaDescriptor.php",
