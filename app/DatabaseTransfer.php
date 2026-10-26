@@ -11,36 +11,24 @@ final class DatabaseTransfer
     public static function export(PDO $source, #[\SensitiveParameter] TokenVault $vault, #[\SensitiveParameter] string $directory,
         #[\SensitiveParameter] string $scratchPath, bool $offline = false): string
     {
-        $coarse = class_exists(ColdTransferCoarsePeak::class, autoload: false);
-        if ($coarse) { ColdTransferCoarsePeak::transfer(1); }
-        try { return database_transfer_facade_export($source, $vault, $directory, $scratchPath, $offline); }
-        finally { if ($coarse) { ColdTransferCoarsePeak::transfer(0); } }
+        return database_transfer_facade_export($source, $vault, $directory, $scratchPath, $offline);
     }
 
     public static function importServer(PDO $target, #[\SensitiveParameter] TokenVault $vault, #[\SensitiveParameter] string $directory,
         #[\SensitiveParameter] string $scratchPath, bool $offline = false): string
     {
-        $coarse = class_exists(ColdTransferCoarsePeak::class, autoload: false);
-        if ($coarse) { ColdTransferCoarsePeak::transfer(2); }
-        try { return database_transfer_facade_import_server($target, $vault, $directory, $scratchPath, $offline); }
-        finally { if ($coarse) { ColdTransferCoarsePeak::transfer(0); } }
+        return database_transfer_facade_import_server($target, $vault, $directory, $scratchPath, $offline);
     }
 
     public static function importSqlite(#[\SensitiveParameter] TokenVault $vault, #[\SensitiveParameter] string $directory,
         #[\SensitiveParameter] string $scratchPath, #[\SensitiveParameter] string $targetPath, bool $offline = false): string
     {
-        $coarse = class_exists(ColdTransferCoarsePeak::class, autoload: false);
-        if ($coarse) { ColdTransferCoarsePeak::transfer(3); }
-        try { return database_transfer_facade_import_sqlite($vault, $directory, $scratchPath, $targetPath, $offline); }
-        finally { if ($coarse) { ColdTransferCoarsePeak::transfer(0); } }
+        return database_transfer_facade_import_sqlite($vault, $directory, $scratchPath, $targetPath, $offline);
     }
 
     public static function verify(PDO $db, #[\SensitiveParameter] TokenVault $vault, #[\SensitiveParameter] string $directory, #[\SensitiveParameter] string $scratchPath): string
     {
-        $coarse = class_exists(ColdTransferCoarsePeak::class, autoload: false);
-        if ($coarse) { ColdTransferCoarsePeak::transfer(4); }
-        try { return database_transfer_facade_verify($db, $vault, $directory, $scratchPath); }
-        finally { if ($coarse) { ColdTransferCoarsePeak::transfer(0); } }
+        return database_transfer_facade_verify($db, $vault, $directory, $scratchPath);
     }
 
     public static function preflight(PDO $source, #[\SensitiveParameter] TokenVault $vault, #[\SensitiveParameter] string $scratchPath, bool $offline = false): int
@@ -118,8 +106,6 @@ function database_transfer_facade_verify(PDO $db, #[\SensitiveParameter] TokenVa
         if (PHP_SAPI !== 'cli') { throw new DatabaseFailure('configuration'); }
         DatabaseTransferPreflight::stream($db);
         $manifest = DatabaseTransferVerification::manifest($directory, $vault);
-        $coarse = class_exists(ColdTransferCoarsePeak::class, autoload: false);
-        if ($coarse) { ColdTransferCoarsePeak::stage(104); }
         $scratch = DatabaseTransferPreflight::scratch($scratchPath);
         $owner = database_transfer_private_scratch_owner($scratch);
         try { DatabaseTransferVerification::scratch($scratch, $directory, $manifest['header'], $vault); $owner->commit(); }
