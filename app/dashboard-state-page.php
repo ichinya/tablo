@@ -6,6 +6,8 @@ namespace Tablo;
 use Phalcon\Http\Response;
 
 /** @phpstan-import-type View from Presenter */
+// Pinned Lekalo requires lowercase physical source paths for this contracted owner.
+// @mago-expect lint:file-name
 final class DashboardStatePage
 {
     public const MAXIMUM_JSON_BYTES = 2_097_152;

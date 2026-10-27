@@ -335,9 +335,9 @@
             "kind": "query",
             "source": {
                 "path": "app/dashboard-state-page.php",
-                "line": 15
+                "line": 17
             },
-            "fingerprint": "sha256:d75e4e53684c8274cd255691f570b31666df8305bc9e93d3857c43fbc7e7416c",
+            "fingerprint": "sha256:c5d4ebc72d926a5a11ca3d8ebfd3e76117a4444cbe795f99f747806b17180288",
             "signature": {
                 "inputs": [],
                 "output": "dashboard.saved_dashboard_state",
