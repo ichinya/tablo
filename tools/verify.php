@@ -111,6 +111,7 @@ try {
         if (!(in_array($symbol['kind'], ['command', 'query'], strict: true))) { continue; }
 
             $unitTests = match ($symbol['id']) {
+                'dashboard.read_dashboard_state' => 'tests/Unit/SavedDashboardRepositoryTest.php,tests/Http/DashboardStateTest.php,tests/Http/DashboardStateSessionTest.php,tests/Http/DashboardStateSessionRaceTest.php',
                 'dashboard.read_api_sites', 'dashboard.read_api_site', 'dashboard.authenticate_read_api' => 'tests/Unit/ReadApiRequestTest.php,tests/Unit/ReadApiRepositoryTest.php,tests/Unit/ApiSiteDtoTest.php,tests/Unit/ReadApiSchemaTest.php,tests/Http/ReadApiHttpTest.php,tests/Http/ReadApiAuthenticationTest.php,tests/Http/ReadApiParametersTest.php,tests/Http/ReadApiPrivacyTest.php,tests/Http/ReadApiSessionContractTest.php,tests/Network/ReadApiBoundaryTest.php',
                 'dashboard.read_api_token_metadata', 'dashboard.rotate_read_api_token', 'dashboard.revoke_read_api_token' => 'tests/Unit/ReadApiTokenTest.php,tests/Unit/ReadApiTokenMigrationTest.php,tests/Unit/ReadApiSchemaTest.php,tests/Http/ReadApiTokenManagementTest.php,tests/Http/ReadApiSessionContractTest.php,tests/Network/ReadApiBoundaryTest.php',
                 'dashboard.change_admin_password' => 'tests/Unit/AdminPasswordTest.php,tests/Network/AdminPasswordTest.php,tests/Network/AdminPasswordSelectionTest.php,tests/Network/AdminPasswordStorageTest.php,tests/Network/AdminPasswordConflictTest.php,tests/Network/PasswordHelperTest.php,tests/Http/AdminPasswordTest.php,tests/Http/PasswordSessionAdmissionTest.php,tests/Http/PasswordLoginRaceTest.php,tests/Http/PasswordCommitVisibilityTest.php',
@@ -206,14 +207,14 @@ try {
             if ($symbol['id'] === 'dashboard.run_checks') {
                 $tests .= ',tests/Network/ProcessDiagnosticTest.php,tests/Unit/HealthCheckDiagnosticsTest.php';
             }
-            if ($symbol['id'] === 'dashboard.list_sites') {
+            if (in_array($symbol['id'], ['dashboard.list_sites', 'dashboard.read_dashboard_state'], strict: true)) {
                 $tests .= ',tests/Unit/PresenterTest.php,tests/Http/DashboardModesTest.php,tests/Http/DashboardModeActionsTest.php,tests/Network/DashboardModesFixtureCleanupTest.php';
             }
             if ($symbol['id'] === 'dashboard.check_site') {
                 $tests .= ',tests/Http/DashboardModeActionsTest.php,tests/Network/DashboardModesFixtureCleanupTest.php';
             }
             if (in_array($symbol['id'], ['dashboard.setup', 'dashboard.login', 'dashboard.logout', 'dashboard.list_sites',
-                'dashboard.list_branches', 'dashboard.check_site', 'dashboard.read_api_sites', 'dashboard.read_api_site', 'dashboard.authenticate_read_api'], strict: true)) {
+                'dashboard.list_branches', 'dashboard.check_site', 'dashboard.read_dashboard_state', 'dashboard.read_api_sites', 'dashboard.read_api_site', 'dashboard.authenticate_read_api'], strict: true)) {
                 $tests .= ',tests/Unit/HstsPolicyTest.php,tests/Http/HstsBootstrapTest.php,tests/Http/HstsResponseTest.php,tests/Network/HstsTransportTest.php';
             }
             if (in_array($symbol['id'], ['dashboard.read_api_sites', 'dashboard.read_api_site', 'dashboard.authenticate_read_api'], strict: true)) {

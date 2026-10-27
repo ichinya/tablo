@@ -1,7 +1,11 @@
 {
   "app/DatabaseTransferWire.php": {
     "owner": "Canonical bounded-fragment typed transfer line writer",
-    "consumers": ["Composer lint", "Composer analyze", "Composer verify"]
+    "consumers": [
+      "Composer lint",
+      "Composer analyze",
+      "Composer verify"
+    ]
   },
   "tests/Unit/DatabaseFailureOutputTest.php": {
     "owner": "Typed storage failure HTTP propagation and partial JSON regression evidence",
@@ -9879,6 +9883,162 @@
     "consumers": [
       "DashboardPage::dashboard",
       "Shared toolbar and canonical CSRF form composition"
+    ]
+  },
+  "app/DashboardStatePage.php": {
+    "owner": "Automatic cookie-session saved dashboard response and post-unlock authority fence",
+    "consumers": [
+      "Composer verify",
+      "dashboard.read_dashboard_state",
+      "Composer lint",
+      "Composer analyze"
+    ]
+  },
+  "app/DashboardStateTooLarge.php": {
+    "owner": "Fixed whole-snapshot budget refusal",
+    "consumers": [
+      "Composer verify",
+      "dashboard.read_dashboard_state",
+      "Composer lint",
+      "Composer analyze"
+    ]
+  },
+  "app/SavedDashboardRepository.php": {
+    "owner": "Explicit ordered credential-free saved dashboard projection",
+    "consumers": [
+      "Composer verify",
+      "dashboard.read_dashboard_state",
+      "Composer lint",
+      "Composer analyze"
+    ]
+  },
+  "app/SavedDashboardRow.php": {
+    "owner": "Native saved display row admission without credential/configuration columns",
+    "consumers": [
+      "Composer verify",
+      "dashboard.read_dashboard_state",
+      "Composer lint",
+      "Composer analyze"
+    ]
+  },
+  "tests/Unit/SavedDashboardRepositoryTest.php": {
+    "owner": "Projection privacy, ordering, large membership and raw budget regressions",
+    "consumers": [
+      "Composer verify",
+      "dashboard.read_dashboard_state",
+      "Composer lint",
+      "Composer analyze"
+    ]
+  },
+  "tests/Http/DashboardStateTest.php": {
+    "owner": "Real saved snapshot privacy, Volt parity, membership and complete encoded bound",
+    "consumers": [
+      "Composer verify",
+      "dashboard.read_dashboard_state",
+      "Composer lint",
+      "Composer analyze"
+    ]
+  },
+  "tests/Http/DashboardStateSessionTest.php": {
+    "owner": "Automatic polling idle/absolute/logout/password boundary regressions",
+    "consumers": [
+      "Composer verify",
+      "dashboard.read_dashboard_state",
+      "Composer lint",
+      "Composer analyze"
+    ]
+  },
+  "tests/Http/DashboardStateSessionRaceTest.php": {
+    "owner": "Independent HTTP authority changes fence prepared unlocked snapshots",
+    "consumers": [
+      "Composer verify",
+      "dashboard.read_dashboard_state",
+      "Composer lint",
+      "Composer analyze"
+    ]
+  },
+  "tests/Support/DashboardStateAssertions.php": {
+    "owner": "Shared snapshot shape, saved-data and presenter assertions",
+    "consumers": [
+      "Composer verify",
+      "dashboard.read_dashboard_state",
+      "Composer lint",
+      "Composer analyze"
+    ]
+  },
+  "tests/Support/DashboardPollingBrowser.php": {
+    "owner": "Owned saved-row browser producers with no upstream checks",
+    "consumers": [
+      "Composer verify",
+      "dashboard.read_dashboard_state",
+      "Composer lint",
+      "Composer analyze"
+    ]
+  },
+  "tests/fixtures/dashboard-state-request.php": {
+    "owner": "Owned independent HTTP cookie request during unlocked saved projection",
+    "consumers": [
+      "Composer verify",
+      "dashboard.read_dashboard_state",
+      "Composer lint",
+      "Composer analyze"
+    ]
+  },
+  "tests/fixtures/dashboard-state-race-router.php": {
+    "owner": "Connection-local SQLite SELECT barrier for actual production state handler",
+    "consumers": [
+      "Composer verify",
+      "dashboard.read_dashboard_state",
+      "Composer lint",
+      "Composer analyze"
+    ]
+  },
+  "public/assets/dashboard-polling.js": {
+    "owner": "Single-operation saved-state transport, deadlines, byte admission and backoff",
+    "consumers": [
+      "Composer verify",
+      "dashboard.read_dashboard_state",
+      "Dashboard polling browser/Node acceptance"
+    ]
+  },
+  "public/assets/dashboard-view.js": {
+    "owner": "Atomic saved Volt reconciliation preserving native forms and local UI state",
+    "consumers": [
+      "Composer verify",
+      "dashboard.read_dashboard_state",
+      "Dashboard polling browser/Node acceptance"
+    ]
+  },
+  "tests/Browser/dashboard-polling.test.mjs": {
+    "owner": "Actual production scheduler and streamed transport fake-clock controls",
+    "consumers": [
+      "Composer verify",
+      "dashboard.read_dashboard_state",
+      "Dashboard polling browser/Node acceptance"
+    ]
+  },
+  "tests/Browser/dashboard-polling-scenarios.mjs": {
+    "owner": "Real-browser saved membership, controls, focus and lifecycle acceptance",
+    "consumers": [
+      "Composer verify",
+      "dashboard.read_dashboard_state",
+      "Dashboard polling browser/Node acceptance"
+    ]
+  },
+  "views/dashboard-snapshot.volt": {
+    "owner": "Shared escaped canonical forms, tile/table and empty-state snapshot",
+    "consumers": [
+      "Composer verify",
+      "dashboard.read_dashboard_state",
+      "Dashboard polling browser/Node acceptance"
+    ]
+  },
+  "docs/dashboard-polling.md": {
+    "owner": "Saved dashboard refresh contract, bounds and test workflow",
+    "consumers": [
+      "Composer verify",
+      "dashboard.read_dashboard_state",
+      "Dashboard polling browser/Node acceptance"
     ]
   }
 }

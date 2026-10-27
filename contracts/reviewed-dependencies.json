@@ -8,7 +8,7 @@
                 "Composer verify",
                 "Reviewed dependency capture"
             ],
-            "fingerprint": "sha256:a3cc299001a2ab35189469922ab59262d409c1f0c27d66be4633d3d9a842d168"
+            "fingerprint": "sha256:149d24e119f1f7889723652240884a10d3493af88d6c8030bdfb047afece5c56"
         },
         {
             "path": "tools/reviewed-dependencies.php",
@@ -156,7 +156,7 @@
                 "tools/server-io-uring-php-grammar.test.php",
                 "tools/server-supervisor-linux-fallback-unit.c"
             ],
-            "fingerprint": "sha256:7ad5d59c2c6de08c5d1ad9b0f09243fee6e1063c04483e8449722074fbb58a2f"
+            "fingerprint": "sha256:e56583a64434f0062eae311138c97707dc136281e3cfed09405f0549bef47979"
         },
         {
             "path": "app/AddressRange.php",
@@ -570,7 +570,7 @@
                 "Composer verify",
                 "Composer analyze"
             ],
-            "fingerprint": "sha256:9110cb5b2fbde0c8e76984bcda56f73f5ee93bb53264a2487844e2035b172de2"
+            "fingerprint": "sha256:dee57863a8c91cdcabb4f8a8963c08a416a41c881dd05e23c2124082b85972dd"
         },
         {
             "path": "app/Database.php",
@@ -4975,7 +4975,7 @@
                 "Composer verify",
                 "Composer analyze"
             ],
-            "fingerprint": "sha256:28089730c43cba79413cb69eddccce768c1fb177280873ea248539afb373343c"
+            "fingerprint": "sha256:9bad3e3c1ee7400c12c9f53f467112051273c3775f0d527b1145dc720b295a8b"
         },
         {
             "path": "app/WebSession.php",
@@ -5386,7 +5386,7 @@
                 "dashboard.read_incidents",
                 "Bounded dashboard table overflow and keyboard focus"
             ],
-            "fingerprint": "sha256:af732cba9cba559e4c89e6f20f4d954a8b25ca630ff37ac1eb26fca004ac7c27"
+            "fingerprint": "sha256:830e74cebf713cd8f9c0b6657b5f8d21d5c39c10fca2ee0b5761e22d06a92e21"
         },
         {
             "path": "public/index.php",
@@ -5419,7 +5419,7 @@
                 "Administrator Argon2id runtime and byte policy",
                 "Administrator local password reset and API bearer revocation"
             ],
-            "fingerprint": "sha256:c3c590bd517d58d09e761189c900bebec856ed4f995b4debf4bd7f07d1678139"
+            "fingerprint": "sha256:2c7f9bb31153090dab8b0b09556ed11ac536212f13bf6f7669fa0d92edb90ade"
         },
         {
             "path": "testo-server.php",
@@ -8079,7 +8079,7 @@
                 "Composer analyze",
                 "Composer verify:server"
             ],
-            "fingerprint": "sha256:b705492842299efae89c0d88a5c4e4c04a3e2fd54c5992ce6dd4a5915e3d2921"
+            "fingerprint": "sha256:db24ad0515d01b349727f2538b95dca477a3992b110bcfe6f0892c03d7425935"
         },
         {
             "path": "tests/Server/EngineHistoryTest.php",
@@ -11002,7 +11002,7 @@
                 "Composer verify",
                 "Composer analyze"
             ],
-            "fingerprint": "sha256:1b0110cc86048ff30300e3d6144d8017856d04d88695aa2d1ceb9403f0064696"
+            "fingerprint": "sha256:1f51ee7e10ff0be4fdb4b27de17490b1e046c6ec406c5469730873d0e773252c"
         },
         {
             "path": "tools/capture-reviewed-dependencies.php",
@@ -11224,7 +11224,7 @@
                 "tools/server-supervisor-linux-qualify.cjs",
                 "tools/server-linux-prepare.cjs"
             ],
-            "fingerprint": "sha256:b3ee84e1b05f919aae8520fd2d63319a8a368dd80f78a8756834a5dccd1d89a0"
+            "fingerprint": "sha256:94172dbe1ae568749c55f1a43e1758ba26963f2554123bbb5aef1812fe77d695"
         },
         {
             "path": "tools/ServerTestEvidence.php",
@@ -11247,7 +11247,7 @@
                 "Composer analyze",
                 "tools/server-supervisor.cjs"
             ],
-            "fingerprint": "sha256:4dae8a647b8f1f74e2b6c98597d670c27f3bb40c6e9b324d9ca2aaf1b10b7ab1"
+            "fingerprint": "sha256:88db2c46b8a44a4261d033cd9f2957644d1f94fd66db34c299f1a6c702ad1a0f"
         },
         {
             "path": "tools/verify.php",
@@ -11258,7 +11258,7 @@
                 "Composer verify",
                 "Composer analyze"
             ],
-            "fingerprint": "sha256:474794abe50964aa5775a31ff1209852b1f24705e81c87722f9ac067fdf5ef92"
+            "fingerprint": "sha256:01da56d34d2437bc288893d6327f29aa8a1343dee7dae1ebcb7ccf0859e0438c"
         },
         {
             "path": "views/incidents.volt",
@@ -11274,7 +11274,7 @@
             "consumers": [
                 "dashboard.read_incidents"
             ],
-            "fingerprint": "sha256:94241ebfb6d67e017d4bda3da04b8efa46e82c38bbcd897f2dcd95b6323a6be6"
+            "fingerprint": "sha256:874284d711f96bb625a864b27ffd53d7cc5adccc38189a88847c96c0ae21e64e"
         },
         {
             "path": "views/read-api-token-issued.volt",
@@ -11752,7 +11752,7 @@
                 "Administrator local password reset and API bearer revocation",
                 "Administrator idle timeout policy"
             ],
-            "fingerprint": "sha256:5c7c1b90a12e8c89cf3041a980b7f9ab975d73f9ab3867738f72a4d8692409dd"
+            "fingerprint": "sha256:f1be949b69f499b64bf0a8bcd62b9232266ba009b97755f79dff5e9d356491a6"
         },
         {
             "path": "tests/fixtures/hsts-router.php",
@@ -12051,7 +12051,7 @@
             "consumers": [
                 "Local dashboard view/search/filter/history and pending forms"
             ],
-            "fingerprint": "sha256:ac90729b57870845959b963a8dddddb7b657c2d1c9215bead788ae4bc37a4091"
+            "fingerprint": "sha256:1acd96b267e791d76534a76076fff9eb67690a4d550e475638bfeb8a6c32f188"
         },
         {
             "path": "tests/browser-dashboard.php",
@@ -12059,7 +12059,7 @@
             "consumers": [
                 "Owned retained browser fixture protocol"
             ],
-            "fingerprint": "sha256:1608c5dffe0e9bb2b00f7b6b118d9c0e2c4a58fb740a851cef7d8cd68933ac58"
+            "fingerprint": "sha256:5ae9bd8f34bf0743e008360454510a7b1d24df562b01974632ecb9ecf1e6479e"
         },
         {
             "path": "tests/Browser/control-lifecycle.mjs",
@@ -12086,7 +12086,7 @@
             "consumers": [
                 "Qualified isolated browser acceptance and nonzero controls"
             ],
-            "fingerprint": "sha256:4ba65563bafc8d2ffccaa07a0955c54bcde4ad5ea1e52ba49d434aaedb19f652"
+            "fingerprint": "sha256:82a4964a9f3029c03419e3e5e528d8a9102e6520954e702d6f48e1998c34369d"
         },
         {
             "path": "tests/fixtures/dashboard-modes-startup-failure.php",
@@ -12199,7 +12199,199 @@
                 "DashboardPage::dashboard",
                 "Shared toolbar and canonical CSRF form composition"
             ],
-            "fingerprint": "sha256:4e51d6a33d2bc61395a72cc863cb640e0df91114457b9bbda26d0453461be1da"
+            "fingerprint": "sha256:f4fb46ffec90700918d57d5d6d9e63bb67bc25746837d1a76d2b082e69b1d500"
+        },
+        {
+            "path": "app/DashboardStatePage.php",
+            "owner": "Automatic cookie-session saved dashboard response and post-unlock authority fence",
+            "consumers": [
+                "Composer verify",
+                "dashboard.read_dashboard_state",
+                "Composer lint",
+                "Composer analyze"
+            ],
+            "fingerprint": "sha256:d75e4e53684c8274cd255691f570b31666df8305bc9e93d3857c43fbc7e7416c"
+        },
+        {
+            "path": "app/DashboardStateTooLarge.php",
+            "owner": "Fixed whole-snapshot budget refusal",
+            "consumers": [
+                "Composer verify",
+                "dashboard.read_dashboard_state",
+                "Composer lint",
+                "Composer analyze"
+            ],
+            "fingerprint": "sha256:784f7c83495f380dec7ee4f3f1c76243696329a5ae6da7426601ed1dee41d20e"
+        },
+        {
+            "path": "app/SavedDashboardRepository.php",
+            "owner": "Explicit ordered credential-free saved dashboard projection",
+            "consumers": [
+                "Composer verify",
+                "dashboard.read_dashboard_state",
+                "Composer lint",
+                "Composer analyze"
+            ],
+            "fingerprint": "sha256:04ff20f817561c78981ac6215b1bd7a2af5f7cf1723a4ceac46ecc2a94379645"
+        },
+        {
+            "path": "app/SavedDashboardRow.php",
+            "owner": "Native saved display row admission without credential/configuration columns",
+            "consumers": [
+                "Composer verify",
+                "dashboard.read_dashboard_state",
+                "Composer lint",
+                "Composer analyze"
+            ],
+            "fingerprint": "sha256:30aee28afa96c99776c168ef089323b67afdeccb5cddae0f671d9bd6c242ba39"
+        },
+        {
+            "path": "tests/Unit/SavedDashboardRepositoryTest.php",
+            "owner": "Projection privacy, ordering, large membership and raw budget regressions",
+            "consumers": [
+                "Composer verify",
+                "dashboard.read_dashboard_state",
+                "Composer lint",
+                "Composer analyze"
+            ],
+            "fingerprint": "sha256:bc98fa64f228cdade058709908b99336651a59d62a5fec6db0ed3008e7545ba2"
+        },
+        {
+            "path": "tests/Http/DashboardStateTest.php",
+            "owner": "Real saved snapshot privacy, Volt parity, membership and complete encoded bound",
+            "consumers": [
+                "Composer verify",
+                "dashboard.read_dashboard_state",
+                "Composer lint",
+                "Composer analyze"
+            ],
+            "fingerprint": "sha256:6a8d9296d76f59b8650ad172c044316ce27aea34deb2a9bf13fb5d73108596b4"
+        },
+        {
+            "path": "tests/Http/DashboardStateSessionTest.php",
+            "owner": "Automatic polling idle/absolute/logout/password boundary regressions",
+            "consumers": [
+                "Composer verify",
+                "dashboard.read_dashboard_state",
+                "Composer lint",
+                "Composer analyze"
+            ],
+            "fingerprint": "sha256:7bc3ea33f4c1b6256f34625f3ffb5a81cf88e96cd39fdd30d46856fb0be4f0f1"
+        },
+        {
+            "path": "tests/Http/DashboardStateSessionRaceTest.php",
+            "owner": "Independent HTTP authority changes fence prepared unlocked snapshots",
+            "consumers": [
+                "Composer verify",
+                "dashboard.read_dashboard_state",
+                "Composer lint",
+                "Composer analyze"
+            ],
+            "fingerprint": "sha256:eee18232e0fd3efbd38aafeafa04582dc889f8989ea088850117ae0e78b07c3b"
+        },
+        {
+            "path": "tests/Support/DashboardStateAssertions.php",
+            "owner": "Shared snapshot shape, saved-data and presenter assertions",
+            "consumers": [
+                "Composer verify",
+                "dashboard.read_dashboard_state",
+                "Composer lint",
+                "Composer analyze"
+            ],
+            "fingerprint": "sha256:67bf79370dc0246d6faf774761bc7a8ae26f44e89cba35c536c271d351610758"
+        },
+        {
+            "path": "tests/Support/DashboardPollingBrowser.php",
+            "owner": "Owned saved-row browser producers with no upstream checks",
+            "consumers": [
+                "Composer verify",
+                "dashboard.read_dashboard_state",
+                "Composer lint",
+                "Composer analyze"
+            ],
+            "fingerprint": "sha256:76a3960832955206fdb8d9565504ed1c7ac7c936ab78fec2ca40ca62609db8f5"
+        },
+        {
+            "path": "tests/fixtures/dashboard-state-request.php",
+            "owner": "Owned independent HTTP cookie request during unlocked saved projection",
+            "consumers": [
+                "Composer verify",
+                "dashboard.read_dashboard_state",
+                "Composer lint",
+                "Composer analyze"
+            ],
+            "fingerprint": "sha256:dd25b90f3617fb4582bf003797512eb5c1ae18068bf033cebd8395746815eedc"
+        },
+        {
+            "path": "tests/fixtures/dashboard-state-race-router.php",
+            "owner": "Connection-local SQLite SELECT barrier for actual production state handler",
+            "consumers": [
+                "Composer verify",
+                "dashboard.read_dashboard_state",
+                "Composer lint",
+                "Composer analyze"
+            ],
+            "fingerprint": "sha256:2c0b497b7c90eba516ad5962badd2c4c37b86eaafc41bed7f5d80a12e72c70d5"
+        },
+        {
+            "path": "public/assets/dashboard-polling.js",
+            "owner": "Single-operation saved-state transport, deadlines, byte admission and backoff",
+            "consumers": [
+                "Composer verify",
+                "dashboard.read_dashboard_state",
+                "Dashboard polling browser/Node acceptance"
+            ],
+            "fingerprint": "sha256:295f4937f56c655567f37242b79e40a0279c170f28717b5ac00329cf8e7d87f2"
+        },
+        {
+            "path": "public/assets/dashboard-view.js",
+            "owner": "Atomic saved Volt reconciliation preserving native forms and local UI state",
+            "consumers": [
+                "Composer verify",
+                "dashboard.read_dashboard_state",
+                "Dashboard polling browser/Node acceptance"
+            ],
+            "fingerprint": "sha256:26627043d58f575a056b55434909c08b0e6b2ccb86e923cee8f76244b30599d3"
+        },
+        {
+            "path": "tests/Browser/dashboard-polling.test.mjs",
+            "owner": "Actual production scheduler and streamed transport fake-clock controls",
+            "consumers": [
+                "Composer verify",
+                "dashboard.read_dashboard_state",
+                "Dashboard polling browser/Node acceptance"
+            ],
+            "fingerprint": "sha256:95d8a22ab6082506c84d0ca3a2e81c7e8bd00adc9b06f13238b555a89abd9efb"
+        },
+        {
+            "path": "tests/Browser/dashboard-polling-scenarios.mjs",
+            "owner": "Real-browser saved membership, controls, focus and lifecycle acceptance",
+            "consumers": [
+                "Composer verify",
+                "dashboard.read_dashboard_state",
+                "Dashboard polling browser/Node acceptance"
+            ],
+            "fingerprint": "sha256:0d46002c77317b4442022c38ed6f30d368738ea9f50d7d169a26c2a535dc00d7"
+        },
+        {
+            "path": "views/dashboard-snapshot.volt",
+            "owner": "Shared escaped canonical forms, tile/table and empty-state snapshot",
+            "consumers": [
+                "Composer verify",
+                "dashboard.read_dashboard_state",
+                "Dashboard polling browser/Node acceptance"
+            ],
+            "fingerprint": "sha256:ee6d8b1f97f6c2a1dbba7f720d6fdbc2fe7fcc6515d1a61f3e57edf19d94b106"
+        },
+        {
+            "path": "docs/dashboard-polling.md",
+            "owner": "Saved dashboard refresh contract, bounds and test workflow",
+            "consumers": [
+                "Composer verify",
+                "dashboard.read_dashboard_state",
+                "Dashboard polling browser/Node acceptance"
+            ],
+            "fingerprint": "sha256:29e128849ce9ebe12e44d2a87af9e0996f967607831d4e0d4c293c9d535c5ea0"
         }
     ]
 }

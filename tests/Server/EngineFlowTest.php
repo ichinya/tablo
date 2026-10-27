@@ -30,6 +30,7 @@ final class EngineFlowTest
             Assert::same(DatabaseSession::get($web->database())?->configuration->engine, getenv('TABLO_TEST_DB_DRIVER'));
             Assert::same($web->request('/logout', ['_csrf' => WebFixture::csrf($home)])['status'], 303);
             Assert::same($web->request('/')['status'], 303);
+            Assert::same($web->request('/dashboard/state')['status'], 401);
             $login = $web->request('/login');
             Assert::same($web->request('/login', ['_csrf' => WebFixture::csrf($login), 'password' => FixtureCredentials::syntheticPassword()])['status'], 303);
             Assert::same($web->request('/setup')['status'], 404);
@@ -56,6 +57,16 @@ final class EngineFlowTest
             Assert::same($fixture->scalar('SELECT config_revision FROM sites'), 1);
             Assert::same($web->request('/settings', ['_csrf' => $csrf, 'check_interval_minutes' => '17'])['status'], 303);
             Assert::same($fixture->scalar('SELECT check_interval_minutes FROM installation_settings'), 17);
+            $saved = $web->request('/dashboard/state');
+            Assert::same($saved['status'], 200);
+            $snapshot = \Tablo\JsonRecord::decode($saved['body']);
+            Assert::same(\Tablo\SqlColumn::integer($snapshot, 'dashboard_version'), 1);
+            Assert::same(\Tablo\SqlColumn::string($snapshot, 'csrf'), $csrf);
+            $stats = \Tablo\JsonRecord::checked(\Tablo\Tests\Support\FixtureValue::at($snapshot, 'stats'));
+            Assert::same(\Tablo\SqlColumn::integer($stats, 'total'), 1);
+            Assert::true(str_contains(\Tablo\SqlColumn::string($snapshot, 'html'), 'Changed site'));
+            Assert::same($fixture->scalar('SELECT COUNT(*) FROM check_history'), 0);
+            Assert::same($fixture->scalar('SELECT config_revision FROM sites'), 1);
             Assert::same($web->request('/sites/' . $id . '/delete', ['_csrf' => $csrf])['status'], 303);
             Assert::same($web->request('/settings/tokens/' . $tokenId . '/delete', ['_csrf' => $csrf])['status'], 303);
             Assert::same($fixture->scalar('SELECT COUNT(*) FROM sites'), 0);

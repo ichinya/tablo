@@ -46,3 +46,7 @@
 .incident-card dt{font-size:13px;color:#667085;margin-bottom:5px}.incident-card dd{margin:0}
 @media(max-width:600px){.incident-card dl{grid-template-columns:1fr}.incident-card{padding:16px}}
 @media(max-width:480px){.sidebar{flex-wrap:wrap}.sidebar nav{width:100%;justify-content:space-between}}
+[data-dashboard-count]{font:inherit}
+.dashboard-refresh{font-size:13px;color:#667085;margin:12px 0}
+.dashboard-refresh:empty{display:none}
+.dashboard-refresh a{color:inherit;text-decoration:underline}

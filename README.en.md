@@ -120,6 +120,17 @@ means DNS, transport, request-policy, or JSON parsing failure; “На пауз�
 means the site is disabled. Independent version/GitHub failures do not invalidate
 successful health. Missing data is not zero. Checks older than 15 minutes are marked stale.
 
+## Automatic dashboard refresh
+
+With JavaScript enabled, the open dashboard reads saved results every **15 seconds**.
+Search, filter, tile/table selection, focus, expanded errors and scrolling are preserved.
+Hidden tabs and offline pages pause; error backoff grows to two minutes. The ↻ button,
+CLI and worker perform new checks.
+
+Background reads do not extend the idle timeout. Session expiry or an identity change
+offers a page refresh. Errors and oversized responses retain the previous display.
+See [the contract and limits](docs/dashboard-polling.md).
+
 ## Site endpoints
 
 An empty **Health endpoint**, including whitespace, checks the saved website URL
@@ -1002,11 +1013,12 @@ Successful dashboard navigation, valid CSRF forms, manual checks, and branch loa
 count as activity; validation 422 on an otherwise admitted form also counts.
 Failed login, unknown routes/resources, rejected CSRF, and oversized requests do
 not extend the window. The server handler selects the activity category; client
-headers/parameters cannot change it. Future polling must use the explicit automatic
+headers/parameters cannot change it. Dashboard polling uses the explicit automatic
 request category, which advances only last observation, not the idle window.
 The existing [Read API](#read-api) uses a separate read-only bearer, independent
 of Git/endpoint tokens and administrator cookies, and does not extend browser
-sessions. Dashboard polling is not implemented.
+sessions. Dashboard polling uses the browser cookie session and also leaves its
+idle window unchanged.
 
 Authorization start time never moves. Exactly at the current idle boundary or
 **12 hours after login**, authorization expires before the protected action.

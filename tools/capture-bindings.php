@@ -18,6 +18,7 @@ $mapping = [
     'check_site' => ['app/site-checker.php', 'public function check'],
     'run_checks' => ['app/check-command.php', 'public function run'],
     'list_sites' => ['app/site-repository.php', 'public function all'],
+    'read_dashboard_state' => ['app/DashboardStatePage.php', 'public function state'],
     'list_branches' => ['app/git-hub-connection.php', 'public function branches'],
     'user' => ['database/schema.sql', 'CREATE TABLE IF NOT EXISTS users'],
     'site' => ['app/schema-layout-upgrade.php', 'ALTER TABLE sites ADD COLUMN endpoint_token TEXT'],

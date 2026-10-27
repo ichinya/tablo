@@ -166,6 +166,14 @@
             "method": "POST",
             "path": "/settings/read-api-token/revoke",
             "invokes": "dashboard.revoke_read_api_token"
+        },
+        {
+            "id": "dashboard.read_dashboard_state_endpoint",
+            "kind": "endpoint",
+            "version": 1,
+            "method": "GET",
+            "path": "/dashboard/state",
+            "invokes": "dashboard.read_dashboard_state"
         }
     ]
 }

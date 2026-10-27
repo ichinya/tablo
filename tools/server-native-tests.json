@@ -4198,6 +4198,13 @@
         "MigrationCrash",
         "MigrationFailure"
       ]
+    },
+    "dashboard.read_dashboard_state": {
+      "kind": "query",
+      "main": [
+        "tests/Server/EngineFlowTest.php"
+      ],
+      "cross": []
     }
   },
   "baseline": {
