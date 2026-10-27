@@ -1,5 +1,5 @@
 # Dot-sourced only by the registered synthetic fixture. No credential/input values.
-$fixtureObservationState = @{ bytes = 0; failed = $false; sequence = 0 }
+$fixtureObservationState = @{ bytes = 0; failed = $false; sequence = 0; serializer = $null }
 function Write-FixtureObservation {
     param(
         [ValidateSet('fixture-entry', 'before-encoding-initialization', 'after-encoding-initialization', 'before-resolver-setup', 'after-resolver-setup', 'before-callback-setup', 'after-callback-setup', 'before-helper-call', 'after-helper-call')]
@@ -7,6 +7,14 @@ function Write-FixtureObservation {
     )
     if ($FixtureObservationPath -eq '' -or $fixtureObservationState.failed) { return }
     try {
+        if ($null -eq $fixtureObservationState.serializer) {
+            # Load only this host's serializer; do not discover modules on PSModulePath.
+            # Local imports keep command visibility out of the later helper's scope.
+            $fixtureUtility = Microsoft.PowerShell.Core\Import-Module -Name ([IO.Path]::Combine($PSHOME,
+                'Modules/Microsoft.PowerShell.Utility/Microsoft.PowerShell.Utility.psd1')) -Scope Local -PassThru -ErrorAction Stop
+            $fixtureObservationState.serializer = $fixtureUtility.ExportedCmdlets['ConvertTo-Json']
+            if ($null -eq $fixtureObservationState.serializer) { throw 'Fixture observation serializer unavailable.' }
+        }
         $fixtureRecord = @{
             scope = 'fixture'
             stage = $Stage
@@ -23,12 +31,13 @@ function Write-FixtureObservation {
             encoding = $fixtureObservationEncoding
             nativeCallback = $(if ($ObservationPath -eq '') { 'not-configured' } else { 'configured; emission separate' })
         }
-        $fixtureBytes = (New-Object Text.UTF8Encoding($false, $true)).GetBytes(($fixtureRecord | ConvertTo-Json -Depth 5 -Compress) + [Environment]::NewLine)
+        $fixtureSerializer = $fixtureObservationState.serializer
+        $fixtureBytes = ([Text.UTF8Encoding]::new($false, $true)).GetBytes((& $fixtureSerializer -InputObject $fixtureRecord -Depth 5 -Compress) + [Environment]::NewLine)
         if ($fixtureBytes.Length -gt 4096 -or $fixtureObservationState.bytes + $fixtureBytes.Length -gt 32768) { throw 'Fixture observation bound exceeded.' }
         $fixtureFile = $null
         try {
             $fixtureFileMode = $(if ($fixtureObservationState.bytes -eq 0) { [IO.FileMode]::CreateNew } else { [IO.FileMode]::Open })
-            $fixtureFile = New-Object IO.FileStream($FixtureObservationPath, $fixtureFileMode, [IO.FileAccess]::Write, [IO.FileShare]::Read)
+            $fixtureFile = [IO.FileStream]::new($FixtureObservationPath, $fixtureFileMode, [IO.FileAccess]::Write, [IO.FileShare]::Read)
             if ($fixtureFile.Length -ne $fixtureObservationState.bytes) { throw 'Fixture observation append collision.' }
             $fixtureFile.Position = $fixtureFile.Length
             $fixtureFile.Write($fixtureBytes, 0, $fixtureBytes.Length)

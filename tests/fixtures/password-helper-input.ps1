@@ -26,12 +26,12 @@ $fixtureObservationPresence = @{}
 foreach ($fixtureParameter in @('Helper', 'Php', 'HostEncoding', 'Scenario', 'Mode', 'ObservationPath', 'FixtureObservationPath', 'CaseId', 'CasePhase', 'FixtureControl')) {
     $fixtureObservationPresence[$fixtureParameter] = $PSBoundParameters.ContainsKey($fixtureParameter)
 }
-. (Join-Path $PSScriptRoot 'password-helper-fixture-observation.ps1')
+. ([IO.Path]::Combine($PSScriptRoot, 'password-helper-fixture-observation.ps1'))
 Write-FixtureObservation 'fixture-entry'
 # Deliberately live, pre-helper synthetic control; only its new test uses a short deadline.
 if ($FixtureControl -eq 'pre-helper-stall') {
     [Console]::Out.WriteLine('HELPER_FIXTURE_CONTROL=pre-helper-stall')
-    while ($true) { Start-Sleep -Milliseconds 100 }
+    while ($true) { [Threading.Thread]::Sleep(100) }
 }
 Write-FixtureObservation 'before-encoding-initialization'
 if ($HostEncoding -eq 'bom') { [Console]::InputEncoding = New-Object System.Text.UTF8Encoding($true, $true) }

@@ -16,7 +16,8 @@ final class PasswordHelperEvidenceStart
         PasswordHelperEvidenceFiles::record($directory->path . '/' . $control . '.command.json', [
             'classification' => 'prospective component command; no helper/DB/credential execution', 'argv' => $argv,
             'cwd' => dirname(__DIR__, levels: 2), 'pins' => PasswordHelperEvidenceFiles::pins([$fixture,
-                dirname(__DIR__) . '/fixtures/password-helper-fixture-observation.ps1', PHP_BINARY, $shell])]);
+                dirname(__DIR__) . '/fixtures/password-helper-fixture-observation.ps1',
+                dirname(__DIR__) . '/fixtures/password-helper-input.ps1', PHP_BINARY, $shell])]);
         return $argv;
     }
 
