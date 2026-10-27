@@ -4198,10 +4198,17 @@
         "MigrationCrash",
         "MigrationFailure"
       ]
+    },
+    "dashboard.read_dashboard_state": {
+      "kind": "query",
+      "main": [
+        "tests/Server/EngineFlowTest.php"
+      ],
+      "cross": []
     }
   },
   "baseline": {
-    "requiredIdentityCount": 507,
+    "requiredIdentityCount": 517,
     "identities": [
       {
         "identity": "Tablo\\Tests\\Http\\AdminPasswordTest::resetRevokesEveryProtectedRouteAndPreservesSetupAndData",
@@ -7751,6 +7758,76 @@
         "dataRows": [],
         "minimumAssertions": 1,
         "deadlineSeconds": null
+      },
+      {
+        "identity": "Tablo\\Tests\\Unit\\SavedDashboardRepositoryTest::explicitProjectionReadsWithQueryOnlyAndNeverAcquiresCredentialOrFutureColumns",
+        "path": "tests/Unit/SavedDashboardRepositoryTest.php",
+        "dataRows": [],
+        "minimumAssertions": 1,
+        "deadlineSeconds": null
+      },
+      {
+        "identity": "Tablo\\Tests\\Unit\\SavedDashboardRepositoryTest::moreThanOneHundredSitesAreReturnedInTheExistingDashboardOrder",
+        "path": "tests/Unit/SavedDashboardRepositoryTest.php",
+        "dataRows": [],
+        "minimumAssertions": 1,
+        "deadlineSeconds": null
+      },
+      {
+        "identity": "Tablo\\Tests\\Unit\\SavedDashboardRepositoryTest::cumulativeRawBudgetRejectsAtomicallyAndReleasesItsReadCursor",
+        "path": "tests/Unit/SavedDashboardRepositoryTest.php",
+        "dataRows": [],
+        "minimumAssertions": 1,
+        "deadlineSeconds": null
+      },
+      {
+        "identity": "Tablo\\Tests\\Http\\DashboardStateTest::savedSnapshotPreservesBothPresenterViewsCredentialsAndAllCurrentData",
+        "path": "tests/Http/DashboardStateTest.php",
+        "dataRows": [],
+        "minimumAssertions": 1,
+        "deadlineSeconds": null
+      },
+      {
+        "identity": "Tablo\\Tests\\Http\\DashboardStateTest::savedMembershipChangesAndMoreThanOneHundredRowsProduceCompleteSnapshots",
+        "path": "tests/Http/DashboardStateTest.php",
+        "dataRows": [],
+        "minimumAssertions": 1,
+        "deadlineSeconds": null
+      },
+      {
+        "identity": "Tablo\\Tests\\Http\\DashboardStateTest::finalEncodedJsonBudgetReturnsFixed413WithoutAFragmentOrSavedWrites",
+        "path": "tests/Http/DashboardStateTest.php",
+        "dataRows": [],
+        "minimumAssertions": 1,
+        "deadlineSeconds": null
+      },
+      {
+        "identity": "Tablo\\Tests\\Http\\DashboardStateSessionTest::realAutomaticRouteOnlyMovesObservationAndExpiresAtIdleEquality",
+        "path": "tests/Http/DashboardStateSessionTest.php",
+        "dataRows": [],
+        "minimumAssertions": 1,
+        "deadlineSeconds": null
+      },
+      {
+        "identity": "Tablo\\Tests\\Http\\DashboardStateSessionTest::anonymousLogoutAndAbsoluteDeadlineReturnJsonWithoutRedirects",
+        "path": "tests/Http/DashboardStateSessionTest.php",
+        "dataRows": [],
+        "minimumAssertions": 1,
+        "deadlineSeconds": null
+      },
+      {
+        "identity": "Tablo\\Tests\\Http\\DashboardStateSessionTest::committedPasswordChangeRevokesThePollingCookie",
+        "path": "tests/Http/DashboardStateSessionTest.php",
+        "dataRows": [],
+        "minimumAssertions": 1,
+        "deadlineSeconds": null
+      },
+      {
+        "identity": "Tablo\\Tests\\Http\\DashboardStateSessionRaceTest::independentHttpActionAcquiresReleasedSessionAndFencesPreparedSavedState",
+        "path": "tests/Http/DashboardStateSessionRaceTest.php",
+        "dataRows": [],
+        "minimumAssertions": 1,
+        "deadlineSeconds": null
       }
     ],
     "prerequisite": "Unchanged Composer verify with explicitly isolated SQLite configuration; source/dependency refusal must happen before native subprocesses.",
@@ -7766,8 +7843,8 @@
       "identity": "Tablo\\Tests\\Network\\PasswordHelperTest::shippedHelperPreservesHostEncodingAndExactCredentials",
       "path": "tests/Network/PasswordHelperTest.php",
       "reason": "Native Windows PowerShell host required.",
-      "windowsPassed": 507,
-      "linuxPassed": 500,
+      "windowsPassed": 517,
+      "linuxPassed": 510,
       "additionalSkips": [
         {
           "identity": "Tablo\\Tests\\Network\\PasswordHelperFixtureObservationTest::preHelperStallEmitsEntryWhileNativeStagesRemainUnobserved",

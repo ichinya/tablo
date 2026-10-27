@@ -7,6 +7,7 @@ import crypto from 'node:crypto';
 import {spawn} from 'node:child_process';
 import {pathToFileURL} from 'node:url';
 import {pendingNavigation, ownDirectChild, settleOwnedCleanup} from './control-lifecycle.mjs';
+import {pollingScenarios} from './dashboard-polling-scenarios.mjs';
 
 // The caller provisions qualified libraries/executable and an immutable source copy.
 // No package install, application API or installation environment is used here.
@@ -303,7 +304,10 @@ async function context(options = {}, init, initArg) {
       finally { transportJobs.delete(job); }
     } else await route.continue();
   });
-  ctx.on('request', request => requests.push({method: request.method(), url: request.url()}));
+  ctx.on('request', request => requests.push({method: request.method(), url: request.url(),
+    resourceType: request.resourceType(), accept: request.headers().accept || null,
+    authorization: Object.keys(request.headers()).some(name => name.toLowerCase() === 'authorization'),
+    body: request.postData() !== null}));
   ctx.on('requestfailed', request => { const attempt = denialByRequest.get(request); if (attempt) { attempt.failed = request.failure()?.errorText; record('environment-request-failed', attempt); } });
   ctx.on('requestfinished', request => { const attempt = denialByRequest.get(request); if (attempt) attempt.finished = true; });
   ctx.on('response', response => {
@@ -346,7 +350,16 @@ async function context(options = {}, init, initArg) {
   return ctx;
 }
 async function closeContext(ctx) { await drainCaptures(); await ctx.close(); contexts.delete(ctx); record('context-closed'); }
-async function open(ctx) { const page = await ctx.newPage(); await pageReady.get(page); await page.goto(fixture.base); await page.locator('[data-dashboard-controls]').waitFor({state: 'visible'}); await drainCaptures(); return page; }
+async function open(ctx, {clock = false} = {}) {
+  const page = await ctx.newPage(); await pageReady.get(page);
+  if (clock) {
+    await page.clock.install({time: new Date('2026-10-27T00:00:00Z')});
+    await page.clock.pauseAt(new Date('2026-10-27T00:00:01Z'));
+  }
+  await page.goto(fixture.base); await page.locator('[data-dashboard-controls]').waitFor({state: 'visible'}); await drainCaptures(); return page;
+}
+const stateRequest = request => request.method === 'GET' && request.url === fixture.base + '/dashboard/state'
+  && request.resourceType === 'fetch' && request.accept === 'application/json' && !request.authorization && !request.body;
 const visibleIds = (page, mode) => page.locator(`[data-dashboard-view="${mode}"] [data-site]:visible`).evaluateAll(nodes => nodes.map(node => Number(node.dataset.siteId)));
 const mode = async (page, view) => { await drainCaptures(); await page.locator(`[data-view="${view}"]`).click(); assert.equal(await page.locator(`[data-view="${view}"]`).getAttribute('aria-pressed'), 'true'); };
 async function checkPrivacy(page) {
@@ -425,7 +438,7 @@ try {
     record('incoming-user-agent-audit', {hits, interpretation: 'Only reviewed outgoing CURLOPT_USERAGENT constants; no incoming UA-dependent application auth/business branch', syntheticBackendUserAgent: config.backendUserAgent});
   }
   // Independent raw HTTP capture excludes DOM hooks and browser response changes.
-  for (const pathname of ['/', '/assets/app.js', '/assets/app.css']) {
+  for (const pathname of ['/', '/assets/dashboard-polling.js', '/assets/dashboard-view.js', '/assets/app.js', '/assets/app.css']) {
     const raw = await new Promise((resolve, reject) => {
       const request = http.get(fixture.base + pathname, {headers: {Cookie: readCookies().map(cookie => `${cookie.name}=${cookie.value}`).join('; ')}}, response => {
         const chunks = []; response.on('data', bytes => chunks.push(bytes));
@@ -439,7 +452,7 @@ try {
     fs.writeFileSync(`${directory}/${file}`, raw.bytes);
     record('independent-raw-http', {pathname, status: raw.status, bytes: raw.bytes.length, sha256: digest(raw.bytes), file});
   }
-  server = await chromium.launchServer({executablePath: config.chrome, headless: true, env: config.environment,
+  server = await chromium.launchServer({executablePath: config.chrome, headless: true, host: '127.0.0.1', env: config.environment,
     args: ['--no-proxy-server', '--disable-background-networking', '--disable-component-update', '--no-first-run']});
   const chrome = server.process();
   browserPort = Number(new URL(server.wsEndpoint()).port);
@@ -471,7 +484,7 @@ try {
       if (query.includes('absent')) assert.deepEqual(table, []);
     }
   }
-  assert.equal(requests.length, networkStart, 'view/search/filter sends no requests');
+  assert.deepEqual(requests.slice(networkStart).filter(request => !stateRequest(request)), [], 'view/search/filter only allows validated automatic saved-state GETs');
   const localAfter = await command('state');
   assert.deepEqual(localAfter.timestamps, initial.timestamps, 'local interaction grants no session activity');
   assert.deepEqual(localAfter.counts, initial.counts);
@@ -590,6 +603,8 @@ try {
     else await actionsContext.unroute('**/sites/*/check');
     await drainCaptures(); await actions.goBack(); await actions.locator('[data-dashboard-controls]').waitFor({state: 'visible'});
     assert.deepEqual(await actions.locator(`button[form="check-site-${fixture.ids[4]}"]`).evaluateAll(nodes => nodes.map(node => node.disabled)), [true, true]);
+    assert.deepEqual(await actions.locator(`button[form="check-site-${fixture.ids[0]}"]`).evaluateAll(nodes => nodes.map(node => ({disabled: node.disabled, pending: node.classList.contains('checking')}))),
+      [{disabled: false, pending: false}, {disabled: false, pending: false}], 'native back navigation recovers pending controls');
     await closeContext(actionsContext);
   }
   // A separate screenshot launcher has only neutral example domains, with no real checks.
@@ -611,6 +626,7 @@ try {
   const longContext = await context(); const long = await open(longContext); await mode(long, 'table');
   await long.setViewportSize({width: 360, height: 800}); await bounded(long, 'long Unicode/URL/branch/error'); await mode(long, 'tile');
   assert.ok(await long.evaluate(() => document.documentElement.scrollWidth <= innerWidth + 1), 'long tiles overflow'); await closeContext(longContext);
+  if (config.polling === true) await pollingScenarios({context, open, closeContext, command, fixture, requests, stateRequest, drainCaptures, record, mode, visibleIds});
   await command('empty');
   const emptyContext = await context(); const empty = await open(emptyContext);
   await mode(empty, 'table'); assert.equal(await empty.locator('.dashboard-table-region').isVisible(), false);

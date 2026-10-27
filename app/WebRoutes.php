@@ -21,7 +21,7 @@ final class WebRoutes
         $manual = new ManualCheckPage($sites, $github, $vault, new NotificationDelivery($db, $vault), $page);
         $this->pages = [
             new AuthenticationPages($this->auth, new ClientAddress(getenv('TABLO_TRUSTED_PROXIES')), $page),
-            new DashboardPage($sites, $page), new IncidentPage(new IncidentRepository($db), $page),
+            new DashboardPage($sites, new DashboardStatePage(new SavedDashboardRepository($db), $page), $page), new IncidentPage(new IncidentRepository($db), $page),
             (new SettingsPages($this->settings, new NotificationSettings($db, $vault), new NotificationOutbox($db), $tokens, $page))->withReadApiTokens(new ReadApiTokenRepository($db)),
             new ReadApiTokenPages($db, new ReadApiTokenRepository($db), $page),
             new TokenPages($tokens, $page), new SitePages($sites, $github, $tokens, $manual, $page),

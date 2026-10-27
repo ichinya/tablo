@@ -8,11 +8,12 @@ use Phalcon\Mvc\Micro;
 
 final class DashboardPage extends WebPage
 {
-    public function __construct(private readonly SiteRepository $sites, PageResponse $page) { parent::__construct($page); }
+    public function __construct(private readonly SiteRepository $sites, private readonly DashboardStatePage $state, PageResponse $page) { parent::__construct($page); }
     public function register(Micro $app): void
     {
         $web = $this;
         $app->get('/', new WebAction($web->dashboard(...), SessionActivity::HumanPage));
+        $app->get('/dashboard/state', new WebAction($this->state->state(...), SessionActivity::Automatic, SessionResponse::Json));
     }
     private function dashboard(): Response
     {

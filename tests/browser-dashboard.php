@@ -28,6 +28,11 @@ try {
             fflush(STDOUT);
             continue;
         }
+        $extra = match ($operation) {
+            'polling_mutate' => \Tablo\Tests\Support\DashboardPollingBrowser::mutate($fixture, $ids),
+            'polling_large' => \Tablo\Tests\Support\DashboardPollingBrowser::large($fixture),
+            default => [],
+        };
         if ($operation === 'clock') { $fixture->clock(\Tablo\SqlColumn::integer($command, 'epoch')); }
         if ($operation === 'empty') { $fixture->web->database()->exec('DELETE FROM sites'); }
         if ($operation === 'long') {
@@ -37,7 +42,7 @@ try {
             finally { $statement->closeCursor(); unset($statement); }
         }
         echo json_encode(['operation' => $operation, 'counts' => $fixture->counts(), 'peerCount' => $fixture->peerCount(),
-            'timestamps' => $operation === 'clock' ? [] : $fixture->timestamps()], JSON_THROW_ON_ERROR) . "\n";
+            'timestamps' => $operation === 'clock' ? [] : $fixture->timestamps()] + $extra, JSON_THROW_ON_ERROR) . "\n";
         fflush(STDOUT);
     }
 } catch (Throwable $error) {

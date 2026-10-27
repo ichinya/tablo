@@ -7,6 +7,8 @@
     <title>{{ title }} · Tablo</title>
     <link rel="icon" type="image/svg+xml" href="/assets/favicon.svg">
     <link rel="stylesheet" href="/assets/app.css">
+    <script src="/assets/dashboard-polling.js" defer></script>
+    <script src="/assets/dashboard-view.js" defer></script>
     <script src="/assets/app.js" defer></script>
 </head>
 <body>

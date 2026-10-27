@@ -2688,6 +2688,76 @@
                     }
                 }
             ]
+        },
+        {
+            "id": "dashboard.saved_dashboard_stats",
+            "kind": "value-object",
+            "version": 1,
+            "fields": [
+                {
+                    "name": "total",
+                    "type": {
+                        "ref": "dashboard.number"
+                    },
+                    "required": true
+                },
+                {
+                    "name": "online",
+                    "type": {
+                        "ref": "dashboard.number"
+                    },
+                    "required": true
+                },
+                {
+                    "name": "attention",
+                    "type": {
+                        "ref": "dashboard.number"
+                    },
+                    "required": true
+                },
+                {
+                    "name": "paused",
+                    "type": {
+                        "ref": "dashboard.number"
+                    },
+                    "required": true
+                }
+            ]
+        },
+        {
+            "id": "dashboard.saved_dashboard_state",
+            "kind": "value-object",
+            "version": 1,
+            "fields": [
+                {
+                    "name": "dashboard_version",
+                    "type": {
+                        "ref": "dashboard.number"
+                    },
+                    "required": true
+                },
+                {
+                    "name": "csrf",
+                    "type": {
+                        "ref": "dashboard.text"
+                    },
+                    "required": true
+                },
+                {
+                    "name": "stats",
+                    "type": {
+                        "ref": "dashboard.saved_dashboard_stats"
+                    },
+                    "required": true
+                },
+                {
+                    "name": "html",
+                    "type": {
+                        "ref": "dashboard.text"
+                    },
+                    "required": true
+                }
+            ]
         }
     ]
 }

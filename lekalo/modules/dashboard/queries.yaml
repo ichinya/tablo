@@ -158,6 +158,20 @@
             "returns": {
                 "ref": "dashboard.read_api_token_status"
             }
+        },
+        {
+            "id": "dashboard.read_dashboard_state",
+            "kind": "query",
+            "version": 1,
+            "description": "GET /dashboard/state uses current browser-cookie authority and Automatic activity, never an external bearer or human dashboard GET. Ordinary Web initialization remains in force. After admission, release the session lock, read one ordered credential-free saved-site projection, render shared Volt forms/tile/table and counters, then revalidate the same live session ID/CSRF/auth fingerprint/start and current idle/absolute policy before sending. Never consume notice or call site/provider/check/history/outbox writers. Whole UTF-8 JSON success is bounded to2MiB; overflow returns fixed413 without a partial snapshot or arbitrary site-count cutoff. Session refusal is fixed401 JSON without protected data. Output contains only envelope version1, original current CSRF, aggregate counts and escaped same-dashboard HTML; endpoint paths, credential/ciphertext/snapshot columns are not projected.",
+            "reads": [
+                "dashboard.site",
+                "dashboard.user",
+                "dashboard.installation_settings"
+            ],
+            "returns": {
+                "ref": "dashboard.saved_dashboard_state"
+            }
         }
     ]
 }

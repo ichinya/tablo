@@ -5,7 +5,7 @@
         "version": "0.1.0"
     },
     "project": "tablo",
-    "revision": "sha256:0a0b93346167a46580a9ce39b58a33702cf423a4d506d37148c5a0acc81a3155",
+    "revision": "sha256:8e7645d3ded4fcb945bf071348ffb7d99200106d86205ac2bf739c62e8385a49",
     "symbols": [
         {
             "id": "dashboard.change_admin_password",
@@ -326,6 +326,25 @@
                 "output": "list(dashboard.site)",
                 "reads": [
                     "dashboard.site"
+                ]
+            },
+            "effects": []
+        },
+        {
+            "id": "dashboard.read_dashboard_state",
+            "kind": "query",
+            "source": {
+                "path": "app/dashboard-state-page.php",
+                "line": 17
+            },
+            "fingerprint": "sha256:c5d4ebc72d926a5a11ca3d8ebfd3e76117a4444cbe795f99f747806b17180288",
+            "signature": {
+                "inputs": [],
+                "output": "dashboard.saved_dashboard_state",
+                "reads": [
+                    "dashboard.site",
+                    "dashboard.user",
+                    "dashboard.installation_settings"
                 ]
             },
             "effects": []
