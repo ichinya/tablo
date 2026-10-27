@@ -1,10 +1,29 @@
 param(
-    [ValidateSet('missing-healthy', 'missing-disposed', 'prefix-healthy', 'prefix-disposed', 'complete', 'complete-extra', 'delayed-entry', 'no-entry', 'entry-before-marker', 'entry-no-marker', 'marker-no-entry')]
+    [ValidateSet('missing-healthy', 'missing-disposed', 'prefix-healthy', 'prefix-disposed', 'complete', 'complete-extra', 'delayed-entry', 'no-entry', 'entry-before-marker', 'entry-no-marker', 'marker-no-entry', 'restricted-bootstrap')]
     [string] $Control,
     [string] $Journal,
     [ValidatePattern('^case-[a-f0-9]{24}$')]
     [string] $CaseId
 )
+
+# Prove the real pre-helper path without ambient cmdlet discovery or real tools.
+if ($Control -eq 'restricted-bootstrap') {
+    $ErrorActionPreference = 'Stop'
+    $PSModuleAutoLoadingPreference = 'None'
+    $restrictedRoot = [IO.Path]::GetDirectoryName($Journal)
+    $env:PSModulePath = [IO.Path]::Combine($restrictedRoot, 'empty-module-path')
+    $null = [IO.Directory]::CreateDirectory($env:PSModulePath)
+    function Join-Path { throw 'Unexpected implicit fixture path command.' }
+    function New-Object { throw 'Unexpected implicit fixture constructor command.' }
+    function ConvertTo-Json { throw 'Unexpected implicit fixture serializer command.' }
+    & ([IO.Path]::Combine($PSScriptRoot, 'password-helper-input.ps1')) `
+        -Helper ([IO.Path]::Combine($restrictedRoot, 'helper-must-not-run.ps1')) `
+        -Php ([IO.Path]::Combine($restrictedRoot, 'php-must-not-run.exe')) `
+        -HostEncoding default -Scenario unicode -Mode Native `
+        -ObservationPath ([IO.Path]::Combine($restrictedRoot, 'native-observation.jsonl')) `
+        -FixtureObservationPath $Journal -CaseId $CaseId -CasePhase fixture-control -FixtureControl pre-helper-stall
+    throw 'Restricted pre-helper fixture returned unexpectedly.'
+}
 
 # Fixed body-entry evidence only; diagnostic failure must preserve the fixture outcome.
 try { [Console]::Out.WriteLine('HELPER_FIXTURE_BODY=admitted') } catch { }
@@ -13,7 +32,7 @@ $ErrorActionPreference = 'Stop'
 $FixtureObservationPath = $Journal
 $HostEncoding = 'default'; $Scenario = 'unicode'; $CasePhase = 'primary'; $Mode = 'Native'; $FixtureControl = 'none'
 $ObservationPath = ''; $fixtureObservationPresence = @{}; $fixtureObservationEncoding = $null
-. (Join-Path $PSScriptRoot 'password-helper-fixture-observation.ps1')
+. ([IO.Path]::Combine($PSScriptRoot, 'password-helper-fixture-observation.ps1'))
 
 # Component controls invoke the real writer, never the helper, PHP, or a database.
 if ($Control -in @('entry-before-marker', 'entry-no-marker', 'marker-no-entry')) {
