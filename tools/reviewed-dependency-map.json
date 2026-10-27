@@ -9885,7 +9885,7 @@
       "Shared toolbar and canonical CSRF form composition"
     ]
   },
-  "app/DashboardStatePage.php": {
+  "app/dashboard-state-page.php": {
     "owner": "Automatic cookie-session saved dashboard response and post-unlock authority fence",
     "consumers": [
       "Composer verify",

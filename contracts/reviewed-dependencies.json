@@ -8,7 +8,7 @@
                 "Composer verify",
                 "Reviewed dependency capture"
             ],
-            "fingerprint": "sha256:149d24e119f1f7889723652240884a10d3493af88d6c8030bdfb047afece5c56"
+            "fingerprint": "sha256:6bc7b5450c6d44f8f5b717687c35d58d31b29ec3416766d0be80c0f572ac1f92"
         },
         {
             "path": "tools/reviewed-dependencies.php",
@@ -11002,7 +11002,7 @@
                 "Composer verify",
                 "Composer analyze"
             ],
-            "fingerprint": "sha256:1f51ee7e10ff0be4fdb4b27de17490b1e046c6ec406c5469730873d0e773252c"
+            "fingerprint": "sha256:ac19fdf2b0e01778519f7ad8efe67398e90541311041464d3922413cb10fbf34"
         },
         {
             "path": "tools/capture-reviewed-dependencies.php",
@@ -12202,7 +12202,7 @@
             "fingerprint": "sha256:f4fb46ffec90700918d57d5d6d9e63bb67bc25746837d1a76d2b082e69b1d500"
         },
         {
-            "path": "app/DashboardStatePage.php",
+            "path": "app/dashboard-state-page.php",
             "owner": "Automatic cookie-session saved dashboard response and post-unlock authority fence",
             "consumers": [
                 "Composer verify",

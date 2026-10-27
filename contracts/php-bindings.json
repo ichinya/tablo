@@ -334,7 +334,7 @@
             "id": "dashboard.read_dashboard_state",
             "kind": "query",
             "source": {
-                "path": "app/DashboardStatePage.php",
+                "path": "app/dashboard-state-page.php",
                 "line": 15
             },
             "fingerprint": "sha256:d75e4e53684c8274cd255691f570b31666df8305bc9e93d3857c43fbc7e7416c",
