@@ -172,6 +172,19 @@
             "returns": {
                 "ref": "dashboard.saved_dashboard_state"
             }
+        },
+        {
+            "id": "dashboard.read_availability",
+            "kind": "query",
+            "version": 1,
+            "description": "Authenticated HTML GET /sites/{id}/history selects validated24h(default),7d or30d rolling UTC period from one captured seconds T, [T-D,T). HumanPage navigation uses ordinary Web/session/vault initialization. Repository validates positive existing site and canonical endpoints; explicit current metadata plus one credential-free history SELECT ordered checked_at,id, typed integer LIMIT12001. No provider/check, mutation, pruning, COUNT/fetch race, pagination, schema or durable snapshot. Presenter consumes the complete admitted array: Uonline,Ooffline,Xunknown,M=U+O+X,N=U+O; no percentage untilN>=2; known-only100U/N excludes Unknown and never rounds mixed data into0/100.120 independent buckets use known Online/Offline nonnull timing including0 and Offline responses, with explicit empty/Unknown/missing markers and no connecting data path. Current pause does not remove history or infer duration. Overflow has no partial summary, graph or table. Fixed422 invalid selection and404 missing site; accessible escaped Volt SVG/table and exact UTC endpoints; no chart JavaScript, API bearer, raw private payload or elapsed-SLA/cadence claim. This pinned query IR has no transport-input key.",
+            "reads": [
+                "dashboard.site",
+                "dashboard.check_history"
+            ],
+            "returns": {
+                "ref": "dashboard.availability_read"
+            }
         }
     ]
 }

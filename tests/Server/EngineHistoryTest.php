@@ -4,6 +4,7 @@ declare(strict_types=1);
 namespace Tablo\Tests\Server;
 
 use PDO;
+use Tablo\AvailabilityRepository;
 use Tablo\CheckHistoryRepository;
 use Tablo\IncidentRepository;
 use Tablo\ServerSchema;
@@ -23,8 +24,10 @@ final class EngineHistoryTest
         $fixture = new EngineFixture('history-page');
         $db = $fixture->database(); $sites = new SiteRepository($db, $fixture->vault);
         $id = $sites->save(IncidentFixtures::site()); $site = FixtureValue::row($sites->find($id));
-        foreach (['0001-01-01T00:00:00Z', '0001-01-01T00:00:00Z', '0001-01-02T00:00:00Z', '0001-01-03T00:00:00Z'] as $time) {
-            Assert::true($sites->storeCheck($site, ['checked_at' => $time]));
+        foreach (['0001-01-01T00:00:00Z', '0001-01-01T00:00:00Z', '0001-01-02T00:00:00Z', '0001-01-03T00:00:00Z'] as $index => $time) {
+            Assert::true($sites->storeCheck($site, ['checked_at' => $time,
+                'online' => match ($index) { 0 => 1, 2 => 0, default => null },
+                'response_time_ms' => match ($index) { 0 => 0, 2 => 40, default => null }]));
         }
         $history = new CheckHistoryRepository($db);
         $page = $history->page($id, '0001-01-01T00:00:00Z', '0001-01-03T00:00:00Z', 1);
@@ -35,7 +38,17 @@ final class EngineHistoryTest
         Assert::same(array_column($next['rows'], 'id'), [1]); Assert::same($next['next_cursor'], null);
         $readonly = $fixture->independent();
         $readonly->exec('SET TRANSACTION READ ONLY'); $readonly->beginTransaction();
-        try { Assert::same(count((new CheckHistoryRepository($readonly))->page($id, '0001-01-01T00:00:00Z', '0001-01-03T00:00:00Z')['rows']), 3); }
+        try {
+            Assert::same(count((new CheckHistoryRepository($readonly))->page($id, '0001-01-01T00:00:00Z', '0001-01-03T00:00:00Z')['rows']), 3);
+            $availability = (new AvailabilityRepository($readonly))->read($id, '0001-01-01T00:00:00Z', '0001-01-03T00:00:00Z');
+            Assert::same([$availability['overflow'], $availability['site']['id']], [false, $id]);
+            Assert::same(array_column($availability['rows'], 'id'), [1, 5, 3]);
+            Assert::same(array_column($availability['rows'], 'online'), [1, null, 0]);
+            Assert::same(array_column($availability['rows'], 'response_time_ms'), [0, null, 40]);
+            Assert::same(array_column($availability['rows'], 'checked_at'), ['0001-01-01T00:00:00Z', '0001-01-01T00:00:00Z', '0001-01-02T00:00:00Z']);
+            $firstAvailability = $availability['rows'][0] ?? throw new \RuntimeException('Expected populated availability sample.');
+            Assert::same(array_keys($firstAvailability), ['id', 'config_revision', 'checked_at', 'online', 'response_time_ms']);
+        }
         finally { $readonly->rollBack(); }
         Assert::same($fixture->scalar('SELECT committed_history_high_watermark FROM tablo_database_state'), 5);
         Assert::same($fixture->scalar('SELECT COUNT(*) FROM check_history'), 4);

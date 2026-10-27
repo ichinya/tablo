@@ -2758,6 +2758,118 @@
                     "required": true
                 }
             ]
+        },
+        {
+            "id": "dashboard.availability_site",
+            "kind": "value-object",
+            "version": 1,
+            "description": "Current private site metadata only; enabled is typed SQL0/1. No credential, URL, repository or historical-configuration reconstruction.",
+            "fields": [
+                {
+                    "name": "id",
+                    "type": {
+                        "ref": "dashboard.number"
+                    },
+                    "required": true
+                },
+                {
+                    "name": "name",
+                    "type": {
+                        "ref": "dashboard.text"
+                    },
+                    "required": true
+                },
+                {
+                    "name": "enabled",
+                    "type": {
+                        "ref": "dashboard.number"
+                    },
+                    "required": true
+                },
+                {
+                    "name": "current_revision",
+                    "type": {
+                        "ref": "dashboard.number"
+                    },
+                    "required": true
+                }
+            ]
+        },
+        {
+            "id": "dashboard.availability_sample",
+            "kind": "value-object",
+            "version": 1,
+            "description": "One immutable accepted retained observation: positive ID, nonnegative revision, canonical UTC whole-second check-start timestamp, online exactly0/1/null and response milliseconds0..2147483647/null. Equal-time IDs remain distinct; zero is measured, null is absent. No raw error, version/Git payload or credential fields.",
+            "fields": [
+                {
+                    "name": "id",
+                    "type": {
+                        "ref": "dashboard.number"
+                    },
+                    "required": true
+                },
+                {
+                    "name": "config_revision",
+                    "type": {
+                        "ref": "dashboard.number"
+                    },
+                    "required": true
+                },
+                {
+                    "name": "checked_at",
+                    "type": {
+                        "ref": "dashboard.timestamp"
+                    },
+                    "required": true
+                },
+                {
+                    "name": "online",
+                    "type": {
+                        "optional": {
+                            "ref": "dashboard.number"
+                        }
+                    }
+                },
+                {
+                    "name": "response_time_ms",
+                    "type": {
+                        "optional": {
+                            "ref": "dashboard.number"
+                        }
+                    }
+                }
+            ]
+        },
+        {
+            "id": "dashboard.availability_read",
+            "kind": "value-object",
+            "version": 1,
+            "description": "Complete one-statement retained sample set for one site and one half-open UTC window, ordered checked_at,id. At most12000 rows;12001st probe produces overflow=true with rows=[], never a truncated metric. Current site metadata is a separate read, not a durable cross-request or cross-statement snapshot.",
+            "fields": [
+                {
+                    "name": "site",
+                    "type": {
+                        "ref": "dashboard.availability_site"
+                    },
+                    "required": true
+                },
+                {
+                    "name": "overflow",
+                    "type": {
+                        "ref": "dashboard.flag"
+                    },
+                    "required": true
+                },
+                {
+                    "name": "rows",
+                    "type": {
+                        "list": {
+                            "ref": "dashboard.availability_sample"
+                        }
+                    },
+                    "required": true
+                }
+            ]
         }
     ]
 }

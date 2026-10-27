@@ -497,7 +497,7 @@ function engine_verification_integrated_baseline(array $policies): void
     $catalog = \Tablo\JsonRecord::decode(\Tablo\RequiredFile::bytes(file_get_contents(dirname(__DIR__, levels: 2) . '/tools/server-native-tests.json')));
     $declaration = \Tablo\JsonRecord::checked($catalog['baseline'] ?? null);
     $required = \Tablo\Tools\server_native_baseline_declaration($declaration);
-    Assert::same(count($required), 517);
+    Assert::same(count($required), 528);
     foreach ($policies as $policy) { Assert::same($required[$policy['identity']]['path'] ?? null, $policy['path']); }
     $identities = \Tablo\JsonRecord::checked($declaration['identities'] ?? null);
     $variants = [];
@@ -565,12 +565,12 @@ function engine_verification_platform_case(string $root, TemporaryDirectory $dir
 function engine_verification_baseline_summary(array $policies): void
 {
     $cases = [];
-    for ($index = 0; $index < 510; $index++) { $cases['Synthetic\\Baseline::case' . $index] = ['status' => 'passed', 'assertions' => 1, 'seconds' => 0.01]; }
-    $linux = PHP_OS_FAMILY === 'Linux'; $passed = $linux ? 510 : 517;
+    for ($index = 0; $index < 521; $index++) { $cases['Synthetic\\Baseline::case' . $index] = ['status' => 'passed', 'assertions' => 1, 'seconds' => 0.01]; }
+    $linux = PHP_OS_FAMILY === 'Linux'; $passed = $linux ? 521 : 528;
     foreach ($policies as $policy) { $cases[$policy['identity']] = ['status' => $linux ? 'skipped_platform' : 'passed', 'assertions' => $linux ? 0 : 1, 'seconds' => 0.01]; }
     $native = ['cases' => $cases, 'assertions' => $passed, 'platform' => PHP_OS_FAMILY];
-    $summary = ['status' => 'passed', 'totals' => ['total' => 517, 'passed' => $passed, 'assertions' => $passed, 'skipped' => $linux ? 7 : 0], 'failures' => []];
-    \Tablo\Tools\server_native_baseline_summary($summary, $native); Assert::same(count($native['cases']), 517);
+    $summary = ['status' => 'passed', 'totals' => ['total' => 528, 'passed' => $passed, 'assertions' => $passed, 'skipped' => $linux ? 7 : 0], 'failures' => []];
+    \Tablo\Tools\server_native_baseline_summary($summary, $native); Assert::same(count($native['cases']), 528);
     engine_verification_baseline_summary_invalid($summary, $native);
     engine_verification_baseline_skips_invalid($summary, $native, $policies[0]['identity'] ?? throw new \RuntimeException('Independent original platform tuple missing.'));
 }

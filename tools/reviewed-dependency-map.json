@@ -10040,5 +10040,164 @@
       "dashboard.read_dashboard_state",
       "Dashboard polling browser/Node acceptance"
     ]
+  },
+  "app/AvailabilityPeriod.php": {
+    "owner": "Rolling UTC availability period and exact bucket boundaries",
+    "consumers": [
+      "Composer lint",
+      "Composer analyze",
+      "Composer verify",
+      "dashboard.read_availability"
+    ]
+  },
+  "app/AvailabilityData.php": {
+    "owner": "Credential-free typed current-site and accepted-sample SQL projection",
+    "consumers": [
+      "Composer lint",
+      "Composer analyze",
+      "Composer verify",
+      "dashboard.read_availability"
+    ]
+  },
+  "app/availability-repository.php": {
+    "owner": "Bounded complete retained availability read with explicit overflow",
+    "consumers": [
+      "Composer lint",
+      "Composer analyze",
+      "Composer verify",
+      "dashboard.read_availability"
+    ]
+  },
+  "app/AvailabilitySummary.php": {
+    "owner": "Known-result sample availability and honest insufficient/extreme labels",
+    "consumers": [
+      "Composer lint",
+      "Composer analyze",
+      "Composer verify",
+      "dashboard.read_availability"
+    ]
+  },
+  "app/AvailabilityGeometry.php": {
+    "owner": "Finite numeric server SVG geometry and UTC axis labels",
+    "consumers": [
+      "Composer lint",
+      "Composer analyze",
+      "Composer verify",
+      "dashboard.read_availability"
+    ]
+  },
+  "app/AvailabilityBuckets.php": {
+    "owner": "Complete 120-bucket sample counts, observed response means and gaps",
+    "consumers": [
+      "Composer lint",
+      "Composer analyze",
+      "Composer verify",
+      "dashboard.read_availability"
+    ]
+  },
+  "app/AvailabilityPresenter.php": {
+    "owner": "Typed availability View DTO without partial overflow analytics",
+    "consumers": [
+      "Composer lint",
+      "Composer analyze",
+      "Composer verify",
+      "dashboard.read_availability"
+    ]
+  },
+  "app/AvailabilityPage.php": {
+    "owner": "Private deliberate-navigation HTML history page and query admission",
+    "consumers": [
+      "Composer lint",
+      "Composer analyze",
+      "Composer verify",
+      "dashboard.read_availability"
+    ]
+  },
+  "tests/Unit/AvailabilityTest.php": {
+    "owner": "Deterministic availability denominator, UTC, gap and geometry regression",
+    "consumers": [
+      "Composer lint",
+      "Composer analyze",
+      "Composer verify",
+      "dashboard.read_availability"
+    ]
+  },
+  "tests/Unit/AvailabilityRepositoryTest.php": {
+    "owner": "Real isolated SQLite complete history selection and overflow regression",
+    "consumers": [
+      "Composer lint",
+      "Composer analyze",
+      "Composer verify",
+      "dashboard.read_availability"
+    ]
+  },
+  "tests/Http/AvailabilityPageTest.php": {
+    "owner": "Real private HTTP session, finite projection and no-partial-analytics regression",
+    "consumers": [
+      "Composer lint",
+      "Composer analyze",
+      "Composer verify",
+      "dashboard.read_availability"
+    ]
+  },
+  "tests/Support/AvailabilityFixtures.php": {
+    "owner": "Owned typed availability samples, bounded temporary rows and mutation receipts",
+    "consumers": [
+      "Composer lint",
+      "Composer analyze",
+      "Composer verify",
+      "dashboard.read_availability"
+    ]
+  },
+  "tests/Support/AvailabilityBrowser.php": {
+    "owner": "Owned browser fixture accepted history and persistent read-only receipts",
+    "consumers": [
+      "Composer lint",
+      "Composer analyze",
+      "Composer verify",
+      "dashboard.read_availability",
+      "Availability real-browser acceptance"
+    ]
+  },
+  "tests/Browser/availability-scenarios.mjs": {
+    "owner": "Real responsive availability navigation, SVG/table and network acceptance",
+    "consumers": [
+      "Composer verify",
+      "dashboard.read_availability",
+      "Availability real-browser acceptance"
+    ]
+  },
+  "views/availability.volt": {
+    "owner": "Escaped accessible server availability SVG, period form and interval table",
+    "consumers": [
+      "Composer verify",
+      "dashboard.read_availability",
+      "Availability real-browser acceptance"
+    ]
+  },
+  "docs/availability.md": {
+    "owner": "Honest sample availability, bounded retained history and validation contract",
+    "consumers": [
+      "Composer verify",
+      "dashboard.read_availability"
+    ]
+  },
+  "app/AvailabilityBucket.php": {
+    "owner": "Pure single interval response summary, explicit gaps and numeric marker projection",
+    "consumers": [
+      "Composer lint",
+      "Composer analyze",
+      "Composer verify",
+      "dashboard.read_availability"
+    ]
+  },
+  "tests/Support/AvailabilityPageAssertions.php": {
+    "owner": "Focused private HTTP availability projection, mutation guards and authority assertions",
+    "consumers": [
+      "Composer lint",
+      "Composer analyze",
+      "Composer verify",
+      "tests/Http/AvailabilityPageTest.php"
+    ]
   }
 }

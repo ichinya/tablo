@@ -5,7 +5,7 @@
         "version": "0.1.0"
     },
     "project": "tablo",
-    "revision": "sha256:8e7645d3ded4fcb945bf071348ffb7d99200106d86205ac2bf739c62e8385a49",
+    "revision": "sha256:06d7dc13783d4c8e55d4ed3cc4859f774c0ef993d877bf9d3ca61f89d4889318",
     "symbols": [
         {
             "id": "dashboard.change_admin_password",
@@ -345,6 +345,24 @@
                     "dashboard.site",
                     "dashboard.user",
                     "dashboard.installation_settings"
+                ]
+            },
+            "effects": []
+        },
+        {
+            "id": "dashboard.read_availability",
+            "kind": "query",
+            "source": {
+                "path": "app/availability-repository.php",
+                "line": 19
+            },
+            "fingerprint": "sha256:a1bebea49a0171ebfe5893cd37e69d375ed4897024950fa3b45f44eb13e956b0",
+            "signature": {
+                "inputs": [],
+                "output": "dashboard.availability_read",
+                "reads": [
+                    "dashboard.site",
+                    "dashboard.check_history"
                 ]
             },
             "effects": []

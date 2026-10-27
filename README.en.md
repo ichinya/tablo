@@ -131,6 +131,22 @@ Background reads do not extend the idle timeout. Session expiry or an identity c
 offers a page refresh. Errors and oversized responses retain the previous display.
 See [the contract and limits](docs/dashboard-polling.md).
 
+## Availability from check history
+
+Each site's **История проверок** (Check history) action opens a private page with
+**24-hour, 7-day and 30-day** periods, a response-time chart and an interval table.
+It works without JavaScript and remains available for paused sites.
+
+**Availability among checks** is the Online share of known Online/Offline
+results. Unknown is shown separately and excluded from the denominator; fewer
+than two known observations produce no percentage. This is not elapsed uptime:
+retained history cannot establish missed checks or historical pause durations.
+
+The chart shows independent means across 120 intervals with explicit gaps,
+milliseconds and UTC labels. Missing timing is not zero. More than 12,000 rows
+produce a clear narrower-period request instead of partial statistics.
+See [calculation, periods, chart and limits](docs/availability.md).
+
 ## Site endpoints
 
 An empty **Health endpoint**, including whitespace, checks the saved website URL

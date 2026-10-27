@@ -7,7 +7,7 @@ use Phalcon\Mvc\Micro;
 
 final class WebRoutes
 {
-    /** @var list<AuthenticationPages|DashboardPage|IncidentPage|SettingsPages|TokenPages|SitePages|ReadApiTokenPages> */
+    /** @var list<AuthenticationPages|DashboardPage|IncidentPage|AvailabilityPage|SettingsPages|TokenPages|SitePages|ReadApiTokenPages> */
     private readonly array $pages;
     public readonly Auth $auth;
     public readonly SettingsRepository $settings;
@@ -22,6 +22,7 @@ final class WebRoutes
         $this->pages = [
             new AuthenticationPages($this->auth, new ClientAddress(getenv('TABLO_TRUSTED_PROXIES')), $page),
             new DashboardPage($sites, new DashboardStatePage(new SavedDashboardRepository($db), $page), $page), new IncidentPage(new IncidentRepository($db), $page),
+            new AvailabilityPage(new AvailabilityRepository($db), $page),
             (new SettingsPages($this->settings, new NotificationSettings($db, $vault), new NotificationOutbox($db), $tokens, $page))->withReadApiTokens(new ReadApiTokenRepository($db)),
             new ReadApiTokenPages($db, new ReadApiTokenRepository($db), $page),
             new TokenPages($tokens, $page), new SitePages($sites, $github, $tokens, $manual, $page),
