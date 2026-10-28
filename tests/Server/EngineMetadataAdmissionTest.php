@@ -156,22 +156,26 @@ function engine_metadata_invocation_tables(\PDO $db, DatabaseConfiguration $conf
     Assert::same(engine_metadata_sorted_observation($provided), engine_metadata_sorted_observation($observation));
     Assert::same($tables, $before);
     if ($configuration->engine === 'mariadb') {
-        $tail = $tables[17] ?? throw new \RuntimeException('Missing final public table.');
+        $tail = $tables[17] ?? throw new \RuntimeException('Missing historical API table.');
         $check = $tail['checks'][3] ?? throw new \RuntimeException('Missing final public CHECK.');
         Assert::same([$tail['name'], $check['name']], ['read_api_token', 'read_api_token_c4']);
         $fingerprint = hash('sha256', "tablo/check-canonical/v1\0" . \Tablo\ServerExpression::canonical($check['expression']));
         Assert::same($observation['checks']['read_api_token']['read_api_token_c4'] ?? null, $fingerprint);
         Assert::same($provided['checks']['read_api_token']['read_api_token_c4'] ?? null, $fingerprint);
     }
-    // This borrowed inventory exercises the existing version-9 name rule, not a real version-9 catalog.
+    // Borrowed observations exercise historical name rules, never actual predecessor catalogs.
     $withoutApi = $provided;
-    $withoutApi['objects'] = array_values(array_filter($provided['objects'], static fn (array $object): bool => $object['name'] !== 'read_api_token'));
+    $withoutApi['objects'] = array_values(array_filter($provided['objects'], static fn (array $object): bool => !in_array($object['name'], ['read_api_token', 'self_update'], strict: true)));
+    $ten = $provided; $ten['objects'] = array_values(array_filter($provided['objects'], static fn (array $object): bool => $object['name'] !== 'self_update'));
+    Assert::same([count($withoutApi['objects']), count($ten['objects']), count($provided['objects'])], [17, 18, 19]);
     $missing = $provided;
     $missing['objects'] = array_values(array_filter($provided['objects'], static fn (array $object): bool => $object['name'] !== 'users'));
     $extra = $provided; $extra['objects'][] = ['name' => 'zz_source96_unexpected', 'kind' => 'BASE TABLE'];
     foreach ([null, $tables] as $expectedTables) {
         engine_metadata_expected_case($db, $provided, version: 11, expectedTables: $expectedTables);
         engine_metadata_expected_case($db, $withoutApi, version: 9, expectedTables: $expectedTables);
+        engine_metadata_expected_case($db, $ten, version: 10, expectedTables: $expectedTables);
+        foreach ([9, 11] as $version) { engine_metadata_expected_case($db, $ten, $version, $expectedTables, category: 'schema'); }
         foreach ([0, 11] as $version) { engine_metadata_expected_case($db, $withoutApi, $version, $expectedTables, category: 'schema'); }
         engine_metadata_expected_case($db, $missing, version: 11, expectedTables: $expectedTables, category: 'schema');
         engine_metadata_expected_case($db, $extra, version: 11, expectedTables: $expectedTables, category: 'schema');
@@ -242,7 +246,7 @@ function engine_metadata_borrowed_layout(\PDO $db, array $observation): void
 function engine_metadata_owned_layout_failure(EngineFixture $fixture, \PDO $db, DatabaseConfiguration $configuration, array $observation): void
 {
     $session = \Tablo\DatabaseSession::get($db) ?? throw new \RuntimeException('Missing admitted session.');
-    $tail = ServerSchema::layout($db)['tables'][17] ?? throw new \RuntimeException('Missing final public table.');
+    $tail = ServerSchema::layout($db)['tables'][17] ?? throw new \RuntimeException('Missing historical API table.');
     $check = $tail['checks'][3] ?? throw new \RuntimeException('Missing final public CHECK.');
     Assert::same([$tail['name'], $check['name']], ['read_api_token', 'read_api_token_c4']);
     $maintenance = $fixture->maintenance();

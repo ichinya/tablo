@@ -972,10 +972,10 @@ function engine_verification_initialize_failure(): void
     Assert::false(str_contains(\Tablo\JsonEncoding::encode($record), dirname(__DIR__, levels: 2)));
     foreach (['message', 'trace', 'previous', 'errorInfo', 'sql', 'values'] as $field) { Assert::false(array_key_exists($field, $record)); }
     $error->errorInfo = [$secret, '1064', $secret];
-    $invalid = \server_cell_initialize_failure($error, ['engine' => $secret, 'stage' => $secret, 'point' => $secret, 'step' => 18]);
+    $invalid = \server_cell_initialize_failure($error, ['engine' => $secret, 'stage' => $secret, 'point' => $secret, 'step' => 19]);
     Assert::same([$invalid['engine'], $invalid['stage'], $invalid['point'], $invalid['step'], $invalid['sqlState'], $invalid['nativeCode']], [null, 'unknown', null, null, null, null]);
     Assert::false(str_contains(\Tablo\JsonEncoding::encode($invalid), $secret));
-    foreach ([-1 => null, 0 => 0, 17 => 17, 18 => null] as $step => $expected) {
+    foreach ([-1 => null, 0 => 0, 17 => 17, 18 => 18, 19 => null] as $step => $expected) {
         $boundedProgress = $progress; $boundedProgress['step'] = $step;
         $bounded = \server_cell_initialize_failure(new \RuntimeException($secret), $boundedProgress);
         Assert::same($bounded['step'], $expected);

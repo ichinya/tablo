@@ -8120,7 +8120,7 @@
                 "Composer verify:server",
                 "tests/Server/EngineBoundaryAdmissionTest.php"
             ],
-            "fingerprint": "sha256:83a60dc950737b826d61cf035bd9655c4572bd7386bfc119ea7437dc6b737f57"
+            "fingerprint": "sha256:e6fd928c1fcd93b8fb21941210a9d8a9cce513b31a43a7aada5b529b8ae61a67"
         },
         {
             "path": "tests/Server/EngineMigrationFailureTest.php",
@@ -8201,7 +8201,7 @@
                 "Composer analyze",
                 "Composer verify:server"
             ],
-            "fingerprint": "sha256:66cfd5e3a659e7615dbe249a48cffed58ff2631573097cdc15251f5658400c79"
+            "fingerprint": "sha256:5a18915d7299af08ee59c3d233df16ca14e9d6db54496003e3d36be6ac95542c"
         },
         {
             "path": "tests/Server/EngineSchemaDescriptorStream.php",
@@ -8253,7 +8253,7 @@
                 "Composer verify:server",
                 "Transfer native binding selectors"
             ],
-            "fingerprint": "sha256:c5ef5218831467ef06723cebb0118150dbfb65e38affb8fa67a6a313be448caa"
+            "fingerprint": "sha256:29d3cef1fbb85038eb7e04d0e0ab335ed1ca1758abd658d55b79a78e7e9332e3"
         },
         {
             "path": "tests/Server/EngineTransferEnvelopeTest.php",
@@ -8265,7 +8265,7 @@
                 "tests/Server/EngineTransferAdmissionTest.php",
                 "Transfer native binding selectors"
             ],
-            "fingerprint": "sha256:75d09ae2660780c5ead4555a80175e715e0949d41309d07b0f2dd7aafe113235"
+            "fingerprint": "sha256:ac3a4435f4b6cdcd5031d07fa114165cc6b08e06d7c7ec00ea2f8e6fd01ef06c"
         },
         {
             "path": "tests/Server/EngineTransferRefusalTest.php",
@@ -8285,7 +8285,7 @@
                 "Composer analyze",
                 "Composer verify:server"
             ],
-            "fingerprint": "sha256:bf6470b7eda6190e29d9230aa8ed434455bc3ba203449d489f741bdb8d426aa1"
+            "fingerprint": "sha256:caf805aa3848ab1ae9ad09477d487fbb7b4157de85e02e7c69bd42f14941a82d"
         },
         {
             "path": "tests/Server/EngineVerificationTest.php",
@@ -8295,7 +8295,7 @@
                 "Composer analyze",
                 "Composer verify:server"
             ],
-            "fingerprint": "sha256:07c7297835b98c5b804b462e4395162e6abd477da2e231e103155a75a27f2c55"
+            "fingerprint": "sha256:5dc986621879399b609a94fb0637a98d214abb06d1d20e71e97a8a11ecc7a848"
         },
         {
             "path": "tests/Server/EngineWatermarkTest.php",
@@ -11575,7 +11575,7 @@
                 "Composer verify:server",
                 "All native binding admission prerequisites"
             ],
-            "fingerprint": "sha256:22f23715175e98a744fb3874d4b2203a1fa30a1927d31a7c53dc246722d8f5c8"
+            "fingerprint": "sha256:06ce77a978e0939e946d6a47aef8f38dd1872076ef365fe30c832e645f9de2af"
         },
         {
             "path": "tools/server-supervisor-linux.c",
@@ -12747,7 +12747,7 @@
                 "Composer analyze",
                 "Composer verify"
             ],
-            "fingerprint": "sha256:5b1899ac200508561cf3a3ce25858c0f081184b164fba24534dfbcd038f2c5c7"
+            "fingerprint": "sha256:2f9b43c2f6c858a869bcc9065e3a378e84a1c2e2c8346a70f8f1819133bb5f13"
         },
         {
             "path": "tests/Unit/SelfUpdateWorkerTest.php",

@@ -157,7 +157,7 @@ function engine_transfer_manifest_empty_header(\Tablo\TokenVault $vault): array
         $receipts[] = ['name' => $name, 'rows' => 0, 'sha256' => hash('sha256', data: ''), 'chunks' => []];
     }
     $installation = str_repeat('a', times: 32);
-    return ['format' => 1, 'engine' => 'sqlite', 'logicalVersion' => 10, 'layout' => DatabaseTransferManifest::layout(),
+    return ['format' => 1, 'engine' => 'sqlite', 'logicalVersion' => 11, 'layout' => DatabaseTransferManifest::layout(),
         'columns' => DatabaseTransferManifest::contract(), 'installation' => $installation,
         'verifier' => $vault->serverVerifier($installation), 'sequences' => ['sites' => 0, 'git_tokens' => 0, 'check_history' => 0],
         'watermark' => 0, 'tables' => $receipts];

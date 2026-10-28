@@ -76,11 +76,19 @@ final class EngineMigrationAdmissionTest
     public function unrecognizedAdditionalObjectIsRefusedWithoutDroppingIt(): void
     {
         $fixture = new EngineFixture('admission-object');
-        $maintenance = $fixture->maintenance();
-        $maintenance->exec('CREATE TABLE unexpected_owned_table(id BIGINT NOT NULL PRIMARY KEY) ENGINE=InnoDB');
-        self::refuses($fixture);
-        Assert::same(count(ServerSchema::objects($maintenance)), 19);
-        $fixture->close();
+        try {
+            $maintenance = $fixture->maintenance(); $baseline = ServerSchema::objects($maintenance);
+            Assert::same(count($baseline), 19, 'current schema11 has nineteen normal objects');
+            Assert::true(in_array('self_update', $baseline, strict: true));
+            $maintenance->exec('CREATE TABLE unexpected_owned_table(id BIGINT NOT NULL PRIMARY KEY) ENGINE=InnoDB');
+            $maintenance->exec('INSERT INTO unexpected_owned_table(id) VALUES(41)');
+            self::refuses($fixture);
+            $after = ServerSchema::objects($maintenance);
+            Assert::same(count($after), 20, 'nineteen normal objects plus one unexpected table remain after refusal');
+            Assert::same(array_values(array_intersect($after, $baseline)), $baseline);
+            Assert::same(array_values(array_diff($after, $baseline)), ['unexpected_owned_table']);
+            Assert::same(ServerSchema::rows($maintenance, 'SELECT id FROM unexpected_owned_table'), [['id' => 41]]);
+        } finally { $fixture->close(); }
     }
 
     #[Test]
