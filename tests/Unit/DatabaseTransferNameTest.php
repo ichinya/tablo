@@ -39,6 +39,7 @@ final class DatabaseTransferNameTest
     #[Test]
     public function realSqliteBadNamesRefusePublicPreflightWithoutChangingSourceRows(): void
     {
+        \Tablo\Tests\Support\TransferRowsAssertions::run();
         $fixture = new TransferSqliteFixture();
         try {
             foreach (self::invalidNames() as $index => $name) {

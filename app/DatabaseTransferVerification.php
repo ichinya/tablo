@@ -72,10 +72,9 @@ function database_transfer_verification_scratch(PDO $scratch, #[\SensitiveParame
 function database_transfer_verification_table(PDO $db, array $table, array $receipt): void
 {
     $rows = 0; $hash = hash_init('sha256');
-    foreach (DatabaseTransferRows::read($db, $table) as $values) {
+    DatabaseTransferRows::visit($db, $table, static function (array $values) use (&$rows, $hash): void {
         $rows++; hash_update($hash, DatabaseTransferWire::completeLine($values));
-        unset($values);
-    }
+    });
     if ([$rows, hash_final($hash)] !== [$receipt['rows'], $receipt['sha256']]) { throw new DatabaseFailure('schema'); }
 }
 

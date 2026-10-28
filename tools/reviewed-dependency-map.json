@@ -4,7 +4,8 @@
     "consumers": [
       "Composer lint",
       "Composer analyze",
-      "Composer verify"
+      "Composer verify",
+      "tests/Support/TransferRowsAssertions.php"
     ]
   },
   "tests/Unit/DatabaseFailureOutputTest.php": {
@@ -38,6 +39,31 @@
       "Composer analyze",
       "tests/Unit/DatabaseTransferNameTest.php",
       "tests/Unit/DatabaseTransferPublicationTest.php"
+    ]
+  },
+  "tests/Support/TransferRowsAssertions.php": {
+    "owner": "Typed transfer visitor and pull equivalence, partial archive and cursor failure controls",
+    "consumers": [
+      "Composer lint",
+      "Composer analyze",
+      "tests/Unit/DatabaseTransferNameTest.php"
+    ]
+  },
+  "tests/Support/TransferRowsPdo.php": {
+    "owner": "Synthetic native SQLite transfer rows with observed ordered data cursors",
+    "consumers": [
+      "Composer lint",
+      "Composer analyze",
+      "tests/Support/TransferRowsAssertions.php",
+      "tests/Support/TransferRowsStatement.php"
+    ]
+  },
+  "tests/Support/TransferRowsStatement.php": {
+    "owner": "Real SQLite execute fetch and close faults preserving data cursor lifecycle",
+    "consumers": [
+      "Composer lint",
+      "Composer analyze",
+      "tests/Support/TransferRowsPdo.php"
     ]
   },
   "tests/Unit/TransferTargetTripwirePdo.php": {
@@ -714,7 +740,8 @@
       "app/DatabaseTransfer.php",
       "app/DatabaseTransferImport.php",
       "app/DatabaseTransferManifest.php",
-      "app/DatabaseTransferVerification.php"
+      "app/DatabaseTransferVerification.php",
+      "tests/Support/TransferRowsAssertions.php"
     ]
   },
   "app/DatabaseTransferImport.php": {
@@ -769,7 +796,8 @@
       "app/DatabaseTransferTarget.php",
       "app/DatabaseTransferVerification.php",
       "tests/Server/EngineTransferAdmissionTest.php",
-      "tests/Server/EngineTransferEnvelopeTest.php"
+      "tests/Server/EngineTransferEnvelopeTest.php",
+      "tests/Support/TransferRowsAssertions.php"
     ]
   },
   "app/DatabaseTransferSequence.php": {
@@ -807,7 +835,8 @@
       "app/DatabaseTransfer.php",
       "app/DatabaseTransferImport.php",
       "tests/Server/EngineTransferTest.php",
-      "tests/Server/EngineTransferEnvelopeTest.php"
+      "tests/Server/EngineTransferEnvelopeTest.php",
+      "tests/Support/TransferRowsAssertions.php"
     ]
   },
   "app/DeploymentFields.php": {

@@ -8,7 +8,7 @@
                 "Composer verify",
                 "Reviewed dependency capture"
             ],
-            "fingerprint": "sha256:c7a8b6e797e083f097cb973c0f00af99114daffb8708ffc5e270ff5b9783f5e6"
+            "fingerprint": "sha256:42684beaf3eec9bff825c9d7ebdb0007c330718578230243be8050a71b494f15"
         },
         {
             "path": "tools/reviewed-dependencies.php",
@@ -43,7 +43,8 @@
             "consumers": [
                 "Composer lint",
                 "Composer analyze",
-                "Composer verify"
+                "Composer verify",
+                "tests/Support/TransferRowsAssertions.php"
             ],
             "fingerprint": "sha256:6f43a8f764ae980c4343eda0fe8898fda278d47623e584efdb9ae3c9f711da78"
         },
@@ -89,6 +90,37 @@
             "fingerprint": "sha256:ac9b0b21378e6459b30c04d680912b61827f6b99b295ab6872448407c35f56a5"
         },
         {
+            "path": "tests/Support/TransferRowsAssertions.php",
+            "owner": "Typed transfer visitor and pull equivalence, partial archive and cursor failure controls",
+            "consumers": [
+                "Composer lint",
+                "Composer analyze",
+                "tests/Unit/DatabaseTransferNameTest.php"
+            ],
+            "fingerprint": "sha256:ff5804fbe543084a0d8a6f273f7d7906065802d99a6c5dd86442fbcf4a015b68"
+        },
+        {
+            "path": "tests/Support/TransferRowsPdo.php",
+            "owner": "Synthetic native SQLite transfer rows with observed ordered data cursors",
+            "consumers": [
+                "Composer lint",
+                "Composer analyze",
+                "tests/Support/TransferRowsAssertions.php",
+                "tests/Support/TransferRowsStatement.php"
+            ],
+            "fingerprint": "sha256:8793479388a92122932a8f395b0017c133304aa8d0384189f965143c421664ce"
+        },
+        {
+            "path": "tests/Support/TransferRowsStatement.php",
+            "owner": "Real SQLite execute fetch and close faults preserving data cursor lifecycle",
+            "consumers": [
+                "Composer lint",
+                "Composer analyze",
+                "tests/Support/TransferRowsPdo.php"
+            ],
+            "fingerprint": "sha256:29f24ca549b152bcb698fe1a208152bb12c0958d32c444a9927fee68c5236ca6"
+        },
+        {
             "path": "tests/Unit/TransferTargetTripwirePdo.php",
             "owner": "Target SQL admission tripwire preserving all synthetic transfer target rows",
             "consumers": [
@@ -106,7 +138,7 @@
                 "Composer analyze",
                 "Composer verify"
             ],
-            "fingerprint": "sha256:6d79ca0aba4bc76a67466f421bc88aa169a3e6b6f7c1069e80692b67927d85f2"
+            "fingerprint": "sha256:0a3c77fe06c269923e62c7f056796906584b6bd2aea5edc48ca0c162801993a4"
         },
         {
             "path": "tests/Support/TransferPublicationFault.php",
@@ -873,9 +905,10 @@
                 "app/DatabaseTransfer.php",
                 "app/DatabaseTransferImport.php",
                 "app/DatabaseTransferManifest.php",
-                "app/DatabaseTransferVerification.php"
+                "app/DatabaseTransferVerification.php",
+                "tests/Support/TransferRowsAssertions.php"
             ],
-            "fingerprint": "sha256:d384f82162fdbfe17907f9fed2997cf1057c3576f77c9a4ceca3228f42bb125e"
+            "fingerprint": "sha256:1f17aba56abb263755f94685f790c4858bc461d57ab2a95bded2cd566d7d551d"
         },
         {
             "path": "app/DatabaseTransferImport.php",
@@ -936,9 +969,10 @@
                 "app/DatabaseTransferTarget.php",
                 "app/DatabaseTransferVerification.php",
                 "tests/Server/EngineTransferAdmissionTest.php",
-                "tests/Server/EngineTransferEnvelopeTest.php"
+                "tests/Server/EngineTransferEnvelopeTest.php",
+                "tests/Support/TransferRowsAssertions.php"
             ],
-            "fingerprint": "sha256:6222a8a48a2f83e8dfc04e849f8260123f63991797793d73f67a218209cb4a0e"
+            "fingerprint": "sha256:0bd62febfa0b784a8f04b94d5855514c5ea32ad95ca7257867e30a0ac1028aee"
         },
         {
             "path": "app/DatabaseTransferSequence.php",
@@ -980,9 +1014,10 @@
                 "app/DatabaseTransfer.php",
                 "app/DatabaseTransferImport.php",
                 "tests/Server/EngineTransferTest.php",
-                "tests/Server/EngineTransferEnvelopeTest.php"
+                "tests/Server/EngineTransferEnvelopeTest.php",
+                "tests/Support/TransferRowsAssertions.php"
             ],
-            "fingerprint": "sha256:a8c16a60edd19f175e59000f02448e182dac1a0e240ce227b3ab1e3214b20163"
+            "fingerprint": "sha256:ac1e439e64fb8a275924fcf3ebf855b602bca0fc2f5364e382e45c24cffe2021"
         },
         {
             "path": "app/DeploymentFields.php",
@@ -3582,7 +3617,7 @@
                 "Composer verify",
                 "app/ServerSchema.php"
             ],
-            "fingerprint": "sha256:bf91400be84083ec83f502cffc5ce4fbbde8c4a0c1a46aa6092adeaa2839c1fe"
+            "fingerprint": "sha256:0e50e398e54805eb2f00326b7a1383a1c31d2ec7877d76a8255670b20632e2af"
         },
         {
             "path": "app/ServerTls.php",
@@ -10802,7 +10837,7 @@
                 "Composer analyze",
                 "Composer verify"
             ],
-            "fingerprint": "sha256:35b4c18aed7d2a9d285083a9c13b0b536607325b79afabf0cf5056d57c084eac"
+            "fingerprint": "sha256:c4e238931f23363192ce08bf36823b2577baf4a73a76e56a77b80c4172a0a0a9"
         },
         {
             "path": "tests/Unit/SqlStatementTest.php",

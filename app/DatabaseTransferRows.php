@@ -23,6 +23,14 @@ final class DatabaseTransferRows
         return database_transfer_rows_read($db, $table);
     }
 
+    /** @param \Tablo\DatabaseTransferManifest::Table $table
+     * @param \Closure(\Tablo\DatabaseTransferRows::Values): void $consume */
+    public static function visit(PDO $db, array $table, \Closure $consume): void
+    {
+        // Exhaust the same reader without retaining a previous yielded row at the next fetch.
+        foreach (database_transfer_rows_read($db, $table, $consume) as $unused) { unset($unused); }
+    }
+
     /**
  * @param \Tablo\DatabaseTransferManifest::Column $column */
     public static function value(#[\SensitiveParameter] mixed $value, array $column): int|string|null
@@ -74,8 +82,9 @@ final class DatabaseTransferRows
 
 /**
  * @param \Tablo\DatabaseTransferManifest::Table $table
+ * @param (\Closure(\Tablo\DatabaseTransferRows::Values): void)|null $consume
  * @return \Generator<int, \Tablo\DatabaseTransferRows::Values> */
-function database_transfer_rows_read(PDO $db, array $table): \Generator
+function database_transfer_rows_read(PDO $db, array $table, ?\Closure $consume = null): \Generator
 {
     $columns = DatabaseTransferManifest::columns($table);
     $projection = database_transfer_rows_projection($columns);
@@ -109,7 +118,8 @@ function database_transfer_rows_read(PDO $db, array $table): \Generator
             }
         } finally { $statement->closeCursor(); }
         unset($statement, $fetched, $row);
-        yield $values;
+        if ($consume === null) { yield $values; }
+        if ($consume !== null) { $consume($values); }
         unset($values);
     } while (true);
 }

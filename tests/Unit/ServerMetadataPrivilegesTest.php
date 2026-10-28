@@ -125,16 +125,17 @@ function metadata_checks_query(MetadataPrivilegesPdo $db, string $query, array $
         ? 'SELECT c.CONSTRAINT_NAME AS name, c.CHECK_CLAUSE AS clause, t.ENFORCED AS enforced FROM information_schema.CHECK_CONSTRAINTS c JOIN information_schema.TABLE_CONSTRAINTS t ON t.CONSTRAINT_SCHEMA = c.CONSTRAINT_SCHEMA AND t.CONSTRAINT_NAME = c.CONSTRAINT_NAME WHERE t.TABLE_SCHEMA = DATABASE() AND t.TABLE_NAME = ? AND t.CONSTRAINT_TYPE = ?'
         : 'SELECT CONSTRAINT_NAME AS name, CHECK_CLAUSE AS clause FROM information_schema.CHECK_CONSTRAINTS WHERE CONSTRAINT_SCHEMA = DATABASE() AND TABLE_NAME = ?';
     if ($query === $expected) { return metadata_checks_rows($db, $query, \Tablo\SqlColumn::string($bindings, key: '1')); }
-    if ($query === 'SELECT DATABASE() AS catalog, VERSION() AS version, @@version_comment AS comment, @@hostname AS host, @@port AS port, @@server_id AS server_id, @@server_uid AS server_uid') {
-        return [['catalog' => 'tablo_meta', 'version' => '11.4', 'comment' => 'fixture', 'host' => 'fixture', 'port' => 3306, 'server_id' => 1, 'server_uid' => 'fixture']];
+    $uid = $db->engine === 'mariadb' ? '@@server_uid' : '@@server_uuid';
+    if ($query === 'SELECT DATABASE() AS catalog, VERSION() AS version, @@version_comment AS comment, @@hostname AS host, @@port AS port, @@server_id AS server_id, ' . $uid . ' AS server_uid') {
+        return [['catalog' => 'tablo_meta', 'version' => $db->engine === 'mariadb' ? '11.4' : '8.4', 'comment' => 'fixture', 'host' => 'fixture', 'port' => 3306, 'server_id' => 1, 'server_uid' => 'fixture']];
     }
     throw new \RuntimeException('Unexpected CHECK metadata SQL.');
 }
 
 function metadata_checks_observation(MetadataPrivilegesPdo $writer, DatabaseConfiguration $configuration): MetadataPrivilegesPdo
 {
-    $metadata = new MetadataPrivilegesPdo('mariadb', fault: $writer->fault);
-    $environment = ['TABLO_DB_DRIVER' => 'mariadb', 'TABLO_DB_NAME' => 'tablo_meta', 'TABLO_DB_HOST' => '127.0.0.1', 'TABLO_DB_PORT' => '3306',
+    $metadata = new MetadataPrivilegesPdo($configuration->engine, fault: $writer->fault);
+    $environment = ['TABLO_DB_DRIVER' => $configuration->engine, 'TABLO_DB_NAME' => 'tablo_meta', 'TABLO_DB_HOST' => '127.0.0.1', 'TABLO_DB_PORT' => '3306',
         'TABLO_DB_USER' => 'writer', 'TABLO_DB_PASSWORD' => '', 'TABLO_DB_TLS' => 'local', 'TABLO_DB_METADATA_USER' => 'meta', 'TABLO_DB_METADATA_PASSWORD' => ''];
     \Tablo\DatabaseSession::register($metadata, DatabaseConfiguration::fromEnvironment(environment: $environment)->metadata());
     Assert::true(class_exists(\Tablo\ServerMetadataAdmission::class));
@@ -163,6 +164,11 @@ function metadata_checks_invocation_tables(MetadataPrivilegesPdo $metadata, Data
     Assert::same($providedFailure?->getPrevious(), null); Assert::same($tables, $before);
     if ($defaultFailure !== null) { throw $defaultFailure; }
     Assert::same($provided, $default);
+    if ($configuration->role === 'migrator') {
+        Assert::same($default, []); Assert::same($defaultQueries, []);
+        Assert::same(array_slice($metadata->queries, $queryStart), []);
+        return $default;
+    }
     Assert::same(array_keys($provided), array_column($tables, 'name'));
     $tail = $tables[17] ?? throw new \RuntimeException('Missing final public table.');
     $check = $tail['checks'][3] ?? throw new \RuntimeException('Missing final public CHECK.');
@@ -371,7 +377,7 @@ function metadata_records_engine_binding(): void
 function metadata_records_layout_selection(): void
 {
     foreach (['mysql', 'mariadb'] as $engine) {
-        foreach (['writer', 'control', 'migrator', 'reader'] as $role) {
+        foreach (['writer', 'control', 'migrator', 'reader', 'metadata'] as $role) {
             foreach ([9, 10, 11] as $version) { metadata_records_layout_case($engine, $role, $version); }
         }
     }
@@ -379,13 +385,15 @@ function metadata_records_layout_selection(): void
 
 function metadata_records_layout_case(string $engine, string $role, int $version): void
 {
-    $db = new MetadataPrivilegesPdo($engine, fault: 'checks/'); $configuration = metadata_checks_configuration($engine, $role);
+    $db = new MetadataPrivilegesPdo($engine, fault: 'checks/'); $configuration = metadata_records_default_configuration($engine, $role);
     $session = \Tablo\DatabaseSession::register($db, $configuration);
     $source = \Tablo\server_table_admission_source($db, $session, $version);
-    $selected = $engine === 'mariadb' && in_array($role, ['writer', 'control'], strict: true) && $version === 11;
+    $selected = $version === 11 && ($role === 'migrator' || ($engine === 'mariadb' && in_array($role, ['writer', 'control'], strict: true)));
     Assert::same($source instanceof \Tablo\ServerAdmissionRecords, $selected);
     Assert::same($session->metadataObservation, null); Assert::same($db->queries, []);
-    if (!$selected) { Assert::true(is_array($source)); return; }
+    if (!$selected) {
+        Assert::true(is_array($source)); Assert::same($source, metadata_records_golden_projection($engine, $version)); return;
+    }
     metadata_checks_observation($db, $configuration);
     $borrowed = $session->metadataObservation ?? throw new \RuntimeException('Missing borrowed fixture observation.');
     try { metadata_records_borrowed_selection($db, $session, $version, $borrowed); }
