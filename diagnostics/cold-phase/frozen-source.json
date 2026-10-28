@@ -1256,4 +1256,4 @@
     "views/token-delete.volt": "93a2700715a76465c3a58476caf2b7e2e3b0a6da452af54ecf96dc8b41d86cfa",
     "views/token-form.volt": "0ba54f24f69d7f47a2333a7a4a63ce1463827e1749753299bb1182a5e302d697"
   }
-}diff --git a/diagnostics/cold-phase/frozen.php b/diagnostics/cold-phase/frozen.php
+}
