@@ -5,7 +5,7 @@
         "version": "0.1.0"
     },
     "project": "tablo",
-    "revision": "sha256:fc9c9af9d4f839c82a98ba064bf7bb74821d1594ee362a331318b8385d0a7a66",
+    "revision": "sha256:69f4232cca81f4c5875f01347fb02c0446486040faa742245085a454c4896343",
     "symbols": [
         {
             "id": "dashboard.change_admin_password",

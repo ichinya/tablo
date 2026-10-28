@@ -8069,7 +8069,7 @@
                 "Composer verify:server",
                 "Tablo\\Tests\\Support\\EngineFixture inherited-key refusal"
             ],
-            "fingerprint": "sha256:d640b32f6556553a189024659674958a94165a78d1fc7bd48d5e787adcbf47e6"
+            "fingerprint": "sha256:91e5586294c207b1bcdad488838afdaa50b34da4649899cf561e818a7e8039e8"
         },
         {
             "path": "tests/Server/EngineFlowTest.php",
@@ -8161,7 +8161,7 @@
                 "Composer analyze",
                 "Composer verify:server"
             ],
-            "fingerprint": "sha256:a185a81d057b12cb0cbbdb37c0455c759a840425dd2695d3b36211667b1458f4"
+            "fingerprint": "sha256:7c253f54ea085cb329631a9d9a36faa1bd12afc17f6fbb06cea24d62e4c39c51"
         },
         {
             "path": "tests/Server/EngineMigrationRaceTest.php",

@@ -69,7 +69,7 @@ final class EngineMigrationProcessTest
         Assert::same($result['exit_code'], 0); Assert::same($result['stderr'], '');
         Assert::true(str_starts_with($result['stdout'], $prefix));
         $record = JsonRecord::decode(substr($result['stdout'], offset: strlen($prefix)));
-        Assert::same([$record['status'] ?? null, $record['phase'] ?? null, $record['version'] ?? null], ['passed', 'ready', 10]);
+        Assert::same([$record['status'] ?? null, $record['phase'] ?? null, $record['version'] ?? null], ['passed', 'ready', 11]);
         return DatabaseInteger::positive($record['connectionId'] ?? null);
     }
 }

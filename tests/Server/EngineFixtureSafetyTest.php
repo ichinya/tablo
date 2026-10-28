@@ -62,6 +62,7 @@ final class EngineFixtureSafetyTest
     public function finiteCatalogSlotsAndFixtureAliasesRefuseForeignOrUnboundedPlans(): void
     {
         engine_fixture_migration_exit_markers();
+        engine_fixture_migration_process_results();
         engine_fixture_native_binding_set();
         require_once dirname(__DIR__, levels: 2) . '/tools/ServerFixturePlan.php';
         $nonce = '1234567890abcdef1234567890abcdef';
@@ -1002,4 +1003,42 @@ function engine_fixture_migration_exit_markers(): void
         try { \Tablo\Tests\Support\EngineProcess::migrationExitBarrier($operation, static function (): void {}); } catch (\RuntimeException $error) { $caught = $error; }
         Assert::same($caught?->getMessage(), 'Migration exit actor operation refused.');
     }
+}
+
+/** Calls the actual native-test decoder with both wire prefixes; no migration/engine execution is claimed. */
+function engine_fixture_migration_process_results(): void
+{
+    $decoder = new \ReflectionMethod(EngineMigrationProcessTest::class, 'result');
+    foreach (["ENGINE_MIGRATION_READY\nENGINE_MIGRATION_HELD\n", "ENGINE_MIGRATION_READY\nENGINE_MIGRATION_CONTENDED\n"] as $prefix) {
+        $record = ['status' => 'passed', 'phase' => 'ready', 'version' => 11, 'connectionId' => 17];
+        $result = ['exit_code' => 0, 'stdout' => $prefix . \Tablo\JsonEncoding::encode($record), 'stderr' => ''];
+        Assert::same($decoder->invoke(null, $result, $prefix), 17);
+        foreach ([9, 10, 12, '11', null] as $version) {
+            $wrong = $result; $wrong['stdout'] = $prefix . \Tablo\JsonEncoding::encode(array_replace($record, ['version' => $version]));
+            engine_fixture_migration_result_refusal($decoder, $wrong, $prefix, \Testo\Assert\State\Assertion\ComparisonFailure::class);
+        }
+        foreach (['phase' => 'migrating', 'status' => 'failed'] as $key => $value) {
+            $wrong = $result; $wrong['stdout'] = $prefix . \Tablo\JsonEncoding::encode(array_replace($record, [$key => $value]));
+            engine_fixture_migration_result_refusal($decoder, $wrong, $prefix, \Testo\Assert\State\Assertion\ComparisonFailure::class);
+        }
+        foreach ([0, -1, '01', null] as $identity) {
+            $wrong = $result; $wrong['stdout'] = $prefix . \Tablo\JsonEncoding::encode(array_replace($record, ['connectionId' => $identity]));
+            engine_fixture_migration_result_refusal($decoder, $wrong, $prefix, \Tablo\DatabaseFailure::class);
+        }
+        foreach ([['exit_code' => 1, 'stdout' => $result['stdout'], 'stderr' => ''],
+            ['exit_code' => 0, 'stdout' => $result['stdout'], 'stderr' => 'synthetic diagnostic'],
+            ['exit_code' => 0, 'stdout' => \Tablo\JsonEncoding::encode($record), 'stderr' => '']] as $wrong) {
+            engine_fixture_migration_result_refusal($decoder, $wrong, $prefix, \Testo\Assert\State\Assertion\ComparisonFailure::class);
+        }
+    }
+}
+
+/** @param array{exit_code: int, stdout: string, stderr: string} $result
+ * @param class-string<\Throwable> $type */
+function engine_fixture_migration_result_refusal(\ReflectionMethod $decoder, array $result, string $prefix, string $type): void
+{
+    $caught = null;
+    try { $decoder->invoke(null, $result, $prefix); }
+    catch (\Testo\Assert\State\Assertion\ComparisonFailure | \Tablo\DatabaseFailure $error) { $caught = $error; }
+    Assert::instanceOf($caught, $type);
 }
