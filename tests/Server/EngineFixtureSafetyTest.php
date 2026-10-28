@@ -61,6 +61,7 @@ final class EngineFixtureSafetyTest
     #[Test]
     public function finiteCatalogSlotsAndFixtureAliasesRefuseForeignOrUnboundedPlans(): void
     {
+        engine_fixture_migration_exit_markers();
         engine_fixture_native_binding_set();
         require_once dirname(__DIR__, levels: 2) . '/tools/ServerFixturePlan.php';
         $nonce = '1234567890abcdef1234567890abcdef';
@@ -977,4 +978,28 @@ function engine_fixture_context_refused(\Closure $operation): void
 {
     $caught = null; try { $operation(); } catch (\RuntimeException $error) { $caught = $error; }
     Assert::instanceOf($caught, \RuntimeException::class);
+}
+
+/** Exercises the actor's exact selector/callback; no connection, DDL, process or engine substitute. */
+function engine_fixture_migration_exit_markers(): void
+{
+    foreach (['exit-before-publication' => 'before-publication', 'exit-after-publication' => 'after-publication', 'exit-after-ddl' => 'after-ddl'] as $operation => $phase) {
+        $markers = [];
+        $barrier = \Tablo\Tests\Support\EngineProcess::migrationExitBarrier($operation, static function () use (&$markers): void { $markers[] = "ENGINE_MIGRATION_EXIT_BOUNDARY\n"; });
+        $target = $operation === 'exit-after-ddl' ? 3 : 11;
+        foreach ([0, 2, 3, 4, 9, 10, 11, 12] as $wrong) {
+            if ($wrong === $target) { continue; }
+            $barrier($phase, $wrong); Assert::same($markers, [], 'wrong target cannot emit the exit marker');
+        }
+        foreach (['before-ddl', 'after-ddl', 'before-publication', 'after-publication', 'after-journal'] as $wrong) {
+            if ($wrong === $phase) { continue; }
+            $barrier($wrong, $target); Assert::same($markers, [], 'correct target with another phase cannot emit the marker');
+        }
+        $barrier($phase, $target); Assert::same($markers, ["ENGINE_MIGRATION_EXIT_BOUNDARY\n"]);
+    }
+    foreach (['exit-before-lock', 'exit-after-lock', 'migration-owner', 'unknown'] as $operation) {
+        $caught = null;
+        try { \Tablo\Tests\Support\EngineProcess::migrationExitBarrier($operation, static function (): void {}); } catch (\RuntimeException $error) { $caught = $error; }
+        Assert::same($caught?->getMessage(), 'Migration exit actor operation refused.');
+    }
 }

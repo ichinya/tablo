@@ -83,15 +83,8 @@ function tablo_engine_migration_exit_actor(string $case, string $operation): voi
         if (!$lock->acquire($db, 'migration')) { throw new RuntimeException('Migration exit actor lock unavailable.'); }
         tablo_engine_migration_exit_boundary();
     }
-    $point = match ($operation) {
-        'exit-after-ddl' => ['after-ddl', 3],
-        'exit-before-publication' => ['before-publication', 10],
-        'exit-after-publication' => ['after-publication', 10],
-        default => throw new RuntimeException('Migration exit actor operation refused.'),
-    };
-    $migration = new \Tablo\ServerMigration($db, $fixture->vault, static function (string $phase, int $step) use ($point): void {
-        if ([$phase, $step] === $point) { tablo_engine_migration_exit_boundary(); }
-    });
+    $barrier = \Tablo\Tests\Support\EngineProcess::migrationExitBarrier($operation, tablo_engine_migration_exit_boundary(...));
+    $migration = new \Tablo\ServerMigration($db, $fixture->vault, $barrier);
     $migration->initialize(\Tablo\Tests\Support\EngineSchedule::receipt($case));
 }
 

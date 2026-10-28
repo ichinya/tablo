@@ -8028,7 +8028,7 @@
                 "Tablo\\Tests\\Support\\EngineProcess",
                 "Native selected-engine login race"
             ],
-            "fingerprint": "sha256:d83443857f36f10a62da62549e5f4b65958f8c5ecc2f93db264c6c7c4c560760"
+            "fingerprint": "sha256:7fac4ec531038f8dbd09670916cf6cbedf4e7897b20f7ee060a261dcfc0c27d2"
         },
         {
             "path": "tests/Server/EngineAutoIdentityTest.php",
@@ -8069,7 +8069,7 @@
                 "Composer verify:server",
                 "Tablo\\Tests\\Support\\EngineFixture inherited-key refusal"
             ],
-            "fingerprint": "sha256:e3eb99b3eecaede30e13583919f51844c62e76810da5bcab06439d307e6100ec"
+            "fingerprint": "sha256:d640b32f6556553a189024659674958a94165a78d1fc7bd48d5e787adcbf47e6"
         },
         {
             "path": "tests/Server/EngineFlowTest.php",
@@ -8496,7 +8496,7 @@
                 "Composer analyze",
                 "Explicit native Server/ServerCross execution"
             ],
-            "fingerprint": "sha256:cb2b813a2cc70f2c4f8bb693412159d4982695931577d2b4452a48a37e2112c2"
+            "fingerprint": "sha256:1ca0a7b2cf85bcdc732f60aa1e92d25a87e10648191bf7e3257cecd35ca219f7"
         },
         {
             "path": "tests/Support/EngineSchedule.php",
