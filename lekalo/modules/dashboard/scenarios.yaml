@@ -466,8 +466,8 @@
         {
             "id": "dashboard.self_update_relation_and_provenance",
             "kind": "scenario",
-            "version": 1,
-            "summary": "Only exact installed build/deploy metadata initializes I; absent or invalid SHA never uses remote HEAD. Resolve selected branch to L and prove direction; same I/L clears notice, unrelated branch never participates, ahead/diverged/unavailable/observed force-push are distinct. Repeated same force-push remains exceptional until installed metadata changes or matches L.",
+            "version": 2,
+            "summary": "Only exact installed build/deploy metadata initializes I; absent or invalid SHA never uses remote HEAD. Resolve selected branch to L and prove direction; same I/L clears notice, unrelated branch never participates, ahead/diverged/unavailable/observed force-push are distinct. Repeated same force-push remains exceptional until installed metadata changes or matches L. Exact URL/request counts prove P==I comparison reuse for ahead/rewind/diverged/missing and preserved stop cancellation. A successful compare exhausting core quota remains successful; the next due attempt honors persisted cooldown. All branch components follow Git ref rules, rejecting standalone @/leading dot/.lock and forbidden sequences; valid Unicode, slash and @ names retain exact encoded paths. Returned claim attempt/lease fields match committed storage.",
             "covers": [
                 "dashboard.check_self_update",
                 "dashboard.get_self_update"

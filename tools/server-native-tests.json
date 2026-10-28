@@ -4321,7 +4321,7 @@
     }
   },
   "baseline": {
-    "requiredIdentityCount": 545,
+    "requiredIdentityCount": 548,
     "identities": [
       {
         "identity": "Tablo\\Tests\\Http\\AdminPasswordTest::resetRevokesEveryProtectedRouteAndPreservesSetupAndData",
@@ -8137,6 +8137,27 @@
         "dataRows": [],
         "minimumAssertions": 1,
         "deadlineSeconds": null
+      },
+      {
+        "identity": "Tablo\\Tests\\Unit\\SelfUpdateComparisonTest::reusesInstalledComparisonForObservedTransitionWithoutLosingStopOrForcePushRules",
+        "path": "tests/Unit/SelfUpdateComparisonTest.php",
+        "dataRows": [],
+        "minimumAssertions": 1,
+        "deadlineSeconds": null
+      },
+      {
+        "identity": "Tablo\\Tests\\Unit\\SelfUpdateComparisonTest::exhaustedQuotaOnSuccessfulComparisonDoesNotTurnReusedEvidenceIntoFailure",
+        "path": "tests/Unit/SelfUpdateComparisonTest.php",
+        "dataRows": [],
+        "minimumAssertions": 1,
+        "deadlineSeconds": null
+      },
+      {
+        "identity": "Tablo\\Tests\\Unit\\SelfUpdateScheduleTest::invalidBranchMetadataBecomesNoDataWhileValidNamesKeepTheirExactEncodedPath",
+        "path": "tests/Unit/SelfUpdateScheduleTest.php",
+        "dataRows": [],
+        "minimumAssertions": 1,
+        "deadlineSeconds": null
       }
     ],
     "prerequisite": "Unchanged Composer verify with explicitly isolated SQLite configuration; source/dependency refusal must happen before native subprocesses.",
@@ -8152,8 +8173,8 @@
       "identity": "Tablo\\Tests\\Network\\PasswordHelperTest::shippedHelperPreservesHostEncodingAndExactCredentials",
       "path": "tests/Network/PasswordHelperTest.php",
       "reason": "Native Windows PowerShell host required.",
-      "windowsPassed": 545,
-      "linuxPassed": 538,
+      "windowsPassed": 548,
+      "linuxPassed": 541,
       "additionalSkips": [
         {
           "identity": "Tablo\\Tests\\Network\\PasswordHelperFixtureObservationTest::preHelperStallEmitsEntryWhileNativeStagesRemainUnobserved",
@@ -9190,8 +9211,8 @@
   },
   "selfUpdateQualification": {
     "source": "Issue35 authored native coverage; all previous baseline identities retained",
-    "baselineAdded": 17,
-    "baselineTotal": 545,
+    "baselineAdded": 20,
+    "baselineTotal": 548,
     "mainAdded": 3,
     "mainTotal": 197,
     "crossTotal": 6,

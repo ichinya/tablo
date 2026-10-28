@@ -16,6 +16,17 @@ use Testo\Test;
 final class SelfUpdateScheduleTest
 {
     #[Test]
+    public function invalidBranchMetadataBecomesNoDataWhileValidNamesKeepTheirExactEncodedPath(): void
+    {
+        foreach (['', '@', '.main', 'feature/.secret', 'topic.lock', 'topic.lock/child', 'feature/topic.lock', '/main', 'main/', 'a//b',
+            'a..b', 'a@{b', 'a b', 'a~b', 'a^b', 'a:b', 'a?b', 'a*b', 'a[b', 'a\\b', 'main.', '-main', "a\0b", "a\x7fb", str_repeat('a', times: 201)] as $branch) {
+            self_update_branch_metadata($branch, status: 'no_data');
+        }
+        foreach (['main', 'feature/topic', 'release/v1.2', 'feature/foo./bar', 'topic/@', 'feature/@topic', 'topic.LOCK', 'topic.locked',
+            'фича/ветка', str_repeat('a', times: 200)] as $branch) { self_update_branch_metadata($branch, status: 'current'); }
+    }
+
+    #[Test]
     public function usesSixHourDueTimeAndBoundedRetriesWithoutErasingLastSuccess(): void
     {
         $db = A::database(); $http = new SelfUpdateHttp(); $now = 1000; $build = new BuildMetadata('ichinya/tablo', 'main', str_repeat('a', times: 40));
@@ -43,4 +54,16 @@ final class SelfUpdateScheduleTest
         Assert::same($row['status'], 'no_data'); Assert::same($row['successful_at'], null); Assert::same($row['next_due'], 22_600);
         Assert::same($row['latest_sha'], null);
     }
+}
+
+function self_update_branch_metadata(string $branch, string $status): void
+{
+    $db = A::database(); $http = new SelfUpdateHttp(); $build = new BuildMetadata('ichinya/tablo', $branch, str_repeat('a', times: 40));
+    Assert::same($build->valid(), $status === 'current');
+    if ($status === 'current') { $http->branch($build->sha, $branch); }
+    (new SelfUpdateCheck($db, $http, static fn (): int => 1000, $build))->runDue(static fn (): bool => false);
+    $row = (new SelfUpdateRepository($db))->get(); Assert::same($row['status'], $status);
+    Assert::same($http->urls, $status === 'current' ? ['https://api.github.com/repos/ichinya/tablo/branches/' . rawurlencode($branch)] : []);
+    Assert::same([$row['successful_at'], $row['latest_sha']], $status === 'current' ? [1000, $build->sha] : [null, null]);
+    Assert::same([$row['error_code'], $row['failures'], $row['claim_token']], [null, 0, null]);
 }

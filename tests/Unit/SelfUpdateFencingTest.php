@@ -17,8 +17,12 @@ final class SelfUpdateFencingTest
     {
         $db = A::database(); $repository = new SelfUpdateRepository($db); $build = new BuildMetadata('ichinya/tablo', 'main', str_repeat('a', times: 40));
         $claim = $repository->claim($build, 1000) ?? throw new \RuntimeException('Claim required.');
+        Assert::same($claim, $repository->get(), 'returned claim contains the complete committed snapshot');
+        Assert::same([$claim['attempted_at'], $claim['claim_until']], [1000, 1060]);
         Assert::same($repository->claim($build, 1001), null);
         $replacement = $repository->claim($build, 1060) ?? throw new \RuntimeException('Replacement claim required.');
+        Assert::same($replacement, $repository->get());
+        Assert::same([$replacement['attempted_at'], $replacement['claim_until']], [1060, 1120]);
         Assert::false($repository->complete($claim, $build, 1061, new SelfUpdateResult('current', $build->sha)));
         $repository->configure('1', '60');
         Assert::false($repository->complete($replacement, $build, 1061, new SelfUpdateResult('current', $build->sha)));

@@ -294,7 +294,7 @@ function server_native_original_platform_skip(DOMElement $case, array $spec): ar
 }
 
 /** The exact ordinary-source union is reviewed independently of child totals. */
-function server_native_baseline_identity_count(): int { return 545; }
+function server_native_baseline_identity_count(): int { return 548; }
 
 /** @return array{platform: string, identity: string, path: string, reason: string, windowsPassed: int, linuxPassed: int, additionalSkips: list<array{identity: string, path: string, reason: string}>} */
 function server_native_baseline_platform_policy(): array

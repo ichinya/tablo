@@ -18,7 +18,7 @@ final class SelfUpdateProbe
         $previous = $claim['observed_sha'];
         if ($previous !== null && $previous !== $latest && $build->sha !== $latest) {
             self::admit($stop);
-            $progress = $this->source->compare($build->repository, $previous, $latest);
+            $progress = $previous === $build->sha ? $comparison : $this->source->compare($build->repository, $previous, $latest);
             if (in_array($progress->status, ['behind', 'diverged'], strict: true)) { $status = 'force_pushed'; }
             if ($progress->status === 'unknown') { $status = 'unknown'; }
         }

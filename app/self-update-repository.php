@@ -38,7 +38,7 @@ final class SelfUpdateRepository
             if ($row['next_due'] > $now || $row['claim_until'] > $now) { return null; }
             $token = bin2hex(random_bytes(16));
             ServerSchema::rows($this->db, 'UPDATE self_update SET claim_token = ?, claim_until = ?, attempted_at = ? WHERE id = 1', [$token, $now + 60, $now]);
-            $row['claim_token'] = $token;
+            $row['claim_token'] = $token; $row['claim_until'] = $now + 60; $row['attempted_at'] = $now;
             return $row;
         });
     }

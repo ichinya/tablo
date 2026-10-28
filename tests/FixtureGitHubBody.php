@@ -21,6 +21,13 @@ case (str_contains($path, '/branches/')):
             $response->body = ['name' => $branch, 'commit' => ['sha' => $sha]];
 
     break;
+case (str_contains($path, '/compare/')):
+
+            $revisions = explode('...', basename($path), limit: 2);
+            $identical = $revisions[0] === ($revisions[1] ?? null);
+            $response->body = ['status' => $identical ? 'identical' : 'ahead', 'ahead_by' => $identical ? 0 : 1, 'behind_by' => 0];
+
+    break;
 case (str_contains($path, '/commits/')):
 
             $response->body = ['sha' => $sha];

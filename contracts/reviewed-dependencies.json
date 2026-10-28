@@ -5480,7 +5480,7 @@
                 "Composer verify",
                 "Composer analyze"
             ],
-            "fingerprint": "sha256:c5ae265a0f4e463f7df02b8b6f705f1946a0da7bbf1ce555515b33bf295997e5"
+            "fingerprint": "sha256:172c7ff0923ebe9b80ec8dd6f2968ec7a277fc4a1902d79975c651b7b3aa80d7"
         },
         {
             "path": "tests/FixtureGitHubHttp.php",
@@ -8295,7 +8295,7 @@
                 "Composer analyze",
                 "Composer verify:server"
             ],
-            "fingerprint": "sha256:5dc986621879399b609a94fb0637a98d214abb06d1d20e71e97a8a11ecc7a848"
+            "fingerprint": "sha256:986a04d57840d64c7c8b028ab1d55563e0a9326b383b7a69b27a79a6ed9762ed"
         },
         {
             "path": "tests/Server/EngineWatermarkTest.php",
@@ -11224,7 +11224,7 @@
                 "tools/server-supervisor-linux-qualify.cjs",
                 "tools/server-linux-prepare.cjs"
             ],
-            "fingerprint": "sha256:4c8ae84578f860b7abf321b106deea0b439231ede9702e0e7e58ef9c3e9e5c1b"
+            "fingerprint": "sha256:37cc645c40018a8a1a1ecb94d731908307d1f3220d6df24adbf863931651cb35"
         },
         {
             "path": "tools/ServerTestEvidence.php",
@@ -11235,7 +11235,7 @@
                 "Composer lint",
                 "Composer analyze"
             ],
-            "fingerprint": "sha256:39182cc46cb122b50a6a23db8ffb7f60a9d379be79d1a655f869ab2095b39892"
+            "fingerprint": "sha256:82b9c1c5f1f8a4a37fda70c4dde88bbb62726ad083e0e89fabe84b653358b07e"
         },
         {
             "path": "tools/verify-server.php",
@@ -12597,7 +12597,7 @@
                 "Composer verify",
                 "Private self-update worker/schema/presentation"
             ],
-            "fingerprint": "sha256:8cca5e1d4a45fb13a8ad17338202a0a1ec2229819e8ee329a75b2c1185b25300"
+            "fingerprint": "sha256:cb72e551e832769859d2959f67d6cb1eeb110561aec19a18933ff9e00467ba17"
         },
         {
             "path": "app/GitHubComparison.php",
@@ -12652,7 +12652,7 @@
                 "Composer verify",
                 "Private self-update worker/schema/presentation"
             ],
-            "fingerprint": "sha256:052ed8f18fd8ccb1b4f93b4dfcaf2f53072d0cc386546db754130fcf4ed3ef27"
+            "fingerprint": "sha256:5fcc4685cfe6e888c27090a0ef49f9a52244801e0f12c488f50a92980926f823"
         },
         {
             "path": "app/SelfUpdateResult.php",
@@ -12685,7 +12685,7 @@
                 "Composer verify",
                 "Private self-update worker/schema/presentation"
             ],
-            "fingerprint": "sha256:30febd3b66adba29b97fbbebb184d6e84fa5648b2781676cb8a6645861d9a497"
+            "fingerprint": "sha256:fce746d383c746b588111ddc2ca488502ced3c8b8460110d689535398b1e7116"
         },
         {
             "path": "app/self-update-presentation.php",
@@ -12717,7 +12717,7 @@
                 "Composer analyze",
                 "Composer verify"
             ],
-            "fingerprint": "sha256:907b2c79b01e0c08ef96d1a4b129917ef4284ada521cc697a50e5382a7b44ed9"
+            "fingerprint": "sha256:d2e5a5d067be772f095453878905eba54cc04e16caa99ae3d25fbd6e5c4d8630"
         },
         {
             "path": "tests/Unit/SelfUpdateScheduleTest.php",
@@ -12727,7 +12727,7 @@
                 "Composer analyze",
                 "Composer verify"
             ],
-            "fingerprint": "sha256:405b921e6b6e1ff25dc30b11e31e65feda28a000377b250f242d0ac89d4ebe4c"
+            "fingerprint": "sha256:bcdafe85f92b9154495aa38ad8546f23c238e4953df71fe8d45ad8cd6ac433ae"
         },
         {
             "path": "tests/Unit/SelfUpdateFencingTest.php",
@@ -12737,7 +12737,7 @@
                 "Composer analyze",
                 "Composer verify"
             ],
-            "fingerprint": "sha256:803d1deaf414823d0393b0e951aff60182f3404f064ae90fe435f7e3865b2d3a"
+            "fingerprint": "sha256:8e9de97de7a15d8716bfe766062614cd2b10af52009f00c5ebdbbebff39a51cb"
         },
         {
             "path": "tests/Unit/SelfUpdateMigrationTest.php",
