@@ -61,6 +61,7 @@ final class EngineFixtureSafetyTest
     #[Test]
     public function finiteCatalogSlotsAndFixtureAliasesRefuseForeignOrUnboundedPlans(): void
     {
+        engine_fixture_native_binding_set();
         require_once dirname(__DIR__, levels: 2) . '/tools/ServerFixturePlan.php';
         $nonce = '1234567890abcdef1234567890abcdef';
         foreach (['mysql' => 'm', 'mariadb' => 'a'] as $engine => $letter) {
@@ -457,6 +458,91 @@ function engine_fixture_observer_admission(): void
 function engine_fixture_observer_error(\Closure $operation): ?\RuntimeException
 {
     try { $operation(); return null; } catch (\RuntimeException $error) { return $error; }
+}
+
+/** Actual finite binding admission, without a server, subprocess or copied verifier. */
+function engine_fixture_native_binding_set(): void
+{
+    $root = dirname(__DIR__, levels: 2); $loaded = !function_exists('server_verify_bindings');
+    require_once $root . '/tools/verify-server.php';
+    require_once $root . '/tools/ServerTestEvidence.php';
+    require_once $root . '/tools/BindingsDeclaration.php';
+    $directory = new \Tablo\Tests\Support\TemporaryDirectory('tablo-native-binding-set-');
+    try {
+        mkdir($directory->path . '/contracts');
+        $declaration = \Tablo\Tools\BindingsDeclaration::read($root . '/contracts/php-bindings.json');
+        $map = \Tablo\JsonRecord::decode(\Tablo\RequiredFile::bytes(file_get_contents($root . '/tools/server-native-tests.json')));
+        $bindings = \Tablo\JsonRecord::checked($map['bindings'] ?? null);
+        Assert::same(count($declaration['symbols']), 59); Assert::same(count($bindings), 59);
+        Assert::same(\Tablo\JsonRecord::checked($bindings['dashboard.self_update'] ?? null), ['kind' => 'entity',
+            'main' => ['tests/Server/EngineMigrationFreshTest.php', 'tests/Server/EngineMigrationPreviousTest.php', 'tests/Server/EngineWorkerTest.php', 'tests/Server/EngineTransferTest.php'],
+            'cross' => ['tests/ServerCross/EngineCrossTransferTest.php'], 'requiredFamilies' => ['MigrationFresh', 'MigrationPrevious', 'Worker', 'Transfer', 'CrossTransfer']]);
+        engine_fixture_binding_declaration($directory->path, $declaration);
+        foreach (['main', 'cross'] as $lane) {
+            \server_verify_bindings($directory->path, $map, \Tablo\Tools\server_native_cases($map, $lane), $lane);
+        }
+        $cases = \Tablo\Tools\server_native_cases($map, lane: 'main');
+        engine_fixture_invalid_binding_maps($directory->path, $map, $cases);
+        engine_fixture_invalid_binding_declarations($directory->path, $map, $cases, $declaration);
+        engine_fixture_invalid_binding_counts($directory->path, $map, $cases, $declaration);
+    } finally { $directory->close(); if ($loaded) { restore_error_handler(); } }
+}
+
+function engine_fixture_binding_declaration(string $root, array $declaration): void
+{
+    $bytes = \Tablo\JsonEncoding::encode($declaration);
+    if (file_put_contents($root . '/contracts/php-bindings.json', $bytes) !== strlen($bytes)) { throw new \RuntimeException('Native binding fixture write failed.'); }
+}
+
+/** @param array<string, array{identity: string, path: string, minimumAssertions: int, deadlineSeconds: ?int}> $cases */
+function engine_fixture_invalid_binding_maps(string $root, array $map, array $cases): void
+{
+    $bindings = \Tablo\JsonRecord::checked($map['bindings'] ?? null);
+    $entity = \Tablo\JsonRecord::checked($bindings['dashboard.self_update'] ?? null);
+    $missing = $bindings; unset($missing['dashboard.self_update']);
+    $extra = $bindings; $extra['dashboard.unexpected'] = $entity;
+    $wrongKind = $bindings; $wrongKind['dashboard.self_update'] = array_replace($entity, ['kind' => 'command']);
+    $empty = $bindings; $empty['dashboard.self_update'] = array_replace($entity, ['main' => []]);
+    $unknown = $bindings; $unknown['dashboard.self_update'] = array_replace($entity, ['main' => ['tests/Server/UnownedTest.php']]);
+    foreach ([$missing, $extra, $wrongKind, $empty, $unknown] as $invalid) {
+        $candidate = $map; $candidate['bindings'] = $invalid;
+        Assert::instanceOf(engine_fixture_observer_error(static function () use ($root, $candidate, $cases): void {
+            \server_verify_bindings($root, $candidate, $cases, lane: 'main');
+        }), \RuntimeException::class);
+    }
+}
+
+/** @param array<string, array{identity: string, path: string, minimumAssertions: int, deadlineSeconds: ?int}> $cases
+ * @param array{symbols: list<\Tablo\Tools\BindingSymbol::Symbol>, ...} $declaration */
+function engine_fixture_invalid_binding_declarations(string $root, array $map, array $cases, array $declaration): void
+{
+    $missing = $declaration; $missing['symbols'] = array_slice($declaration['symbols'], offset: 0, length: -1);
+    $duplicate = $declaration; $duplicate['symbols'][] = $declaration['symbols'][0] ?? throw new \RuntimeException('First binding fixture absent.');
+    foreach ([$missing, $duplicate] as $invalid) {
+        engine_fixture_binding_declaration($root, $invalid);
+        Assert::instanceOf(engine_fixture_observer_error(static function () use ($root, $map, $cases): void {
+            \server_verify_bindings($root, $map, $cases, lane: 'main');
+        }), \RuntimeException::class);
+    }
+}
+
+/** Consistent smaller/larger declaration and consumer pairs still violate the fixed set size.
+ * @param array<string, array{identity: string, path: string, minimumAssertions: int, deadlineSeconds: ?int}> $cases
+ * @param array{symbols: list<\Tablo\Tools\BindingSymbol::Symbol>, ...} $declaration */
+function engine_fixture_invalid_binding_counts(string $root, array $map, array $cases, array $declaration): void
+{
+    $bindings = \Tablo\JsonRecord::checked($map['bindings'] ?? null);
+    $short = $declaration; $short['symbols'] = array_slice($declaration['symbols'], offset: 0, length: 55);
+    $shortBindings = array_intersect_key($bindings, array_fill_keys(array_column($short['symbols'], 'id'), value: true));
+    $extra = $declaration; $symbol = $declaration['symbols'][0] ?? throw new \RuntimeException('First binding fixture absent.');
+    $record = \Tablo\JsonRecord::checked($bindings[$symbol['id']] ?? null); $symbol['id'] = 'dashboard.unexpected';
+    $extra['symbols'][] = $symbol; $extraBindings = $bindings; $extraBindings[$symbol['id']] = $record;
+    foreach ([[$short, $shortBindings], [$extra, $extraBindings]] as [$invalid, $invalidBindings]) {
+        engine_fixture_binding_declaration($root, $invalid); $candidate = $map; $candidate['bindings'] = $invalidBindings;
+        Assert::instanceOf(engine_fixture_observer_error(static function () use ($root, $candidate, $cases): void {
+            \server_verify_bindings($root, $candidate, $cases, lane: 'main');
+        }), \RuntimeException::class);
+    }
 }
 
 /** Labelled records exercise proof refusal only; they are not an actual Composer/engine run. */

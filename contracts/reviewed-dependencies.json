@@ -8,7 +8,7 @@
                 "Composer verify",
                 "Reviewed dependency capture"
             ],
-            "fingerprint": "sha256:9f4fd45fcccafbe5ee982f26cb442bd749977f8910bd58d7451d3a99154a9927"
+            "fingerprint": "sha256:e2f5c28adf9a99a3299694185d58f002c5388daf0d29c704108d418a0cfe7927"
         },
         {
             "path": "tools/reviewed-dependencies.php",
@@ -8069,7 +8069,7 @@
                 "Composer verify:server",
                 "Tablo\\Tests\\Support\\EngineFixture inherited-key refusal"
             ],
-            "fingerprint": "sha256:bfc71b0f25d4130ea5de0c61ed930f4dcbf9080bd2ba67ecabeabb61bfa39e4f"
+            "fingerprint": "sha256:e3eb99b3eecaede30e13583919f51844c62e76810da5bcab06439d307e6100ec"
         },
         {
             "path": "tests/Server/EngineFlowTest.php",
@@ -11002,7 +11002,7 @@
                 "Composer verify",
                 "Composer analyze"
             ],
-            "fingerprint": "sha256:076c574d0c4bb9ab171fd372395df74fabb21e519f7669d56073f7129e2fc9db"
+            "fingerprint": "sha256:e8137464d6702c37297f2a73e0009479757c576cb13a1285f713631a1e28a617"
         },
         {
             "path": "tools/capture-reviewed-dependencies.php",
@@ -11224,7 +11224,7 @@
                 "tools/server-supervisor-linux-qualify.cjs",
                 "tools/server-linux-prepare.cjs"
             ],
-            "fingerprint": "sha256:7d930a88e2d92ff66f9bde8132c5fba5747a1946f2cb0442ab0d2bf866f0e2b2"
+            "fingerprint": "sha256:7b6969e59e913f5fa6267ef2689633732b06c8d25a439a0b01d4f945b5c879ad"
         },
         {
             "path": "tools/ServerTestEvidence.php",
@@ -11247,7 +11247,7 @@
                 "Composer analyze",
                 "tools/server-supervisor.cjs"
             ],
-            "fingerprint": "sha256:85e94b2b9a369b43cf2f48becbd09f5c09cf772468ca12dd0fc1c3b81bfefa2d"
+            "fingerprint": "sha256:55f0b21f88ba38b948911418eddf6c85014d6a76cb9272dfe1b1a1552ef0c0d7"
         },
         {
             "path": "tools/verify.php",
@@ -12622,7 +12622,7 @@
             "fingerprint": "sha256:f7f6a3477fdbc55656cdf023be73f24d98e108f0172a7249477327ba45d099ec"
         },
         {
-            "path": "app/SelfUpdateSchema.php",
+            "path": "app/self-update-schema.php",
             "owner": "Tablo\\SelfUpdateSchema",
             "consumers": [
                 "Composer lint",
@@ -12630,7 +12630,7 @@
                 "Composer verify",
                 "Private self-update worker/schema/presentation"
             ],
-            "fingerprint": "sha256:c43d5567dd00d2d4adfe831756ad91b2258101fae1c68961c90901d341a5a2b7"
+            "fingerprint": "sha256:900ce67ed2d1c3a86c6e4c7f691d999dece1303f75d968033db86c3690e1de8a"
         },
         {
             "path": "app/SelfUpdateRow.php",
@@ -12644,7 +12644,7 @@
             "fingerprint": "sha256:c77d223343ccc215d9136ffe9794f801b63e69e100af0b5041b8e07a53b52c94"
         },
         {
-            "path": "app/SelfUpdateRepository.php",
+            "path": "app/self-update-repository.php",
             "owner": "Tablo\\SelfUpdateRepository",
             "consumers": [
                 "Composer lint",
@@ -12652,7 +12652,7 @@
                 "Composer verify",
                 "Private self-update worker/schema/presentation"
             ],
-            "fingerprint": "sha256:80f989df64b9bda8caf506630d7da915bf740cce96b7a21872c686ca854c8da0"
+            "fingerprint": "sha256:957a4cadede7c425477f29716cea900535d40abead99337497df5a9f1dab3b4b"
         },
         {
             "path": "app/SelfUpdateResult.php",
@@ -12666,7 +12666,7 @@
             "fingerprint": "sha256:b96d0c9d5887434e03b92b33d37aefedd6c42c6afe42aa0ae5d525280e7cdbbd"
         },
         {
-            "path": "app/SelfUpdateCheck.php",
+            "path": "app/self-update-check.php",
             "owner": "Tablo\\SelfUpdateCheck",
             "consumers": [
                 "Composer lint",
@@ -12674,7 +12674,7 @@
                 "Composer verify",
                 "Private self-update worker/schema/presentation"
             ],
-            "fingerprint": "sha256:85691e9087df72b53632ea2ba046f856fcbbd073657b6a4c4cfaae2e6db49ea5"
+            "fingerprint": "sha256:143fffdedd0a8b7cb87be81285e2b045fbab2f64cfeeb53044c14cf085161330"
         },
         {
             "path": "app/SelfUpdateProbe.php",
@@ -12688,7 +12688,7 @@
             "fingerprint": "sha256:30febd3b66adba29b97fbbebb184d6e84fa5648b2781676cb8a6645861d9a497"
         },
         {
-            "path": "app/SelfUpdatePresentation.php",
+            "path": "app/self-update-presentation.php",
             "owner": "Tablo\\SelfUpdatePresentation",
             "consumers": [
                 "Composer lint",
@@ -12696,7 +12696,7 @@
                 "Composer verify",
                 "Private self-update worker/schema/presentation"
             ],
-            "fingerprint": "sha256:61c3f50bc3d341dccfaed72033c024aa07e0f62a1c00bd101c13bd86a9a1d843"
+            "fingerprint": "sha256:a6449ee93ca07211d5dcad91d87cf96a86d3f03af6b019624ad58ccd26cdef1c"
         },
         {
             "path": "app/ServerSchemaProjection.php",

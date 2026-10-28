@@ -3,6 +3,8 @@ declare(strict_types=1);
 
 namespace Tablo;
 
+// Pinned Lekalo requires lowercase physical source paths for this contracted owner.
+// @mago-expect lint:file-name
 final class SelfUpdateCheck
 {
     /** @param (\Closure(): int)|null $clock */

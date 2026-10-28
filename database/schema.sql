@@ -1,5 +1,5 @@
 -- Historical base schema; Database::migrate applies the exact versioned upgrades.
--- Schema 11 adds the self_update singleton through app/SelfUpdateSchema.php.
+-- Schema 11 adds the self_update singleton through app/self-update-schema.php.
 CREATE TABLE IF NOT EXISTS users (
     id INTEGER PRIMARY KEY CHECK (id = 1),
     password_hash TEXT NOT NULL,

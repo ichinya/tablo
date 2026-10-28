@@ -82,8 +82,9 @@ function server_verify_bindings(string $root, array $map, array $cases, string $
         $expected[SqlColumn::string($symbol, 'id')] = SqlColumn::string($symbol, 'kind');
     }
     $bindings = JsonRecord::checked($map['bindings'] ?? null);
-    if (count($expected) !== 55 || array_diff_key($bindings, $expected) !== [] || array_diff_key($expected, $bindings) !== []) {
-        throw new RuntimeException('Exact55 native binding consumer set changed.');
+    if (!array_is_list($symbols) || count($symbols) !== 59 || count($expected) !== 59
+        || array_diff_key($bindings, $expected) !== [] || array_diff_key($expected, $bindings) !== []) {
+        throw new RuntimeException('Exact59 native binding consumer set changed.');
     }
     foreach ($expected as $id => $kind) {
         $record = JsonRecord::checked($bindings[$id] ?? null);

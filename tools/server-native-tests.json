@@ -4299,6 +4299,25 @@
         "Flow",
         "MigrationPrevious"
       ]
+    },
+    "dashboard.self_update": {
+      "kind": "entity",
+      "main": [
+        "tests/Server/EngineMigrationFreshTest.php",
+        "tests/Server/EngineMigrationPreviousTest.php",
+        "tests/Server/EngineWorkerTest.php",
+        "tests/Server/EngineTransferTest.php"
+      ],
+      "cross": [
+        "tests/ServerCross/EngineCrossTransferTest.php"
+      ],
+      "requiredFamilies": [
+        "MigrationFresh",
+        "MigrationPrevious",
+        "Worker",
+        "Transfer",
+        "CrossTransfer"
+      ]
     }
   },
   "baseline": {

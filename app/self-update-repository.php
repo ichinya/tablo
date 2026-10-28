@@ -4,6 +4,8 @@ declare(strict_types=1);
 namespace Tablo;
 
 /** @phpstan-import-type Row from SelfUpdateRow */
+// Pinned Lekalo requires lowercase physical source paths for this contracted owner.
+// @mago-expect lint:file-name
 final class SelfUpdateRepository
 {
     public function __construct(private readonly \PDO $db) {}

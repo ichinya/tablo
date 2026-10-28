@@ -4,6 +4,8 @@ declare(strict_types=1);
 namespace Tablo;
 
 /** @phpstan-type View array{message: string, status: string, stale: bool, enabled: bool, visible: bool, branch: string, installed: string, latest: string, successful_at: string, new_commits: ?int, compare_url: string, interval_minutes: int} */
+// Pinned Lekalo requires lowercase physical source paths for this contracted owner.
+// @mago-expect lint:file-name
 final class SelfUpdatePresentation
 {
     /** @return View */

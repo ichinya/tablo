@@ -62,10 +62,10 @@ $mapping = [
     'read_api_token_metadata' => ['app/read-api-token-repository.php', 'function read_api_token_metadata'],
     'rotate_read_api_token' => ['app/read-api-token-repository.php', 'function rotate_read_api_token'],
     'revoke_read_api_token' => ['app/read-api-token-repository.php', 'function revoke_read_api_token'],
-    'self_update' => ['app/SelfUpdateSchema.php', 'CREATE TABLE self_update'],
-    'update_self_update_settings' => ['app/SelfUpdateRepository.php', 'public function configure'],
-    'check_self_update' => ['app/SelfUpdateCheck.php', 'public function runDue'],
-    'get_self_update' => ['app/SelfUpdatePresentation.php', 'public static function saved'],
+    'self_update' => ['app/self-update-schema.php', 'CREATE TABLE self_update'],
+    'update_self_update_settings' => ['app/self-update-repository.php', 'public function configure'],
+    'check_self_update' => ['app/self-update-check.php', 'public function runDue'],
+    'get_self_update' => ['app/self-update-presentation.php', 'public static function saved'],
     'read_api_token' => ['app/read-api-token-schema.php', 'CREATE TABLE read_api_token'],
 ];
 $symbols = [];

@@ -10227,7 +10227,7 @@
       "Private self-update worker/schema/presentation"
     ]
   },
-  "app/SelfUpdateSchema.php": {
+  "app/self-update-schema.php": {
     "owner": "Tablo\\SelfUpdateSchema",
     "consumers": [
       "Composer lint",
@@ -10245,7 +10245,7 @@
       "Private self-update worker/schema/presentation"
     ]
   },
-  "app/SelfUpdateRepository.php": {
+  "app/self-update-repository.php": {
     "owner": "Tablo\\SelfUpdateRepository",
     "consumers": [
       "Composer lint",
@@ -10263,7 +10263,7 @@
       "Private self-update worker/schema/presentation"
     ]
   },
-  "app/SelfUpdateCheck.php": {
+  "app/self-update-check.php": {
     "owner": "Tablo\\SelfUpdateCheck",
     "consumers": [
       "Composer lint",
@@ -10281,7 +10281,7 @@
       "Private self-update worker/schema/presentation"
     ]
   },
-  "app/SelfUpdatePresentation.php": {
+  "app/self-update-presentation.php": {
     "owner": "Tablo\\SelfUpdatePresentation",
     "consumers": [
       "Composer lint",
