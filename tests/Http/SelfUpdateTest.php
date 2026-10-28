@@ -29,12 +29,12 @@ final class SelfUpdateTest
             $before = A::snapshot($db);
             foreach (['/', '/settings', '/settings'] as $path) {
                 $response = $web->request($path); Assert::same($response['status'], 200);
-                Assert::true(str_contains($response['body'], 'В ветке main доступны новые коммиты. Обновите Tablo'));
+                Assert::true(str_contains($response['body'], 'В ветке main доступны новые коммиты. Обновите Tablo.'));
                 Assert::true(str_contains($response['body'], 'новых коммитов: 4'));
                 Assert::true(str_contains($response['body'], 'https://github.com/ichinya/tablo/compare/' . $build->sha . '...' . str_repeat('b', times: 40)));
             }
             $state = DashboardStateAssertions::success($web->request('/dashboard/state'), $csrf);
-            Assert::true(str_contains(FixtureValue::string($state['html'] ?? null), 'В ветке main доступны новые коммиты. Обновите Tablo'));
+            Assert::true(str_contains(FixtureValue::string($state['html'] ?? null), 'В ветке main доступны новые коммиты. Обновите Tablo.'));
             Assert::same(A::snapshot($db), $before);
             Assert::false(is_file($web->directory->path . '/github-calls.log'));
             $anonymous = $web->request('/login', options: new WebRequestOptions(cookies: CookiePolicy::Omitted));

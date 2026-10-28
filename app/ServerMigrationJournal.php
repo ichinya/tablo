@@ -48,10 +48,12 @@ function server_migration_widen_intent(\PDO $db, string $plan, int $predecessor,
 {
         $rows = ServerSchema::rows($db, 'SELECT checksum, predecessor, target, before_predicate, after_predicate, phase FROM tablo_migration_journal WHERE plan = ? AND step = 0', [$plan]);
         if ($rows !== []) {
+            if (count($rows) !== 1) { throw new DatabaseFailure('schema'); }
             $row = $rows[0];
-            if ([$row['checksum'] ?? null, $row['predecessor'] ?? null, $row['target'] ?? null, $row['before_predicate'] ?? null, $row['after_predicate'] ?? null]
-                !== [$checksum, $predecessor, 11, 'state:logical-version-max10', 'state:logical-version-max11']
-                || !in_array($row['phase'] ?? null, ['intent', 'done', 'failed'], strict: true)) { throw new DatabaseFailure('schema'); }
+            $observed = [SqlColumn::string($row, 'checksum'), DatabaseInteger::checked($row['predecessor'] ?? null), DatabaseInteger::checked($row['target'] ?? null),
+                SqlColumn::string($row, 'before_predicate'), SqlColumn::string($row, 'after_predicate')];
+            if ($observed !== [$checksum, $predecessor, 11, 'state:logical-version-max10', 'state:logical-version-max11']
+                || !in_array(SqlColumn::string($row, 'phase'), ['intent', 'done', 'failed'], strict: true)) { throw new DatabaseFailure('schema'); }
             return;
         }
         ServerSchema::rows($db, "INSERT INTO tablo_migration_journal (plan, step, checksum, predecessor, target, before_predicate, after_predicate, phase) VALUES (?, 0, ?, ?, 11, 'state:logical-version-max10', 'state:logical-version-max11', 'intent')", [$plan, $checksum, $predecessor]);

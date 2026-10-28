@@ -37,7 +37,7 @@ function self_update_presentation(SelfUpdateRepository $repository, ?BuildMetada
 function self_update_message(BuildMetadata $build, string $status): string
 {
     return match ($status) {
-        'behind' => 'В ветке ' . $build->branch . ' доступны новые коммиты. Обновите Tablo',
+        'behind' => 'В ветке ' . $build->branch . ' доступны новые коммиты. Обновите Tablo.',
         'current' => 'Установленная сборка соответствует ветке.',
         'ahead' => 'Установленная сборка впереди отслеживаемой ветки.',
         'diverged' => 'История установленной сборки и ветки разошлась.',

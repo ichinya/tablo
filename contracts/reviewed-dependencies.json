@@ -3374,7 +3374,7 @@
                 "app/ServerMigration.php",
                 "app/ServerMigrationStep.php"
             ],
-            "fingerprint": "sha256:76fb5857bcb41568533063e3eb6eed7c3d4f92e52bd4410c500b0f74c8500a70"
+            "fingerprint": "sha256:922712a326f20a9cda2d5932e7be9c1f84d269cab5213421bd5743c24f267980"
         },
         {
             "path": "app/ServerMigrationLock.php",
@@ -12696,7 +12696,7 @@
                 "Composer verify",
                 "Private self-update worker/schema/presentation"
             ],
-            "fingerprint": "sha256:a6449ee93ca07211d5dcad91d87cf96a86d3f03af6b019624ad58ccd26cdef1c"
+            "fingerprint": "sha256:19716306f61e0d01f558f74c92c06301e525a438d8428fcfe9c46617eb5a551c"
         },
         {
             "path": "app/ServerSchemaProjection.php",
@@ -12727,7 +12727,7 @@
                 "Composer analyze",
                 "Composer verify"
             ],
-            "fingerprint": "sha256:bcdafe85f92b9154495aa38ad8546f23c238e4953df71fe8d45ad8cd6ac433ae"
+            "fingerprint": "sha256:4992e5ef8398e9d27fc0c8ca748237984694cf383b31afa60520045c698ddc57"
         },
         {
             "path": "tests/Unit/SelfUpdateFencingTest.php",
@@ -12747,7 +12747,7 @@
                 "Composer analyze",
                 "Composer verify"
             ],
-            "fingerprint": "sha256:2f9b43c2f6c858a869bcc9065e3a378e84a1c2e2c8346a70f8f1819133bb5f13"
+            "fingerprint": "sha256:b89554c8e092336bc54f5789b49258e637ad346ece8718bbb4aad5d8dfd3d311"
         },
         {
             "path": "tests/Unit/SelfUpdateWorkerTest.php",
@@ -12787,7 +12787,7 @@
                 "Composer analyze",
                 "Composer verify"
             ],
-            "fingerprint": "sha256:bad7bfee9afe579a4dfe98fe74286cab17e555bf8acb19ddc6896c30ec84a601"
+            "fingerprint": "sha256:9582d1d5a5d8472455c854942ebe4a0117545cbae149525d4d837c78e6d50c60"
         },
         {
             "path": "tests/fixtures/server-layouts/v11/mysql84-layout.json",

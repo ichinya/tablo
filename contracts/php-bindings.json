@@ -5,7 +5,7 @@
         "version": "0.1.0"
     },
     "project": "tablo",
-    "revision": "sha256:6b7dac33a0d2b97ee0f2ef492988d6811afd9d2deeaa643b968107864cd4bd78",
+    "revision": "sha256:fc9c9af9d4f839c82a98ba064bf7bb74821d1594ee362a331318b8385d0a7a66",
     "symbols": [
         {
             "id": "dashboard.change_admin_password",
@@ -2270,7 +2270,7 @@
                 "path": "app/self-update-presentation.php",
                 "line": 12
             },
-            "fingerprint": "sha256:a6449ee93ca07211d5dcad91d87cf96a86d3f03af6b019624ad58ccd26cdef1c",
+            "fingerprint": "sha256:19716306f61e0d01f558f74c92c06301e525a438d8428fcfe9c46617eb5a551c",
             "signature": {
                 "inputs": [],
                 "output": "dashboard.self_update",

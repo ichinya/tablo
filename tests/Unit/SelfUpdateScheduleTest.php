@@ -33,6 +33,7 @@ final class SelfUpdateScheduleTest
         $repository = new SelfUpdateRepository($db); $check = new SelfUpdateCheck($db, $http, static function () use (&$now): int { return $now; }, $build);
         $http->branch(str_repeat('b', times: 40)); $http->comparison('ahead', ahead: 7); $check->runDue(static fn (): bool => false);
         $success = $repository->get(); Assert::same($success['next_due'], 22_600);
+        Assert::same(SelfUpdatePresentation::saved($repository, $build, $now)['message'], 'В ветке main доступны новые коммиты. Обновите Tablo.');
         $now = 22_599; $check->runDue(static fn (): bool => false); Assert::same(count($http->urls), 2);
         foreach ([300, 1800, 7200, 21_600] as $delay) {
             $now = $repository->get()['next_due']; $http->responses[] = UnitFixtures::response(503);
