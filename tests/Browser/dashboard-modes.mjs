@@ -8,6 +8,7 @@ import {spawn} from 'node:child_process';
 import {pathToFileURL} from 'node:url';
 import {pendingNavigation, ownDirectChild, settleOwnedCleanup} from './control-lifecycle.mjs';
 import {pollingScenarios} from './dashboard-polling-scenarios.mjs';
+import {availabilityScenarios} from './availability-scenarios.mjs';
 
 // The caller provisions qualified libraries/executable and an immutable source copy.
 // No package install, application API or installation environment is used here.
@@ -350,6 +351,27 @@ async function context(options = {}, init, initArg) {
   return ctx;
 }
 async function closeContext(ctx) { await drainCaptures(); await ctx.close(); contexts.delete(ctx); record('context-closed'); }
+async function navigationWithFavicon(page, destination, navigate) {
+  // Favicon requests can start after load and after an otherwise empty drain.
+  // Observe this document's real asset before a following navigation can evict it.
+  const start = transportRecords.length;
+  const [favicon] = await Promise.all([
+    page.waitForResponse(response => response.url() === fixture.base + '/assets/favicon.svg'
+      && response.request().method() === 'GET' && response.request().headers().referer === destination),
+    navigate(),
+  ]);
+  assert.equal(favicon.status(), 200, 'navigated document favicon succeeds');
+  assert.equal(await favicon.finished(), null, 'document favicon finishes before the next navigation');
+  await drainCaptures();
+  if (cdpTransport) {
+    const captured = transportRecords.slice(start).filter(item => transportPages.get(item) === page
+      && item.url === favicon.url() && item.forwardedHeaders.referer === destination);
+    assert.equal(captured.length, 1, 'one native favicon response for the navigated document');
+    assert.equal(captured[0].browserHeadersCaptured, true);
+    assert.equal(captured[0].browserBodyCaptured, true, 'favicon bytes retained before the next navigation');
+    record('navigation-document-asset-settled', {pageToken: pageTokens.get(page), destination, id: captured[0].id});
+  }
+}
 async function open(ctx, {clock = false} = {}) {
   const page = await ctx.newPage(); await pageReady.get(page);
   if (clock) {
@@ -380,15 +402,20 @@ async function bounded(page, label) {
   await region.focus();
   await page.keyboard.press('End');
   await region.evaluate(element => { element.scrollLeft = element.scrollWidth; });
-  const last = page.locator('[data-dashboard-view="table"] [data-site]:visible').first().locator('td:last-child a');
-  await last.focus();
-  const access = await last.evaluate(element => {
-    const rect = element.getBoundingClientRect();
-    const region = element.closest('.dashboard-table-region').getBoundingClientRect();
-    return {left: rect.left, right: rect.right, regionLeft: region.left, regionRight: region.right, bodyWidth: document.documentElement.scrollWidth, viewport: innerWidth};
-  });
-  assert.ok(access.left >= access.regionLeft - 1 && access.right <= access.regionRight + 1, `${label}: rightmost action unreachable`);
-  record('overflow-and-actions', {label, ...access});
+  const row = page.locator('[data-dashboard-view="table"] [data-site]:visible').first();
+  for (const [action, selector] of [['settings', 'td:last-child a[href$="/edit"]'], ['history', 'td:last-child a.history-link[href$="/history"]']]) {
+    const link = row.locator(selector);
+    assert.equal(await link.count(), 1, `${label}: unique ${action} action`);
+    await link.focus();
+    assert.equal(await link.evaluate(element => element === document.activeElement), true, `${label}: ${action} action accepts keyboard focus`);
+    const access = await link.evaluate(element => {
+      const rect = element.getBoundingClientRect();
+      const region = element.closest('.dashboard-table-region').getBoundingClientRect();
+      return {left: rect.left, right: rect.right, regionLeft: region.left, regionRight: region.right, bodyWidth: document.documentElement.scrollWidth, viewport: innerWidth};
+    });
+    assert.ok(access.left >= access.regionLeft - 1 && access.right <= access.regionRight + 1, `${label}: ${action} action unreachable`);
+    record('overflow-and-actions', {label, action, ...access});
+  }
 }
 try {
   const output = fs.openSync(`${directory}/fixture.stderr`, 'wx');
@@ -500,12 +527,15 @@ try {
   await page.locator('[data-dashboard-controls]').waitFor({state: 'visible'});
   assert.equal(await page.locator('[data-view="table"]').getAttribute('aria-pressed'), 'true');
   assert.equal(await page.locator('#site-search').inputValue(), 'Portal');
-  await drainCaptures(); await page.locator('[data-dashboard-view="table"] [data-site]:visible a[href$="/edit"]').click();
+  await drainCaptures();
+  const editDestination = fixture.base + `/sites/${fixture.ids[1]}/edit`;
+  await navigationWithFavicon(page, editDestination, () => page.locator('[data-dashboard-view="table"] [data-site]:visible a[href$="/edit"]').click());
   await page.locator('[data-site-form]').waitFor();
-  await drainCaptures(); await page.goBack(); await page.locator('[data-dashboard-controls]').waitFor({state: 'visible'});
+  await navigationWithFavicon(page, fixture.base + '/', () => page.goBack()); await page.locator('[data-dashboard-controls]').waitFor({state: 'visible'});
   assert.equal(await page.locator('#site-search').inputValue(), 'Portal');
   assert.deepEqual(await visibleIds(page, 'table'), [fixture.ids[1]]);
-  await drainCaptures(); await page.goForward(); await page.locator('[data-site-form]').waitFor(); await drainCaptures(); await page.goBack();
+  await navigationWithFavicon(page, editDestination, () => page.goForward()); await page.locator('[data-site-form]').waitFor();
+  await navigationWithFavicon(page, fixture.base + '/', () => page.goBack());
   await page.locator('[data-dashboard-controls]').waitFor({state: 'visible'});
   await page.locator('[data-filter="all"]').click(); await page.locator('#site-search').fill('');
   await page.locator('[data-view="tile"]').focus(); await page.keyboard.press('Space');
@@ -622,6 +652,7 @@ try {
     const touch = await context({viewport: {width: 390, height: 844}, isMobile: true, hasTouch: true});
     const mobile = await open(touch); await mode(mobile, 'table'); await bounded(mobile, '390 touch emulation'); await closeContext(touch);
   }
+  if (config.availability === true) await availabilityScenarios({context, open, closeContext, command, fixture, requests, stateRequest, drainCaptures, record, mode, pageReady, directory});
   await command('long');
   const longContext = await context(); const long = await open(longContext); await mode(long, 'table');
   await long.setViewportSize({width: 360, height: 800}); await bounded(long, 'long Unicode/URL/branch/error'); await mode(long, 'tile');

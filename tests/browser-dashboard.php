@@ -29,6 +29,8 @@ try {
             continue;
         }
         $extra = match ($operation) {
+            'availability_seed' => \Tablo\Tests\Support\AvailabilityBrowser::seed($fixture),
+            'availability_state' => ['availabilitySnapshot' => \Tablo\Tests\Support\AvailabilityBrowser::snapshot($fixture->web->database())],
             'polling_mutate' => \Tablo\Tests\Support\DashboardPollingBrowser::mutate($fixture, $ids),
             'polling_large' => \Tablo\Tests\Support\DashboardPollingBrowser::large($fixture),
             default => [],

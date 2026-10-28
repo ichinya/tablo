@@ -50,3 +50,64 @@
 .dashboard-refresh{font-size:13px;color:#667085;margin:12px 0}
 .dashboard-refresh:empty{display:none}
 .dashboard-refresh a{color:inherit;text-decoration:underline}
+/* Retained-check history: independent observations, with a bounded data table. */
+.card-actions .history-link{width:44px;height:44px;flex-shrink:0}
+.dashboard-table .card-actions{flex-wrap:wrap}
+.availability-page,.availability-panel,.availability-heading>div{min-width:0;max-width:100%}
+.availability-page{font-size:13px;line-height:1.7;overflow-wrap:anywhere}
+.availability-page .back-link{min-height:44px;margin-bottom:16px}
+.availability-page .button,.availability-page select,.availability-details>summary{min-height:44px}
+.availability-page a:focus-visible,.availability-page button:focus-visible,.availability-page select:focus-visible,.availability-details>summary:focus-visible,.availability-table-region:focus-visible{outline:2px solid var(--green);outline-offset:3px}
+.availability-heading{margin-bottom:22px}
+.availability-heading .availability-site{font-size:17px;font-weight:600;color:var(--ink);margin-top:12px}
+.availability-filter{display:flex;align-items:flex-end;gap:12px;flex-wrap:wrap;margin-bottom:14px}
+.availability-filter>div{min-width:170px;max-width:100%}
+.availability-filter select{display:block;width:100%;font:inherit;color:var(--ink);background:#fff;border:1px solid var(--line);border-radius:7px;padding:9px 36px 9px 12px}
+.availability-window{font-size:12px;color:#667580;margin-bottom:23px}
+.availability-window time{font-variant-numeric:tabular-nums}
+.availability-panel{background:var(--surface);border:1px solid var(--line);border-radius:11px;padding:24px;margin-bottom:20px}
+.availability-panel h2{font-size:17px;line-height:1.5;font-weight:600;letter-spacing:-.2px;margin-bottom:12px}
+.availability-metric{display:flex;flex-wrap:wrap;align-items:baseline;gap:10px 18px;margin:12px 0}
+.availability-metric>strong{font-size:40px;line-height:1.3;color:var(--green);letter-spacing:-1px;font-variant-numeric:tabular-nums}
+.availability-metric>span{font-size:13px;color:#526960}
+.availability-explanation{color:#586a76}
+.availability-counts{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:16px;margin:22px 0;padding-top:19px;border-top:1px solid var(--line)}
+.availability-counts dt{font-size:12px;color:#6d7b85}
+.availability-counts dd{font-size:21px;font-weight:600;margin:3px 0 0;color:var(--ink);font-variant-numeric:tabular-nums}
+.availability-note{font-size:12px;line-height:1.8;color:#637480}
+.availability-method{margin-top:24px}
+.availability-paused{border:1px solid #e4d6b9;background:#fffcf4;border-radius:9px;padding:15px 18px;margin-bottom:22px;color:#735e35}
+.availability-paused p{font-size:12px;margin-top:3px}
+.availability-period-links{display:flex;gap:10px;flex-wrap:wrap;margin-top:18px}
+.availability-empty p,.availability-overflow p{color:#637480}
+.availability-response-counts{font-size:12px;color:#637480;margin:14px 0}
+.availability-chart{width:100%;max-width:100%;margin-top:22px}
+svg.availability-plot{display:block;width:100%;height:auto;max-width:100%;overflow:visible;color:#526b61;fill:none;stroke:none}
+.availability-plot text{font-family:inherit;font-size:11px;fill:#637480}
+.availability-plot .availability-grid-line{stroke:#e1e9e5;stroke-width:1}
+.availability-plot .availability-axis{stroke:#97a99f;stroke-width:1}
+.availability-plot .availability-y-label{text-anchor:end;dominant-baseline:middle}
+.availability-plot .availability-x-label{text-anchor:middle}
+.availability-plot .availability-x-ticks>:first-child{text-anchor:start}
+.availability-plot .availability-x-ticks>:last-child{text-anchor:end}
+.availability-plot .availability-mean{fill:var(--green);stroke:#fff;stroke-width:1.2}
+.availability-plot .availability-gap{text-anchor:middle;fill:#846531;font-size:15px;font-weight:600}
+.availability-legend{display:flex;flex-wrap:wrap;gap:8px 22px;font-size:12px;color:#637480;margin:15px 0 20px}
+.availability-legend>span{display:inline-flex;align-items:center;gap:7px}
+.availability-legend-point{display:inline-block;width:8px;height:8px;border-radius:50%;background:var(--green)}
+.availability-legend b{font-size:17px;color:#846531;line-height:1}
+.availability-no-timing{padding:15px;background:#f7faf8;border:1px solid var(--line);border-radius:7px;color:#637480;margin:18px 0}
+.availability-details{border-top:1px solid var(--line);margin-top:22px;padding-top:12px}
+.availability-details>summary{display:list-item;padding:10px 4px;cursor:pointer;font-weight:600;color:#3f6656}
+.availability-details>.availability-note{margin:8px 0 14px}
+.availability-table-region{width:100%;max-width:100%;max-height:560px;overflow:auto;border:1px solid var(--line);border-radius:8px;margin-bottom:4px}
+.availability-table{width:100%;min-width:1120px;border-collapse:collapse;text-align:left;font-size:12px;line-height:1.6;font-variant-numeric:tabular-nums}
+.availability-table caption{text-align:left;padding:14px 16px;background:#f7faf8;color:#526b61}
+.availability-table th,.availability-table td{padding:13px 12px;border-top:1px solid var(--line);vertical-align:top}
+.availability-table thead th{background:#f7faf8;font-weight:600;color:#526b61}
+.availability-table tbody th{font-weight:400;white-space:nowrap}
+.availability-table tbody tr:nth-child(even){background:#fbfcfb}
+.availability-interval-end{display:block;color:#637480}
+@media(max-width:680px){.availability-panel{padding:19px 16px}.availability-counts{grid-template-columns:repeat(2,minmax(0,1fr));gap:15px 12px}.availability-heading .availability-site{font-size:15px}.availability-metric>strong{font-size:35px}.availability-page .back-link{margin-bottom:12px}}
+@media(max-width:420px){.availability-filter>div{width:100%}.availability-filter .button{width:100%}.availability-legend{gap:8px}.availability-panel h2{font-size:16px}}
+@media(max-width:680px){.availability-plot .availability-axis-label{display:none}.availability-plot .availability-x-label,.availability-plot .availability-y-label{font-size:28px}.availability-plot .availability-mean{stroke:var(--green);stroke-width:1.5;vector-effect:non-scaling-stroke}}

@@ -426,6 +426,42 @@
                 "dashboard.read_dashboard_state",
                 "dashboard.list_sites"
             ]
+        },
+        {
+            "id": "dashboard.availability_denominator_and_insufficiency",
+            "kind": "scenario",
+            "version": 1,
+            "summary": "Known Online/Offline checks alone form denominator N; Unknown contributes only explicit M/X completeness. N0 distinguishes empty versus only Unknown, N1 is insufficient without a percentage, and N>=2 renders real sample availability. Unanimous known outcomes may yield0/100; mixed near-endpoints show<0.1/>99.9 rather than fabricated certainty. Current paused sites retain prior accepted observations; revision count does not reconstruct configuration or pause durations.",
+            "covers": [
+                "dashboard.read_availability"
+            ]
+        },
+        {
+            "id": "dashboard.availability_window_and_overflow",
+            "kind": "scenario",
+            "version": 1,
+            "summary": "One captured UTC T defines24h/7d/30d half-open windows. Include from, exclude to/future, preserve same-second distinct IDs and chronological order across revisions. Query only selected explicit fields for owned retained history, closes its cursor, never prunes or calls checks/providers.12000 rows are complete;12001st refuses all analytics with a usable narrower-period state. Deletion and retention remove their real rows; no synthetic backfill or hidden truncation.",
+            "covers": [
+                "dashboard.read_availability"
+            ]
+        },
+        {
+            "id": "dashboard.availability_timing_and_gaps",
+            "kind": "scenario",
+            "version": 1,
+            "summary": "120 independent UTC buckets preserve Online/Offline/Unknown/known-null counts. Only known nonnull response times participate: real0ms and Offline measurements remain; Unknown and null do not become zero. Mean/min/max reflect actual participants; empty or incomplete intervals have explicit textual/shape markers. No data path connects gaps or fabricates elapsed behavior. Finite bounded numeric SVG geometry handles all-zero and maximum allowed timings; units and exact UTC period are visible.",
+            "covers": [
+                "dashboard.read_availability"
+            ]
+        },
+        {
+            "id": "dashboard.availability_private_mobile_page",
+            "kind": "scenario",
+            "version": 1,
+            "summary": "Private per-site GET inherits cookie authority and HumanPage activity, rejects missing sites/invalid periods without unauthorized data or writes, and leaves bearer/public interfaces unchanged. Escaped current name, explicit pause, labelled GET period selector, keyboard accessible responsive SVG/table and both dashboard-mode history links work without chart JavaScript.375px layout contains table overflow locally. Source-model/fingerprint capture is explicit; actual HTTP/native-engine/browser receipts remain required, not implied by declaration.",
+            "covers": [
+                "dashboard.read_availability"
+            ]
         }
     ]
 }

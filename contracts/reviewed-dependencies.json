@@ -8,7 +8,7 @@
                 "Composer verify",
                 "Reviewed dependency capture"
             ],
-            "fingerprint": "sha256:6bc7b5450c6d44f8f5b717687c35d58d31b29ec3416766d0be80c0f572ac1f92"
+            "fingerprint": "sha256:9b78056d5fad3c369b4d995ee835e9b7575eb28ec3e8d0825ba6653daee5fb14"
         },
         {
             "path": "tools/reviewed-dependencies.php",
@@ -156,7 +156,7 @@
                 "tools/server-io-uring-php-grammar.test.php",
                 "tools/server-supervisor-linux-fallback-unit.c"
             ],
-            "fingerprint": "sha256:e56583a64434f0062eae311138c97707dc136281e3cfed09405f0549bef47979"
+            "fingerprint": "sha256:4847d8414afac137128b765d593e24150d0aeddd4fc00b1755883a1a57210ff2"
         },
         {
             "path": "app/AddressRange.php",
@@ -4975,7 +4975,7 @@
                 "Composer verify",
                 "Composer analyze"
             ],
-            "fingerprint": "sha256:9bad3e3c1ee7400c12c9f53f467112051273c3775f0d527b1145dc720b295a8b"
+            "fingerprint": "sha256:665f7dfc8e5bf9aaa80fd9d8733470c050ee33118db9da440126f6ca0a90b8ad"
         },
         {
             "path": "app/WebSession.php",
@@ -5386,7 +5386,7 @@
                 "dashboard.read_incidents",
                 "Bounded dashboard table overflow and keyboard focus"
             ],
-            "fingerprint": "sha256:830e74cebf713cd8f9c0b6657b5f8d21d5c39c10fca2ee0b5761e22d06a92e21"
+            "fingerprint": "sha256:465a9068d7bdb93a79e4fcb4a2f6c37869de7336fc49a8edb6fd5f26923e1b75"
         },
         {
             "path": "public/index.php",
@@ -5419,7 +5419,7 @@
                 "Administrator Argon2id runtime and byte policy",
                 "Administrator local password reset and API bearer revocation"
             ],
-            "fingerprint": "sha256:2c7f9bb31153090dab8b0b09556ed11ac536212f13bf6f7669fa0d92edb90ade"
+            "fingerprint": "sha256:72c143c174c3c00b5c451d2f67f1a9a942933b7cd6d88413d6c0266f134726f5"
         },
         {
             "path": "testo-server.php",
@@ -8089,7 +8089,7 @@
                 "Composer analyze",
                 "Composer verify:server"
             ],
-            "fingerprint": "sha256:4100db513c04bbdf679fb7ccdd5cf13de9e7271bbc19e19f20986863a71eaf7d"
+            "fingerprint": "sha256:506b21d03c40f0c4d7361e547914ef8fedef69c88cfa589c811026c80b12e066"
         },
         {
             "path": "tests/Server/EngineKeyTest.php",
@@ -8295,7 +8295,7 @@
                 "Composer analyze",
                 "Composer verify:server"
             ],
-            "fingerprint": "sha256:bb6a84bebd6b127cdc248fb01869f695c765479a15e086ed81c176dbee1608c3"
+            "fingerprint": "sha256:74ef4fdf922af3dfd7b0f39f381f0bb1b60115bfe6f8ddf8735f99b4645ce495"
         },
         {
             "path": "tests/Server/EngineWatermarkTest.php",
@@ -11002,7 +11002,7 @@
                 "Composer verify",
                 "Composer analyze"
             ],
-            "fingerprint": "sha256:ac19fdf2b0e01778519f7ad8efe67398e90541311041464d3922413cb10fbf34"
+            "fingerprint": "sha256:270370cc35c86f337ea4de9c0c92e3fb4deef8a5eabebf851fbcd0aaecd8cee9"
         },
         {
             "path": "tools/capture-reviewed-dependencies.php",
@@ -11224,7 +11224,7 @@
                 "tools/server-supervisor-linux-qualify.cjs",
                 "tools/server-linux-prepare.cjs"
             ],
-            "fingerprint": "sha256:a764313e052dd30e2bed864af97d53faf2e1b61185494ddfee9022b936c884cd"
+            "fingerprint": "sha256:bbb4df04e89c6ae50231cb16e58351d7f99b6c71f7be03c9bcbd7092286eceea"
         },
         {
             "path": "tools/ServerTestEvidence.php",
@@ -11235,7 +11235,7 @@
                 "Composer lint",
                 "Composer analyze"
             ],
-            "fingerprint": "sha256:65c34fe07129ff19c2992b40b9a7ecdf3fb69a32c228f11e9f5a2bd8d0766106"
+            "fingerprint": "sha256:446119e9313f2e536af78d33cfa4ce4d195403504146cf9ff33e8d0d422741dd"
         },
         {
             "path": "tools/verify-server.php",
@@ -11247,7 +11247,7 @@
                 "Composer analyze",
                 "tools/server-supervisor.cjs"
             ],
-            "fingerprint": "sha256:88db2c46b8a44a4261d033cd9f2957644d1f94fd66db34c299f1a6c702ad1a0f"
+            "fingerprint": "sha256:85e94b2b9a369b43cf2f48becbd09f5c09cf772468ca12dd0fc1c3b81bfefa2d"
         },
         {
             "path": "tools/verify.php",
@@ -11258,7 +11258,7 @@
                 "Composer verify",
                 "Composer analyze"
             ],
-            "fingerprint": "sha256:01da56d34d2437bc288893d6327f29aa8a1343dee7dae1ebcb7ccf0859e0438c"
+            "fingerprint": "sha256:667f87d2ebb7b7c029a7fd13dda96e987c2d560c66abf9726d1d16773919d99f"
         },
         {
             "path": "views/incidents.volt",
@@ -11752,7 +11752,7 @@
                 "Administrator local password reset and API bearer revocation",
                 "Administrator idle timeout policy"
             ],
-            "fingerprint": "sha256:f1be949b69f499b64bf0a8bcd62b9232266ba009b97755f79dff5e9d356491a6"
+            "fingerprint": "sha256:e905c7787f5d1b41a2c3f130b75e733d5ede2b1463f16861729d1c8a002086be"
         },
         {
             "path": "tests/fixtures/hsts-router.php",
@@ -12059,7 +12059,7 @@
             "consumers": [
                 "Owned retained browser fixture protocol"
             ],
-            "fingerprint": "sha256:5ae9bd8f34bf0743e008360454510a7b1d24df562b01974632ecb9ecf1e6479e"
+            "fingerprint": "sha256:d0e236a05dd4d0645385d51c1d90bd611752e36fd45656c9c3eaee68fc6b55c5"
         },
         {
             "path": "tests/Browser/control-lifecycle.mjs",
@@ -12086,7 +12086,7 @@
             "consumers": [
                 "Qualified isolated browser acceptance and nonzero controls"
             ],
-            "fingerprint": "sha256:82a4964a9f3029c03419e3e5e528d8a9102e6520954e702d6f48e1998c34369d"
+            "fingerprint": "sha256:28c9cfba42672edca4800eafae62e7fa4039df3e4772bbc3ea7347f3213b2ea0"
         },
         {
             "path": "tests/fixtures/dashboard-modes-startup-failure.php",
@@ -12156,7 +12156,7 @@
             "consumers": [
                 "Native manual check and edit in both modes"
             ],
-            "fingerprint": "sha256:8b2c3bc86593e2f4de1b61973352b4f209693e7803a9c2e6361e72d7bf2c713e"
+            "fingerprint": "sha256:7c53041a0a322523e2e043efc5781282ff15a4cfe648da688c6c437e07f53f2f"
         },
         {
             "path": "views/dashboard-comparison.volt",
@@ -12392,6 +12392,201 @@
                 "Dashboard polling browser/Node acceptance"
             ],
             "fingerprint": "sha256:29e128849ce9ebe12e44d2a87af9e0996f967607831d4e0d4c293c9d535c5ea0"
+        },
+        {
+            "path": "app/AvailabilityPeriod.php",
+            "owner": "Rolling UTC availability period and exact bucket boundaries",
+            "consumers": [
+                "Composer lint",
+                "Composer analyze",
+                "Composer verify",
+                "dashboard.read_availability"
+            ],
+            "fingerprint": "sha256:10966947c6b050804c5679fb04a84af55b08bf3257d2558d0d680759f1b396f9"
+        },
+        {
+            "path": "app/AvailabilityData.php",
+            "owner": "Credential-free typed current-site and accepted-sample SQL projection",
+            "consumers": [
+                "Composer lint",
+                "Composer analyze",
+                "Composer verify",
+                "dashboard.read_availability"
+            ],
+            "fingerprint": "sha256:264517bd646452a13536a05b281c035ca335d9f67256693f54fd276e38be7720"
+        },
+        {
+            "path": "app/availability-repository.php",
+            "owner": "Bounded complete retained availability read with explicit overflow",
+            "consumers": [
+                "Composer lint",
+                "Composer analyze",
+                "Composer verify",
+                "dashboard.read_availability"
+            ],
+            "fingerprint": "sha256:a1bebea49a0171ebfe5893cd37e69d375ed4897024950fa3b45f44eb13e956b0"
+        },
+        {
+            "path": "app/AvailabilitySummary.php",
+            "owner": "Known-result sample availability and honest insufficient/extreme labels",
+            "consumers": [
+                "Composer lint",
+                "Composer analyze",
+                "Composer verify",
+                "dashboard.read_availability"
+            ],
+            "fingerprint": "sha256:ce68704f7aa94e5005008154f34a0f10fecc0153c3dc956f8e1cbd8e331014a2"
+        },
+        {
+            "path": "app/AvailabilityGeometry.php",
+            "owner": "Finite numeric server SVG geometry and UTC axis labels",
+            "consumers": [
+                "Composer lint",
+                "Composer analyze",
+                "Composer verify",
+                "dashboard.read_availability"
+            ],
+            "fingerprint": "sha256:260edd407b95588e99bb242586cd137ec240106959ca9c2a2c339edd89ae7c53"
+        },
+        {
+            "path": "app/AvailabilityBuckets.php",
+            "owner": "Complete 120-bucket sample counts, observed response means and gaps",
+            "consumers": [
+                "Composer lint",
+                "Composer analyze",
+                "Composer verify",
+                "dashboard.read_availability"
+            ],
+            "fingerprint": "sha256:5ff48927a75fb038b2143c48255092284b4c9570521e0866f79143e90d96b466"
+        },
+        {
+            "path": "app/AvailabilityPresenter.php",
+            "owner": "Typed availability View DTO without partial overflow analytics",
+            "consumers": [
+                "Composer lint",
+                "Composer analyze",
+                "Composer verify",
+                "dashboard.read_availability"
+            ],
+            "fingerprint": "sha256:5c6dc9bfdc1010b397ce3a5011c8d29c4c8849cb1f2ebf7151dcfe909c3d8754"
+        },
+        {
+            "path": "app/AvailabilityPage.php",
+            "owner": "Private deliberate-navigation HTML history page and query admission",
+            "consumers": [
+                "Composer lint",
+                "Composer analyze",
+                "Composer verify",
+                "dashboard.read_availability"
+            ],
+            "fingerprint": "sha256:c2ca35dc9530a20be6cb944fc6b8900c796995feef5bf9fbdaca8ab6cf6d3dbe"
+        },
+        {
+            "path": "tests/Unit/AvailabilityTest.php",
+            "owner": "Deterministic availability denominator, UTC, gap and geometry regression",
+            "consumers": [
+                "Composer lint",
+                "Composer analyze",
+                "Composer verify",
+                "dashboard.read_availability"
+            ],
+            "fingerprint": "sha256:fe32a9e2df695efeca352bb6dbcc1b866836e4669ac1b303e7dc473aef975ebb"
+        },
+        {
+            "path": "tests/Unit/AvailabilityRepositoryTest.php",
+            "owner": "Real isolated SQLite complete history selection and overflow regression",
+            "consumers": [
+                "Composer lint",
+                "Composer analyze",
+                "Composer verify",
+                "dashboard.read_availability"
+            ],
+            "fingerprint": "sha256:00d43c60e402b355db27d9ebf302c15404bed8db48043af2e233d0723dda2fe9"
+        },
+        {
+            "path": "tests/Http/AvailabilityPageTest.php",
+            "owner": "Real private HTTP session, finite projection and no-partial-analytics regression",
+            "consumers": [
+                "Composer lint",
+                "Composer analyze",
+                "Composer verify",
+                "dashboard.read_availability"
+            ],
+            "fingerprint": "sha256:99bd2230cdcc40813d3d77defcfc683bf81401b0583ef860e21640178841690b"
+        },
+        {
+            "path": "tests/Support/AvailabilityFixtures.php",
+            "owner": "Owned typed availability samples, bounded temporary rows and mutation receipts",
+            "consumers": [
+                "Composer lint",
+                "Composer analyze",
+                "Composer verify",
+                "dashboard.read_availability"
+            ],
+            "fingerprint": "sha256:e43456ef83b409bb0ee31bb6f39988cfff17eb7c8ea5e451af1021963d0d646c"
+        },
+        {
+            "path": "tests/Support/AvailabilityBrowser.php",
+            "owner": "Owned browser fixture accepted history and persistent read-only receipts",
+            "consumers": [
+                "Composer lint",
+                "Composer analyze",
+                "Composer verify",
+                "dashboard.read_availability",
+                "Availability real-browser acceptance"
+            ],
+            "fingerprint": "sha256:f2810906cb50aa60d4045adf788d2aa35f4bd10a5ba0bb8b52f2879ddf04485d"
+        },
+        {
+            "path": "tests/Browser/availability-scenarios.mjs",
+            "owner": "Real responsive availability navigation, SVG/table and network acceptance",
+            "consumers": [
+                "Composer verify",
+                "dashboard.read_availability",
+                "Availability real-browser acceptance"
+            ],
+            "fingerprint": "sha256:e9eac80289f64c5218526d4adacc45243b5e7ffe6396d3ce8b3f2a7aba2aba81"
+        },
+        {
+            "path": "views/availability.volt",
+            "owner": "Escaped accessible server availability SVG, period form and interval table",
+            "consumers": [
+                "Composer verify",
+                "dashboard.read_availability",
+                "Availability real-browser acceptance"
+            ],
+            "fingerprint": "sha256:c790432cdc2cba49547598d25ac716f4030837fdffc3aeb9b1c6ee4c03f91c98"
+        },
+        {
+            "path": "docs/availability.md",
+            "owner": "Honest sample availability, bounded retained history and validation contract",
+            "consumers": [
+                "Composer verify",
+                "dashboard.read_availability"
+            ],
+            "fingerprint": "sha256:074f7b19a4a02728e61f9634610ece5949fac88eb8f8e0f0506ec3d04d99e00a"
+        },
+        {
+            "path": "app/AvailabilityBucket.php",
+            "owner": "Pure single interval response summary, explicit gaps and numeric marker projection",
+            "consumers": [
+                "Composer lint",
+                "Composer analyze",
+                "Composer verify",
+                "dashboard.read_availability"
+            ],
+            "fingerprint": "sha256:cd6f4655e6772315019c1c693237df96c26fec85fad71de0c09198a16ad8ea7d"
+        },
+        {
+            "path": "tests/Support/AvailabilityPageAssertions.php",
+            "owner": "Focused private HTTP availability projection, mutation guards and authority assertions",
+            "consumers": [
+                "Composer lint",
+                "Composer analyze",
+                "Composer verify",
+                "tests/Http/AvailabilityPageTest.php"
+            ],
+            "fingerprint": "sha256:d72d80545ca7155e4e5802bee46c55d33fe837229fb1aff57207746c5dd64c62"
         }
     ]
 }

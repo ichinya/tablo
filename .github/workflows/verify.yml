@@ -51,7 +51,7 @@ jobs:
           $env:TMPDIR = $nodeTemp
           & $node --check tests/Browser/dashboard-modes.mjs
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-          foreach ($script in @('public/assets/dashboard-polling.js', 'public/assets/dashboard-view.js', 'public/assets/app.js', 'tests/Browser/dashboard-polling-scenarios.mjs')) {
+          foreach ($script in @('public/assets/dashboard-polling.js', 'public/assets/dashboard-view.js', 'public/assets/app.js', 'tests/Browser/dashboard-polling-scenarios.mjs', 'tests/Browser/availability-scenarios.mjs')) {
             & $node --check $script
             if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
           }
