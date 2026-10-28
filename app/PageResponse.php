@@ -11,6 +11,8 @@ use Phalcon\Mvc\View\Engine\Volt;
 final class PageResponse
 {
     private readonly Simple $view;
+    private ?SelfUpdateRepository $selfUpdate = null;
+    public function withSelfUpdate(SelfUpdateRepository $repository): self { $this->selfUpdate = $repository; return $this; }
     public function __construct(string $runtimeDirectory)
     {
         $di = new FactoryDefault();
@@ -25,6 +27,9 @@ final class PageResponse
     public function render(string $template, array $data, int $status = 200): Response
     {
         $data += ['csrf' => $_SESSION['csrf'] ?? null, 'errors' => [], 'authenticated' => (($_SESSION['authenticated_at'] ?? null) !== null), 'notice' => ''];
+        if ($this->selfUpdate !== null && ($data['authenticated'] === true || $template === 'dashboard-snapshot')) {
+            $data['self_update'] = SelfUpdatePresentation::saved($this->selfUpdate);
+        }
         $response = new Response();
         $response->setStatusCode($status);
         $response->setContentType('text/html', 'utf-8');

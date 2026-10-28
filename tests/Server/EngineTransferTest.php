@@ -81,8 +81,8 @@ final class EngineTransferTest
     {
         $db = new PDO('sqlite:' . $path, options: [PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION, PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC]);
         $db->exec('PRAGMA foreign_keys = ON');
-        \Tablo\SchemaReference::reference(10, ['endpoint' => true], $db);
-        $db->exec('PRAGMA main.user_version = 10');
+        \Tablo\SchemaReference::reference(11, ['endpoint' => true], $db);
+        $db->exec('PRAGMA main.user_version = 11');
         self::credentials($db, $vault); self::site($db, $vault); self::projections($db, $vault);
         $db->exec("UPDATE sqlite_sequence SET seq = CASE name WHEN 'sites' THEN 2000 WHEN 'git_tokens' THEN 7000 WHEN 'check_history' THEN 9000 ELSE seq END");
         return $db;

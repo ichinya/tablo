@@ -48,7 +48,7 @@ final class EngineTransferRefusalTest
         Assert::same(\Tablo\ServerSchema::rows($target, 'SELECT * FROM tablo_database_state'), $before);
         Assert::same($fixture->scalar('SELECT COUNT(*) FROM users', $target), 0);
         Assert::same($fixture->scalar('SELECT COUNT(*) FROM installation_settings', $target), 1);
-        Assert::same((new \Tablo\ServerMigration($target, $fixture->vault))->status(), ['format' => 1, 'logical_version' => 10, 'phase' => 'ready']);
+        Assert::same((new \Tablo\ServerMigration($target, $fixture->vault))->status(), ['format' => 1, 'logical_version' => 11, 'phase' => 'ready']);
         $fixture->close();
     }
 

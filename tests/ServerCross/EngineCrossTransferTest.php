@@ -51,7 +51,7 @@ final class EngineCrossTransferTest
         Assert::same(DatabaseTransfer::verify($other, $target->vault, $root . '/archive', $root . '/target-verify.sqlite'), $digest);
         // Compare against the original independently materialized SQLite rows as well as the cross archive.
         Assert::same(DatabaseTransfer::verify($other, $target->vault, $root . '/seed', $root . '/seed-verify.sqlite'), $seedDigest);
-        Assert::same(count(DatabaseTransferManifest::TABLES), 15);
+        Assert::same(count(DatabaseTransferManifest::TABLES), 16);
         foreach (DatabaseTransferManifest::TABLES as $table) {
             Assert::true(DatabaseTransferSequence::scalar($other, 'SELECT COUNT(*) AS value FROM `' . $table . '`') > 0, $table);
         }

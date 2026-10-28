@@ -53,18 +53,18 @@ function database_transfer_target_prepare(PDO $db, array $header, string $digest
 {
     ServerSchema::validateLayout($db);
     $state = ServerKeyIdentity::forMigration($db, $vault);
-    $plans = ServerSchema::rows($db, 'SELECT DISTINCT plan FROM tablo_migration_journal WHERE predecessor = 10 AND target = 10');
+    $plans = ServerSchema::rows($db, 'SELECT DISTINCT plan FROM tablo_migration_journal WHERE predecessor = 11 AND target = 11');
     if ($plans !== []) {
         if (array_column($plans, 'plan') !== [database_transfer_target_plan($digest)] || !in_array($state['phase'], ['importing', 'ready'], strict: true)
             || DatabaseSession::get($db)?->installationId !== $header['installation']) { throw new DatabaseFailure('schema'); }
         return;
     }
-    if ($state['version'] !== 10 || $state['phase'] !== 'ready') { throw new DatabaseFailure('schema'); }
+    if ($state['version'] !== 11 || $state['phase'] !== 'ready') { throw new DatabaseFailure('schema'); }
     database_transfer_persistence_atomic($db, static function () use ($db, $header, $digest): void {
         database_transfer_target_empty($db, $header);
         $first = $header['tables'][0] ?? throw new DatabaseFailure('schema');
-        (new ServerMigrationJournal($db, database_transfer_target_plan($digest)))->intent(0, $first['sha256'], 10, 10, 'users');
-        foreach (['installation_settings', 'worker_runtime', 'notification_settings'] as $table) { $db->exec('DELETE FROM ' . $table); }
+        (new ServerMigrationJournal($db, database_transfer_target_plan($digest)))->intent(0, $first['sha256'], 11, 11, 'users');
+        foreach (['installation_settings', 'worker_runtime', 'notification_settings', 'self_update'] as $table) { $db->exec('DELETE FROM ' . $table); }
         ServerSchema::rows($db, "UPDATE tablo_database_state SET phase = 'importing', installation_id = ?, key_verifier = ?, committed_history_high_watermark = ? WHERE id = 1",
             [$header['installation'], $header['verifier'], $header['watermark']]);
     });
@@ -77,7 +77,7 @@ function database_transfer_target_prepare(PDO $db, array $header, string $digest
 function database_transfer_target_empty(PDO $db, array $header): void
 {
     $installation = DatabaseSession::get($db)->installationId ?? throw new DatabaseFailure('schema');
-    $seeds = ['installation_settings' => [1, 10, 30], 'worker_runtime' => [1, null, 0, 0],
+    $seeds = ['self_update' => [1, 1, 360, 0, '', null, 'no_data', null, null, null, null, null, 0, 0, null, 0], 'installation_settings' => [1, 10, 30], 'worker_runtime' => [1, null, 0, 0],
         'notification_settings' => [1, $installation, 0, 0, 0, 0, null, null, 1, 1, 1, 0, 0]];
     foreach (DatabaseTransferManifest::iterate($header['columns']) as $table) {
         $expected = array_key_exists($table['name'], $seeds) ? [$seeds[$table['name']]] : [];
@@ -94,7 +94,7 @@ function database_transfer_target_empty(PDO $db, array $header): void
 function database_transfer_target_publish(PDO $db, array $header): void
 {
     database_transfer_persistence_atomic($db, static function () use ($db, $header): void {
-        ServerSchema::rows($db, "UPDATE tablo_database_state SET logical_version = 10, layout_checksum = ?, phase = 'ready', committed_history_high_watermark = ? WHERE id = 1 AND phase = 'importing'",
+        ServerSchema::rows($db, "UPDATE tablo_database_state SET logical_version = 11, layout_checksum = ?, phase = 'ready', committed_history_high_watermark = ? WHERE id = 1 AND phase = 'importing'",
             [ServerSchema::checksum($db), $header['watermark']]);
     });
     ServerSchema::admit($db);

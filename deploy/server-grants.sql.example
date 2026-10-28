@@ -35,6 +35,7 @@ GRANT SELECT, INSERT, UPDATE, DELETE ON tablo.notification_settings TO 'tablo_wr
 GRANT SELECT, INSERT, UPDATE, DELETE ON tablo.notification_checkpoints TO 'tablo_writer'@'%';
 GRANT SELECT, INSERT, UPDATE, DELETE ON tablo.notification_slots TO 'tablo_writer'@'%';
 GRANT SELECT, INSERT, UPDATE, DELETE ON tablo.read_api_token TO 'tablo_writer'@'%';
+GRANT SELECT, INSERT, UPDATE, DELETE ON tablo.self_update TO 'tablo_writer'@'%';
 GRANT SELECT ON tablo.tablo_database_state TO 'tablo_writer'@'%';
 GRANT UPDATE (committed_history_high_watermark) ON tablo.tablo_database_state TO 'tablo_writer'@'%';
 GRANT SELECT ON tablo.tablo_migration_journal TO 'tablo_writer'@'%';

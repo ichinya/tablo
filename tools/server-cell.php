@@ -339,7 +339,7 @@ function server_cell_initialize_failure(#[\SensitiveParameter] Throwable $error,
     $record['schema'] = 'tablo/server-initialize-failure/v1';
     $record['stage'] = in_array($progress['stage'], ['bootstrap', 'input', 'fixture', 'connection', 'objects', 'migration', 'admission'], strict: true) ? $progress['stage'] : 'unknown';
     $record['point'] = in_array($progress['point'], ['before-ddl', 'after-ddl', 'after-journal', 'before-publication', 'after-publication'], strict: true) ? $progress['point'] : null;
-    $record['step'] = $progress['step'] !== null && $progress['step'] >= 0 && $progress['step'] < 18 ? $progress['step'] : null;
+    $record['step'] = $progress['step'] !== null && $progress['step'] >= 0 && $progress['step'] < 19 ? $progress['step'] : null;
     return $record;
 }
 
@@ -421,7 +421,7 @@ function server_cell_crash_snapshot(array $environment, array $selection, array 
     $before = server_cell_with_environment($environment, static function () use ($selection, $peer): array {
         $fixture = new EngineFixture($selection['case'], $peer); $db = $fixture->maintenance();
         try {
-            $tables = $selection['boundary'] === 'after-ddl' ? 4 : 18;
+            $tables = $selection['boundary'] === 'after-ddl' ? 4 : 19;
             if (count(\Tablo\ServerSchema::objects($db)) !== $tables
                 || (new \Tablo\ServerMigration($db, $fixture->vault))->status() !== ['format' => 1, 'logical_version' => 0, 'phase' => 'initializing']) {
                 throw new RuntimeException('Actual pre-crash durable boundary not observed.');
@@ -1948,7 +1948,7 @@ function server_cell_initialize_progress(array $record): bool
     $step = $record['step'] ?? null;
     return in_array($record['stage'] ?? null, ['bootstrap', 'input', 'fixture', 'connection', 'objects', 'migration', 'admission', 'unknown'], strict: true)
         && in_array($record['point'] ?? null, [null, 'before-ddl', 'after-ddl', 'after-journal', 'before-publication', 'after-publication'], strict: true)
-        && ($step === null || (is_int($step) && $step >= 0 && $step < 18));
+        && ($step === null || (is_int($step) && $step >= 0 && $step < 19));
 }
 
 /** @param array{source: mixed, line: mixed, ...} $record */

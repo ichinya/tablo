@@ -182,6 +182,14 @@
             "method": "GET",
             "path": "/sites/{id}/history",
             "invokes": "dashboard.read_availability"
+        },
+        {
+            "id": "dashboard.update_self_update_settings_endpoint",
+            "kind": "endpoint",
+            "version": 1,
+            "method": "POST",
+            "path": "/settings/self-update",
+            "invokes": "dashboard.update_self_update_settings"
         }
     ]
 }

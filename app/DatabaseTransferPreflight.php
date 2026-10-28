@@ -136,8 +136,8 @@ function database_transfer_source_admitted(PDO $db, #[\SensitiveParameter] Token
     database_transfer_source_stream($db);
     if (DatabaseSession::server($db)) { ServerSchema::admit($db); ServerKeyIdentity::authenticate($db, $vault); }
     if (!DatabaseSession::server($db)) {
-        if (SchemaVersion::schemaVersion($db) !== 10) { throw new DatabaseFailure('schema'); }
-        SchemaLayout::observe($db, 10);
+        if (SchemaVersion::schemaVersion($db) !== 11) { throw new DatabaseFailure('schema'); }
+        SchemaLayout::observe($db, 11);
     }
     $rows = 0; $bytes = 0;
     foreach (DatabaseTransferManifest::iterate() as $table) {
@@ -183,8 +183,8 @@ function database_transfer_sqlite_target_scratch(#[\SensitiveParameter] string $
     if (!chmod($path, permissions: 0o600)) { throw new DatabaseFailure('unavailable'); }
     $db = new PDO('sqlite:' . $path, options: [PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION, PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC]);
     $db->exec('PRAGMA foreign_keys = ON; PRAGMA cache_size = -512; PRAGMA temp_store = FILE');
-    SchemaReference::reference(10, ['endpoint' => true], $db);
-    $db->exec('DELETE FROM notification_settings; DELETE FROM installation_settings; DELETE FROM worker_runtime');
+    SchemaReference::reference(11, ['endpoint' => true], $db);
+    $db->exec('DELETE FROM notification_settings; DELETE FROM installation_settings; DELETE FROM worker_runtime; DELETE FROM self_update');
     return $db;
 }
 

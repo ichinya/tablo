@@ -148,20 +148,20 @@ An unrelated partial schema is refused. Normal web, API, CLI checks, worker and
 control connections open an existing ready schema; they never initialize a catalog
 or run a migration after a missing-table error.
 
-Server format 1 contains fifteen domain tables and exactly three metadata tables:
+Server format 1 contains sixteen domain tables and exactly three metadata tables:
 `tablo_database_state`, `tablo_migration_journal`, `tablo_writer_guard`. Logical
-version 10 is published only after the complete descriptor is admitted. The
+version 11 is published only after the complete descriptor is admitted. The
 supported logical-9 predecessor is a synthetic fourteen-domain-table compatibility
 fixture; it is not a claim that an older server release was deployed. SQLite's
-existing historical versions and schema number 10 remain unchanged.
+existing historical versions and schema number 11 use the versioned migration.
 
 Developer source format: each `database/*-layout.jsonl` is the selected engine's
 sole runtime descriptor. It contains one `records=2` scalar-layout header and
-18 complete-table records with fields in `name, columns, primary, checks, indexes,
+19 complete-table records with fields in `name, columns, primary, checks, indexes,
 foreign, create, checksum` order. Each complete table is native JSON inside
 `{"tables":[{...}]}`, preserving the original decoder depth and flags.
-The reader assembles the entire graph before checking engine, 18 tables and every
-CREATE checksum; public layout values/order and logical-9/10 digests are unchanged.
+The reader assembles the entire graph before checking engine, 19 tables and every
+CREATE checksum; public layout values/order and logical-9/10 digests are unchanged through their explicit predecessor projection.
 Records require LF or CRLF terminators, including the last record, and at most
 131,072 bytes each including the terminator; extra or malformed framing is refused.
 Missing/unreadable/invalid sources produce a fresh sanitized `schema` failure with
@@ -174,7 +174,7 @@ Complete-table framing reduces native decodes from 145 to 19, but its larger inp
 frame overlaps a larger decoded table; no memory or timing benefit is established.
 Table admission and default metadata admission share one six-field projection:
 `name, columns, primary, checks, indexes, foreign`. Both paths load and validate
-the complete 18-table source, including every CREATE checksum and positive stream
+the complete 19-table source, including every CREATE checksum and positive stream
 closure, before projection and existing version selection. Validated tables supplied
 to metadata admission are returned unchanged.
 The fixed transfer manifest shares this reader through internal constant-engine
@@ -330,7 +330,7 @@ separately, including deleted high history IDs and prune-all installations. A se
 target preserves both values independently: AUTO_INCREMENT reservation gaps remain
 distinct from accepted observations.
 
-Unchanged SQLite schema 10 has one sequence-based activation/cursor frontier rather
+SQLite schema 11 has one sequence-based activation/cursor frontier rather
 than a separate committed-watermark field. A SQLite target preserves the allocation
 floor and represents its frontier as the greater of the archived committed watermark
 and history allocation floor. A rolled-back server reservation can therefore promote
@@ -549,3 +549,5 @@ The six SQLite OS/PHP cells remain required. Four additional Ubuntu cells cover
 both server engines on PHP 8.2 and 8.5. Direct MySQL↔MariaDB transfer and owned
 server crash/restart are required sublanes of MySQL/PHP 8.5. Windows SQLite results
 do not establish a Windows server or an Ubuntu server result.
+
+Logical11 adds the self_update singleton; explicit9/10->11 migration journals the metadata CHECK widening and missing tables, then publishes only after complete layout admission. See [self-update.md](self-update.md).

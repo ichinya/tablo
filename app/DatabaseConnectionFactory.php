@@ -17,7 +17,7 @@ final class DatabaseConnectionFactory
         if (!$configuration->server() || ($mode === 'maintenance' && $configuration->role !== 'migrator')) { throw new DatabaseFailure('configuration'); }
         if (!in_array($mode, ['existing', 'maintenance', 'transfer-source'], strict: true)) { throw new DatabaseFailure('configuration'); }
         DatabaseTransferPreflight::sourceMode($configuration, $mode);
-        $observation = ServerMetadataAdmission::observe($configuration, $mode === 'maintenance' ? null : 10);
+        $observation = ServerMetadataAdmission::observe($configuration, $mode === 'maintenance' ? null : 11);
         $session = null;
         try {
             $db = ServerPdoConnection::open($configuration);

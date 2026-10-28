@@ -117,7 +117,7 @@ function database_transfer_header_manifest(#[\SensitiveParameter] string $direct
     database_transfer_receipt_keys($header, ['format', 'engine', 'logicalVersion', 'layout', 'columns', 'installation', 'verifier', 'sequences', 'watermark', 'tables']);
     /** @var array{format: mixed, engine: mixed, logicalVersion: mixed, layout: mixed, columns: mixed, installation: mixed, verifier: mixed, sequences: mixed, watermark: mixed, tables: mixed} $header Exact keys checked above. */
     $digest = hash('sha256', JsonEncoding::encode($header));
-    $expected = [1, 10, DatabaseTransferManifest::layout(), DatabaseTransferManifest::contract()];
+    $expected = [1, 11, DatabaseTransferManifest::layout(), DatabaseTransferManifest::contract()];
     if ([$header['format'], $header['logicalVersion'], $header['layout'], $header['columns']] !== $expected
         || ($envelope['sha256']) !== $digest) { throw new DatabaseFailure('schema'); }
     $installation = SqlColumn::string($header, 'installation');

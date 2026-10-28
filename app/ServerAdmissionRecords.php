@@ -33,13 +33,13 @@ final readonly class ServerAdmissionRecords
     }
 
     /** @return list<string> */
-    public function names(int $version = 10): array
+    public function names(int $version = 11): array
     {
-        return array_values(array_filter($this->names, static fn (string $name): bool => $version === 10 || $name !== 'read_api_token'));
+        return array_values(array_filter($this->names, static fn (string $name): bool => ($version >= 10 || $name !== 'read_api_token') && ($version >= 11 || $name !== 'self_update')));
     }
 
     /** @return \Generator<int, AdmissionTable> */
-    public function tables(int $version = 10): \Generator
+    public function tables(int $version = 11): \Generator
     {
         return server_admission_records_tables($this->records, $version);
     }
@@ -69,7 +69,7 @@ function server_admission_records_parse($stream, string $engine): array
     $header = server_schema_descriptor_header(server_schema_descriptor_record($stream));
     $valid = ($header['format'] ?? null) === 1 && ($header['engine'] ?? null) === $engine; unset($header);
     $names = []; $records = [];
-    for ($index = 0; $index < 18; $index++) {
+    for ($index = 0; $index < 19; $index++) {
         $record = server_schema_descriptor_record_bytes($stream);
         $table = server_admission_records_table($record);
         $valid = server_schema_descriptor_create_valid($table) && $valid;
@@ -97,7 +97,8 @@ function server_admission_records_tables(#[\SensitiveParameter] array $records, 
     foreach ($records as $record) {
         /** @var \Tablo\ServerSchema::Table $table Immutable records passed the complete source checks before publication. */
         $table = server_admission_records_table($record);
-        if ($version !== 10 && $table['name'] === 'read_api_token') { unset($table); continue; }
+        if (($version < 10 && $table['name'] === 'read_api_token') || ($version < 11 && $table['name'] === 'self_update')) { unset($table); continue; }
+        $table = ServerSchemaProjection::table($table, $version);
         $projected = ['name' => $table['name'], 'columns' => $table['columns'], 'primary' => $table['primary'],
             'checks' => $table['checks'], 'indexes' => $table['indexes'], 'foreign' => $table['foreign']];
         unset($table);

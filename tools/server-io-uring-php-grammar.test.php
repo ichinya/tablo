@@ -447,7 +447,7 @@ namespace {
             $bad = $base; unset($bad[$key]); grammar_expect($parse(grammar_availability_child($bad)) === null);
             foreach (['PRIVATE', [], true, 1.5] as $value) { $bad = $base; $bad[$key] = $value; grammar_expect($parse(grammar_availability_child($bad)) === null); }
         }
-        foreach ([-1, 18, '0'] as $step) { $bad = $base; $bad['step'] = $step; grammar_expect($parse(grammar_availability_child($bad)) === null); }
+        foreach ([-1, 19, '0'] as $step) { $bad = $base; $bad['step'] = $step; grammar_expect($parse(grammar_availability_child($bad)) === null); }
         grammar_initialize_values($parse, $base);
         /** @var Closure(): list<string> $sources */
         $sources = grammar_prepare_callable('Tablo\\Tests\\InitializeReportGrammar\\server_cell_initialize_sources');

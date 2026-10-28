@@ -20,6 +20,7 @@ final class PeriodicWorker
     /** @var Closure(string): void */
     private readonly Closure $output;
     private bool $stop = false;
+    private float $updateTick = 0;
     private readonly WorkerRuntime $runtime;
     public function __construct(private readonly PDO $db,private readonly HttpClient $http,?WorkerHooks $hooks=null,#[\SensitiveParameter] ?TokenVault $vault=null)
     {
@@ -51,6 +52,10 @@ final class PeriodicWorker
                 while (!$this->stopping($generation)) {
                     $remaining = $seconds - (($this->clock)() - $completed);
                     if ($remaining <= 0) { break; }
+                    if (($this->clock)() >= $this->updateTick) {
+                        $this->checkSelfUpdate(fn (): bool => $this->stopping($generation));
+                        $this->updateTick = (float) ($this->clock)() + 5;
+                    }
                     ($this->sleep)(min(0.1, $remaining));
                 }
             }
@@ -77,6 +82,15 @@ final class PeriodicWorker
 
     public function runPass(?string $generation=null): void
     {
+        $this->checkSelfUpdate(fn (): bool => $this->stop || ($generation !== null && $this->state->stopping($generation)));
         (new WorkerPass($this->runtime,$this->http,fn (): bool => $this->stop || ($generation !== null && $this->state->stopping($generation))))->runPass();
+    }
+
+    /** @param \Closure(): bool $stop */
+    private function checkSelfUpdate(\Closure $stop): void
+    {
+        $this->sites->assertWorkerKeyAvailable();
+        try { $this->runtime->selfUpdate->runDue($stop); }
+        catch (\Throwable) { ($this->output)('Worker update check unavailable.'); }
     }
 }

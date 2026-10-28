@@ -5,7 +5,7 @@
         "version": "0.1.0"
     },
     "project": "tablo",
-    "revision": "sha256:06d7dc13783d4c8e55d4ed3cc4859f774c0ef993d877bf9d3ca61f89d4889318",
+    "revision": "sha256:be8b4ffcd7a624537fba5c2fcefa5e39a84b8af2c0354e5f16d66620cdb0a9f0",
     "symbols": [
         {
             "id": "dashboard.change_admin_password",
@@ -344,7 +344,8 @@
                 "reads": [
                     "dashboard.site",
                     "dashboard.user",
-                    "dashboard.installation_settings"
+                    "dashboard.installation_settings",
+                    "dashboard.self_update"
                 ]
             },
             "effects": []
@@ -422,9 +423,9 @@
             "kind": "entity",
             "source": {
                 "path": "database/schema.sql",
-                "line": 1
+                "line": 3
             },
-            "fingerprint": "sha256:f6f7003cf7b0f648f458d88cf0057567c5bfaef0f1943da4dc22785b49a7fde5",
+            "fingerprint": "sha256:2b986b10a8b27cf052926a43ac2347238ca0121cb43bd648b8dd3937bbd62960",
             "signature": null,
             "effects": [],
             "shape": {
@@ -454,7 +455,7 @@
                 "path": "app/schema-layout-upgrade.php",
                 "line": 25
             },
-            "fingerprint": "sha256:c793866b8996065803f0119e3e48c976d635a7d62ebf0330fceaaeed79f8691e",
+            "fingerprint": "sha256:af263b04f70b1dd2259f56f5ee8af91fb8f71d523aede91d55626d1ca7f19070",
             "signature": null,
             "effects": [],
             "shape": {
@@ -642,9 +643,9 @@
             "kind": "entity",
             "source": {
                 "path": "database/schema.sql",
-                "line": 7
+                "line": 9
             },
-            "fingerprint": "sha256:f6f7003cf7b0f648f458d88cf0057567c5bfaef0f1943da4dc22785b49a7fde5",
+            "fingerprint": "sha256:2b986b10a8b27cf052926a43ac2347238ca0121cb43bd648b8dd3937bbd62960",
             "signature": null,
             "effects": [],
             "shape": {
@@ -916,9 +917,9 @@
             "kind": "command",
             "source": {
                 "path": "app/periodic-worker.php",
-                "line": 78
+                "line": 83
             },
-            "fingerprint": "sha256:4e7ba3e4ef0a95c630debbe36fef2dc1512fdfdae3cf51046b2a94b7defe1018",
+            "fingerprint": "sha256:6a019bf0b97b1f48305ac979fadd2867db476bc23f6ba3f67537dd042ea020b7",
             "signature": {
                 "inputs": [
                     {
@@ -974,6 +975,10 @@
                 {
                     "kind": "update",
                     "subject": "dashboard.incident_checkpoint"
+                },
+                {
+                    "kind": "update",
+                    "subject": "dashboard.self_update"
                 }
             ]
         },
@@ -1008,9 +1013,9 @@
             "kind": "entity",
             "source": {
                 "path": "app/schema-layout-upgrade.php",
-                "line": 36
+                "line": 37
             },
-            "fingerprint": "sha256:c793866b8996065803f0119e3e48c976d635a7d62ebf0330fceaaeed79f8691e",
+            "fingerprint": "sha256:af263b04f70b1dd2259f56f5ee8af91fb8f71d523aede91d55626d1ca7f19070",
             "signature": null,
             "effects": [],
             "shape": {
@@ -2103,6 +2108,177 @@
                     "subject": "dashboard.read_api_token"
                 }
             ]
+        },
+        {
+            "id": "dashboard.self_update",
+            "kind": "entity",
+            "source": {
+                "path": "app/SelfUpdateSchema.php",
+                "line": 10
+            },
+            "fingerprint": "sha256:c43d5567dd00d2d4adfe831756ad91b2258101fae1c68961c90901d341a5a2b7",
+            "signature": null,
+            "effects": [],
+            "shape": {
+                "fields": [
+                    {
+                        "name": "id",
+                        "type": "dashboard.number",
+                        "required": true
+                    },
+                    {
+                        "name": "enabled",
+                        "type": "dashboard.flag",
+                        "required": true
+                    },
+                    {
+                        "name": "interval_minutes",
+                        "type": "dashboard.number",
+                        "required": true
+                    },
+                    {
+                        "name": "revision",
+                        "type": "dashboard.number",
+                        "required": true
+                    },
+                    {
+                        "name": "build_fingerprint",
+                        "type": "dashboard.text",
+                        "required": true
+                    },
+                    {
+                        "name": "observed_sha",
+                        "type": "optional(dashboard.text)",
+                        "required": false
+                    },
+                    {
+                        "name": "status",
+                        "type": "dashboard.text",
+                        "required": true
+                    },
+                    {
+                        "name": "latest_sha",
+                        "type": "optional(dashboard.text)",
+                        "required": false
+                    },
+                    {
+                        "name": "new_commits",
+                        "type": "optional(dashboard.number)",
+                        "required": false
+                    },
+                    {
+                        "name": "successful_at",
+                        "type": "optional(dashboard.number)",
+                        "required": false
+                    },
+                    {
+                        "name": "attempted_at",
+                        "type": "optional(dashboard.number)",
+                        "required": false
+                    },
+                    {
+                        "name": "error_code",
+                        "type": "optional(dashboard.text)",
+                        "required": false
+                    },
+                    {
+                        "name": "failures",
+                        "type": "dashboard.number",
+                        "required": true
+                    },
+                    {
+                        "name": "next_due",
+                        "type": "dashboard.number",
+                        "required": true
+                    },
+                    {
+                        "name": "claim_token",
+                        "type": "optional(dashboard.text)",
+                        "required": false
+                    },
+                    {
+                        "name": "claim_until",
+                        "type": "dashboard.number",
+                        "required": true
+                    }
+                ]
+            }
+        },
+        {
+            "id": "dashboard.update_self_update_settings",
+            "kind": "command",
+            "source": {
+                "path": "app/SelfUpdateRepository.php",
+                "line": 19
+            },
+            "fingerprint": "sha256:80f989df64b9bda8caf506630d7da915bf740cce96b7a21872c686ca854c8da0",
+            "signature": {
+                "inputs": [
+                    {
+                        "name": "enabled",
+                        "type": "optional(dashboard.text)",
+                        "required": false
+                    },
+                    {
+                        "name": "minutes",
+                        "type": "dashboard.text",
+                        "required": true
+                    }
+                ],
+                "output": null,
+                "reads": []
+            },
+            "effects": [
+                {
+                    "kind": "update",
+                    "subject": "dashboard.self_update"
+                }
+            ]
+        },
+        {
+            "id": "dashboard.check_self_update",
+            "kind": "command",
+            "source": {
+                "path": "app/SelfUpdateCheck.php",
+                "line": 13
+            },
+            "fingerprint": "sha256:85691e9087df72b53632ea2ba046f856fcbbd073657b6a4c4cfaae2e6db49ea5",
+            "signature": {
+                "inputs": [],
+                "output": null,
+                "reads": []
+            },
+            "effects": [
+                {
+                    "kind": "update",
+                    "subject": "dashboard.self_update"
+                },
+                {
+                    "kind": "create",
+                    "subject": "dashboard.github_cooldown"
+                },
+                {
+                    "kind": "update",
+                    "subject": "dashboard.github_cooldown"
+                }
+            ]
+        },
+        {
+            "id": "dashboard.get_self_update",
+            "kind": "query",
+            "source": {
+                "path": "app/SelfUpdatePresentation.php",
+                "line": 10
+            },
+            "fingerprint": "sha256:61c3f50bc3d341dccfaed72033c024aa07e0f62a1c00bd101c13bd86a9a1d843",
+            "signature": {
+                "inputs": [],
+                "output": "dashboard.self_update",
+                "reads": [
+                    "dashboard.self_update"
+                ]
+            },
+            "effects": []
         },
         {
             "id": "dashboard.read_api_token",

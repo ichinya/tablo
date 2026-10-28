@@ -19,7 +19,7 @@ final class ServerSchemaState
         $row = $rows[0];
         $observed = [DatabaseInteger::checked($row['id'] ?? null), DatabaseInteger::checked($row['format'] ?? null),
             DatabaseInteger::checked($row['logical_version'] ?? null), SqlColumn::string($row, 'layout_checksum'), SqlColumn::string($row, 'phase')];
-        if ($observed !== [1, 1, 10, ServerSchema::checksum($db), 'ready']) { self::refuse(); }
+        if ($observed !== [1, 1, 11, ServerSchema::checksum($db), 'ready']) { self::refuse(); }
         $installation = SqlColumn::string($row, 'installation_id');
         if (preg_match('/\A[0-9a-f]{32}\z/D', $installation) !== 1 || DatabaseInteger::checked($row['committed_history_high_watermark'] ?? null) < 0) { self::refuse(); }
         $session = DatabaseSession::get($db) ?? throw new DatabaseFailure('schema');

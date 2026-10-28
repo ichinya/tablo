@@ -751,7 +751,7 @@ function engine_transfer_archive_writing(array $small, array $sites): void
  * @param list<\Tablo\DatabaseTransferRows::Values> $rows */
 function engine_transfer_archive_database(array $table, array $rows = []): \PDO
 {
-    $db = \Tablo\SchemaReference::reference(10, ['endpoint' => true]);
+    $db = \Tablo\SchemaReference::reference(11, ['endpoint' => true]);
     $db->exec('PRAGMA foreign_keys = ON');
     foreach ($rows as $values) { DatabaseTransferRows::insert($db, $table, $values); }
     return $db;

@@ -1446,3 +1446,5 @@ With an existing Node 22+ executable, run `node --version`, then
 These standalone deadline/owned-child regressions launch only synthetic Node
 children. They need no browser, application, database or package installation.
 CI qualifies the actual Node executable separately; Composer tests do not require Node.
+
+Self-update checks, installed Docker/archive provenance and manual installation updates: [docs/self-update.md](docs/self-update.md).

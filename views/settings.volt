@@ -1,6 +1,18 @@
 {% extends "layout.volt" %}
 {% block content %}
 <section class="panel">
+<h2>Обновления Tablo</h2>
+<p>Проверяет ветку установленной сборки в ichinya/tablo. По умолчанию раз в 6 часов. Обновление установки выполняется вручную.</p>
+<form method="post" action="/settings/self-update">
+<input type="hidden" name="_csrf" value="{{ csrf }}">
+<label><input type="checkbox" name="self_update_enabled" value="1" {% if self_update['enabled'] %}checked{% endif %}> Проверять обновления</label>
+<label for="self-update-interval">Интервал в минутах (1–525600)</label>
+<input id="self-update-interval" name="self_update_interval_minutes" type="text" inputmode="numeric" value="{{ self_update['interval_minutes'] }}" required>
+{% if errors['self_update_interval_minutes'] is defined %}<p class="field-error">{{ errors['self_update_interval_minutes'] }}</p>{% endif %}
+{% if errors['self_update_enabled'] is defined %}<p class="field-error">{{ errors['self_update_enabled'] }}</p>{% endif %}
+<button class="button primary" type="submit">Сохранить проверку обновлений</button>
+</form></section>
+<section class="panel">
 <h2>Read API</h2>
 <p>Отдельный токен даёт внешним скриптам доступ только к списку сайтов и текущему состоянию. В браузере он не используется.</p>
 <p>{% if read_api_token['active'] %}Токен активен.{% elseif read_api_token['present'] %}Токен недействителен после смены пароля.{% else %}Токен не создан; доступ выключен.{% endif %}

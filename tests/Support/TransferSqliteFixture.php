@@ -40,7 +40,7 @@ final class TransferSqliteFixture
     public static function seed(PDO $db, TokenVault $vault): void
     {
         $db->exec('PRAGMA foreign_keys = ON');
-        SchemaReference::reference(10, ['endpoint' => true], $db); $db->exec('PRAGMA main.user_version = 10');
+        SchemaReference::reference(11, ['endpoint' => true], $db); $db->exec('PRAGMA main.user_version = 11');
         ServerSchema::rows($db, 'INSERT INTO users (id,password_hash,created_at) VALUES (1,?,?)', ['synthetic-password-hash', '2026-01-01T00:00:00Z']);
         ServerSchema::rows($db, 'INSERT INTO git_tokens (id,name,provider,encrypted_token,created_at,updated_at) VALUES (1,?,?,?,?,?)',
             ['Synthetic', 'github', $vault->encrypt(str_repeat('t', times: 32)), '2026-01-01T00:00:00Z', '2026-01-01T00:00:00Z']);

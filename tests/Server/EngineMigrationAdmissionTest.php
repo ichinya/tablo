@@ -22,9 +22,9 @@ final class EngineMigrationAdmissionTest
         // A genuine future layout may admit a version the current product cannot.
         $drop = getenv('TABLO_TEST_DB_DRIVER') === 'mysql' ? 'DROP CHECK' : 'DROP CONSTRAINT';
         $db->exec('ALTER TABLE tablo_database_state ' . $drop . ' tablo_database_state_c3');
-        $db->exec('ALTER TABLE tablo_database_state ADD CONSTRAINT tablo_database_state_c3 CHECK (logical_version BETWEEN 0 AND 11)');
-        $db->exec('UPDATE tablo_database_state SET logical_version = 11 WHERE id = 1');
-        Assert::same($fixture->scalar('SELECT logical_version FROM tablo_database_state', $db), 11);
+        $db->exec('ALTER TABLE tablo_database_state ADD CONSTRAINT tablo_database_state_c3 CHECK (logical_version BETWEEN 0 AND 12)');
+        $db->exec('UPDATE tablo_database_state SET logical_version = 12 WHERE id = 1');
+        Assert::same($fixture->scalar('SELECT logical_version FROM tablo_database_state', $db), 12);
         $caught = null;
         try { \Tablo\ServerSchemaState::ready($db); } catch (DatabaseFailure $error) { $caught = $error; }
         Assert::same($caught?->category, 'schema'); Assert::same($caught?->getPrevious(), null);

@@ -13,13 +13,13 @@ final class ServerMigrationStep
      */
     public function apply(int $index, array $table, #[\SensitiveParameter] array $receipt): void
     {
-        if ($index !== 0) { $this->journal->intent($index, $table['checksum'], predecessor: 0, target: 10, table: $table['name']); }
+        if ($index !== 0) { $this->journal->intent($index, $table['checksum'], predecessor: 0, target: 11, table: $table['name']); }
         try {
             $this->state->point('before-ddl', $index);
             if (!in_array($table['name'], ServerSchema::objects($this->db), strict: true)) { $this->db->exec($table['create']); }
             $this->state->point('after-ddl', $index);
             ServerSchema::validateTable($this->db, $table);
-            if ($index === 0) { $this->journal->intent($index, $table['checksum'], predecessor: 0, target: 10, table: $table['name']); }
+            if ($index === 0) { $this->journal->intent($index, $table['checksum'], predecessor: 0, target: 11, table: $table['name']); }
             $this->state->seed($table['name'], $receipt);
             $this->journal->done($index);
             $this->state->point('after-journal', $index);

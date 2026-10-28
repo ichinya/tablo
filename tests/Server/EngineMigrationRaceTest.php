@@ -49,8 +49,8 @@ final class EngineMigrationRaceTest
         Assert::same($fixture->scalar("SELECT COUNT(*) FROM tablo_migration_journal WHERE phase = 'done'", $db), 3);
         Assert::same((new ServerMigration($db, $fixture->vault))->status(), ['format' => 1, 'logical_version' => 0, 'phase' => 'initializing']);
         (new ServerMigration($fixture->maintenance(), $fixture->vault))->initialize(EngineSchedule::receipt($fixture->case));
-        Assert::same(count(ServerSchema::objects($db)), 18);
-        Assert::same((new ServerMigration($db, $fixture->vault))->status(), ['format' => 1, 'logical_version' => 10, 'phase' => 'ready']);
+        Assert::same(count(ServerSchema::objects($db)), 19);
+        Assert::same((new ServerMigration($db, $fixture->vault))->status(), ['format' => 1, 'logical_version' => 11, 'phase' => 'ready']);
         $fixture->close();
     }
 }

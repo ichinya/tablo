@@ -48,10 +48,10 @@ final class DatabaseTransferNameTest
                 Assert::same($before[0]['storage_type'] ?? null, 'text');
                 $caught = null;
                 try { DatabaseTransfer::preflight($source, $fixture->vault, $fixture->path('preflight-' . $index . '.sqlite'), offline: true); }
-                catch (DatabaseFailure $error) { $caught = $error; }
+                catch (DatabaseFailure $error) { $caught = $error; unset($error); }
                 Assert::same($caught?->category, 'schema'); Assert::same($caught?->getPrevious(), null);
                 Assert::same(ServerSchema::rows($source, 'SELECT CAST(name AS BLOB) AS bytes,typeof(name) AS storage_type FROM git_tokens'), $before);
-                Assert::false($source->inTransaction()); $source = null;
+                Assert::false($source->inTransaction()); $source = null; $caught = null; gc_collect_cycles();
             }
         } catch (\Throwable $error) { $fixture->directory->retainFailure($error); throw $error; }
         finally { $source = null; $fixture->directory->close(); }
@@ -70,15 +70,15 @@ final class DatabaseTransferNameTest
                 $directory = $fixture->path('archive-' . $index);
                 DatabaseTransfer::export($source, $fixture->vault, $directory, $fixture->path('export-' . $index . '.sqlite'), offline: true);
                 $source = null; TransferSqliteFixture::replaceArchiveName($directory, $name);
-                Assert::same(DatabaseTransferVerification::manifest($directory, $fixture->vault)['header']['logicalVersion'], 10);
+                Assert::same(DatabaseTransferVerification::manifest($directory, $fixture->vault)['header']['logicalVersion'], 11);
                 $target->arm(); $caught = null;
                 try { DatabaseTransfer::importServer($target, $fixture->vault, $directory, $fixture->path('import-' . $index . '.sqlite'), offline: true); }
-                catch (DatabaseFailure $error) { $caught = $error; }
+                catch (DatabaseFailure $error) { $caught = $error; unset($error); }
                 $target->disarm();
                 Assert::same($caught?->category, 'schema'); Assert::same($caught?->getPrevious(), null);
                 Assert::same($target->targetCalls, 0);
                 Assert::same(TransferSqliteFixture::snapshot($target), $before);
-                Assert::false($target->inTransaction()); Assert::false(\Tablo\WriteTransaction::owns($target));
+                Assert::false($target->inTransaction()); Assert::false(\Tablo\WriteTransaction::owns($target)); $caught = null; gc_collect_cycles();
             }
         } catch (\Throwable $error) { $fixture->directory->retainFailure($error); throw $error; }
         finally { $target = null; $source = null; $fixture->directory->close(); }
@@ -88,10 +88,10 @@ final class DatabaseTransferNameTest
 /** Public wire, shared-header ownership and mutations stay independent of cache storage. */
 function database_transfer_manifest_public_contract(): void
 {
-    $layout = '58a779e680f9479d0b41a89fbcc72683d80608f12addef16b029b48ee2b1d4e8';
-    $contractDigest = '536b4f80f2bea4ca8216bf5473a8200e1dd19621f4996c1ff5415ee3a7960b32';
+    $layout = '05b522d43d8e58dd75fa86feb31892a44b3e96b531f5a66561cad016dfc74c81';
+    $contractDigest = 'e06a3628181fcba44e3bdf127c838adcc10ad69aba8e9c722a26bd7f3a23ccbd';
     $tables = \Tablo\DatabaseTransferManifest::tables();
-    Assert::same(count($tables), 15);
+    Assert::same(count($tables), 16);
     Assert::same(hash('sha256', JsonEncoding::encode($tables)), $layout);
     Assert::same(\Tablo\DatabaseTransferManifest::layout(), $layout);
     $contract = \Tablo\DatabaseTransferManifest::contract();

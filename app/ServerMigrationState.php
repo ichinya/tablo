@@ -63,7 +63,7 @@ final class ServerMigrationState
 function server_migration_seed_apply(\PDO $db, string $table, #[\SensitiveParameter] array $receipt): void
 {
     if ($table === 'tablo_database_state') { server_migration_seed_state($db, $receipt); return; }
-    if (in_array($table, ['tablo_writer_guard', 'installation_settings', 'worker_runtime'], strict: true)) { server_migration_seed_singleton($db, $table); return; }
+    if (in_array($table, ['tablo_writer_guard', 'installation_settings', 'worker_runtime', 'self_update'], strict: true)) { server_migration_seed_singleton($db, $table); return; }
     if ($table === 'notification_settings' && ServerSchema::rows($db, 'SELECT id FROM notification_settings') === []) {
         ServerSchema::rows($db, 'INSERT INTO notification_settings (id, installation_id) VALUES (1, ?)', [$receipt['installation']]);
     }

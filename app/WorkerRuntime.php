@@ -9,6 +9,7 @@ final class WorkerRuntime
     public readonly SettingsRepository $settings;
     public readonly WorkerStateRepository $state;
     public readonly NotificationDelivery $notifications;
+    public readonly SelfUpdateCheck $selfUpdate;
     /** @var \Closure(): GitHubConnection */
     public readonly \Closure $connection;
     /** @var \Closure(): (int|float) */
@@ -25,6 +26,7 @@ final class WorkerRuntime
         $this->settings = new SettingsRepository($db);
         $this->state = new WorkerStateRepository($db, $this->sites);
         $this->notifications = new NotificationDelivery($db,$this->vault);
+        $this->selfUpdate = new SelfUpdateCheck($db, $http, $hooks?->epoch);
         $sites = $this->sites;
         $this->connection = $hooks->connection ?? static fn (): GitHubConnection => new GitHubConnection($sites, $http, worker: true);
         $this->clock = $hooks->clock ?? static fn (): float => hrtime(true) / 1e9;

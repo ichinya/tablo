@@ -29,6 +29,7 @@ final class SchemaLayoutUpgrade
             if (!$layout['notifications']) { NotificationSchema::migrate($db); }
             if ($layout['version'] < 9) { self::addSessionSettings($db); }
             if ($layout['version'] < 10) { ReadApiTokenSchema::migrate($db); }
+            if ($layout['version'] < 11) { SelfUpdateSchema::migrate($db); }
     }
 
     public static function addSessionSettings(\PDO $db): void

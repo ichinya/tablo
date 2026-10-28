@@ -462,6 +462,28 @@
             "covers": [
                 "dashboard.read_availability"
             ]
+        },
+        {
+            "id": "dashboard.self_update_relation_and_provenance",
+            "kind": "scenario",
+            "version": 1,
+            "summary": "Only exact installed build/deploy metadata initializes I; absent or invalid SHA never uses remote HEAD. Resolve selected branch to L and prove direction; same I/L clears notice, unrelated branch never participates, ahead/diverged/unavailable/observed force-push are distinct. Repeated same force-push remains exceptional until installed metadata changes or matches L.",
+            "covers": [
+                "dashboard.check_self_update",
+                "dashboard.get_self_update"
+            ]
+        },
+        {
+            "id": "dashboard.self_update_schedule_failure_and_fences",
+            "kind": "scenario",
+            "version": 1,
+            "summary": "Controlled clock proves360min default independent of site interval/no sites, disable and reconfigure invalidation, one bounded claim with stale-token rejection, config/build CAS, stop checks and retries5/30/120min then ordinary interval plus shared cooldown. Failures retain last success as stale and cannot stop site checks. Read-only authenticated pages/polling preserve saved notice without provider requests; settings inherit CSRF/session lifetime. SQLite10->11 rollback at every stage and server9/10->11 journaled CHECK/DDL resume preserve existing credential/data bytes and allocation floors.",
+            "covers": [
+                "dashboard.check_self_update",
+                "dashboard.update_self_update_settings",
+                "dashboard.get_self_update",
+                "dashboard.run_worker_pass"
+            ]
         }
     ]
 }

@@ -1,6 +1,11 @@
 services:
   tablo:
-    build: .
+    build:
+      context: .
+      args:
+        TABLO_BUILD_REPOSITORY: "${TABLO_BUILD_REPOSITORY:-ichinya/tablo}"
+        TABLO_BUILD_BRANCH: "${TABLO_BUILD_BRANCH:-}"
+        TABLO_BUILD_SHA: "${TABLO_BUILD_SHA:-}"
     image: tablo-local
     ports:
       - "127.0.0.1:8087:80"
@@ -17,7 +22,12 @@ services:
       TABLO_HSTS_MAX_AGE: "${TABLO_HSTS_MAX_AGE:-}"
     restart: unless-stopped
   tablo-worker:
-    build: .
+    build:
+      context: .
+      args:
+        TABLO_BUILD_REPOSITORY: "${TABLO_BUILD_REPOSITORY:-ichinya/tablo}"
+        TABLO_BUILD_BRANCH: "${TABLO_BUILD_BRANCH:-}"
+        TABLO_BUILD_SHA: "${TABLO_BUILD_SHA:-}"
     image: tablo-local
     command: ["php", "bin/worker.php"]
     healthcheck:

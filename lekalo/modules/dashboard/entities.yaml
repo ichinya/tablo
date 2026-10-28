@@ -2870,6 +2870,136 @@
                     "required": true
                 }
             ]
+        },
+        {
+            "id": "dashboard.self_update",
+            "kind": "entity",
+            "version": 1,
+            "description": "Private singleton schema11: default enabled/360min, explicit build fingerprint and settings revision, last observed immutable branch SHA, relation/count/success/error timestamps, due/retry and CAS claim. Metadata comes only from installed build/deployment repository/branch/full SHA; no remote inference or Git checkout access.",
+            "fields": [
+                {
+                    "name": "id",
+                    "type": {
+                        "ref": "dashboard.number"
+                    },
+                    "required": true
+                },
+                {
+                    "name": "enabled",
+                    "type": {
+                        "ref": "dashboard.flag"
+                    },
+                    "required": true
+                },
+                {
+                    "name": "interval_minutes",
+                    "type": {
+                        "ref": "dashboard.number"
+                    },
+                    "required": true
+                },
+                {
+                    "name": "revision",
+                    "type": {
+                        "ref": "dashboard.number"
+                    },
+                    "required": true
+                },
+                {
+                    "name": "build_fingerprint",
+                    "type": {
+                        "ref": "dashboard.text"
+                    },
+                    "required": true
+                },
+                {
+                    "name": "observed_sha",
+                    "type": {
+                        "optional": {
+                            "ref": "dashboard.text"
+                        }
+                    }
+                },
+                {
+                    "name": "status",
+                    "type": {
+                        "ref": "dashboard.text"
+                    },
+                    "required": true
+                },
+                {
+                    "name": "latest_sha",
+                    "type": {
+                        "optional": {
+                            "ref": "dashboard.text"
+                        }
+                    }
+                },
+                {
+                    "name": "new_commits",
+                    "type": {
+                        "optional": {
+                            "ref": "dashboard.number"
+                        }
+                    }
+                },
+                {
+                    "name": "successful_at",
+                    "type": {
+                        "optional": {
+                            "ref": "dashboard.number"
+                        }
+                    }
+                },
+                {
+                    "name": "attempted_at",
+                    "type": {
+                        "optional": {
+                            "ref": "dashboard.number"
+                        }
+                    }
+                },
+                {
+                    "name": "error_code",
+                    "type": {
+                        "optional": {
+                            "ref": "dashboard.text"
+                        }
+                    }
+                },
+                {
+                    "name": "failures",
+                    "type": {
+                        "ref": "dashboard.number"
+                    },
+                    "required": true
+                },
+                {
+                    "name": "next_due",
+                    "type": {
+                        "ref": "dashboard.number"
+                    },
+                    "required": true
+                },
+                {
+                    "name": "claim_token",
+                    "type": {
+                        "optional": {
+                            "ref": "dashboard.text"
+                        }
+                    }
+                },
+                {
+                    "name": "claim_until",
+                    "type": {
+                        "ref": "dashboard.number"
+                    },
+                    "required": true
+                }
+            ],
+            "identity": [
+                "id"
+            ]
         }
     ]
 }

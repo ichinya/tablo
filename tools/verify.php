@@ -111,6 +111,7 @@ try {
         if (!(in_array($symbol['kind'], ['command', 'query'], strict: true))) { continue; }
 
             $unitTests = match ($symbol['id']) {
+                'dashboard.get_self_update', 'dashboard.update_self_update_settings', 'dashboard.check_self_update' => 'tests/Unit/SelfUpdateComparisonTest.php,tests/Unit/SelfUpdateScheduleTest.php,tests/Unit/SelfUpdateFencingTest.php,tests/Unit/SelfUpdateMigrationTest.php,tests/Unit/SelfUpdateWorkerTest.php,tests/Unit/SelfUpdateFailureTest.php,tests/Http/SelfUpdateTest.php',
                 'dashboard.read_dashboard_state' => 'tests/Unit/SavedDashboardRepositoryTest.php,tests/Http/DashboardStateTest.php,tests/Http/DashboardStateSessionTest.php,tests/Http/DashboardStateSessionRaceTest.php',
                 'dashboard.read_availability' => 'tests/Unit/AvailabilityTest.php,tests/Unit/AvailabilityRepositoryTest.php,tests/Http/AvailabilityPageTest.php',
                 'dashboard.read_api_sites', 'dashboard.read_api_site', 'dashboard.authenticate_read_api' => 'tests/Unit/ReadApiRequestTest.php,tests/Unit/ReadApiRepositoryTest.php,tests/Unit/ApiSiteDtoTest.php,tests/Unit/ReadApiSchemaTest.php,tests/Http/ReadApiHttpTest.php,tests/Http/ReadApiAuthenticationTest.php,tests/Http/ReadApiParametersTest.php,tests/Http/ReadApiPrivacyTest.php,tests/Http/ReadApiSessionContractTest.php,tests/Network/ReadApiBoundaryTest.php',
@@ -150,6 +151,7 @@ try {
                 $unitTests .= ',tests/Unit/GitHubCredentialTest.php,tests/Network/GitHubCorrectionsTest.php,tests/Network/GitHubEquivalentScopeTest.php,tests/Network/GitHubResponseAdmissionTest.php,tests/Network/GitHubKeyCustodyTest.php,tests/Network/GitHubKeyLivenessTest.php,tests/Network/GitHubKeyTraceTest.php,tests/Network/GitHubResponsePrivacyTest.php,tests/Network/GitHubClassifierPrivacyTest.php,tests/Network/GitHubTraceInspectorTest.php';
             }
             if ($symbol['id'] === 'dashboard.run_worker_pass') {
+                $unitTests .= ',tests/Unit/SelfUpdateWorkerTest.php,tests/Unit/SelfUpdateScheduleTest.php,tests/Unit/SelfUpdateFailureTest.php';
                 $unitTests .= ',tests/Unit/WorkerAdmissionTest.php,tests/Unit/WorkerSettlementTest.php,tests/Network/WorkerSharedFailureTest.php,tests/Network/WorkerKeyFailureTest.php,tests/Network/WorkerMetricFailureTest.php,tests/Http/WorkerDashboardTest.php,tests/Network/WorkerSettingsTest.php';
             }
             if (in_array($symbol['id'], ['dashboard.check_site', 'dashboard.run_worker_pass', 'dashboard.create_site', 'dashboard.update_site', 'dashboard.list_branches'], strict: true)) {

@@ -377,8 +377,8 @@
         {
             "id": "dashboard.run_worker_pass",
             "kind": "command",
-            "version": 5,
-            "description": "PeriodicWorker serially admits enabled sites using stop/generation checks, persistent fairness turns and actual resource eligibility. SiteChecker shares endpoint-aware health/version/Git policy and the resolved vault. Exact PDO identity is required before settlement; endpoint/configuration/Git snapshots guard the current update, history, prospective incident/notification projection and service credit in one owned transaction. Stale or disabled/deleted/ABA sites get no writes or credit. Primary-vs-cleanup error and shared storage/key failures remain distinct; individual site failure does not invent success. No historical backfill/replay. After accepted site commits, one isolated bounded notification candidate is observed with stop checks and the same selected vault. Delivery or acknowledgement races retain outbox claims/configuration custody without undoing accepted observations. One-shot CLI/manual routes preserve their separate ordering, text/JSON output and exits.",
+            "version": 6,
+            "description": "PeriodicWorker serially admits enabled sites using stop/generation checks, persistent fairness turns and actual resource eligibility. SiteChecker shares endpoint-aware health/version/Git policy and the resolved vault. Exact PDO identity is required before settlement; endpoint/configuration/Git snapshots guard the current update, history, prospective incident/notification projection and service credit in one owned transaction. Stale or disabled/deleted/ABA sites get no writes or credit. Primary-vs-cleanup error and shared storage/key failures remain distinct; individual site failure does not invent success. No historical backfill/replay. After accepted site commits, one isolated bounded notification candidate is observed with stop checks and the same selected vault. Delivery or acknowledgement races retain outbox claims/configuration custody without undoing accepted observations. One-shot CLI/manual routes preserve their separate ordering, text/JSON output and exits. Self-update due/retry runs independently before a site pass and during the wait, with a persistent private state and bounded isolated network failure.",
             "input": [
                 {
                     "name": "generation",
@@ -400,7 +400,8 @@
                 "dashboard.incident_created",
                 "dashboard.incident_updated",
                 "dashboard.incident_checkpoint_created",
-                "dashboard.incident_checkpoint_updated"
+                "dashboard.incident_checkpoint_updated",
+                "dashboard.self_update_updated"
             ]
         },
         {
@@ -873,6 +874,50 @@
             "description": "Same live cookie/CSRF/DeliberateForm and post-lock owner/policy admission; delete singleton token, no other effects. A read snapshot admitted before commit may finish; every later old-token request refuses.",
             "effects": [
                 "dashboard.read_api_token_deleted"
+            ]
+        },
+        {
+            "id": "dashboard.self_update_updated",
+            "kind": "effect",
+            "version": 1,
+            "operation": "update",
+            "entity": "dashboard.self_update"
+        },
+        {
+            "id": "dashboard.update_self_update_settings",
+            "kind": "command",
+            "version": 1,
+            "description": "Authenticated deliberate CSRF form validates decimal1..525600 minutes and explicit enabled flag. Short selected-PDO writer transaction preserves last observation, increments revision only on change, resets due and invalidates outstanding claims. No GitHub request or deployment action.",
+            "input": [
+                {
+                    "name": "enabled",
+                    "type": {
+                        "optional": {
+                            "ref": "dashboard.text"
+                        }
+                    }
+                },
+                {
+                    "name": "minutes",
+                    "type": {
+                        "ref": "dashboard.text"
+                    },
+                    "required": true
+                }
+            ],
+            "effects": [
+                "dashboard.self_update_updated"
+            ]
+        },
+        {
+            "id": "dashboard.check_self_update",
+            "kind": "command",
+            "version": 1,
+            "description": "Independent worker due schedule continues with no sites or a longer site interval. Claim lease60s and build/settings revision fence, all network outside transactions, <=3 anonymous existing-policy requests/24s and shared durable cooldown. Resolve branch to immutable L; compare I...L ahead=>installed behind, behind=>installed ahead, diverged/unknown separate; compare old P...L for force-push, retain unknown P and latch proven rewritten history. Equal installed SHA is current. Missing explicit build metadata is no_data without remote fallback. Preserve last success/count/SHA on errors, stale projection and5/30/120min retries followed by normal interval; stop between requests and no overlap. Self-check failure does not stop site monitoring. No file mutation, git pull, restart, deploy, external notification or public API.",
+            "effects": [
+                "dashboard.self_update_updated",
+                "dashboard.github_cooldown_created",
+                "dashboard.github_cooldown_updated"
             ]
         }
     ]

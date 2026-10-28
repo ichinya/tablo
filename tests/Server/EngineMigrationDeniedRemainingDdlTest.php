@@ -43,4 +43,8 @@ final class EngineMigrationDeniedRemainingDdlTest
     #[Test]
     public function deniedCreateStep17ReadApiToken(): void
     { EngineMigrationFailureTest::deniedDdlAt(17); }
+
+    #[Test]
+    public function deniedCreateStep18SelfUpdate(): void
+    { EngineMigrationFailureTest::deniedDdlAt(18); }
 }

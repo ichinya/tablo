@@ -45,9 +45,9 @@ final class EngineMigrationProcessTest
             $contenderId = self::result($contender->finish(self::remaining($deadline)), "ENGINE_MIGRATION_READY\nENGINE_MIGRATION_CONTENDED\n");
             Assert::true($ownerId !== $contenderId);
             Assert::same(RequiredFile::digest($receipt), $receiptDigest);
-            Assert::same(count(ServerSchema::objects($observer)), 18);
-            Assert::same($fixture->scalar("SELECT COUNT(*) FROM tablo_migration_journal WHERE phase = 'done'", $observer), 18);
-            Assert::same((new ServerMigration($observer, $fixture->vault))->status(), ['format' => 1, 'logical_version' => 10, 'phase' => 'ready']);
+            Assert::same(count(ServerSchema::objects($observer)), 19);
+            Assert::same($fixture->scalar("SELECT COUNT(*) FROM tablo_migration_journal WHERE phase = 'done'", $observer), 19);
+            Assert::same((new ServerMigration($observer, $fixture->vault))->status(), ['format' => 1, 'logical_version' => 11, 'phase' => 'ready']);
         } catch (\Throwable $error) {
             $primary = $error; $directory->retainFailure($error); throw $error;
         } finally {

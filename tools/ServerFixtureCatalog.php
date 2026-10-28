@@ -116,7 +116,7 @@ function server_fixture_catalog_metadata_control(array $context, array $fixture)
     foreach (['TABLES' => 'TABLE_SCHEMA', 'TRIGGERS' => 'TRIGGER_SCHEMA', 'ROUTINES' => 'ROUTINE_SCHEMA', 'EVENTS' => 'EVENT_SCHEMA'] as $table => $column) {
         $sql .= "\nSELECT COUNT(*) FROM information_schema." . $table . ' WHERE CAST(' . $column . " AS BINARY) = CAST('" . $catalog . "' AS BINARY);";
     }
-    $counts = ['tables' => in_array($fixture['initial'], ['metadata-table', 'metadata-view'], strict: true) ? 19 : 18,
+    $counts = ['tables' => in_array($fixture['initial'], ['metadata-table', 'metadata-view'], strict: true) ? 20 : 19,
         'triggers' => (int) ($fixture['initial'] === 'metadata-trigger'), 'routines' => (int) ($fixture['initial'] === 'metadata-routine'), 'events' => (int) ($fixture['initial'] === 'metadata-event')];
     if (trim(server_fixture_catalog_execute($context, $sql)) !== implode("\n", array_values($counts))) { throw new RuntimeException('Administrative metadata control counts differ.'); }
     return ['kind' => $fixture['initial']] + $counts;
@@ -257,7 +257,7 @@ function server_fixture_catalog_tables(string $engine): array
 {
     if (!in_array($engine, ['mysql', 'mariadb'], strict: true)) { throw new RuntimeException('Exact fixture engine absent.'); }
     $layout = ServerSchemaDescriptor::forEngine($engine);
-    if (count($layout['tables']) !== 18) { throw new RuntimeException('Fixed eighteen scaffold names absent.'); }
+    if (count($layout['tables']) !== 19) { throw new RuntimeException('Fixed nineteen scaffold names absent.'); }
     foreach ($layout['tables'] as $table) {
         foreach ([$table['name'], ...array_column($table['columns'], 'name')] as $identifier) {
             if (preg_match('/\A[a-z][a-z0-9_]{0,63}\z/D', $identifier) !== 1) { throw new RuntimeException('Fixed native scaffold identifier refused.'); }

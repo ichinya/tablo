@@ -1461,3 +1461,5 @@ read-only Bearer API. По умолчанию доступ выключен; а�
 [JSON schema](contracts/read-api-v1.schema.json).
 
 План расширения Git-провайдеров: [Gitea, контракты и будущая приёмка](docs/git-provider-plan.md).
+
+Проверка обновлений самой Tablo, метаданные Docker/архива и ручное обновление: [docs/self-update.md](docs/self-update.md).
