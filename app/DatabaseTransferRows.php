@@ -274,6 +274,8 @@ function database_transfer_codec_fast_columns(array $table): bool
     foreach ($columns as $column) {
         if (!is_array($column) || !is_string($column['name'] ?? null) || !is_string($column['type'] ?? null)
             || !is_bool($column['nullable'] ?? null)) { return false; }
+        if (!in_array($column['type'], ['bigint', 'longblob', 'longtext', 'varchar(80)', 'varbinary(16)', 'varbinary(20)',
+            'varbinary(32)', 'varbinary(40)', 'varbinary(64)', 'varbinary(128)', 'varbinary(200)', 'varbinary(256)'], strict: true)) { return false; }
     }
     return true;
 }

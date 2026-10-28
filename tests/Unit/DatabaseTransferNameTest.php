@@ -269,6 +269,44 @@ function database_transfer_codec_fast_oracles(): void
     }
     database_transfer_codec_fast_typed_oracles();
     database_transfer_codec_fast_framing($binary);
+    database_transfer_codec_fast_descriptors();
+}
+
+/** Unknown runtime types must reach the original decoder before warnings can occur. */
+function database_transfer_codec_fast_descriptors(): void
+{
+    foreach (['bigint', 'longblob', 'longtext', 'varchar(80)', 'varbinary(16)', 'varbinary(20)', 'varbinary(32)',
+        'varbinary(40)', 'varbinary(64)', 'varbinary(128)', 'varbinary(200)', 'varbinary(256)'] as $type) {
+        $table = ['name' => 'codec', 'columns' => [['name' => 'v', 'type' => $type, 'nullable' => true]], 'primary' => []];
+        $values = [match ($type) { 'bigint' => 1, 'varbinary(20)' => '0001-01-01T00:00:00Z', default => 'synthetic' }];
+        $wire = JsonEncoding::encode(DatabaseTransferRows::encode($values));
+        Assert::true(\Tablo\database_transfer_codec_fast_columns($table));
+        Assert::same(\Tablo\database_transfer_codec_fast_line($wire, $table), $values);
+        database_transfer_codec_differential($wire, $table);
+    }
+    foreach (['unknown', 'LONGTEXT', 'longtext ', 'varbinary(2)', 'varbinary(016)', 'varbinary(16)junk', 'varbinary(999999999999999999999999)'] as $type) {
+        $table = ['name' => 'codec', 'columns' => [['name' => 'v', 'type' => $type, 'nullable' => true]], 'primary' => []];
+        Assert::false(\Tablo\database_transfer_codec_fast_columns($table));
+        Assert::null(\Tablo\database_transfer_codec_fast_line('[["bytes",""]]', $table));
+    }
+    database_transfer_codec_descriptor_warning();
+}
+
+function database_transfer_codec_descriptor_warning(): void
+{
+    $table = ['name' => 'codec', 'columns' => [['name' => 'v', 'type' => 'varbinary(999999999999999999999999)', 'nullable' => true]], 'primary' => []];
+    $wire = '[["bytes",""]]';
+    set_error_handler(static function (int $severity, string $message): never { throw new \ErrorException($message, 0, $severity); });
+    try {
+        database_transfer_codec_differential($wire, $table);
+        database_transfer_codec_differential($wire . 'junk', $table);
+        $invalid = database_transfer_codec_outcome(static fn (): array => DatabaseTransferRows::line($wire . 'junk', $table));
+        Assert::same($invalid['exception'], \JsonException::class); Assert::same($invalid['message'], 'Syntax error');
+        // Native overflow warnings differ by PHP build; the exact live baseline remains authoritative.
+        $canonical = database_transfer_codec_outcome(static fn (): array => DatabaseTransferRows::line($wire, $table));
+        if ($canonical['exception'] === null) { Assert::same($canonical['values'], ['']); return; }
+        Assert::same($canonical['exception'], \ErrorException::class);
+    } finally { restore_error_handler(); }
 }
 
 function database_transfer_codec_fast_typed_oracles(): void
