@@ -64,6 +64,7 @@ final class SqlSchemaAdmissionTest extends SqlSchemaFixtureCase
     public function quotedDefaultsAndCheckTermsRemainDistinctFromKeywords(): void
     {
         sql_schema_tokenizer_public_contract();
+        \Tablo\Tests\Support\ServerExpressionLeaves::check();
         $wanted = new PDO('sqlite::memory:');
         $actual = new PDO('sqlite::memory:');
         $wanted->exec('CREATE TABLE probe(id INTEGER PRIMARY KEY, value TEXT DEFAULT NULL CHECK(value IS NULL))');

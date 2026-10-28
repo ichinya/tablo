@@ -8,7 +8,7 @@
                 "Composer verify",
                 "Reviewed dependency capture"
             ],
-            "fingerprint": "sha256:363f9f9b8c17a4587c83ec180204458900529b8a4673bb8ee209d312b4b95313"
+            "fingerprint": "sha256:c7a8b6e797e083f097cb973c0f00af99114daffb8708ffc5e270ff5b9783f5e6"
         },
         {
             "path": "tools/reviewed-dependencies.php",
@@ -3248,7 +3248,7 @@
                 "Composer verify",
                 "app/ServerExpressionOperator.php"
             ],
-            "fingerprint": "sha256:803e3f554cec382be5ed6e923a6b624e6b1e232a130664b47fce9daf5298b631"
+            "fingerprint": "sha256:e32e81c023bc3b46e39815c4d4981f4e3e5bc19abd046705968af1833ae5dc7d"
         },
         {
             "path": "app/ServerExpressionOperator.php",
@@ -3260,7 +3260,7 @@
                 "app/ServerExpression.php",
                 "app/ServerExpressionAtom.php"
             ],
-            "fingerprint": "sha256:dc662004ce786fa379f79b4aa5c72caa5e8a9e1155ab8c411f7efe301c3e107d"
+            "fingerprint": "sha256:61c5635e02a19641c7e927a4b9e7f3a5e0b4e3b8ed240908206308bd941f482e"
         },
         {
             "path": "app/ServerExpressionTokens.php",
@@ -8058,7 +8058,7 @@
                 "Composer analyze",
                 "Composer verify:server"
             ],
-            "fingerprint": "sha256:46639e3abf643900d91c41b2d921351667ec7de5243139cb76c515ef4049eb19"
+            "fingerprint": "sha256:66494cc6f06caead17cb6466fb213649fc62acc0d70b5381266dcbf9ca1362d0"
         },
         {
             "path": "tests/Server/EngineFixtureSafetyTest.php",
@@ -10752,7 +10752,7 @@
                 "Composer verify",
                 "Composer analyze"
             ],
-            "fingerprint": "sha256:be3c7861bd0ad035aeb92f1f4e2a52df840818dbf6c0c16e23fba433f68a19e9"
+            "fingerprint": "sha256:6086471a46743ac68cc88f97fd8c3c9714f6136d404def8b44b6cfe8d59daf2b"
         },
         {
             "path": "tests/Unit/SqlSchemaFixtureCase.php",
@@ -12826,6 +12826,25 @@
                 "Composer verify"
             ],
             "fingerprint": "sha256:1208f66b481f9dc24ca0d2c2d2cad3b96a1d42c58b7263cdec5826dde75298d0"
+        },
+        {
+            "path": "tests/Support/ServerExpressionLeaves.php",
+            "owner": "Bounded invocation-local AST leaf equivalence, lifetime and finite-guard evidence",
+            "consumers": [
+                "Composer lint",
+                "Composer analyze",
+                "tests/Unit/SqlSchemaAdmissionTest.php",
+                "tests/Server/EngineConstraintsTest.php"
+            ],
+            "fingerprint": "sha256:75b19ed2ab957293d38b225d74d0d4992695cb5d041c7488c910e433ee12e8df"
+        },
+        {
+            "path": "tests/fixtures/server-expression-canonical-v1.json",
+            "owner": "Frozen pre-leaf canonical SHA256 outputs for both engine CHECK descriptors",
+            "consumers": [
+                "tests/Support/ServerExpressionLeaves.php"
+            ],
+            "fingerprint": "sha256:195836a97b9b76336c5160ae9fb070a457a6cec2c45d8f71e8e8be72d50074ea"
         }
     ]
 }

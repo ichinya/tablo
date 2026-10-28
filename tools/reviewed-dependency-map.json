@@ -10392,5 +10392,20 @@
       "Composer analyze",
       "Composer verify"
     ]
+  },
+  "tests/Support/ServerExpressionLeaves.php": {
+    "owner": "Bounded invocation-local AST leaf equivalence, lifetime and finite-guard evidence",
+    "consumers": [
+      "Composer lint",
+      "Composer analyze",
+      "tests/Unit/SqlSchemaAdmissionTest.php",
+      "tests/Server/EngineConstraintsTest.php"
+    ]
+  },
+  "tests/fixtures/server-expression-canonical-v1.json": {
+    "owner": "Frozen pre-leaf canonical SHA256 outputs for both engine CHECK descriptors",
+    "consumers": [
+      "tests/Support/ServerExpressionLeaves.php"
+    ]
   }
 }

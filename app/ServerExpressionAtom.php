@@ -23,8 +23,8 @@ final class ServerExpressionAtom
             return self::call($lower, $lexemes, $position, $operator);
         }
         if (str_starts_with($lower, '0x')) { throw new DatabaseFailure('schema'); }
-        if (str_contains($lexeme, "'") || str_starts_with($lower, '_binary')) { return server_expression_literal($lexeme); }
-        return ['atom', str_replace('`', replace: '', subject: $lower)];
+        if (str_contains($lexeme, "'") || str_starts_with($lower, '_binary')) { return $operator->leaf(server_expression_literal($lexeme)); }
+        return $operator->leaf(['atom', str_replace('`', replace: '', subject: $lower)]);
     }
 
     /** @param list<string> $lexemes */
@@ -92,12 +92,13 @@ function server_expression_argument(string $name, int $index, array $lexemes, in
     if ($stringArgument && str_starts_with($candidate, '0x') && in_array($lexemes[$position + 1] ?? '', [',', ')'], strict: true)) {
         // These complete arguments are consumed as strings; LOCATE's optional position is numeric.
         $position++;
-        return server_expression_literal('_binary ' . $candidate);
+        return $operator->leaf(server_expression_literal('_binary ' . $candidate));
     }
     return $operator->parse($lexemes, $position);
 }
 
-/** Decode only a string-literal token already admitted by the finite lexer. */
+/** Decode only a string-literal token already admitted by the finite lexer.
+ * @return array{string, string} */
 function server_expression_literal(string $lexeme): array
 {
     $start = strpos($lexeme, needle: "'");
