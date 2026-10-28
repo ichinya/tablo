@@ -7989,7 +7989,7 @@
                 "Composer verify",
                 "Composer analyze"
             ],
-            "fingerprint": "sha256:29b3faa9dfacabb8a60092060ea8534c22cc1235cc1c83d2da3aa9651686207d"
+            "fingerprint": "sha256:329eb63f05acc5d8d68ba427d3039ad4b15faf80039f875df1ec797ef0aef602"
         },
         {
             "path": "tests/Network/WorkerStartupAdmissionTest.php",
@@ -8295,7 +8295,7 @@
                 "Composer analyze",
                 "Composer verify:server"
             ],
-            "fingerprint": "sha256:0a93aca2acf2ffc13bf5efddc1292d29978053b68938ed2cb41374e50a98e992"
+            "fingerprint": "sha256:07c7297835b98c5b804b462e4395162e6abd477da2e231e103155a75a27f2c55"
         },
         {
             "path": "tests/Server/EngineWatermarkTest.php",
@@ -11224,7 +11224,7 @@
                 "tools/server-supervisor-linux-qualify.cjs",
                 "tools/server-linux-prepare.cjs"
             ],
-            "fingerprint": "sha256:aacc6110d80e10cdc5e39b3d74ea93b28350f0b7d9ed8e5ca729c2b6a501c066"
+            "fingerprint": "sha256:4c8ae84578f860b7abf321b106deea0b439231ede9702e0e7e58ef9c3e9e5c1b"
         },
         {
             "path": "tools/ServerTestEvidence.php",
@@ -11235,7 +11235,7 @@
                 "Composer lint",
                 "Composer analyze"
             ],
-            "fingerprint": "sha256:b4160c2ab4c9e5a3cf04a4c45e442feb89254b5503a23d468474c7a5bcbf8fa9"
+            "fingerprint": "sha256:39182cc46cb122b50a6a23db8ffb7f60a9d379be79d1a655f869ab2095b39892"
         },
         {
             "path": "tools/verify-server.php",
