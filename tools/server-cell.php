@@ -1253,22 +1253,11 @@ function server_cell_execute(array &$context, ?array &$capabilityFailure = null)
  * @param array{plan: array, directory: TemporaryDirectory, environment: array<string, string>} $context */
 function server_cell_verify_and_close(array $context): void
 {
-    $plan = $context['plan'];
-    require_once __DIR__ . '/verify-server.php';
-    $arguments = ['--engine=' . SqlColumn::string($plan, 'selectedEngine')];
-    if (($plan['cross'] ?? null) === true) { $arguments[] = '--cross'; }
-    $summary = server_verify_run($arguments);
-    $safe = server_cell_native_evidence($plan, \Tablo\JsonEncoding::encode($summary));
-    $custody = server_cell_post_custody($plan);
-    server_cell_cleanup($context);
-    $closure = server_cell_observer_audit(SqlColumn::string($plan, 'runtime') . '/evidence/closure');
-    server_cell_observer_remaining();
-    server_cell_private_write(SqlColumn::string($plan, 'runtime') . '/evidence/cell-result.json', \Tablo\JsonEncoding::encode([
-        'schema' => 'tablo/server-cell-result/v1', 'status' => 'passed', 'nonce' => $plan['nonce'] ?? null,
-        'native' => ['mode' => 'callable-in-observed-controller', 'controllerPid' => getmypid(), 'summary' => $summary], 'safeNative' => $safe, 'custody' => $custody,
-        'services' => $context['plan']['services'] ?? null, 'ownedServicesClosed' => true, 'observerClosureKnown' => true,
-        'observerClosure' => $closure, 'completeIssueAcceptance' => false], JSON_PRETTY_PRINT));
-    fwrite(STDOUT, data: "Required server cell passed; owned services closed.\n");
+    // This isolated diagnostic overlay deliberately cannot report product/native acceptance.
+    /** @var mixed $operation Authored diagnostic entry is type-checked before invocation. */
+    $operation = require dirname(__DIR__) . '/diagnostics/cold-phase/entry.php';
+    if (!$operation instanceof Closure) { throw new RuntimeException('Diagnostic entry refused.'); }
+    $operation($context);
 }
 
 function server_cell_verify_tools(array $plan): void
