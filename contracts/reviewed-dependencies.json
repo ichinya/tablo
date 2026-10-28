@@ -138,7 +138,7 @@
                 "Composer analyze",
                 "Composer verify"
             ],
-            "fingerprint": "sha256:0a3c77fe06c269923e62c7f056796906584b6bd2aea5edc48ca0c162801993a4"
+            "fingerprint": "sha256:9dbae3037522a64223af59b382df8431b406458749e57781ddc2545441b16406"
         },
         {
             "path": "tests/Support/TransferPublicationFault.php",
@@ -972,7 +972,7 @@
                 "tests/Server/EngineTransferEnvelopeTest.php",
                 "tests/Support/TransferRowsAssertions.php"
             ],
-            "fingerprint": "sha256:0bd62febfa0b784a8f04b94d5855514c5ea32ad95ca7257867e30a0ac1028aee"
+            "fingerprint": "sha256:769c75090c6b4e8105e2a8477f91bfa03e5a16a465a747abb342d755edfcba75"
         },
         {
             "path": "app/DatabaseTransferSequence.php",
@@ -5394,7 +5394,7 @@
                 "tools/server-supervisor-linux-qualify.cjs",
                 "tools/server-linux-prepare.cjs"
             ],
-            "fingerprint": "sha256:4098be2e0046058b2eda11977a8975a2d8eb3574750db86a09ae986309355751"
+            "fingerprint": "sha256:13cdf249887f5ab3cefb41e5caa3dc438a9989697cf064fe7dbe284800cd26f5"
         },
         {
             "path": "docs/read-api.md",
@@ -5402,7 +5402,7 @@
             "consumers": [
                 "Read API documentation and privacy review"
             ],
-            "fingerprint": "sha256:468cd8bb8e6ecbe5b0606a81e082f252718fa4cefb8e34842fa51f92271ed9c0"
+            "fingerprint": "sha256:fc4fc73b78c818030a0444095e54ec02612d0870be4cb52ea640fb8fa713e779"
         },
         {
             "path": "mago.toml",
@@ -5454,7 +5454,7 @@
                 "Administrator Argon2id runtime and byte policy",
                 "Administrator local password reset and API bearer revocation"
             ],
-            "fingerprint": "sha256:4a3cebc0623d97ad0eb1591ee543b37630250d0270e42ac22d6279bac20b63d6"
+            "fingerprint": "sha256:a4cbd4738300f771e791474d64f18f793af25f7d73530604a92a763d1d65f119"
         },
         {
             "path": "testo-server.php",
@@ -11787,7 +11787,7 @@
                 "Administrator local password reset and API bearer revocation",
                 "Administrator idle timeout policy"
             ],
-            "fingerprint": "sha256:89ecda2e84b8a9b0d9a732e8e14f303ff2fa3f11973e2a50eb86af5a24c65f26"
+            "fingerprint": "sha256:f74ac6e8d29be1f2ab2a9d661738e003fec9f294606e27bbda87c8bbd657397e"
         },
         {
             "path": "tests/fixtures/hsts-router.php",

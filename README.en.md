@@ -510,7 +510,7 @@ migration are explicit maintenance operations.
 
 See [Database engines](docs/database-engines.md) for configuration, least-privilege
 grants, immutable server image examples, DDL journal recovery, private backups and
-the fixed current-layout offline transfer helper. Read its preflight limits and
+the fixed current sixteen-table offline transfer helper. Read its preflight limits and
 rollback-after-new-writes rules before changing a live installation. The default
 test/verification commands remain SQLite-only; server verification selects its
 engine explicitly and requires real engine evidence.
@@ -518,11 +518,12 @@ engine explicitly and requires real engine evidence.
 ## SQLite migrations
 
 `PRAGMA user_version` holds the schema version. An empty database or an admitted
-older installation is upgraded automatically to **10**. Admission checks the
+older installation is upgraded automatically to **11**. Admission checks the
 actual layout: historical versions include different endpoint-token and history
 compositions, rather than a single linear v4/v5 chain. The current schema includes
 health diagnostics, GitHub cooldowns, worker settings/state, endpoint tokens,
-history, incidents, notifications, idle timeout, and the read API token.
+history, incidents, notifications, idle timeout, the read API token, and the Tablo
+update-check state.
 Only missing supported changes are applied; existing sites, endpoints, credentials,
 and results are preserved.
 
@@ -1163,7 +1164,7 @@ HMAC cooldown alone, no historical authenticity of 32 bytes can be established;
 the operator must transfer the original bytes exactly. No database sentinel/hash/
 verifier is added. Reading an existing SQLite can create bookkeeping/sidecars;
 the promise is no application/schema writes, rather than zero filesystem effects.
-AES-256-GCM `v1:` stays unchanged; external key selection does not alter schema 10.
+AES-256-GCM `v1:` stays unchanged; external key selection does not alter schema 11.
 
 Password CLI and explicit `php bin/worker.php --stop` are deliberately independent
 of the token key. Stop opens only existing compatible control storage without
@@ -1208,7 +1209,7 @@ Move an installed vault during maintenance:
 6. Return to legacy mode only with consumers stopped, original bytes at the
    adjacent location, and empty `TABLO_TOKEN_KEY_FILE`; check the destination
    before copying. Application rollback requires a binary compatible with current
-   schema 10; an old schema-4 binary is unsuitable. Never lower `user_version`.
+   schema 11; an old schema-4 binary is unsuitable. Never lower `user_version`.
    Recover a lost key only from the original; rotation/re-encryption needs a
    separate atomic procedure.
 
@@ -1343,7 +1344,7 @@ requests cooperative stop; observe exit before restarting. The worker accepts
 only no arguments or `--stop`, with no `--once` or `--help`. Its stable nonblocking
 database-adjacent lock remains held through waits. Docker Compose includes
 `tablo-worker` sharing the web image, local database, and token key. Deploy web
-and worker from the same revision compatible with schema 10. See
+and worker from the same revision compatible with schema 11. See
 [launch, cadence, fairness, stop, and storage limits](docs/periodic-worker.md).
 
 ## Check history

@@ -25,6 +25,7 @@ final class DatabaseTransferNameTest
         database_transfer_manifest_public_contract();
         database_transfer_wire_byte_oracles();
         database_transfer_codec_public_oracles();
+        database_transfer_codec_fast_oracles();
         $column = TransferSqliteFixture::table('git_tokens')['columns'][1] ?? throw new \RuntimeException('Fixed token name absent.');
         Assert::same([$column['name'], $column['type']], ['name', 'varchar(80)']);
         $valid = ['a', str_repeat('a', times: 80), str_repeat("\xf0\x9f\xa7\xaa", times: 80), str_repeat("e\xcc\x81", times: 40), 'Café '];
@@ -237,6 +238,109 @@ function database_transfer_codec_failure(\Closure $read): array
     if ($output === false) { throw new \RuntimeException('Codec output capture unavailable.'); }
     $previous = $caught?->getPrevious();
     return ['exception' => $caught === null ? null : $caught::class,
+        'category' => $caught instanceof DatabaseFailure ? $caught->category : null,
+        'previous' => $previous === null ? null : $previous::class, 'output' => $output];
+}
+
+/** Independent public whole-JSON decoding remains the differential oracle. */
+function database_transfer_codec_fast_oracles(): void
+{
+    $binary = ['name' => 'codec', 'columns' => [['name' => 'payload', 'type' => 'longblob', 'nullable' => true]], 'primary' => ['payload']];
+    foreach ([0, 1, 2, 3, 3069, 3070, 3071, 3072, 3073, 4093, 4094, 4095, 4096, 4097, 8191, 8192, 90_000] as $size) {
+        foreach (["\xff", "\0", 'w'] as $byte) {
+            $values = [str_repeat($byte, times: $size)];
+            $wire = JsonEncoding::encode(DatabaseTransferRows::encode($values));
+            Assert::same(\Tablo\database_transfer_codec_fast_line($wire, $binary), $values);
+            database_transfer_codec_differential($wire, $binary);
+            foreach ([4094, 4095, 4096, 4097, 8191] as $offset) {
+                if ($offset >= strlen($wire)) { continue; }
+                database_transfer_codec_differential(substr_replace($wire, replace: '\\', offset: $offset, length: 1), $binary);
+            }
+        }
+    }
+    for ($seed = 0; $seed < 64; $seed++) {
+        $raw = substr(str_repeat(hash('sha256', (string) $seed, binary: true), times: 200), offset: 0, length: $seed * 79);
+        $wire = JsonEncoding::encode(DatabaseTransferRows::encode([$raw]));
+        Assert::same(\Tablo\database_transfer_codec_fast_line($wire, $binary), [$raw]);
+        foreach ([$wire, ' ' . $wire, $wire . ' ', substr($wire, offset: 0, length: -1),
+            str_replace(search: '\\/', replace: '/', subject: $wire), str_replace(search: 'bytes', replace: '\\u0062ytes', subject: $wire)] as $mutant) {
+            database_transfer_codec_differential($mutant, $binary);
+        }
+    }
+    database_transfer_codec_fast_typed_oracles();
+    database_transfer_codec_fast_framing($binary);
+}
+
+function database_transfer_codec_fast_typed_oracles(): void
+{
+    foreach (['bigint', 'longblob', 'longtext', 'varchar(80)', 'varbinary(20)', 'varbinary(2)'] as $type) {
+        foreach ([true, false] as $nullable) {
+            $table = ['name' => 'codec', 'columns' => [['name' => 'value', 'type' => $type, 'nullable' => $nullable]], 'primary' => []];
+            foreach ([null, '', '0', '1', '-1', '01', PHP_INT_MIN, PHP_INT_MAX, "\0", "\xff", 'Café 🧪', '0001-01-01T00:00:00Z'] as $value) {
+                $wire = JsonEncoding::encode(DatabaseTransferRows::encode([$value]));
+                foreach ([$wire, str_replace(search: 'integer', replace: 'bytes', subject: $wire),
+                    str_replace(search: 'bytes', replace: 'integer', subject: $wire)] as $mutant) { database_transfer_codec_differential($mutant, $table); }
+            }
+        }
+    }
+    $integer = ['name' => 'codec', 'columns' => [['name' => 'value', 'type' => 'bigint', 'nullable' => false]], 'primary' => []];
+    foreach (['0', '-0', '01', '+1', '1', '-1', '9223372036854775807', '-9223372036854775808',
+        '9223372036854775808', '-9223372036854775809', '1.0', '1e1', '', str_repeat('9', times: 4097)] as $payload) {
+        database_transfer_codec_differential(JsonEncoding::encode([['integer', $payload]]), $integer);
+    }
+    $values = [null, PHP_INT_MIN, PHP_INT_MAX, "\0\xff", 'Café 🧪'];
+    $table = database_transfer_codec_public_table(); $wire = JsonEncoding::encode(DatabaseTransferRows::encode($values));
+    Assert::same(\Tablo\database_transfer_codec_fast_line($wire, $table), $values);
+    for ($length = 0; $length < strlen($wire); $length++) { database_transfer_codec_differential(substr($wire, offset: 0, length: $length), $table); }
+    database_transfer_codec_differential($wire . ',[]', $table);
+    database_transfer_codec_differential('[]', ['name' => 'empty', 'columns' => [], 'primary' => []]);
+    /** @var \Tablo\DatabaseTransferManifest::Table $reordered Public array descriptors retain their original fallback. */
+    $reordered = ['name' => 'codec', 'columns' => [1 => $integer['columns'][0], 0 => $integer['columns'][0]], 'primary' => []];
+    database_transfer_codec_differential('[["integer","1"],["integer","2"]]', $reordered);
+}
+
+/** @param \Tablo\DatabaseTransferManifest::Table $table */
+function database_transfer_codec_fast_framing(array $table): void
+{
+    foreach (['', '[', '[]', '{}', 'null', 'false', '[null]', '[[null]]', '[["null"]]', '[["bytes",0]]',
+        '[["bytes",null]]', '[["bytes","Zh=="]]', '[["bytes","Zm9="]]', '[["bytes","Zg"]]', '[["bytes","Zg==="]]',
+        '[["bytes","Zg==AAAA"]]', '[["bytes","\\/w=="]]', '[["bytes","/w=="]]', '[["bytes","\\u002fw=="]]',
+        '[["bytes","\\\\/w=="]]', '[["bytes","Z g=="]]', '[["bytes","Zg==\\n"]]', '[["bytes","QQ=="],["null"]]',
+        '{"0":["bytes","QQ=="]}', '[{"0":"bytes","1":"QQ=="}]', '[["bytes","QQ=="],0]',
+        '[["bytes","' . "\xff" . '"]]', str_repeat('[', times: 17) . str_repeat(']', times: 17)] as $wire) {
+        database_transfer_codec_differential($wire, $table);
+    }
+    foreach ([4093, 4094, 4095, 4096, 4097, 8191] as $offset) {
+        foreach (['=', '!', '/', '\\', "\0", "\xff"] as $byte) {
+            $payload = substr_replace(str_repeat('A', times: 8192), $byte, $offset, length: 1);
+            database_transfer_codec_differential(JsonEncoding::encode([['bytes', base64_encode($payload)]]), $table);
+            if ($byte !== "\xff") { database_transfer_codec_differential(JsonEncoding::encode([['bytes', $payload]]), $table); }
+        }
+    }
+}
+
+/** @param \Tablo\DatabaseTransferManifest::Table $table */
+function database_transfer_codec_differential(string $wire, array $table): void
+{
+    $reference = database_transfer_codec_outcome(static fn (): array => DatabaseTransferRows::line($wire, $table));
+    $line = $wire; $alias = $line;
+    $actual = database_transfer_codec_outcome(static function () use (&$line, $table): array { return DatabaseTransferRows::consumeLine($line, $table); });
+    Assert::same($actual, $reference); Assert::same($alias, $wire);
+    $parsed = true;
+    try { \Tablo\JsonRecord::decode($wire); } catch (\JsonException|\RuntimeException) { $parsed = false; }
+    Assert::same($line, $parsed ? '' : $wire);
+}
+
+/** @param \Closure(): \Tablo\DatabaseTransferRows::Values $read
+ * @return array{values: ?\Tablo\DatabaseTransferRows::Values, exception: ?class-string<\Throwable>, message: ?string, category: ?string, previous: ?class-string<\Throwable>, output: string} */
+function database_transfer_codec_outcome(\Closure $read): array
+{
+    $values = null; $caught = null; ob_start();
+    try { $values = $read(); } catch (\Throwable $error) { $caught = $error; }
+    finally { $output = ob_get_clean(); }
+    if ($output === false) { throw new \RuntimeException('Codec output capture unavailable.'); }
+    $previous = $caught?->getPrevious();
+    return ['values' => $values, 'exception' => $caught === null ? null : $caught::class, 'message' => $caught?->getMessage(),
         'category' => $caught instanceof DatabaseFailure ? $caught->category : null,
         'previous' => $previous === null ? null : $previous::class, 'output' => $output];
 }

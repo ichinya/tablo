@@ -243,7 +243,7 @@ backup; a cross-engine transfer is a separate logical operation.
 
 ## Offline current-layout transfer
 
-The CLI helper transfers the fixed current fifteen-table layout. It accepts no
+The CLI helper transfers the fixed current sixteen-table layout. It accepts no
 arbitrary SQL, schema inference, web upload or key bytes. Typed NULL/integer/base64
 cells preserve IDs, password hashes, every ciphertext, HMAC scope, installation and
 event identities, counters, leases and completed claim state. Generated columns
