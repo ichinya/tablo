@@ -229,8 +229,6 @@ function database_transfer_codec_line(#[\SensitiveParameter] string $line, array
  * @return \Tablo\DatabaseTransferRows::Values */
 function database_transfer_codec_consume_line(#[\SensitiveParameter] string &$line, array $table): array
 {
-    $values = database_transfer_codec_fast_line($line, $table);
-    if ($values !== null) { $line = ''; return $values; }
     $input = JsonRecord::decode($line);
     // Speculative wire encoding must not precede the typed decoder's failure.
     try { $canonicalWire = database_transfer_codec_wire($input, $line); }
@@ -240,88 +238,6 @@ function database_transfer_codec_consume_line(#[\SensitiveParameter] string &$li
     // Successful typed decoding proves encode(values) === input, including list shapes.
     if (!$canonicalWire) { throw new DatabaseFailure('schema'); }
     return $values;
-}
-
-/** Exact canonical grammar avoids retaining the entire JSON/base64 tree beside decoded values.
- * Unrecognized or invalid input falls back with the caller's original bytes and failure precedence.
- * @param \Tablo\DatabaseTransferManifest::Table $table
- * @return \Tablo\DatabaseTransferRows::Values|null */
-function database_transfer_codec_fast_line(#[\SensitiveParameter] string $line, array $table): ?array
-{
-    if (!database_transfer_codec_fast_columns($table)) { return null; }
-    $columns = DatabaseTransferManifest::columns($table);
-    $offset = 0; $values = [];
-    if (!database_transfer_codec_wire_fragment('[', $line, $offset)) { return null; }
-    try {
-        foreach ($columns as $index => $column) {
-            if (!database_transfer_codec_wire_fragment($index === 0 ? '' : ',', $line, $offset)) { return null; }
-            $value = database_transfer_codec_fast_cell($line, $offset, $column);
-            if ($value === false) { return null; }
-            $values[] = $value;
-        }
-    } catch (DatabaseFailure) { return null; }
-    if (!database_transfer_codec_wire_fragment(']', $line, $offset) || $offset !== strlen($line)) { return null; }
-    return $values;
-}
-
-/** Public array callers retain the original fallback for unsupported descriptors. */
-function database_transfer_codec_fast_columns(array $table): bool
-{
-    /** @var mixed $columns Eligibility must not introduce warnings before the original JSON decoder. */
-    $columns = $table['columns'] ?? null;
-    if (!is_array($columns) || !array_is_list($columns)) { return false; }
-    /** @var mixed $column Runtime column shapes must be proved before typed scalar validation. */
-    foreach ($columns as $column) {
-        if (!is_array($column) || !is_string($column['name'] ?? null) || !is_string($column['type'] ?? null)
-            || !is_bool($column['nullable'] ?? null)) { return false; }
-        if (!in_array($column['type'], ['bigint', 'longblob', 'longtext', 'varchar(80)', 'varbinary(16)', 'varbinary(20)',
-            'varbinary(32)', 'varbinary(40)', 'varbinary(64)', 'varbinary(128)', 'varbinary(200)', 'varbinary(256)'], strict: true)) { return false; }
-    }
-    return true;
-}
-
-/** @param \Tablo\DatabaseTransferManifest::Column $column */
-function database_transfer_codec_fast_cell(#[\SensitiveParameter] string $line, int &$offset, array $column): int|string|null|false
-{
-    if (database_transfer_codec_wire_fragment('["null"]', $line, $offset)) { return database_transfer_value_value(null, $column); }
-    $tag = match (true) {
-        database_transfer_codec_wire_fragment('["integer","', $line, $offset) => 'integer',
-        database_transfer_codec_wire_fragment('["bytes","', $line, $offset) => 'bytes', default => null,
-    };
-    if ($tag === null) { return false; }
-    $end = strpos($line, needle: '"]', offset: $offset);
-    if ($end === false) { return false; }
-    // Eligibility bound only: the original decoder still decides every longer input.
-    if ($tag === 'integer' && $end - $offset > 20) { return false; }
-    $value = $tag === 'integer' ? DatabaseInteger::checked(substr($line, $offset, length: $end - $offset))
-        : database_transfer_codec_fast_bytes($line, $offset, $end);
-    if ($value === false) { return false; }
-    $offset = $end + 2;
-    $value = database_transfer_value_value($value, $column);
-    $runtimeTag = match (true) { $value === null => 'null', is_int($value) => 'integer', default => 'bytes' };
-    return $tag === $runtimeTag ? $value : false;
-}
-
-/** Decode at most4096 wire bytes plus a three-byte base64 carry at once. */
-function database_transfer_codec_fast_bytes(#[\SensitiveParameter] string $line, int $start, int $end): string|false
-{
-    $result = ''; $carry = '';
-    while ($start < $end) {
-        $size = min(4096, $end - $start);
-        if ($start + $size < $end && ($line[$start + $size - 1] ?? '') === '\\') { $size--; }
-        $wire = substr($line, $start, $size); $start += $size;
-        $piece = str_replace(search: '\\/', replace: '/', subject: $wire);
-        if (strspn($piece, characters: 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/=') !== strlen($piece)
-            || str_contains(str_replace(search: '\\/', replace: '', subject: $wire), needle: '/')) { return false; }
-        $piece = $carry . $piece;
-        $take = $start === $end ? strlen($piece) : strlen($piece) - strlen($piece) % 4;
-        $carry = substr($piece, $take); $piece = substr($piece, offset: 0, length: $take);
-        if ($start < $end && str_contains($piece, needle: '=')) { return false; }
-        $decoded = base64_decode($piece, strict: true);
-        if ($decoded === false || base64_encode($decoded) !== $piece) { return false; }
-        $result .= $decoded;
-    }
-    return $carry === '' ? $result : false;
 }
 
 
