@@ -12555,7 +12555,7 @@
                 "dashboard.read_availability",
                 "Availability real-browser acceptance"
             ],
-            "fingerprint": "sha256:2fb68d5f28b223ce2d2d984947dd5f0b9057770ee499e72d02b065122ad45fa9"
+            "fingerprint": "sha256:c790432cdc2cba49547598d25ac716f4030837fdffc3aeb9b1c6ee4c03f91c98"
         },
         {
             "path": "docs/availability.md",

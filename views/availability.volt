@@ -10,7 +10,7 @@
     </form>
     <p class="availability-window">{{ period['label'] }} · UTC: от <time datetime="{{ period['from'] }}" data-availability-from>{{ period['from'] }}</time> включительно до <time datetime="{{ period['to'] }}" data-availability-to>{{ period['to'] }}</time> не включительно.</p>
     {% if overflow %}
-    <div class="availability-panel availability-overflow" data-availability-overflow><h2>Слишком много проверок</h2><p>{{ overflow_message }}</p><div class="availability-period-links" aria-label="Выбрать период истории">{% for option in period['options'] %}<a class="button secondary" href="/sites/{{ site['id'] }}/history?period={{ option['value'] }}">{{ option['label'] }}</a>{% endfor %}</div></div>
+    <div class="availability-panel availability-overflow" data-availability-overflow><h2>Слишком много проверок</h2><p>{{ overflow_message }}</p><div class="availability-period-links" role="group" aria-label="Выбрать период истории">{% for option in period['options'] %}<a class="button secondary" href="/sites/{{ site['id'] }}/history?period={{ option['value'] }}">{{ option['label'] }}</a>{% endfor %}</div></div>
     {% else %}
     <section class="availability-panel" aria-labelledby="availability-summary-heading" data-availability-state="{{ summary['availability_state'] }}">
         <h2 id="availability-summary-heading">Доступность среди известных результатов</h2>
