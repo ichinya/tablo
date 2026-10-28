@@ -45,7 +45,18 @@ final class SelfUpdateRepository
 
     /** @param Row $claim */
     public function complete(array $claim, BuildMetadata $build, int $now, SelfUpdateResult $result): bool
-    { return self_update_complete($this->db, $claim, $build, $now, $result); }
+    { return $result->error === 'stopped' ? $this->cancel($claim, $build) : self_update_complete($this->db, $claim, $build, $now, $result); }
+
+    /** Cancellation releases only the current claim, without spending a retry or changing observations.
+     * @param Row $claim */
+    public function cancel(array $claim, BuildMetadata $build): bool
+    {
+        return WriteTransaction::run($this->db, function () use ($claim, $build): bool {
+            if (!self_update_current_claim($this->get(), $claim, $build)) { return false; }
+            ServerSchema::rows($this->db, 'UPDATE self_update SET claim_token = NULL, claim_until = 0 WHERE id = 1');
+            return true;
+        });
+    }
 }
 
 function self_update_configure(\PDO $db, mixed $enabled, mixed $minutes): void
@@ -67,8 +78,7 @@ function self_update_complete(\PDO $db, array $claim, BuildMetadata $build, int 
         return WriteTransaction::run($db, function () use ($db, $claim, $build, $now, $result): bool {
             $latest = $result->latest; $status = $result->status; $count = $result->count; $error = $result->error; $eligibleAt = $result->eligibleAt;
             $row = (new SelfUpdateRepository($db))->get();
-            if ($row['revision'] !== $claim['revision'] || $row['build_fingerprint'] !== $build->fingerprint()
-                || !hash_equals($row['claim_token'] ?? '', $claim['claim_token'] ?? '') || $row['enabled'] !== 1) { return false; }
+            if (!self_update_current_claim($row, $claim, $build)) { return false; }
             $interval = $row['interval_minutes'] * 60;
             $failures = $error === null ? 0 : min(4, $row['failures'] + 1);
             $delay = $error === null || $failures > 3 ? $interval : min($interval, match ($failures) { 1 => 300, 2 => 1800, default => 7200 });
@@ -81,3 +91,12 @@ function self_update_complete(\PDO $db, array $claim, BuildMetadata $build, int 
             return true;
         });
     }
+
+/** @param \Tablo\SelfUpdateRow::Row $row
+ * @param \Tablo\SelfUpdateRow::Row $claim */
+function self_update_current_claim(array $row, array $claim, BuildMetadata $build): bool
+{
+    return $row['revision'] === $claim['revision'] && $row['build_fingerprint'] === $build->fingerprint()
+        && $row['claim_token'] !== null && $claim['claim_token'] !== null
+        && hash_equals($row['claim_token'], $claim['claim_token']) && $row['enabled'] === 1;
+}

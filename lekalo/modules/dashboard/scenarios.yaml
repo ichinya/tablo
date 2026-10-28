@@ -476,8 +476,8 @@
         {
             "id": "dashboard.self_update_schedule_failure_and_fences",
             "kind": "scenario",
-            "version": 1,
-            "summary": "Controlled clock proves360min default independent of site interval/no sites, disable and reconfigure invalidation, one bounded claim with stale-token rejection, config/build CAS, stop checks and retries5/30/120min then ordinary interval plus shared cooldown. Failures retain last success as stale and cannot stop site checks. Read-only authenticated pages/polling preserve saved notice without provider requests; settings inherit CSRF/session lifetime. SQLite10->11 rollback at every stage and server9/10->11 journaled CHECK/DDL resume preserve existing credential/data bytes and allocation floors.",
+            "version": 2,
+            "summary": "Controlled clock proves360min default independent of no sites, day-long intervals and an eight-hour serial pass: due check runs between sites without starvation. Stop releases claim, keeps last success/retry budget and restart checks immediately. Stale cancel, config/build CAS and bounded claim fence results. Confirmed GitHub/HTTP failures retain stale success with5/30/120min retries plus cooldown; PDO/shared schema/key and unexpected runtime failures abort before site network. Authenticated polling revalidates session after preparation and discards stale private banner. SQLite10->11/server9/10->11 migration preserves original data and credential bytes; waiting migrator keeps original14 DDL plus exactly one additive self_update CREATE and no replay.",
             "covers": [
                 "dashboard.check_self_update",
                 "dashboard.update_self_update_settings",

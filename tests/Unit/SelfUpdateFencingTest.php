@@ -26,6 +26,7 @@ final class SelfUpdateFencingTest
         $newBuild = new BuildMetadata('ichinya/tablo', 'next', str_repeat('b', times: 40));
         $newClaim = $repository->claim($newBuild, 1063) ?? throw new \RuntimeException('New build claim required.');
         Assert::false($repository->complete($claim, $build, 1064, new SelfUpdateResult('behind', str_repeat('c', times: 40), 4)));
+        Assert::false($repository->cancel($claim, $build), 'stale cancellation cannot release the new build claim');
         Assert::true($repository->complete($newClaim, $newBuild, 1064, new SelfUpdateResult('current', $newBuild->sha)));
         Assert::same($repository->get()['status'], 'current');
     }

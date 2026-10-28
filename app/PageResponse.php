@@ -27,7 +27,7 @@ final class PageResponse
     public function render(string $template, array $data, int $status = 200): Response
     {
         $data += ['csrf' => $_SESSION['csrf'] ?? null, 'errors' => [], 'authenticated' => (($_SESSION['authenticated_at'] ?? null) !== null), 'notice' => ''];
-        if ($this->selfUpdate !== null && ($data['authenticated'] === true || $template === 'dashboard-snapshot')) {
+        if ($this->selfUpdate !== null && $data['authenticated'] === true) {
             $data['self_update'] = SelfUpdatePresentation::saved($this->selfUpdate);
         }
         $response = new Response();

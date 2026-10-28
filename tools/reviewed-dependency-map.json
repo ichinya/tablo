@@ -10384,5 +10384,13 @@
       "views/layout.volt",
       "views/dashboard-snapshot.volt"
     ]
+  },
+  "tests/Support/SelfUpdateWorkerHttp.php": {
+    "owner": "Serial fake-clock long-pass and stop scheduling evidence",
+    "consumers": [
+      "Composer lint",
+      "Composer analyze",
+      "Composer verify"
+    ]
   }
 }

@@ -18,15 +18,19 @@ final class SelfUpdateCheck
         $now = ($this->clock ?? time(...))(); $build = $this->build ?? BuildMetadata::configured();
         $repository = new SelfUpdateRepository($this->db); $claim = $repository->claim($build, $now);
         if ($claim === null) { return; }
+        if ($stop()) { $repository->cancel($claim, $build); return; }
         if (!$build->valid()) { $repository->complete($claim, $build, $now, new SelfUpdateResult('no_data')); return; }
         try {
             $policy = new GitHubRequestPolicy(new GitHubCooldownRepository($this->db), maxRequests: 3, durationMs: 24_000,
                 clock: new GitHubClock(epoch: $this->clock));
             $result = (new SelfUpdateProbe(new GitHubUpdateSource($this->http, $policy)))->check($build, $claim, $stop);
-        } catch (\Throwable $failure) {
+        } catch (\PDOException | DatabaseFailure | SharedKeyFailure $failure) { throw $failure; }
+        catch (GitHubFailure | HttpFailure $failure) {
+            if ($failure instanceof GitHubFailure && $failure->reason === 'stopped') { $repository->cancel($claim, $build); return; }
             $result = SelfUpdateResult::failure($failure);
             unset($failure);
         }
+        if ($stop()) { $repository->cancel($claim, $build); return; }
         $repository->complete($claim, $build, ($this->clock ?? time(...))(), $result);
     }
 }

@@ -14,7 +14,7 @@ final class WorkerPass
     private readonly \Closure $output;
     private readonly TokenVault $vault;
     /** @param \Closure(): bool $stop */
-    public function __construct(WorkerRuntime $runtime, private readonly HttpClient $http, private readonly \Closure $stop)
+    public function __construct(private readonly WorkerRuntime $runtime, private readonly HttpClient $http, private readonly \Closure $stop)
     {
         $this->sites=$runtime->sites; $this->state=$runtime->state; $this->notifications=$runtime->notifications;
         $this->connection=$runtime->connection; $this->output=$runtime->output; $this->vault=$runtime->vault;
@@ -28,6 +28,8 @@ final class WorkerPass
         foreach ($priorities as [$id]) {
             if (($this->stop)()) { break; }
             $check->check($id,$connection);
+            // One bounded due check after each site keeps both serial schedules progressing.
+            $this->runtime->checkSelfUpdate($this->stop);
         }
         $delivery=$this->notifications->runOne($this->stop);
         if (!in_array($delivery['code'],['off','idle'],strict: true)) { ($this->output)('Worker notification: '.$delivery['code'].'.'); }

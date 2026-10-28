@@ -5,7 +5,7 @@
         "version": "0.1.0"
     },
     "project": "tablo",
-    "revision": "sha256:be8b4ffcd7a624537fba5c2fcefa5e39a84b8af2c0354e5f16d66620cdb0a9f0",
+    "revision": "sha256:4b6b5aadf8b42be53db4aea768cbf0283eb2c92f5520930d1ac94b85649d4239",
     "symbols": [
         {
             "id": "dashboard.change_admin_password",
@@ -919,7 +919,7 @@
                 "path": "app/periodic-worker.php",
                 "line": 83
             },
-            "fingerprint": "sha256:6a019bf0b97b1f48305ac979fadd2867db476bc23f6ba3f67537dd042ea020b7",
+            "fingerprint": "sha256:a40d68d154d92e67a621c7c863ac0c042f3c2581ee1e2362b8f493906cb8c22c",
             "signature": {
                 "inputs": [
                     {
@@ -2211,7 +2211,7 @@
                 "path": "app/self-update-repository.php",
                 "line": 21
             },
-            "fingerprint": "sha256:957a4cadede7c425477f29716cea900535d40abead99337497df5a9f1dab3b4b",
+            "fingerprint": "sha256:052ed8f18fd8ccb1b4f93b4dfcaf2f53072d0cc386546db754130fcf4ed3ef27",
             "signature": {
                 "inputs": [
                     {
@@ -2242,7 +2242,7 @@
                 "path": "app/self-update-check.php",
                 "line": 15
             },
-            "fingerprint": "sha256:143fffdedd0a8b7cb87be81285e2b045fbab2f64cfeeb53044c14cf085161330",
+            "fingerprint": "sha256:0335906f59b7092613b27f77c9447903b225e2e7c8ba2e8eeb095ad35fb8d895",
             "signature": {
                 "inputs": [],
                 "output": null,

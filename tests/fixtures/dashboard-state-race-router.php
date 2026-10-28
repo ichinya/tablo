@@ -8,7 +8,7 @@ $barrier = getenv('TABLO_DASHBOARD_STATE_BARRIER');
 if (!is_string($runtime) || !is_string($barrier) || !is_dir($barrier)) { throw new RuntimeException('Owned dashboard race runtime missing.'); }
 $db = \Tablo\Database::connect();
 \Tablo\WebSession::start($runtime);
-$page = new \Tablo\PageResponse($runtime);
+$page = (new \Tablo\PageResponse($runtime))->withSelfUpdate(new \Tablo\SelfUpdateRepository($db));
 $clock = static function () use ($runtime): int {
     $raw = \Tablo\RequiredFile::bytes(file_get_contents(dirname($runtime) . '/runtime-clock'));
     if (preg_match('/^[0-9]+$/D', $raw) !== 1 || strlen($raw) > 10) { throw new RuntimeException('Owned dashboard clock invalid.'); }

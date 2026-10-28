@@ -89,8 +89,6 @@ final class PeriodicWorker
     /** @param \Closure(): bool $stop */
     private function checkSelfUpdate(\Closure $stop): void
     {
-        $this->sites->assertWorkerKeyAvailable();
-        try { $this->runtime->selfUpdate->runDue($stop); }
-        catch (\Throwable) { ($this->output)('Worker update check unavailable.'); }
+        $this->runtime->checkSelfUpdate($stop);
     }
 }

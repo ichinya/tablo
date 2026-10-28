@@ -8,7 +8,7 @@
                 "Composer verify",
                 "Reviewed dependency capture"
             ],
-            "fingerprint": "sha256:e2f5c28adf9a99a3299694185d58f002c5388daf0d29c704108d418a0cfe7927"
+            "fingerprint": "sha256:363f9f9b8c17a4587c83ec180204458900529b8a4673bb8ee209d312b4b95313"
         },
         {
             "path": "tools/reviewed-dependencies.php",
@@ -75,7 +75,7 @@
                 "Composer analyze",
                 "tests/Unit/DatabaseFailureBoundaryTest.php"
             ],
-            "fingerprint": "sha256:c92b00b7acaf98d9658f0c0f38a19a54588cf6e46f41d81d3cea4123386b4b7f"
+            "fingerprint": "sha256:4c438418882d11a92b4599986fb179b641f169321dbe5b0d5e450bc0546b4565"
         },
         {
             "path": "tests/Support/TransferSqliteFixture.php",
@@ -2627,7 +2627,7 @@
                 "Composer verify",
                 "Composer analyze"
             ],
-            "fingerprint": "sha256:09e59dab4413d5c3bd57412626f3dcbc69a9eedaf64eaf76ded878016e7f3083"
+            "fingerprint": "sha256:e52313f40f75c1af42302efb2c07f60b8a40cdeb1ee1a6a90005ee83e101c0a6"
         },
         {
             "path": "app/PasswordConflict.php",
@@ -2673,7 +2673,7 @@
                 "Composer analyze",
                 "Composer verify:server"
             ],
-            "fingerprint": "sha256:6a019bf0b97b1f48305ac979fadd2867db476bc23f6ba3f67537dd042ea020b7"
+            "fingerprint": "sha256:a40d68d154d92e67a621c7c863ac0c042f3c2581ee1e2362b8f493906cb8c22c"
         },
         {
             "path": "app/PresentationTime.php",
@@ -5036,7 +5036,7 @@
                 "Composer verify",
                 "Composer analyze"
             ],
-            "fingerprint": "sha256:da81d22e60aa9d734d19d4647384acbeabd9fcedb6cf419a7ce19d0e09fb2b42"
+            "fingerprint": "sha256:9b0bc2b61727c5f5307bf9d9ec14989e2c1be0c130a1d7c621503c7cf8475639"
         },
         {
             "path": "app/WorkerRunCleanup.php",
@@ -5056,7 +5056,7 @@
                 "Composer verify",
                 "Composer analyze"
             ],
-            "fingerprint": "sha256:15005f362087947c9b94a1dfd0ae96ca0e31e6528e18b507429f7c0a783e94e3"
+            "fingerprint": "sha256:5a02c9c8439f9bc3006ad00eb2ebbe4df1e70520f0734aae98ad2e2e1f7d27ce"
         },
         {
             "path": "app/WorkerServiceCredit.php",
@@ -7448,7 +7448,7 @@
                 "Composer verify",
                 "Composer analyze"
             ],
-            "fingerprint": "sha256:3851f92957ca27fe86c28172ab8776c508d820e5abb5ffb8405d6a2212eff3ab"
+            "fingerprint": "sha256:0e217fa959d40d1678664a68972aee539eb27863e63856c86ed25cc74cefdfa5"
         },
         {
             "path": "tests/Network/IncidentPublicTest.php",
@@ -8295,7 +8295,7 @@
                 "Composer analyze",
                 "Composer verify:server"
             ],
-            "fingerprint": "sha256:f74da6194356691b7d60201905dea5b0a30e3b06038986e1f52a47f3f824c7df"
+            "fingerprint": "sha256:0a93aca2acf2ffc13bf5efddc1292d29978053b68938ed2cb41374e50a98e992"
         },
         {
             "path": "tests/Server/EngineWatermarkTest.php",
@@ -11224,7 +11224,7 @@
                 "tools/server-supervisor-linux-qualify.cjs",
                 "tools/server-linux-prepare.cjs"
             ],
-            "fingerprint": "sha256:7b6969e59e913f5fa6267ef2689633732b06c8d25a439a0b01d4f945b5c879ad"
+            "fingerprint": "sha256:aacc6110d80e10cdc5e39b3d74ea93b28350f0b7d9ed8e5ca729c2b6a501c066"
         },
         {
             "path": "tools/ServerTestEvidence.php",
@@ -11235,7 +11235,7 @@
                 "Composer lint",
                 "Composer analyze"
             ],
-            "fingerprint": "sha256:7bf9b10993c126698bbe0c479c69b9c0d930d185779cc9b79023f92440dea160"
+            "fingerprint": "sha256:b4160c2ab4c9e5a3cf04a4c45e442feb89254b5503a23d468474c7a5bcbf8fa9"
         },
         {
             "path": "tools/verify-server.php",
@@ -12287,7 +12287,7 @@
                 "Composer lint",
                 "Composer analyze"
             ],
-            "fingerprint": "sha256:eee18232e0fd3efbd38aafeafa04582dc889f8989ea088850117ae0e78b07c3b"
+            "fingerprint": "sha256:b430fb7162886a7ce9fa6229f7e9bc92294ba15d0b74f1c8d68c1593e989b185"
         },
         {
             "path": "tests/Support/DashboardStateAssertions.php",
@@ -12331,7 +12331,7 @@
                 "Composer lint",
                 "Composer analyze"
             ],
-            "fingerprint": "sha256:2c0b497b7c90eba516ad5962badd2c4c37b86eaafc41bed7f5d80a12e72c70d5"
+            "fingerprint": "sha256:61bf266d0cff058cbbb2862c534976793f3443e6a00c509d84e79ecbcdf75a1c"
         },
         {
             "path": "public/assets/dashboard-polling.js",
@@ -12619,7 +12619,7 @@
                 "Composer verify",
                 "Private self-update worker/schema/presentation"
             ],
-            "fingerprint": "sha256:f7f6a3477fdbc55656cdf023be73f24d98e108f0172a7249477327ba45d099ec"
+            "fingerprint": "sha256:fec79e962446daffd7b9b12af1200e1aa2954815c93689d7ff7834cbb4de6ab6"
         },
         {
             "path": "app/self-update-schema.php",
@@ -12652,7 +12652,7 @@
                 "Composer verify",
                 "Private self-update worker/schema/presentation"
             ],
-            "fingerprint": "sha256:957a4cadede7c425477f29716cea900535d40abead99337497df5a9f1dab3b4b"
+            "fingerprint": "sha256:052ed8f18fd8ccb1b4f93b4dfcaf2f53072d0cc386546db754130fcf4ed3ef27"
         },
         {
             "path": "app/SelfUpdateResult.php",
@@ -12663,7 +12663,7 @@
                 "Composer verify",
                 "Private self-update worker/schema/presentation"
             ],
-            "fingerprint": "sha256:b96d0c9d5887434e03b92b33d37aefedd6c42c6afe42aa0ae5d525280e7cdbbd"
+            "fingerprint": "sha256:bf2ebb8c4bcda482bb2ea2b8be8ca27153263d223893765661220935329bb2e5"
         },
         {
             "path": "app/self-update-check.php",
@@ -12674,7 +12674,7 @@
                 "Composer verify",
                 "Private self-update worker/schema/presentation"
             ],
-            "fingerprint": "sha256:143fffdedd0a8b7cb87be81285e2b045fbab2f64cfeeb53044c14cf085161330"
+            "fingerprint": "sha256:0335906f59b7092613b27f77c9447903b225e2e7c8ba2e8eeb095ad35fb8d895"
         },
         {
             "path": "app/SelfUpdateProbe.php",
@@ -12737,7 +12737,7 @@
                 "Composer analyze",
                 "Composer verify"
             ],
-            "fingerprint": "sha256:a4691305789a9531c7fe44d0136a19960523c059f327753bb6ad43c24c93b9fc"
+            "fingerprint": "sha256:803d1deaf414823d0393b0e951aff60182f3404f064ae90fe435f7e3865b2d3a"
         },
         {
             "path": "tests/Unit/SelfUpdateMigrationTest.php",
@@ -12757,7 +12757,7 @@
                 "Composer analyze",
                 "Composer verify"
             ],
-            "fingerprint": "sha256:e562525adb08eb53f0cb35320c218a8658ca0df29de1e65c5cbf1042acb8cc91"
+            "fingerprint": "sha256:cef255b39a82fde0707c50621ba5b42e48088adddc2b20c7dd1293cf7479ba9b"
         },
         {
             "path": "tests/Unit/SelfUpdateFailureTest.php",
@@ -12767,7 +12767,7 @@
                 "Composer analyze",
                 "Composer verify"
             ],
-            "fingerprint": "sha256:c1f082ed4f52851ca6e5c79f7419dacf71b357377735883062ec9b7f5fd1168a"
+            "fingerprint": "sha256:57d7d15dfb8f5fda764ce55f930c571a5fb324561757bd6d18a8fa49dc639837"
         },
         {
             "path": "tests/Support/SelfUpdateHttp.php",
@@ -12816,6 +12816,16 @@
                 "views/dashboard-snapshot.volt"
             ],
             "fingerprint": "sha256:3c76638ce10ad65d5105d1c271aa4478dfcb1132f9c4d49cd5c69d8fe38857c8"
+        },
+        {
+            "path": "tests/Support/SelfUpdateWorkerHttp.php",
+            "owner": "Serial fake-clock long-pass and stop scheduling evidence",
+            "consumers": [
+                "Composer lint",
+                "Composer analyze",
+                "Composer verify"
+            ],
+            "fingerprint": "sha256:1208f66b481f9dc24ca0d2c2d2cad3b96a1d42c58b7263cdec5826dde75298d0"
         }
     ]
 }

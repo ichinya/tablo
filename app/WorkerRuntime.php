@@ -19,6 +19,13 @@ final class WorkerRuntime
     /** @var \Closure(string): void */
     public readonly \Closure $output;
     public readonly TokenVault $vault;
+    /** @param \Closure(): bool $stop */
+    public function checkSelfUpdate(\Closure $stop): void
+    {
+        if ($stop()) { return; }
+        $this->sites->assertWorkerKeyAvailable();
+        $this->selfUpdate->runDue($stop);
+    }
     public function __construct(\PDO $db,HttpClient $http,?WorkerHooks $hooks,#[\SensitiveParameter] ?TokenVault $vault)
     {
         $this->vault = $vault ?? TokenVault::forDatabase($db);

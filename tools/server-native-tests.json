@@ -4321,7 +4321,7 @@
     }
   },
   "baseline": {
-    "requiredIdentityCount": 539,
+    "requiredIdentityCount": 544,
     "identities": [
       {
         "identity": "Tablo\\Tests\\Http\\AdminPasswordTest::resetRevokesEveryProtectedRouteAndPreservesSetupAndData",
@@ -8095,6 +8095,41 @@
         "dataRows": [],
         "minimumAssertions": 1,
         "deadlineSeconds": null
+      },
+      {
+        "identity": "Tablo\\Tests\\Unit\\SelfUpdateWorkerTest::dueCheckRunsBetweenSitesDuringAnEightHourPassWithoutStarvingSites",
+        "path": "tests/Unit/SelfUpdateWorkerTest.php",
+        "dataRows": [],
+        "minimumAssertions": 1,
+        "deadlineSeconds": null
+      },
+      {
+        "identity": "Tablo\\Tests\\Unit\\SelfUpdateWorkerTest::stopBetweenSitesSkipsBothDueUpdateAndTheNextSite",
+        "path": "tests/Unit/SelfUpdateWorkerTest.php",
+        "dataRows": [],
+        "minimumAssertions": 1,
+        "deadlineSeconds": null
+      },
+      {
+        "identity": "Tablo\\Tests\\Unit\\SelfUpdateWorkerTest::storageAndUnexpectedRuntimeFailuresEscapeBeforeSiteNetworkOrRetryWrites",
+        "path": "tests/Unit/SelfUpdateWorkerTest.php",
+        "dataRows": [],
+        "minimumAssertions": 1,
+        "deadlineSeconds": null
+      },
+      {
+        "identity": "Tablo\\Tests\\Unit\\SelfUpdateWorkerTest::confirmedTransportAndGitHubFailuresStillAllowSiteMonitoring",
+        "path": "tests/Unit/SelfUpdateWorkerTest.php",
+        "dataRows": [],
+        "minimumAssertions": 1,
+        "deadlineSeconds": null
+      },
+      {
+        "identity": "Tablo\\Tests\\Unit\\SelfUpdateFailureTest::stopReleasesClaimAndRestartChecksImmediatelyWithoutSpendingRetryBudget",
+        "path": "tests/Unit/SelfUpdateFailureTest.php",
+        "dataRows": [],
+        "minimumAssertions": 1,
+        "deadlineSeconds": null
       }
     ],
     "prerequisite": "Unchanged Composer verify with explicitly isolated SQLite configuration; source/dependency refusal must happen before native subprocesses.",
@@ -8110,8 +8145,8 @@
       "identity": "Tablo\\Tests\\Network\\PasswordHelperTest::shippedHelperPreservesHostEncodingAndExactCredentials",
       "path": "tests/Network/PasswordHelperTest.php",
       "reason": "Native Windows PowerShell host required.",
-      "windowsPassed": 539,
-      "linuxPassed": 532,
+      "windowsPassed": 544,
+      "linuxPassed": 537,
       "additionalSkips": [
         {
           "identity": "Tablo\\Tests\\Network\\PasswordHelperFixtureObservationTest::preHelperStallEmitsEntryWhileNativeStagesRemainUnobserved",
@@ -9148,8 +9183,8 @@
   },
   "selfUpdateQualification": {
     "source": "Issue35 authored native coverage; all previous baseline identities retained",
-    "baselineAdded": 11,
-    "baselineTotal": 539,
+    "baselineAdded": 16,
+    "baselineTotal": 544,
     "mainAdded": 3,
     "mainTotal": 197,
     "crossTotal": 6,
