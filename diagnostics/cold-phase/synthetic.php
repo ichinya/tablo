@@ -45,6 +45,9 @@ try {
     $record['sqliteImportUsedPhpBytes'] = 4_000_000;
     $record['finalVerifyUsedPhpBytes'] = 4_000_000;
     $record['nestedPeakPhpBytes'] = $record['peakPhpBytes'];
+    $record['nestedCurrentPhpBytes'] = 5_000_000;
+    $record['nestedPreviousStep'] = 'ARCHIVE_CONSUMER_BEFORE';
+    $record['nestedPreviousPeakPhpBytes'] = 4_000_000;
     $record['nestedStep'] = 'SCHEMA_CHECKS'; $record['nestedTable'] = 'sites'; $record['nestedOuterPhase'] = 'final_verify';
     $transport = ['actorLaunchCount' => 1, 'actorExit' => 0, 'actorClosed' => true, 'actorExitObserved' => true, 'actorElapsedMilliseconds' => 1500];
     $valid = cold_phase_control($record, $transport, accepted: true);

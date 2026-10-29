@@ -202,5 +202,11 @@ function database_transfer_sqlite_target_row(PDO $scratch, array $table, #[\Sens
         if ($value === null || !in_array($column['name'], ['id', 'site_id', 'git_token_id', 'source_id', 'last_history_id', 'recovery_history_id', 'interruption_history_id'], strict: true)) { continue; }
         if (!is_int($value) || $value <= 0) { throw new DatabaseFailure('schema'); }
     }
+    // COLD_NESTED_BEGIN 800
+    RuntimeIni::$coldNestedProbe?->__invoke(800, memory_get_peak_usage(false), $table['name'], memory_get_usage(false));
+    // COLD_NESTED_END 800
     DatabaseTransferRows::insert($scratch, $table, $values);
+    // COLD_NESTED_BEGIN 801
+    RuntimeIni::$coldNestedProbe?->__invoke(801, memory_get_peak_usage(false), $table['name'], memory_get_usage(false));
+    // COLD_NESTED_END 801
 }

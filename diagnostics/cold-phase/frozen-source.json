@@ -1,6 +1,6 @@
 {
     "schema": "tablo/cold-phase-frozen-source/v3",
-    "baseHead": "60b636aa4cb14611b9129f24a63fb8493011343a",
+    "baseHead": "3ec890e358e581006624f3bdbe78aec87f5f720e",
     "excludedOriginalPaths": [
         "tools/server-cell.php",
         "contracts/reviewed-dependencies.json",
@@ -10,7 +10,9 @@
         "app/SchemaShape.php",
         "app/RuntimeIni.php",
         "app/DatabaseTransferWire.php",
-        "app/DatabaseTransferRows.php"
+        "app/DatabaseTransferRows.php",
+        "app/DatabaseTransferArchive.php",
+        "app/DatabaseTransferPreflight.php"
     ],
     "basePaths": [
         ".dockerignore",
@@ -1327,10 +1329,8 @@
         "app/DatabaseMaintenanceCommand.php": "01e78a10b08ab43181f21096030bc0339bd5ec32ca3d37e2e4308f82b303140e",
         "app/DatabaseSession.php": "85d3a26e8ad26061529a31844726e0b7becbdebddd64be25ed005e307f52917e",
         "app/DatabaseTransfer.php": "2e204f44743a0c4239551398882226360b981317c59d9449270420064021b52f",
-        "app/DatabaseTransferArchive.php": "1f17aba56abb263755f94685f790c4858bc461d57ab2a95bded2cd566d7d551d",
         "app/DatabaseTransferImport.php": "cd7016c7d02b48a734f51e9080a39430ed8112b00d5a9a7a3e0c5c698b013e1e",
         "app/DatabaseTransferManifest.php": "be9b5b0f891df4357fcaf748610653a6b8221ee9ef3d685754de2103c95e5520",
-        "app/DatabaseTransferPreflight.php": "71d2bab3005dcafd003c9b834d8c2d91baa5b5ab7f668725428d240d3c08c8ff",
         "app/DatabaseTransferSequence.php": "b4fd4a039228f1ccf02058a142d6f58289f0ee21edcf879812bfac474e172f72",
         "app/DatabaseTransferTarget.php": "7745f5e9410f061399bb2717b784945c890fcd9ea6c62a561888685affda9e98",
         "app/DeploymentFields.php": "9463e65426219bcc861983a0a67c31fbe66fe56fc59fd5ace342b8fabc549ffb",
@@ -2059,7 +2059,7 @@
         "tests/Server/EngineSettlementRaceTest.php": "286966691bb14e29ca04d5fd9196b9f6ef4eae51b0a2ca55b09b209616e77d78",
         "tests/Server/EngineSourceInventoryTest.php": "98cca2be9e3f0fd78d01c2d988b724bd8dc1c0c9e286fb203d1399c174a4510d",
         "tests/Server/EngineTransactionFailureTest.php": "34e9e96d93903c36540b1a80cedb046f9101ca7ad97b59bfed52ea28cac5ddb7",
-        "tests/Server/EngineTransferAdmissionTest.php": "29d3cef1fbb85038eb7e04d0e0ab335ed1ca1758abd658d55b79a78e7e9332e3",
+        "tests/Server/EngineTransferAdmissionTest.php": "0a0d8c21abd1ef412f51a0b0c1d2971f60434b33503ebe39b7e5e2c95ef8dde3",
         "tests/Server/EngineTransferEnvelopeTest.php": "ac3a4435f4b6cdcd5031d07fa114165cc6b08e06d7c7ec00ea2f8e6fd01ef06c",
         "tests/Server/EngineTransferRefusalTest.php": "82bf5ba86b493f32a57071537d18e68692eecabfe7d63cf680b09a5450d03b9d",
         "tests/Server/EngineTransferTest.php": "caf805aa3848ab1ae9ad09477d487fbb7b4157de85e02e7c69bd42f14941a82d",
@@ -2511,9 +2511,11 @@
     "instrumentedOriginals": {
         "app/ServerTableAdmission.php": "0e50e398e54805eb2f00326b7a1383a1c31d2ec7877d76a8255670b20632e2af",
         "app/DatabaseTransferVerification.php": "4b380dc4aeab84603be1310dba66e23cb95b26cac104e0080da1020470d89008",
-        "app/SchemaShape.php": "e271ea2535d8e49c416b68add2686477ca38f1536e7bb7cd2b42a410585d8fbc",
+        "app/SchemaShape.php": "355a2b6b9a1599cf839a4669b412c0f2fc6760eaddefbc39f28b3dadb7dac8a8",
         "app/RuntimeIni.php": "4948a685cd94ced7ac77dcec54a82d33f13d7e46af84cb3f3f836c930bfb0c3b",
         "app/DatabaseTransferWire.php": "6f43a8f764ae980c4343eda0fe8898fda278d47623e584efdb9ae3c9f711da78",
-        "app/DatabaseTransferRows.php": "2ab5ccefd3f62ef4f3b8879ed18edc84b67acf119a16c89040b7999d2e156ae7"
+        "app/DatabaseTransferRows.php": "2ab5ccefd3f62ef4f3b8879ed18edc84b67acf119a16c89040b7999d2e156ae7",
+        "app/DatabaseTransferArchive.php": "d8dd1630d851fbfe3a470e8fe0ddf56108f1e215c49a8eb4ff1d72ca307976c3",
+        "app/DatabaseTransferPreflight.php": "71d2bab3005dcafd003c9b834d8c2d91baa5b5ab7f668725428d240d3c08c8ff"
     }
 }

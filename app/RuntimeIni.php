@@ -8,7 +8,7 @@ final class RuntimeIni
 {
     // COLD_NESTED_BEGIN 900
     public const COLD_NESTED_NO_TABLE = '';
-    /** @var \Closure(int, int, string=): void|null */
+    /** @var \Closure(int, int, string=, int=): void|null */
     public static ?\Closure $coldNestedProbe = null;
     // COLD_NESTED_END 900
     public static function set(string $option, string|int|float|bool|null $value): string|false

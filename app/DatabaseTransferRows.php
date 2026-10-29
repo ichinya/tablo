@@ -146,6 +146,9 @@ function database_transfer_rows_insert(PDO $db, array $table, #[\SensitiveParame
     $names = implode(',', array_map(static fn (array $column): string => '`' . $column['name'] . '`', $columns));
     $sql = 'INSERT INTO `' . $table['name'] . '` (' . $names . ') VALUES (' . implode(',', array_fill(0, count($columns), value: '?')) . ')';
     $statement = SqlStatement::checked($db->prepare($sql));
+    // COLD_NESTED_BEGIN 640
+    RuntimeIni::$coldNestedProbe?->__invoke(640, memory_get_peak_usage(false), $table['name'], memory_get_usage(false));
+    // COLD_NESTED_END 640
     $server = DatabaseSession::server($db);
     try {
         foreach ($columns as $index => $column) {
@@ -153,9 +156,18 @@ function database_transfer_rows_insert(PDO $db, array $table, #[\SensitiveParame
             $binary = $column['type'] === 'longblob' || str_starts_with($column['type'], 'varbinary(');
             $type = $server && $binary && is_string($value) ? PDO::PARAM_LOB : SqlBindingType::forValue($value);
             $statement->bindValue($index + 1, $value, $type);
+            // COLD_NESTED_BEGIN 641
+            RuntimeIni::$coldNestedProbe?->__invoke(641, memory_get_peak_usage(false), $table['name'], memory_get_usage(false));
+            // COLD_NESTED_END 641
         }
         $statement->execute();
+        // COLD_NESTED_BEGIN 642
+        RuntimeIni::$coldNestedProbe?->__invoke(642, memory_get_peak_usage(false), $table['name'], memory_get_usage(false));
+        // COLD_NESTED_END 642
     } finally { $statement->closeCursor(); }
+    // COLD_NESTED_BEGIN 643
+    RuntimeIni::$coldNestedProbe?->__invoke(643, memory_get_peak_usage(false), $table['name'], memory_get_usage(false));
+    // COLD_NESTED_END 643
 }
 
 

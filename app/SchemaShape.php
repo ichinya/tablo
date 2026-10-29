@@ -53,6 +53,7 @@ final class SchemaShape
             RuntimeIni::$coldNestedProbe?->__invoke(402, memory_get_peak_usage(false), $name);
             // COLD_NESTED_END 402
             $actual = $actualObjects[$name] ?? null;
+            unset($actualObjects[$name]);
             if ($actual === null && $version === 0) { continue; }
             if ($actual === null || $actual['type'] !== 'table') { self::refuse(); }
             if ($actual['sql'] === null || $object['sql'] === null) { self::refuse(); }
@@ -68,6 +69,7 @@ final class SchemaShape
             // COLD_NESTED_BEGIN 405
             RuntimeIni::$coldNestedProbe?->__invoke(405, memory_get_peak_usage(false), $name);
             // COLD_NESTED_END 405
+            unset($columns, $wanted);
             SchemaCheckShape::validate($actual['sql'], $object['sql'], $version, $missing);
             // COLD_NESTED_BEGIN 406
             RuntimeIni::$coldNestedProbe?->__invoke(406, memory_get_peak_usage(false), $name);

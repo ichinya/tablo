@@ -52,7 +52,7 @@ try {
             'originalActorAccepted' => false, 'rootCause' => 'UNKNOWN'];
         foreach ($record as $name => $value) {
             if (str_ends_with($name, 'PhpBytes') || $name === 'peakPhpWorkingBytes'
-                || in_array($name, ['tables', 'payloadBytes', 'nativeBufferedSource', 'allTypedDigestsPreserved', 'nestedStep', 'nestedTable', 'nestedOuterPhase'], strict: true)) { $actor[$name] = $value; }
+                || in_array($name, ['tables', 'payloadBytes', 'nativeBufferedSource', 'allTypedDigestsPreserved', 'nestedStep', 'nestedTable', 'nestedOuterPhase', 'nestedPreviousStep'], strict: true)) { $actor[$name] = $value; }
         }
         $projected = cold_phase_project($engine, json_encode($actor, JSON_THROW_ON_ERROR) . "\n", '', $record);
         foreach (['status', 'transportValid', 'measurementComplete', 'memoryCapExceeded'] as $name) {

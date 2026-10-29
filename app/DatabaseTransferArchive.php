@@ -184,12 +184,24 @@ function database_transfer_chunk_read(#[\SensitiveParameter] string $directory, 
             $lines = database_transfer_chunk_authenticate($handle, $chunk);
             if (!NativeWarning::ignore(static fn (): bool => rewind($handle))) { throw new DatabaseFailure('unavailable'); }
             foreach ($lines as $commitment) {
+                // COLD_NESTED_BEGIN 700
+                RuntimeIni::$coldNestedProbe?->__invoke(700, memory_get_peak_usage(false), $table['name'], memory_get_usage(false));
+                // COLD_NESTED_END 700
                 $line = database_transfer_chunk_line($handle, $commitment);
-                hash_update($hash, $line); $line = substr($line, offset: 0, length: -1);
+                // COLD_NESTED_BEGIN 701
+                RuntimeIni::$coldNestedProbe?->__invoke(701, memory_get_peak_usage(false), $table['name'], memory_get_usage(false));
+                // COLD_NESTED_END 701
+                hash_update($hash, $line); hash_update($hash, data: "\n");
                 $rows++; $values = DatabaseTransferRows::consumeLine($line, $table);
                 unset($line);
+                // COLD_NESTED_BEGIN 704
+                RuntimeIni::$coldNestedProbe?->__invoke(704, memory_get_peak_usage(false), $table['name'], memory_get_usage(false));
+                // COLD_NESTED_END 704
                 if ($consume === null) { yield $values; }
                 if ($consume !== null) { $consume($values); }
+                // COLD_NESTED_BEGIN 705
+                RuntimeIni::$coldNestedProbe?->__invoke(705, memory_get_peak_usage(false), $table['name'], memory_get_usage(false));
+                // COLD_NESTED_END 705
                 unset($values);
             }
             unset($lines, $commitment);
@@ -258,16 +270,44 @@ function database_transfer_chunk_commitments(#[\SensitiveParameter] string $bloc
  * @param \Tablo\DatabaseTransferArchive::ReadLine $commitment */
 function database_transfer_chunk_line(#[\SensitiveParameter] mixed $handle, array $commitment): string
 {
-    $line = '';
-    while (strlen($line) < $commitment['bytes']) {
-        $remaining = $commitment['bytes'] - strlen($line);
-        $fragment = NativeWarning::ignore(static fn () => fread($handle, $remaining));
+    $line = ''; $length = $commitment['bytes'] - 1;
+    if ($length < 0) { throw new DatabaseFailure('schema'); }
+    $remaining = 0;
+    $read = static function () use ($handle, &$remaining): string|false { return fread($handle, $remaining); };
+    while (strlen($line) < $length) {
+        $remaining = $length - strlen($line);
+        // COLD_NESTED_BEGIN 710
+        RuntimeIni::$coldNestedProbe?->__invoke(710, memory_get_peak_usage(false), RuntimeIni::COLD_NESTED_NO_TABLE, memory_get_usage(false));
+        // COLD_NESTED_END 710
+        $fragment = NativeWarning::ignore($read);
+        // COLD_NESTED_BEGIN 711
+        RuntimeIni::$coldNestedProbe?->__invoke(711, memory_get_peak_usage(false), RuntimeIni::COLD_NESTED_NO_TABLE, memory_get_usage(false));
+        // COLD_NESTED_END 711
         if ($fragment === false) { throw new DatabaseFailure('unavailable'); }
         if ($fragment === '') { throw new DatabaseFailure(feof($handle) ? 'schema' : 'unavailable'); }
         $line .= $fragment; unset($fragment);
+        // COLD_NESTED_BEGIN 712
+        RuntimeIni::$coldNestedProbe?->__invoke(712, memory_get_peak_usage(false), RuntimeIni::COLD_NESTED_NO_TABLE, memory_get_usage(false));
+        // COLD_NESTED_END 712
     }
-    if (strlen($line) !== $commitment['bytes'] || !str_ends_with($line, "\n")
-        || !hash_equals($commitment['sha256'], hash('sha256', $line))) { throw new DatabaseFailure('schema'); }
+    // COLD_NESTED_BEGIN 713
+    RuntimeIni::$coldNestedProbe?->__invoke(713, memory_get_peak_usage(false), RuntimeIni::COLD_NESTED_NO_TABLE, memory_get_usage(false));
+    // COLD_NESTED_END 713
+    $remaining = 1; $newline = NativeWarning::ignore($read);
+    // COLD_NESTED_BEGIN 714
+    RuntimeIni::$coldNestedProbe?->__invoke(714, memory_get_peak_usage(false), RuntimeIni::COLD_NESTED_NO_TABLE, memory_get_usage(false));
+    // COLD_NESTED_END 714
+    if ($newline === false) { throw new DatabaseFailure('unavailable'); }
+    if ($newline === '') { throw new DatabaseFailure(feof($handle) ? 'schema' : 'unavailable'); }
+    if (strlen($line) !== $length || $newline !== "\n") { throw new DatabaseFailure('schema'); }
+    // COLD_NESTED_BEGIN 715
+    RuntimeIni::$coldNestedProbe?->__invoke(715, memory_get_peak_usage(false), RuntimeIni::COLD_NESTED_NO_TABLE, memory_get_usage(false));
+    // COLD_NESTED_END 715
+    $hash = hash_init('sha256'); hash_update($hash, $line); hash_update($hash, $newline);
+    if (!hash_equals($commitment['sha256'], hash_final($hash))) { throw new DatabaseFailure('schema'); }
+    // COLD_NESTED_BEGIN 716
+    RuntimeIni::$coldNestedProbe?->__invoke(716, memory_get_peak_usage(false), RuntimeIni::COLD_NESTED_NO_TABLE, memory_get_usage(false));
+    // COLD_NESTED_END 716
     return $line;
 }
 

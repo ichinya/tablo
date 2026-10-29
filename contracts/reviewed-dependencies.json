@@ -188,7 +188,7 @@
                 "tools/server-io-uring-php-grammar.test.php",
                 "tools/server-supervisor-linux-fallback-unit.c"
             ],
-            "fingerprint": "sha256:1d44c7e9164ec2716c5c6f6ef882a43183ef581179c5446211a256bad5794ceb"
+            "fingerprint": "sha256:2d3ce7a64c5e0eeee9c6f1c74f577e13848f4e2afb7cd075ddfaec8685ddc238"
         },
         {
             "path": "app/AddressRange.php",
@@ -908,7 +908,7 @@
                 "app/DatabaseTransferVerification.php",
                 "tests/Support/TransferRowsAssertions.php"
             ],
-            "fingerprint": "sha256:1f17aba56abb263755f94685f790c4858bc461d57ab2a95bded2cd566d7d551d"
+            "fingerprint": "sha256:4f31b94930135b1fc6248b5568fc17b5fc8e76c81c1cc10b2c8cf64fa6b46246"
         },
         {
             "path": "app/DatabaseTransferImport.php",
@@ -953,7 +953,7 @@
                 "app/DatabaseTransferRows.php",
                 "app/DatabaseTransferVerification.php"
             ],
-            "fingerprint": "sha256:71d2bab3005dcafd003c9b834d8c2d91baa5b5ab7f668725428d240d3c08c8ff"
+            "fingerprint": "sha256:982dbbda622ba66612ba24295f9aac8496c0b626aa72af2d019fceb8e11c670a"
         },
         {
             "path": "app/DatabaseTransferRows.php",
@@ -972,7 +972,7 @@
                 "tests/Server/EngineTransferEnvelopeTest.php",
                 "tests/Support/TransferRowsAssertions.php"
             ],
-            "fingerprint": "sha256:875d6077dcdf74f52121237b50ef63ed9d034cf705ab843dc09aff360caaa5f8"
+            "fingerprint": "sha256:b3035fe1a6f9dcdeb46421c0db150f91852c7d305a910d90e3e52ca5952747a8"
         },
         {
             "path": "app/DatabaseTransferSequence.php",
@@ -3023,7 +3023,7 @@
                 "Composer verify",
                 "Composer analyze"
             ],
-            "fingerprint": "sha256:676600734661a7f9d2baf8401b719b800ff28c394a230b4383bc133073fe5772"
+            "fingerprint": "sha256:322e1c3ad635a0b4f81dead3c7fa884118cf5a0ebbd69a555e51ce5e88cbd011"
         },
         {
             "path": "app/SavedGitTokenInput.php",
@@ -3144,7 +3144,7 @@
                 "Composer verify",
                 "Composer analyze"
             ],
-            "fingerprint": "sha256:56fb91bcefbd81c1b05d9050dd547ffc99b0b3e3d0f9c14ebc0950f2bd7d9587"
+            "fingerprint": "sha256:b7915c9ddcfb19f050114578a92532cee77a3f25e3279124221f213b1fa0a61e"
         },
         {
             "path": "app/SchemaUpgrade.php",
@@ -8288,7 +8288,7 @@
                 "Composer verify:server",
                 "Transfer native binding selectors"
             ],
-            "fingerprint": "sha256:29d3cef1fbb85038eb7e04d0e0ab335ed1ca1758abd658d55b79a78e7e9332e3"
+            "fingerprint": "sha256:0a0d8c21abd1ef412f51a0b0c1d2971f60434b33503ebe39b7e5e2c95ef8dde3"
         },
         {
             "path": "tests/Server/EngineTransferEnvelopeTest.php",

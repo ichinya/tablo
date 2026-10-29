@@ -22,7 +22,7 @@ try {
     exit(1);
 }
 
-/** The baseline/reset and product operation order are copied from 60b636a unchanged.
+/** The baseline/reset and product operation order are copied from 3ec890e unchanged.
  * Added measurements are scalar cumulative peaks; there is no phase reset, warmup or I/O. */
 function cold_phase_actor(string $case): void
 {
@@ -43,39 +43,52 @@ function cold_phase_actor(string $case): void
     $GLOBALS['tablo_cold_nested_table'] = 0;
     $GLOBALS['tablo_cold_nested_outer'] = 0;
     $GLOBALS['tablo_cold_nested_active_outer'] = 0;
-    \Tablo\RuntimeIni::$coldNestedProbe = static function (int $step, int $peak, string $table = \Tablo\RuntimeIni::COLD_NESTED_NO_TABLE): void {
-        if ($peak <= (int) $GLOBALS['tablo_cold_nested_peak']) { return; }
-        $GLOBALS['tablo_cold_nested_peak'] = $peak;
-        $GLOBALS['tablo_cold_nested_step'] = $step;
-        $GLOBALS['tablo_cold_nested_outer'] = (int) $GLOBALS['tablo_cold_nested_active_outer'];
-        $GLOBALS['tablo_cold_nested_table'] = match ($table) {
-            '' => 0,
-            'tablo_database_state' => 1,
-            'tablo_writer_guard' => 2,
-            'tablo_migration_journal' => 3,
-            'users' => 4,
-            'git_tokens' => 5,
-            'installation_settings' => 6,
-            'worker_runtime' => 7,
-            'github_cooldowns' => 8,
-            'notification_settings' => 9,
-            'read_api_token' => 10,
-            'self_update' => 11,
-            'sites' => 12,
-            'worker_progress' => 13,
-            'check_history' => 14,
-            'incidents' => 15,
-            'incident_checkpoints' => 16,
-            'notification_checkpoints' => 17,
-            'notification_slots' => 18,
-            'login_limits' => 19,
-            default => 20,
-        };
+    $GLOBALS['tablo_cold_nested_current'] = 0;
+    $GLOBALS['tablo_cold_nested_previous_step'] = 0;
+    $GLOBALS['tablo_cold_nested_previous_peak'] = 0;
+    $GLOBALS['tablo_cold_nested_last_step'] = 0;
+    $GLOBALS['tablo_cold_nested_last_peak'] = 0;
+    \Tablo\RuntimeIni::$coldNestedProbe = static function (int $step, int $peak, string $table = \Tablo\RuntimeIni::COLD_NESTED_NO_TABLE, int $current = 0): void {
+        $peak = max($peak, $current);
+        if ($peak > (int) $GLOBALS['tablo_cold_nested_peak']) {
+            $GLOBALS['tablo_cold_nested_current'] = $current;
+            $GLOBALS['tablo_cold_nested_previous_step'] = (int) $GLOBALS['tablo_cold_nested_last_step'];
+            $GLOBALS['tablo_cold_nested_previous_peak'] = (int) $GLOBALS['tablo_cold_nested_last_peak'];
+            $GLOBALS['tablo_cold_nested_peak'] = $peak;
+            $GLOBALS['tablo_cold_nested_step'] = $step;
+            $GLOBALS['tablo_cold_nested_outer'] = (int) $GLOBALS['tablo_cold_nested_active_outer'];
+            $GLOBALS['tablo_cold_nested_table'] = match ($table) {
+                '' => 0,
+                'tablo_database_state' => 1,
+                'tablo_writer_guard' => 2,
+                'tablo_migration_journal' => 3,
+                'users' => 4,
+                'git_tokens' => 5,
+                'installation_settings' => 6,
+                'worker_runtime' => 7,
+                'github_cooldowns' => 8,
+                'notification_settings' => 9,
+                'read_api_token' => 10,
+                'self_update' => 11,
+                'sites' => 12,
+                'worker_progress' => 13,
+                'check_history' => 14,
+                'incidents' => 15,
+                'incident_checkpoints' => 16,
+                'notification_checkpoints' => 17,
+                'notification_slots' => 18,
+                'login_limits' => 19,
+                default => 20,
+            };
+        }
+        $GLOBALS['tablo_cold_nested_last_step'] = $step;
+        $GLOBALS['tablo_cold_nested_last_peak'] = $peak;
     };
     // COLD_NESTED_SETUP_END
     $baseline = memory_get_usage(false); memory_reset_peak_usage();
     // COLD_NESTED_BEGIN 2
     $GLOBALS['tablo_cold_nested_peak'] = $baseline;
+    $GLOBALS['tablo_cold_nested_last_peak'] = $baseline;
     $GLOBALS['tablo_cold_nested_active_outer'] = 1;
     // COLD_NESTED_END 2
     $fixture = new \Tablo\Tests\Support\EngineFixture($case);
@@ -181,6 +194,9 @@ function cold_phase_actor(string $case): void
     // COLD_NESTED_END 1
     $peak = memory_get_peak_usage(false); $working = $peak - $baseline;
     if ($peak > (int) $GLOBALS['tablo_cold_nested_peak']) {
+        $GLOBALS['tablo_cold_nested_current'] = 0;
+        $GLOBALS['tablo_cold_nested_previous_step'] = (int) $GLOBALS['tablo_cold_nested_last_step'];
+        $GLOBALS['tablo_cold_nested_previous_peak'] = (int) $GLOBALS['tablo_cold_nested_last_peak'];
         $GLOBALS['tablo_cold_nested_peak'] = $peak; $GLOBALS['tablo_cold_nested_step'] = 1;
         $GLOBALS['tablo_cold_nested_table'] = 0; $GLOBALS['tablo_cold_nested_outer'] = 11;
     }
@@ -195,47 +211,10 @@ function cold_phase_actor(string $case): void
         'readerAdmissionPeakPhpBytes' => $readerAdmissionPeak, 'readerAdmissionUsedPhpBytes' => $readerAdmissionUsed, 'reverseExportPeakPhpBytes' => $reverseExportPeak, 'reverseExportUsedPhpBytes' => $reverseExportUsed,
         'sqliteImportPeakPhpBytes' => $sqliteImportPeak, 'sqliteImportUsedPhpBytes' => $sqliteImportUsed, 'finalVerifyPeakPhpBytes' => $finalVerifyPeak, 'finalVerifyUsedPhpBytes' => $finalVerifyUsed,
         'nestedPeakPhpBytes' => (int) $GLOBALS['tablo_cold_nested_peak'],
-        'nestedStep' => match ((int) $GLOBALS['tablo_cold_nested_step']) {
-            1 => 'OUTER_END_UNWITNESSED',
-            100 => 'TABLE_ENTRY',
-            110 => 'TABLE_ENGINE_AFTER',
-            120 => 'TABLE_COLUMNS_AFTER',
-            130 => 'TABLE_INDEX_AFTER',
-            140 => 'TABLE_FOREIGN_AFTER',
-            150 => 'TABLE_CHECK_AFTER',
-            200 => 'HEADER_ENTRY',
-            201 => 'HEADER_READ',
-            202 => 'HEADER_DECODE',
-            203 => 'HEADER_ENVELOPE_CANONICAL',
-            204 => 'HEADER_PAYLOAD_SHA',
-            205 => 'HEADER_LAYOUT',
-            206 => 'HEADER_COLUMNS_COMPARE',
-            207 => 'HEADER_VALIDATED',
-            208 => 'HEADER_RECEIPTS',
-            209 => 'HEADER_CONTRACT_BEFORE',
-            210 => 'HEADER_CONTRACT_AFTER',
-            400 => 'SCHEMA_ASSERT_ENTRY',
-            401 => 'SCHEMA_ACTUAL_OBJECTS',
-            402 => 'SCHEMA_EXPECTED_TABLE_ENTRY',
-            403 => 'SCHEMA_ACTUAL_COLUMNS',
-            404 => 'SCHEMA_EXPECTED_COLUMNS',
-            405 => 'SCHEMA_COLUMNS_VALIDATE',
-            406 => 'SCHEMA_CHECKS',
-            407 => 'SCHEMA_FOREIGN',
-            408 => 'SCHEMA_INDEX',
-            500 => 'WIRE_ENTRY',
-            501 => 'WIRE_CELL_AFTER',
-            502 => 'WIRE_EXIT',
-            600 => 'ROWS_FETCH_AFTER',
-            602 => 'ROWS_AFTER_CLOSE_RELEASE_BEFORE_CONSUME',
-            620 => 'CODEC_CONSUME_ENTRY',
-            621 => 'CODEC_JSON_AFTER',
-            622 => 'CODEC_WIRE_CANONICAL_AFTER',
-            623 => 'CODEC_TYPED_AFTER',
-            624 => 'CODEC_ASCII_FRAMING_AFTER',
-            625 => 'CODEC_ASCII_TYPED_AFTER',
-            default => 'UNKNOWN',
-        },
+        'nestedStep' => cold_phase_step_label((int) $GLOBALS['tablo_cold_nested_step']),
+        'nestedCurrentPhpBytes' => $GLOBALS['tablo_cold_nested_current'] === 0 ? null : (int) $GLOBALS['tablo_cold_nested_current'],
+        'nestedPreviousStep' => cold_phase_step_label((int) $GLOBALS['tablo_cold_nested_previous_step']),
+        'nestedPreviousPeakPhpBytes' => $GLOBALS['tablo_cold_nested_previous_peak'] === 0 ? null : (int) $GLOBALS['tablo_cold_nested_previous_peak'],
         'nestedTable' => match ((int) $GLOBALS['tablo_cold_nested_table']) {
             0 => 'NONE',
             1 => 'tablo_database_state',
@@ -284,4 +263,68 @@ function cold_phase_unbuffered(PDO $reader): bool
     $attribute = \Tablo\DatabaseInteger::checked(constant((PHP_VERSION_ID >= 80_400 ? 'Pdo\\Mysql::ATTR_' : 'PDO::MYSQL_ATTR_') . 'USE_BUFFERED_QUERY'));
     if (!in_array($reader->getAttribute($attribute), [false, 0], strict: true)) { throw new RuntimeException('Actual native transfer source remains buffered.'); }
     return false;
+}
+
+/** Fixed labels are allocated only after the measured window. */
+function cold_phase_step_label(int $step): string
+{
+    return match ($step) {
+        0 => 'BASELINE',
+        1 => 'OUTER_END_UNWITNESSED',
+        100 => 'TABLE_ENTRY',
+        110 => 'TABLE_ENGINE_AFTER',
+        120 => 'TABLE_COLUMNS_AFTER',
+        130 => 'TABLE_INDEX_AFTER',
+        140 => 'TABLE_FOREIGN_AFTER',
+        150 => 'TABLE_CHECK_AFTER',
+        200 => 'HEADER_ENTRY',
+        201 => 'HEADER_READ',
+        202 => 'HEADER_DECODE',
+        203 => 'HEADER_ENVELOPE_CANONICAL',
+        204 => 'HEADER_PAYLOAD_SHA',
+        205 => 'HEADER_LAYOUT',
+        206 => 'HEADER_COLUMNS_COMPARE',
+        207 => 'HEADER_VALIDATED',
+        208 => 'HEADER_RECEIPTS',
+        209 => 'HEADER_CONTRACT_BEFORE',
+        210 => 'HEADER_CONTRACT_AFTER',
+        400 => 'SCHEMA_ASSERT_ENTRY',
+        401 => 'SCHEMA_ACTUAL_OBJECTS',
+        402 => 'SCHEMA_EXPECTED_TABLE_ENTRY',
+        403 => 'SCHEMA_ACTUAL_COLUMNS',
+        404 => 'SCHEMA_EXPECTED_COLUMNS',
+        405 => 'SCHEMA_COLUMNS_VALIDATE',
+        406 => 'SCHEMA_CHECKS',
+        407 => 'SCHEMA_FOREIGN',
+        408 => 'SCHEMA_INDEX',
+        500 => 'WIRE_ENTRY',
+        501 => 'WIRE_CELL_AFTER',
+        502 => 'WIRE_EXIT',
+        600 => 'ROWS_FETCH_AFTER',
+        602 => 'ROWS_AFTER_CLOSE_RELEASE_BEFORE_CONSUME',
+        620 => 'CODEC_CONSUME_ENTRY',
+        621 => 'CODEC_JSON_AFTER',
+        622 => 'CODEC_WIRE_CANONICAL_AFTER',
+        623 => 'CODEC_TYPED_AFTER',
+        624 => 'CODEC_ASCII_FRAMING_AFTER',
+        625 => 'CODEC_ASCII_TYPED_AFTER',
+        700 => 'ARCHIVE_CHUNK_LINE_BEFORE',
+        701 => 'ARCHIVE_CHUNK_LINE_AFTER',
+        704 => 'ARCHIVE_CONSUMER_BEFORE',
+        705 => 'ARCHIVE_CONSUMER_AFTER',
+        710 => 'ARCHIVE_BODY_READ_BEFORE',
+        711 => 'ARCHIVE_BODY_READ_AFTER',
+        712 => 'ARCHIVE_BODY_CONCAT_RELEASE_AFTER',
+        713 => 'ARCHIVE_LF_READ_BEFORE',
+        714 => 'ARCHIVE_LF_READ_AFTER',
+        715 => 'ARCHIVE_LINE_HASH_BEFORE',
+        716 => 'ARCHIVE_LINE_HASH_AFTER',
+        800 => 'PREFLIGHT_SQLITE_INSERT_BEFORE',
+        801 => 'PREFLIGHT_SQLITE_INSERT_AFTER',
+        640 => 'ROWS_INSERT_PREPARE_AFTER',
+        641 => 'ROWS_INSERT_BIND_AFTER',
+        642 => 'ROWS_INSERT_EXECUTE_AFTER',
+        643 => 'ROWS_INSERT_CLOSE_AFTER',
+        default => 'UNKNOWN',
+    };
 }

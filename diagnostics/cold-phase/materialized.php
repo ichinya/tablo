@@ -31,9 +31,21 @@ try {
     if (!$negative) { throw new ColdPhaseFailure('MATERIALIZED_NEGATIVE_CONTROL'); }
     copy($root . '/' . $probe, $temporary . '/' . $probe);
     cold_phase_assert_frozen($temporary);
+    $ownerMutationsRefused = 0;
+    foreach (array_keys($record['instrumentedOriginals']) as $name) {
+        $target = $temporary . '/' . $name;
+        file_put_contents($target, file_get_contents($target) . "\n// Unmarked synthetic source drift.\n");
+        $refused = false;
+        try { cold_phase_assert_frozen($temporary); }
+        catch (ColdPhaseFailure $error) { $refused = $error->category === 'ORIGINAL_ACTOR_DRIFT'; }
+        if (!$refused) { throw new ColdPhaseFailure('MATERIALIZED_NEGATIVE_CONTROL'); }
+        $ownerMutationsRefused++;
+        copy($root . '/' . $name, $target);
+    }
+    cold_phase_assert_frozen($temporary);
     echo json_encode(['schema' => 'tablo/cold-phase-materialized-control/v1', 'status' => 'passed',
         'baseHead' => $record['baseHead'], 'frozenFiles' => count($record['files']), 'materializedFiles' => count($selected),
-        'storageExcluded' => true, 'missingFileRefused' => true, 'actorLaunchCount' => 0, 'issueAccepted' => false], JSON_THROW_ON_ERROR), "\n";
+        'storageExcluded' => true, 'missingFileRefused' => true, 'ownerMutationsRefused' => $ownerMutationsRefused, 'actorLaunchCount' => 0, 'issueAccepted' => false], JSON_THROW_ON_ERROR), "\n";
 } catch (Throwable $error) {
     $category = $error instanceof ColdPhaseFailure ? $error->category : 'MATERIALIZED_SETUP';
     fwrite(STDERR, json_encode(['status' => 'failed', 'category' => $category, 'actorLaunchCount' => 0], JSON_THROW_ON_ERROR) . "\n");

@@ -3,7 +3,7 @@ name: Cold phase diagnostic only
 on:
   push:
     branches:
-      - feat/issue-35-cold-nested-60b636a-mysql85
+      - feat/issue-35-cold-nested-3ec890e-mysql85
 
 permissions:
   contents: read

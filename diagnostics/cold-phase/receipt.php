@@ -7,9 +7,9 @@ function cold_phase_empty_receipt(string $engine): array
     if (!in_array($engine, ['mysql', 'mariadb'], strict: true)) { throw new RuntimeException('Finite diagnostic engine required.'); }
     return ['schema' => 'tablo/cold-phase-receipt/v1', 'status' => 'UNKNOWN', 'diagnostic' => true,
         'issueAccepted' => false, 'originalActorAccepted' => false, 'rootCause' => 'UNKNOWN', 'engine' => $engine,
-        'baseHead' => '60b636aa4cb14611b9129f24a63fb8493011343a', 'phpMajor' => 8, 'phpMinor' => 5,
+        'baseHead' => '3ec890e358e581006624f3bdbe78aec87f5f720e', 'phpMajor' => 8, 'phpMinor' => 5,
         'actorLaunchCount' => 0, 'actorTimeoutSeconds' => 6, 'wholeCaseTimeoutSeconds' => 8, 'memoryLimitBytes' => 2_097_152,
-        'counterCount' => 24, 'baselineResetCount' => 1, 'actorExit' => null, 'actorClosed' => null, 'actorExitObserved' => null,
+        'counterCount' => 29, 'baselineResetCount' => 1, 'actorExit' => null, 'actorClosed' => null, 'actorExitObserved' => null,
         'actorElapsedMilliseconds' => null, 'transportValid' => false, 'measurementComplete' => false, 'memoryCapExceeded' => null,
         'baselinePhpBytes' => null, 'peakPhpBytes' => null, 'peakPhpWorkingBytes' => null,
         'fixturePeakPhpBytes' => null, 'fixtureUsedPhpBytes' => null, 'sourcePeakPhpBytes' => null, 'sourceUsedPhpBytes' => null, 'exportPeakPhpBytes' => null, 'exportUsedPhpBytes' => null,
@@ -17,7 +17,7 @@ function cold_phase_empty_receipt(string $engine): array
         'readerAdmissionPeakPhpBytes' => null, 'readerAdmissionUsedPhpBytes' => null, 'reverseExportPeakPhpBytes' => null, 'reverseExportUsedPhpBytes' => null, 'sqliteImportPeakPhpBytes' => null, 'sqliteImportUsedPhpBytes' => null,
         'finalVerifyPeakPhpBytes' => null, 'finalVerifyUsedPhpBytes' => null, 'tables' => null, 'payloadBytes' => null,
         'nativeBufferedSource' => null, 'allTypedDigestsPreserved' => null,
-        'nestedPeakPhpBytes' => null, 'nestedStep' => null, 'nestedTable' => null, 'nestedOuterPhase' => null, 'firstFailureStage' => null, 'firstFailureCategory' => null, 'sourceCustodyUnchanged' => false, 'ownedServicesClosed' => false, 'observerClosureKnown' => false];
+        'nestedPeakPhpBytes' => null, 'nestedCurrentPhpBytes' => null, 'nestedPreviousPeakPhpBytes' => null, 'nestedPreviousStep' => null, 'nestedStep' => null, 'nestedTable' => null, 'nestedOuterPhase' => null, 'firstFailureStage' => null, 'firstFailureCategory' => null, 'sourceCustodyUnchanged' => false, 'ownedServicesClosed' => false, 'observerClosureKnown' => false];
 }
 
 /** One closed direct actor is required before any child measurement becomes a diagnostic fact. */
@@ -72,7 +72,16 @@ function cold_phase_actor_record(string $stdout): ?array
     $memory = ['baselinePhpBytes', 'peakPhpBytes', 'peakPhpWorkingBytes', 'fixturePeakPhpBytes', 'sourcePeakPhpBytes',
         'exportPeakPhpBytes', 'serverImportPeakPhpBytes', 'serverAdmissionPeakPhpBytes', 'serverVerifyPeakPhpBytes',
         'readerAdmissionPeakPhpBytes', 'reverseExportPeakPhpBytes', 'sqliteImportPeakPhpBytes', 'finalVerifyPeakPhpBytes', 'fixtureUsedPhpBytes', 'sourceUsedPhpBytes', 'exportUsedPhpBytes', 'serverImportUsedPhpBytes', 'serverAdmissionUsedPhpBytes', 'serverVerifyUsedPhpBytes', 'readerAdmissionUsedPhpBytes', 'reverseExportUsedPhpBytes', 'sqliteImportUsedPhpBytes', 'finalVerifyUsedPhpBytes', 'nestedPeakPhpBytes'];
-    if (count($actor) !== count($fixed) + count($memory) + 3 || array_diff(array_keys($actor), [...array_keys($fixed), ...$memory, 'nestedStep', 'nestedTable', 'nestedOuterPhase']) !== []) { return null; }
+    $optionalMemory = ['nestedCurrentPhpBytes', 'nestedPreviousPeakPhpBytes'];
+    $labelNames = array_keys(cold_phase_nested_choices());
+    $names = [...array_keys($fixed), ...$memory, ...$labelNames, ...$optionalMemory];
+    if (count($actor) !== count($names) || array_diff(array_keys($actor), $names) !== []) { return null; }
+    foreach ($optionalMemory as $name) {
+        $value = $actor[$name];
+        if ($value !== null && (!is_int($value) || $value < 1 || $value > 1_073_741_824)) { return null; }
+    }
+    if (($actor['nestedCurrentPhpBytes'] !== null && $actor['nestedCurrentPhpBytes'] > ($actor['nestedPeakPhpBytes'] ?? 0))
+        || ($actor['nestedPreviousPeakPhpBytes'] !== null && $actor['nestedPreviousPeakPhpBytes'] >= ($actor['nestedPeakPhpBytes'] ?? 0))) { return null; }
     foreach ($fixed as $name => $value) { if (($actor[$name] ?? null) !== $value) { return null; } }
     foreach (cold_phase_nested_choices() as $name => $choices) {
         if (!is_string($actor[$name] ?? null) || !in_array($actor[$name], $choices, true)) { return null; }
@@ -110,7 +119,8 @@ function cold_phase_note_failure(array &$safe, string $stage, Throwable $error):
 /** Finite diagnostic labels only; constructed in the controller after actor measurement. */
 function cold_phase_nested_choices(): array
 {
-    return ['nestedStep' => ['OUTER_END_UNWITNESSED', 'TABLE_ENTRY', 'TABLE_ENGINE_AFTER', 'TABLE_COLUMNS_AFTER', 'TABLE_INDEX_AFTER', 'TABLE_FOREIGN_AFTER', 'TABLE_CHECK_AFTER', 'HEADER_ENTRY', 'HEADER_READ', 'HEADER_DECODE', 'HEADER_ENVELOPE_CANONICAL', 'HEADER_PAYLOAD_SHA', 'HEADER_LAYOUT', 'HEADER_COLUMNS_COMPARE', 'HEADER_VALIDATED', 'HEADER_RECEIPTS', 'HEADER_CONTRACT_BEFORE', 'HEADER_CONTRACT_AFTER', 'SCHEMA_ASSERT_ENTRY', 'SCHEMA_ACTUAL_OBJECTS', 'SCHEMA_EXPECTED_TABLE_ENTRY', 'SCHEMA_ACTUAL_COLUMNS', 'SCHEMA_EXPECTED_COLUMNS', 'SCHEMA_COLUMNS_VALIDATE', 'SCHEMA_CHECKS', 'SCHEMA_FOREIGN', 'SCHEMA_INDEX', 'UNKNOWN', 'WIRE_ENTRY', 'WIRE_CELL_AFTER', 'WIRE_EXIT', 'ROWS_FETCH_AFTER', 'ROWS_AFTER_CLOSE_RELEASE_BEFORE_CONSUME', 'CODEC_CONSUME_ENTRY', 'CODEC_JSON_AFTER', 'CODEC_WIRE_CANONICAL_AFTER', 'CODEC_TYPED_AFTER', 'CODEC_ASCII_FRAMING_AFTER', 'CODEC_ASCII_TYPED_AFTER'],
+    $steps = ['OUTER_END_UNWITNESSED', 'TABLE_ENTRY', 'TABLE_ENGINE_AFTER', 'TABLE_COLUMNS_AFTER', 'TABLE_INDEX_AFTER', 'TABLE_FOREIGN_AFTER', 'TABLE_CHECK_AFTER', 'HEADER_ENTRY', 'HEADER_READ', 'HEADER_DECODE', 'HEADER_ENVELOPE_CANONICAL', 'HEADER_PAYLOAD_SHA', 'HEADER_LAYOUT', 'HEADER_COLUMNS_COMPARE', 'HEADER_VALIDATED', 'HEADER_RECEIPTS', 'HEADER_CONTRACT_BEFORE', 'HEADER_CONTRACT_AFTER', 'SCHEMA_ASSERT_ENTRY', 'SCHEMA_ACTUAL_OBJECTS', 'SCHEMA_EXPECTED_TABLE_ENTRY', 'SCHEMA_ACTUAL_COLUMNS', 'SCHEMA_EXPECTED_COLUMNS', 'SCHEMA_COLUMNS_VALIDATE', 'SCHEMA_CHECKS', 'SCHEMA_FOREIGN', 'SCHEMA_INDEX', 'UNKNOWN', 'WIRE_ENTRY', 'WIRE_CELL_AFTER', 'WIRE_EXIT', 'ROWS_FETCH_AFTER', 'ROWS_AFTER_CLOSE_RELEASE_BEFORE_CONSUME', 'CODEC_CONSUME_ENTRY', 'CODEC_JSON_AFTER', 'CODEC_WIRE_CANONICAL_AFTER', 'CODEC_TYPED_AFTER', 'CODEC_ASCII_FRAMING_AFTER', 'CODEC_ASCII_TYPED_AFTER', 'ARCHIVE_CHUNK_LINE_BEFORE', 'ARCHIVE_CHUNK_LINE_AFTER', 'ARCHIVE_CONSUMER_BEFORE', 'ARCHIVE_CONSUMER_AFTER', 'ARCHIVE_BODY_READ_BEFORE', 'ARCHIVE_BODY_READ_AFTER', 'ARCHIVE_BODY_CONCAT_RELEASE_AFTER', 'ARCHIVE_LF_READ_BEFORE', 'ARCHIVE_LF_READ_AFTER', 'ARCHIVE_LINE_HASH_BEFORE', 'ARCHIVE_LINE_HASH_AFTER', 'PREFLIGHT_SQLITE_INSERT_BEFORE', 'PREFLIGHT_SQLITE_INSERT_AFTER', 'ROWS_INSERT_PREPARE_AFTER', 'ROWS_INSERT_BIND_AFTER', 'ROWS_INSERT_EXECUTE_AFTER', 'ROWS_INSERT_CLOSE_AFTER'];
+    return ['nestedStep' => $steps, 'nestedPreviousStep' => ['BASELINE', ...$steps],
         'nestedTable' => ['NONE', 'tablo_database_state', 'tablo_writer_guard', 'tablo_migration_journal', 'users', 'git_tokens', 'installation_settings', 'worker_runtime', 'github_cooldowns', 'notification_settings', 'read_api_token', 'self_update', 'sites', 'worker_progress', 'check_history', 'incidents', 'incident_checkpoints', 'notification_checkpoints', 'notification_slots', 'login_limits', 'UNKNOWN'],
         'nestedOuterPhase' => ['fixture', 'source', 'sqlite_export', 'server_import', 'writer_admission', 'server_verify', 'reader_admission', 'reverse_export', 'sqlite_import', 'final_verify', 'integrity', 'UNKNOWN']];
 }
