@@ -28,7 +28,7 @@ jobs:
     env:
       LEKALO_REF: 9510dd0767a56c0ab34b8d3c8ceb2a14db8de825
       COMPOSER_PROCESS_TIMEOUT: '1800'
-      COMPOSER_CACHE_DIR: ${{ runner.temp }}/tablo-composer-cache
+      COMPOSER_CACHE_DIR: ${{ github.workspace }}/.ci/composer-cache
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
       - name: Qualify Node and check standalone browser controls
@@ -404,7 +404,7 @@ jobs:
     env:
       LEKALO_REF: 9510dd0767a56c0ab34b8d3c8ceb2a14db8de825
       COMPOSER_PROCESS_TIMEOUT: '1800'
-      COMPOSER_CACHE_DIR: ${{ runner.temp }}/tablo-composer-cache
+      COMPOSER_CACHE_DIR: ${{ github.workspace }}/.ci/composer-cache
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
       - name: Seed safe declaration status before input preparation
