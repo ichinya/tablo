@@ -169,7 +169,7 @@
                 "Composer analyze",
                 "Composer verify"
             ],
-            "fingerprint": "sha256:d08d7e1d80f11a253e6cb63ec136ccd66ba7d0e2913acae32474a78195771aef"
+            "fingerprint": "sha256:297785deb2bbd222bec75edea93bb2aa252a7c350f9d651123fd2d07c4385bfd"
         },
         {
             "path": ".github/workflows/verify.yml",
@@ -188,7 +188,7 @@
                 "tools/server-io-uring-php-grammar.test.php",
                 "tools/server-supervisor-linux-fallback-unit.c"
             ],
-            "fingerprint": "sha256:4847d8414afac137128b765d593e24150d0aeddd4fc00b1755883a1a57210ff2"
+            "fingerprint": "sha256:8c916a37f6496c1c43f0ebfbe4fdac6343822fb933c577b39b9f12cc33066026"
         },
         {
             "path": "app/AddressRange.php",
@@ -953,7 +953,7 @@
                 "app/DatabaseTransferRows.php",
                 "app/DatabaseTransferVerification.php"
             ],
-            "fingerprint": "sha256:6e8d2f03dfad627ebb238c8508dbd66f88ce613d2b44f2f4def731a1b653d5da"
+            "fingerprint": "sha256:71d2bab3005dcafd003c9b834d8c2d91baa5b5ab7f668725428d240d3c08c8ff"
         },
         {
             "path": "app/DatabaseTransferRows.php",
@@ -3526,7 +3526,7 @@
                 "tests/Server/EngineMigrationPreviousTest.php",
                 "tests/Unit/ServerMetadataPrivilegesTest.php"
             ],
-            "fingerprint": "sha256:f29d843429df4b6383aaf9272b4b153c2b6d0b191148abd4ab6f0755633f7a41"
+            "fingerprint": "sha256:3b2a0320b5619b7f96c8c20bc3e645d2b35235a8a943a93454bf0d87c35bdc52"
         },
         {
             "path": "app/ServerSchemaDescriptor.php",
@@ -10837,7 +10837,7 @@
                 "Composer analyze",
                 "Composer verify"
             ],
-            "fingerprint": "sha256:c4e238931f23363192ce08bf36823b2577baf4a73a76e56a77b80c4172a0a0a9"
+            "fingerprint": "sha256:ba694a55dc6c5a061c793f051630cde49946b398f8a26b510281e0bc3a42dfe8"
         },
         {
             "path": "tests/Unit/SqlStatementTest.php",

@@ -183,8 +183,11 @@ function database_transfer_sqlite_target_scratch(#[\SensitiveParameter] string $
     if (!chmod($path, permissions: 0o600)) { throw new DatabaseFailure('unavailable'); }
     $db = new PDO('sqlite:' . $path, options: [PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION, PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC]);
     $db->exec('PRAGMA foreign_keys = ON; PRAGMA cache_size = -512; PRAGMA temp_store = FILE');
-    SchemaReference::reference(11, ['endpoint' => true], $db);
-    $db->exec('DELETE FROM notification_settings; DELETE FROM installation_settings; DELETE FROM worker_runtime; DELETE FROM self_update');
+    // The newly allocated private file needs one durable schema commit, not one per DDL/seed.
+    WriteTransaction::run($db, static function () use ($db): void {
+        SchemaReference::reference(11, ['endpoint' => true], $db);
+        $db->exec('DELETE FROM notification_settings; DELETE FROM installation_settings; DELETE FROM worker_runtime; DELETE FROM self_update');
+    });
     return $db;
 }
 

@@ -417,7 +417,26 @@ function metadata_records_default_selection(): void
         foreach (['writer', 'control', 'migrator', 'reader', 'metadata'] as $role) { metadata_records_default_case($engine, $role); }
         metadata_records_default_explicit($engine);
         metadata_records_default_foreign($engine);
+        metadata_records_iterator_ownership($engine);
     }
+}
+
+/** Independent suspended readers must preserve a reusable owner and survive its release. */
+function metadata_records_iterator_ownership(string $engine): void
+{
+    $records = metadata_checks_records($engine); $expected = metadata_records_golden_projection($engine);
+    $users = $expected[3] ?? throw new \RuntimeException('Missing frozen users descriptor.');
+    $left = $records->tables(); $right = $records->tables(version: 9); $left->rewind();
+    for ($index = 0; $index < 3; $index++) { $left->next(); }
+    Assert::same($left->current(), $users);
+    Assert::same(iterator_to_array($right, preserve_keys: false), metadata_records_golden_projection($engine, version: 9));
+    Assert::same($left->current(), $users);
+    Assert::same(iterator_to_array($records->tables(), preserve_keys: false), $expected);
+    unset($records, $right);
+    for ($index = 3; $left->valid(); $index++, $left->next()) {
+        Assert::same($left->current(), $expected[$index] ?? throw new \RuntimeException('Unexpected table after frozen descriptor end.'));
+    }
+    Assert::same($index, count($expected));
 }
 
 function metadata_records_default_case(string $engine, string $role): void

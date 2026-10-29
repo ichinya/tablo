@@ -191,6 +191,14 @@ function database_transfer_publication_batch_archive(string $archive, string $mo
 function database_transfer_publication_private_ownership(TransferSqliteFixture $fixture): void
 {
     $scratch = \Tablo\DatabaseTransferPreflight::scratch($fixture->path('batch-owner.sqlite'));
+    Assert::false($scratch->inTransaction()); Assert::false(\Tablo\WriteTransaction::owns($scratch));
+    Assert::same(\Tablo\ServerSchema::rows($scratch, 'PRAGMA foreign_keys'), [['foreign_keys' => 1]]);
+    $reader = new PDO('sqlite:' . $fixture->path('batch-owner.sqlite'), options: [PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION]);
+    Assert::same(\Tablo\SchemaShape::objects($reader), \Tablo\SchemaShape::objects(\Tablo\SchemaReference::reference(11, ['endpoint' => true])));
+    foreach (\Tablo\DatabaseTransferManifest::TABLES as $table) {
+        Assert::same(\Tablo\DatabaseTransferSequence::scalar($reader, 'SELECT COUNT(*) AS value FROM `' . $table . '`'), 0);
+    }
+    $reader = null;
     $scratch->exec('BEGIN DEFERRED'); $scratch->exec("INSERT INTO users VALUES (1,'synthetic-raw-owner','2026-01-01T00:00:00Z')"); $caught = null;
     try { \Tablo\database_transfer_private_scratch_owner($scratch); } catch (\Throwable $error) { $caught = $error; }
     Assert::true($caught instanceof \LogicException || $caught instanceof \PDOException); Assert::false(\Tablo\WriteTransaction::owns($scratch));

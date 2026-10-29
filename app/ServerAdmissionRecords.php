@@ -94,9 +94,12 @@ function server_admission_records_table(#[\SensitiveParameter] string $record): 
  * @return \Generator<int, \Tablo\ServerSchema::AdmissionTable> */
 function server_admission_records_tables(#[\SensitiveParameter] array $records, int $version): \Generator
 {
-    foreach ($records as $record) {
+    foreach (array_keys($records) as $index) {
+        $record = $records[$index] ?? throw new DatabaseFailure('schema'); unset($records[$index]);
         /** @var \Tablo\ServerSchema::Table $table Immutable records passed the complete source checks before publication. */
         $table = server_admission_records_table($record);
+        // Drop consumed raw CREATE/CHECK bytes before suspending for table admission.
+        unset($record);
         if (($version < 10 && $table['name'] === 'read_api_token') || ($version < 11 && $table['name'] === 'self_update')) { unset($table); continue; }
         $table = ServerSchemaProjection::table($table, $version);
         $projected = ['name' => $table['name'], 'columns' => $table['columns'], 'primary' => $table['primary'],
