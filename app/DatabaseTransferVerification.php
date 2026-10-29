@@ -103,12 +103,21 @@ function database_transfer_verification_database(PDO $db, array $header, #[\Sens
  * @return array{header: \Tablo\DatabaseTransferManifest::Header, digest: string} */
 function database_transfer_header_manifest(#[\SensitiveParameter] string $directory, #[\SensitiveParameter] TokenVault $vault): array
 {
+    // COLD_NESTED_BEGIN 200
+    RuntimeIni::$coldNestedProbe?->__invoke(200, memory_get_peak_usage(false));
+    // COLD_NESTED_END 200
     $path = DatabaseTransferManifest::path($directory, 'manifest.json');
     if (is_link($path)) { throw new DatabaseFailure('configuration'); }
     $bytes = RequiredFile::bytes(file_get_contents($path, length: DatabaseTransferManifest::MANIFEST_BYTES + 1));
     if (strlen($bytes) > DatabaseTransferManifest::MANIFEST_BYTES) { throw new DatabaseFailure('schema'); }
     $envelope = JsonRecord::decode($bytes);
+    // COLD_NESTED_BEGIN 202
+    RuntimeIni::$coldNestedProbe?->__invoke(202, memory_get_peak_usage(false));
+    // COLD_NESTED_END 202
     if (JsonEncoding::encode($envelope) !== $bytes) { throw new DatabaseFailure('schema'); }
+    // COLD_NESTED_BEGIN 203
+    RuntimeIni::$coldNestedProbe?->__invoke(203, memory_get_peak_usage(false));
+    // COLD_NESTED_END 203
     unset($bytes);
     database_transfer_receipt_keys($envelope, ['payload', 'sha256']);
     /** @var array{payload: mixed, sha256: mixed} $envelope Exact keys checked above. */
@@ -116,8 +125,17 @@ function database_transfer_header_manifest(#[\SensitiveParameter] string $direct
     database_transfer_receipt_keys($header, ['format', 'engine', 'logicalVersion', 'layout', 'columns', 'installation', 'verifier', 'sequences', 'watermark', 'tables']);
     /** @var array{format: mixed, engine: mixed, logicalVersion: mixed, layout: mixed, columns: mixed, installation: mixed, verifier: mixed, sequences: mixed, watermark: mixed, tables: mixed} $header Exact keys checked above. */
     $digest = hash('sha256', JsonEncoding::encode($header));
+    // COLD_NESTED_BEGIN 204
+    RuntimeIni::$coldNestedProbe?->__invoke(204, memory_get_peak_usage(false));
+    // COLD_NESTED_END 204
     $layout = DatabaseTransferManifest::layout();
+    // COLD_NESTED_BEGIN 205
+    RuntimeIni::$coldNestedProbe?->__invoke(205, memory_get_peak_usage(false));
+    // COLD_NESTED_END 205
     $columnsMatch = database_transfer_header_columns_match($header['columns']);
+    // COLD_NESTED_BEGIN 206
+    RuntimeIni::$coldNestedProbe?->__invoke(206, memory_get_peak_usage(false));
+    // COLD_NESTED_END 206
     if ([$header['format'], $header['logicalVersion'], $header['layout']] !== [1, 11, $layout]
         || !$columnsMatch || ($envelope['sha256']) !== $digest) { throw new DatabaseFailure('schema'); }
     $installation = SqlColumn::string($header, 'installation');
@@ -134,10 +152,19 @@ function database_transfer_header_manifest(#[\SensitiveParameter] string $direct
         if ($chunks > DatabaseTransferManifest::MAX_CHUNKS) { throw new DatabaseFailure('schema'); }
     }
     if ($names !== DatabaseTransferManifest::TABLES) { throw new DatabaseFailure('schema'); }
+    // COLD_NESTED_BEGIN 208
+    RuntimeIni::$coldNestedProbe?->__invoke(208, memory_get_peak_usage(false));
+    // COLD_NESTED_END 208
     unset($envelope);
     // Preserve the public key position while releasing the decoded graph before canonical reuse.
     $header['columns'] = [];
+    // COLD_NESTED_BEGIN 209
+    RuntimeIni::$coldNestedProbe?->__invoke(209, memory_get_peak_usage(false));
+    // COLD_NESTED_END 209
     $header['columns'] = DatabaseTransferManifest::contract();
+    // COLD_NESTED_BEGIN 210
+    RuntimeIni::$coldNestedProbe?->__invoke(210, memory_get_peak_usage(false));
+    // COLD_NESTED_END 210
     /** @var \Tablo\DatabaseTransferManifest::Header $header Structure and finite identities validated above. */
     return ['header' => $header, 'digest' => $digest];
 }

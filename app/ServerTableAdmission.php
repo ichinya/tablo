@@ -13,12 +13,30 @@ final class ServerTableAdmission
     /** @param Table $table */
     public static function verify(PDO $db, array $table): void
     {
+        // COLD_NESTED_BEGIN 100
+        RuntimeIni::$coldNestedProbe?->__invoke(100, memory_get_peak_usage(false), $table['name']);
+        // COLD_NESTED_END 100
         $rows = ServerSchema::rows($db, 'SELECT ENGINE AS engine, TABLE_COLLATION AS collation FROM information_schema.TABLES WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = ?', [$table['name']]);
         if (count($rows) !== 1 || ($rows[0]['engine'] ?? null) !== 'InnoDB' || ($rows[0]['collation'] ?? null) !== DatabaseSession::collation($db)) { self::refuse(); }
+        // COLD_NESTED_BEGIN 110
+        RuntimeIni::$coldNestedProbe?->__invoke(110, memory_get_peak_usage(false), $table['name']);
+        // COLD_NESTED_END 110
         ServerColumnAdmission::verify($db, $table);
+        // COLD_NESTED_BEGIN 120
+        RuntimeIni::$coldNestedProbe?->__invoke(120, memory_get_peak_usage(false), $table['name']);
+        // COLD_NESTED_END 120
         ServerIndexAdmission::verify($db, $table);
+        // COLD_NESTED_BEGIN 130
+        RuntimeIni::$coldNestedProbe?->__invoke(130, memory_get_peak_usage(false), $table['name']);
+        // COLD_NESTED_END 130
         ServerForeignAdmission::verify($db, $table);
+        // COLD_NESTED_BEGIN 140
+        RuntimeIni::$coldNestedProbe?->__invoke(140, memory_get_peak_usage(false), $table['name']);
+        // COLD_NESTED_END 140
         ServerCheckAdmission::verify($db, $table);
+        // COLD_NESTED_BEGIN 150
+        RuntimeIni::$coldNestedProbe?->__invoke(150, memory_get_peak_usage(false), $table['name']);
+        // COLD_NESTED_END 150
     }
     public static function layout(PDO $db, int $version = 11): void
     {

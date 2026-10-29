@@ -105,6 +105,9 @@ function database_transfer_rows_read(PDO $db, array $table, ?\Closure $consume =
             $statement->execute();
             /** @var array|false $fetched Native associative row or the distinct end marker. */
             $fetched = $statement->fetch(PDO::FETCH_ASSOC);
+            // COLD_NESTED_BEGIN 600
+            RuntimeIni::$coldNestedProbe?->__invoke(600, memory_get_peak_usage(false));
+            // COLD_NESTED_END 600
             if ($fetched === false) { return; }
             $row = SqlRows::required($fetched, static fn (array $value): array => $value);
             $values = [];
@@ -118,6 +121,9 @@ function database_transfer_rows_read(PDO $db, array $table, ?\Closure $consume =
             }
         } finally { $statement->closeCursor(); }
         unset($statement, $fetched, $row);
+        // COLD_NESTED_BEGIN 602
+        RuntimeIni::$coldNestedProbe?->__invoke(602, memory_get_peak_usage(false));
+        // COLD_NESTED_END 602
         if ($consume === null) { yield $values; }
         if ($consume !== null) { $consume($values); }
         unset($values);
@@ -229,12 +235,24 @@ function database_transfer_codec_line(#[\SensitiveParameter] string $line, array
  * @return \Tablo\DatabaseTransferRows::Values */
 function database_transfer_codec_consume_line(#[\SensitiveParameter] string &$line, array $table): array
 {
+    // COLD_NESTED_BEGIN 620
+    RuntimeIni::$coldNestedProbe?->__invoke(620, memory_get_peak_usage(false));
+    // COLD_NESTED_END 620
     $input = JsonRecord::decode($line);
+    // COLD_NESTED_BEGIN 621
+    RuntimeIni::$coldNestedProbe?->__invoke(621, memory_get_peak_usage(false));
+    // COLD_NESTED_END 621
     // Speculative wire encoding must not precede the typed decoder's failure.
     try { $canonicalWire = database_transfer_codec_wire($input, $line); }
     catch (\JsonException) { $canonicalWire = false; }
+    // COLD_NESTED_BEGIN 622
+    RuntimeIni::$coldNestedProbe?->__invoke(622, memory_get_peak_usage(false));
+    // COLD_NESTED_END 622
     $line = '';
     $values = database_transfer_codec_decode($input, $table);
+    // COLD_NESTED_BEGIN 623
+    RuntimeIni::$coldNestedProbe?->__invoke(623, memory_get_peak_usage(false));
+    // COLD_NESTED_END 623
     // Successful typed decoding proves encode(values) === input, including list shapes.
     if (!$canonicalWire) { throw new DatabaseFailure('schema'); }
     return $values;

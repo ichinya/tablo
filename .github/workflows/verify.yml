@@ -1,162 +1,18 @@
-name: Verify
+name: Cold phase diagnostic only
 
 on:
   push:
-  pull_request:
-  workflow_dispatch:
+    branches:
+      - feat/issue-35-cold-nested-421042c-mysql85
 
 permissions:
   contents: read
 
 concurrency:
-  group: verify-${{ github.workflow }}-${{ github.ref }}
-  cancel-in-progress: true
+  group: cold-phase-${{ github.ref }}
+  cancel-in-progress: false
 
 jobs:
-  verify:
-    name: ${{ matrix.os }} / PHP ${{ matrix.php }}
-    runs-on: ${{ matrix.os }}
-    timeout-minutes: 30
-    strategy:
-      fail-fast: false
-      matrix:
-        os: [ubuntu-latest, windows-latest]
-        php: ['8.2', '8.4', '8.5']
-    defaults:
-      run:
-        shell: pwsh
-    env:
-      LEKALO_REF: 9510dd0767a56c0ab34b8d3c8ceb2a14db8de825
-      COMPOSER_PROCESS_TIMEOUT: '1800'
-      COMPOSER_CACHE_DIR: ${{ github.workspace }}/.ci/composer-cache
-    steps:
-      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
-      - name: Qualify Node and check standalone browser controls
-        timeout-minutes: 2
-        run: |
-          $node = (Get-Command node -CommandType Application -ErrorAction Stop).Source
-          $binary = Get-Item -LiteralPath $node -ErrorAction Stop
-          if ($binary.PSIsContainer -or $binary.Length -le 0) { throw 'Node executable is unavailable' }
-          $runtimeText = & $node -p 'JSON.stringify({executable:process.execPath,version:process.version})'
-          if ($LASTEXITCODE -ne 0) { throw 'Node runtime qualification failed' }
-          $runtime = $runtimeText | ConvertFrom-Json
-          $version = $runtime.version
-          if ($version -notmatch '^v([0-9]+)\.[0-9]+\.[0-9]+$' -or [int]$Matches[1] -lt 22) { throw 'Node 22 or newer is required for standalone browser control checks' }
-          if ((Get-FileHash -LiteralPath $node -Algorithm SHA256).Hash -ne (Get-FileHash -LiteralPath $runtime.executable -Algorithm SHA256).Hash) { throw 'Node command and actual executable differ' }
-          Write-Output "Qualified Node: $($runtime.executable) $version"
-          Get-FileHash -LiteralPath $runtime.executable -Algorithm SHA256 | Format-List
-          $nodeTemp = Join-Path $env:RUNNER_TEMP 'tablo-browser-control-temp'
-          New-Item -ItemType Directory -Path $nodeTemp -ErrorAction Stop | Out-Null
-          $env:TEMP = $nodeTemp
-          $env:TMP = $nodeTemp
-          $env:TMPDIR = $nodeTemp
-          & $node --check tests/Browser/dashboard-modes.mjs
-          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-          foreach ($script in @('public/assets/dashboard-polling.js', 'public/assets/dashboard-view.js', 'public/assets/app.js', 'tests/Browser/dashboard-polling-scenarios.mjs', 'tests/Browser/availability-scenarios.mjs')) {
-            & $node --check $script
-            if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-          }
-          & $node --test --test-concurrency=1 tests/Browser/control-lifecycle.test.mjs tests/Browser/dashboard-polling.test.mjs
-          exit $LASTEXITCODE
-      - name: Start dedicated synthetic helper evidence
-        env:
-          HELPER_MATRIX_OS: ${{ matrix.os }}
-          HELPER_MATRIX_PHP: ${{ matrix.php }}
-        run: |
-          $helperDirectory = Join-Path $env:RUNNER_TEMP 'tablo-helper-diagnostics'
-          New-Item -ItemType Directory -Path $helperDirectory -ErrorAction Stop | Out-Null
-          $head = git rev-parse HEAD
-          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-          $tree = git rev-parse 'HEAD^{tree}'
-          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-          $manifest = @{ schema = 'tablo/helper-diagnostics/v1'; status = 'NOTRUN unless case-started evidence exists'; utc = [DateTime]::UtcNow.ToString('o'); run = $env:GITHUB_RUN_ID; attempt = $env:GITHUB_RUN_ATTEMPT; job = $env:GITHUB_JOB; os = $env:HELPER_MATRIX_OS; php = $env:HELPER_MATRIX_PHP; head = $head; tree = $tree }
-          [IO.File]::WriteAllText((Join-Path $helperDirectory 'started.json'), ($manifest | ConvertTo-Json), [Text.UTF8Encoding]::new($false))
-      - uses: shivammathur/setup-php@b604ade2a87db23f8871b7182e69ec5e75effb45 # v2
-        with:
-          php-version: ${{ matrix.php }}
-          extensions: ctype, curl, fileinfo, iconv, mbstring, openssl, pdo_sqlite, tokenizer, xml, xmlwriter
-          coverage: none
-          tools: composer:v2
-      - name: Cache Composer package downloads
-        uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
-        with:
-          path: ${{ env.COMPOSER_CACHE_DIR }}/files
-          key: composer-files-v1-${{ runner.os }}-${{ runner.arch }}-php-${{ matrix.php }}-${{ hashFiles('composer.lock') }}
-      - name: Install PHP dependencies
-        run: |
-          composer validate --strict
-          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-          composer install --no-interaction --prefer-dist
-          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-          composer check-platform-reqs
-          exit $LASTEXITCODE
-      - name: Qualify actual native Argon2id policy
-        run: |
-          php tests/fixtures/argon2id-capability.php
-          exit $LASTEXITCODE
-      - name: Cache pinned Lekalo CLI
-        id: lekalo-cache
-        uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
-        with:
-          path: .ci/lekalo-bin
-          key: lekalo-${{ runner.os }}-${{ runner.arch }}-${{ env.LEKALO_REF }}
-      - name: Cache pinned Mago release
-        uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
-        with:
-          path: .ci/mago
-          key: mago-1.54.0-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('tools/mago-pin.json') }}
-      - name: Install and verify pinned Mago
-        run: |
-          php tools/install-mago.php
-          exit $LASTEXITCODE
-      - name: Build Lekalo v0.6.4 (CLI 0.6.3)
-        if: steps.lekalo-cache.outputs.cache-hit != 'true'
-        run: |
-          git clone --no-checkout https://github.com/ichinya/lekalo.git .ci/lekalo-source
-          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-          git -C .ci/lekalo-source checkout --detach $env:LEKALO_REF
-          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-          cargo build --release --locked -p lekalo-cli --manifest-path .ci/lekalo-source/Cargo.toml
-          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-          New-Item -ItemType Directory -Force .ci/lekalo-bin | Out-Null
-          $binaryName = if ($IsWindows) { 'lekalo.exe' } else { 'lekalo' }
-          Copy-Item -LiteralPath ".ci/lekalo-source/target/release/$binaryName" -Destination ".ci/lekalo-bin/$binaryName"
-      - name: Verify lint, static analysis, contracts and Testo suites
-        run: |
-          git rev-parse HEAD
-          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-          git rev-parse 'HEAD^{tree}'
-          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-          Get-FileHash -Algorithm SHA256 composer.lock, lekalo.lock, contracts/php-bindings.json, contracts/reviewed-dependencies.json, tools/reviewed-dependency-map.json, tools/mago-pin.json, mago.toml | Format-List
-          $binaryName = if ($IsWindows) { 'lekalo.exe' } else { 'lekalo' }
-          $env:LEKALO_BIN = Join-Path $PWD ".ci/lekalo-bin/$binaryName"
-          $version = & $env:LEKALO_BIN --version
-          if ($LASTEXITCODE -ne 0 -or $version.Trim() -ne 'lekalo 0.6.3') { throw 'Unexpected Lekalo CLI version' }
-          $env:TABLO_TRACE_ISOLATION_REPORT = Join-Path $env:RUNNER_TEMP 'tablo-trace-inner.jsonl'
-          $env:TABLO_RESPONSE_PRIVACY_REPORT = Join-Path $env:RUNNER_TEMP 'tablo-response-inner.jsonl'
-          $env:TABLO_HELPER_DIAGNOSTICS_DIRECTORY = Join-Path $env:RUNNER_TEMP 'tablo-helper-diagnostics'
-          composer verify
-          $verifyExit = $LASTEXITCODE
-          exit $verifyExit
-      - name: Print existing privacy evidence
-        if: always()
-        run: |
-          foreach ($reportName in @('tablo-trace-inner.jsonl', 'tablo-response-inner.jsonl')) {
-            $reportPath = Join-Path $env:RUNNER_TEMP $reportName
-            if (Test-Path -LiteralPath $reportPath) { Get-Content -LiteralPath $reportPath -ErrorAction Stop }
-          }
-      - name: Retain synthetic helper diagnostics
-        if: always()
-        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2, Node24
-        with:
-          name: helper-diagnostics-${{ github.run_id }}-${{ github.run_attempt }}-${{ matrix.os }}-php-${{ matrix.php }}
-          path: ${{ runner.temp }}/tablo-helper-diagnostics
-          if-no-files-found: error
-          include-hidden-files: false
-          overwrite: false
-          archive: true
-          retention-days: 7
-
   linux-fallback-unit:
     name: Linux native transition faults / isolated stubs
     runs-on: ubuntu-latest
@@ -374,30 +230,18 @@ jobs:
             [IO.File]::WriteAllText((Join-Path $unitRoot 'safe-fallback-unit.json'), (@{ schema='tablo/linux-io-uring-fallback-unit/v2'; phase=$unitPhase; head=$head; tree=$tree; passed=$passed; ownedCleanupClosed=$cleanupClosed; requiredCases=193; passedCases=$passedCases; sourceSha256=$sourcePins['server-supervisor-linux.c']; harnessSha256=$sourcePins['server-supervisor-linux-fallback-unit.c']; compilerImageDigest='sha256:6114a2bd4956c50e4db20f08b9377e4fc7e08417b2aa34a44ec7ff52a07996b5'; provenance=$provenance; issueAccepted=$false } | ConvertTo-Json -Depth 5), [Text.UTF8Encoding]::new($false))
           }
           if ($null -ne $primary -or $null -ne $cleanupFailure -or !$passed -or !$cleanupClosed) { throw 'Unit failed or custody unknown; dependent native/product work remains NOTRUN' }
-      - name: Retain safe isolated unit outcome
-        if: always()
-        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2, Node24
-        with:
-          name: linux-fallback-unit-${{ github.run_id }}-${{ github.run_attempt }}
-          path: ${{ runner.temp }}/tablo-linux-fallback-unit/safe-fallback-unit.json
-          if-no-files-found: warn
-          retention-days: 7
-
   server:
     needs: [linux-fallback-unit]
-    name: Ubuntu / ${{ matrix.engine }} / PHP ${{ matrix.php }}${{ matrix.declarationOnly && ' / declaration-only' || '' }}
+    name: Diagnostic only / ${{ matrix.engine }} / PHP8.5 / one measured actor
     runs-on: ubuntu-latest
     timeout-minutes: 45
     strategy:
       fail-fast: false
+      max-parallel: 1
       matrix:
-        engine: [mysql, mariadb]
-        php: ['8.2', '8.5']
+        engine: ['mysql']
+        php: ['8.5']
         declarationOnly: [false]
-        include:
-          - engine: mysql
-            php: '8.2'
-            declarationOnly: true
     defaults:
       run:
         shell: pwsh
@@ -437,6 +281,14 @@ jobs:
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
           composer check-platform-reqs
           exit $LASTEXITCODE
+      - name: Check frozen predecessor and pure scalar diagnostics
+        run: |
+          php -n diagnostics/cold-phase/materialized.php
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          php -n diagnostics/cold-phase/synthetic.php
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          php -n diagnostics/cold-phase/nested-controls.php
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
       - name: Cache pinned Lekalo CLI
         id: server-lekalo-cache
         uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
@@ -668,7 +520,6 @@ jobs:
           if ($diagnosticOnly) { $arguments += '--declaration-diagnostic' }
           else {
             $arguments += '--pull'
-            if ($env:CELL_ENGINE -eq 'mysql' -and $env:CELL_PHP -eq '8.5') { $arguments += '--cross' }
           }
           $captureDirectory = Join-Path $cellDirectory 'private-declaration'
           New-Item -ItemType Directory -Path $captureDirectory -ErrorAction Stop | Out-Null
@@ -700,48 +551,86 @@ jobs:
           if ($declarationExit -ne 0) { exit $declarationExit }
           if ($diagnosticOnly) { exit 0 }
           $planDigest = (Get-FileHash -LiteralPath $plan -Algorithm SHA256).Hash.ToLowerInvariant()
-          & $env:TABLO_TEST_NODE_BIN tools/server-supervisor.cjs "--execute=$plan" "--sha256=$planDigest"
+          $observerStdout = Join-Path $cellDirectory 'private-observer.stdout'
+          $observerStderr = Join-Path $cellDirectory 'private-observer.stderr'
+          & $env:TABLO_TEST_NODE_BIN tools/server-supervisor.cjs "--execute=$plan" "--sha256=$planDigest" 1> $observerStdout 2> $observerStderr
           $observerExit = $LASTEXITCODE
           [IO.File]::WriteAllText((Join-Path $cellDirectory 'observer-exit.json'), (@{ exit = $observerExit; planSha256 = $planDigest } | ConvertTo-Json), [Text.UTF8Encoding]::new($false))
           exit $observerExit
-      - name: Retain safe cell status without private credentials or raw captures
+      - name: Project the original baseline's first closed failing gate
         if: always()
         run: |
-          $cellDirectory = Join-Path $env:RUNNER_TEMP 'tablo-server-cell'
-          if (!(Test-Path -LiteralPath $cellDirectory)) { New-Item -ItemType Directory -Path $cellDirectory -ErrorAction Stop | Out-Null }
-          $status = @{ schema = 'tablo/server-hosted-summary/v1'; status = 'NOTRUN_OR_FAILED'; run = $env:GITHUB_RUN_ID; attempt = $env:GITHUB_RUN_ATTEMPT; head = (git rev-parse HEAD); engine = '${{ matrix.engine }}'; php = '${{ matrix.php }}'; declarationOnly = [bool]::Parse('${{ matrix.declarationOnly }}'); issueAccepted = $false }
-          $planPath = Join-Path $cellDirectory 'cell.json'
-          if (Test-Path -LiteralPath $planPath) {
-            $plan = Get-Content -LiteralPath $planPath -Raw | ConvertFrom-Json
-            $ownerPath = Join-Path $plan.observer.root 'evidence/observer-result.json'
-            $ownerExitPath = Join-Path $cellDirectory 'observer-exit.json'
-            $ownerPassed = $false
-            if ((Test-Path -LiteralPath $ownerPath) -and (Test-Path -LiteralPath $ownerExitPath)) {
-              $owner = Get-Content -LiteralPath $ownerPath -Raw | ConvertFrom-Json
-              $ownerExit = Get-Content -LiteralPath $ownerExitPath -Raw | ConvertFrom-Json
-              $ownerPassed = $owner.status -eq 'passed' -and $owner.nonce -eq $plan.nonce -and $ownerExit.exit -eq 0 -and $ownerExit.planSha256 -eq (Get-FileHash -LiteralPath $planPath -Algorithm SHA256).Hash.ToLowerInvariant()
-              $status.observer = @{ status = $owner.status; exit = $ownerExit.exit; sha256 = (Get-FileHash -LiteralPath $ownerPath -Algorithm SHA256).Hash.ToLowerInvariant() }
+          $cell = Join-Path $env:RUNNER_TEMP 'tablo-server-cell'
+          [IO.Directory]::CreateDirectory($cell) | Out-Null
+          $safe = Join-Path $cell 'safe-cold-baseline-upload.json'
+          $valid = $false
+          try {
+            $php = Get-Command php -CommandType Application -ErrorAction SilentlyContinue | Select-Object -First 1
+            if ($null -ne $php) {
+              $privateError = Join-Path $cell 'private-baseline-parser.stderr'
+              $projected = & $php.Source -n diagnostics/cold-phase/baseline-upload.php $cell 2> $privateError
+              if ($LASTEXITCODE -eq 0 -and ($projected -join "`n").Length -le 2048) {
+                $record = ($projected -join "`n") | ConvertFrom-Json
+                $keys = @('schema','status','diagnostic','issueAccepted','originalActorAccepted','rootCause','actorLaunchCount','observerPhase','firstFailureCategory','gateExit','gateProcessClosed','observerControllerExit')
+                $categories = @('MAGO_LINT','MAGO_ANALYZE','LEKALO_VALIDATE','LEKALO_LOCK','CONTRACT_UPDATE','CONTRACT_ATTACH','CONTRACT_CHECK','NATIVE_TESTS','BASELINE_CONTROLLER_FAILURE')
+                $shape = $null -ne $record -and @($record.PSObject.Properties).Count -eq $keys.Count -and @($record.PSObject.Properties.Name | Where-Object { $_ -cnotin $keys }).Count -eq 0
+                $flat = @($record.PSObject.Properties | Where-Object { $null -ne $_.Value -and $_.Value -isnot [string] -and $_.Value -isnot [bool] -and $_.Value -isnot [int] -and $_.Value -isnot [long] }).Count -eq 0
+                $fixed = $record.schema -is [string] -and $record.rootCause -is [string] -and $record.diagnostic -is [bool] -and $record.issueAccepted -is [bool] -and $record.originalActorAccepted -is [bool] -and $record.schema -ceq 'tablo/cold-baseline-receipt/v1' -and $record.diagnostic -ceq $true -and $record.issueAccepted -ceq $false -and $record.originalActorAccepted -ceq $false -and $record.rootCause -ceq 'UNKNOWN' -and $null -eq $record.actorLaunchCount
+                $finite = $record.status -is [string] -and $record.observerPhase -is [string] -and $record.status -cin @('NOTRUN_OR_UNKNOWN','BASELINE_CONTROLLER_FAILED','BASELINE_GATE_FAILED') -and $record.observerPhase -cin @('UNKNOWN','prepare','baseline','engine') -and ($null -eq $record.firstFailureCategory -or $record.firstFailureCategory -cin $categories)
+                $integers = ($null -eq $record.gateExit -or (($record.gateExit -is [long] -or $record.gateExit -is [int]) -and $record.gateExit -ge 1 -and $record.gateExit -le 255)) -and ($null -eq $record.observerControllerExit -or (($record.observerControllerExit -is [long] -or $record.observerControllerExit -is [int]) -and $record.observerControllerExit -ge 0 -and $record.observerControllerExit -le 255))
+                $closed = $null -eq $record.gateProcessClosed -or ($record.gateProcessClosed -is [bool] -and $record.gateProcessClosed -ceq $true)
+                $consistent = $false
+                if ($record.status -ceq 'BASELINE_GATE_FAILED') {
+                  $consistent = $null -ne $record.gateExit -and $record.gateProcessClosed -ceq $true -and $record.firstFailureCategory -cin @('MAGO_LINT','MAGO_ANALYZE','LEKALO_VALIDATE','LEKALO_LOCK','CONTRACT_UPDATE','CONTRACT_ATTACH','CONTRACT_CHECK','NATIVE_TESTS')
+                } elseif ($record.status -ceq 'BASELINE_CONTROLLER_FAILED') {
+                  $consistent = $record.firstFailureCategory -ceq 'BASELINE_CONTROLLER_FAILURE' -and $record.observerPhase -ceq 'baseline' -and $null -ne $record.observerControllerExit -and $record.observerControllerExit -ne 0 -and $null -eq $record.gateExit -and $null -eq $record.gateProcessClosed
+                } elseif ($record.status -ceq 'NOTRUN_OR_UNKNOWN') {
+                  $consistent = $null -eq $record.firstFailureCategory -and $null -eq $record.gateExit -and $null -eq $record.gateProcessClosed
+                }
+                if ($shape -and $flat -and $fixed -and $finite -and $integers -and $closed -and $consistent) {
+                  [IO.File]::WriteAllText($safe, (($projected -join "`n")+"`n"), [Text.UTF8Encoding]::new($false))
+                  $valid = $true
+                }
+              }
             }
-            $resultPath = Join-Path $plan.runtime 'evidence/cell-result.json'
-            $status.nonce = $plan.nonce
-            if (Test-Path -LiteralPath $resultPath) {
-              $result = Get-Content -LiteralPath $resultPath -Raw | ConvertFrom-Json
-              if ($ownerPassed -and $result.status -eq 'passed' -and $result.ownedServicesClosed -eq $true -and $result.nonce -eq $plan.nonce) { $status.status = 'passed' }
-              $status.resultSha256 = (Get-FileHash -LiteralPath $resultPath -Algorithm SHA256).Hash.ToLowerInvariant()
-              [IO.File]::WriteAllText((Join-Path $cellDirectory 'safe-native.json'), ($result.safeNative | ConvertTo-Json -Depth 40), [Text.UTF8Encoding]::new($false))
-            }
-            $progress = @(Get-ChildItem -LiteralPath (Join-Path $plan.runtime 'evidence') -Filter 'native-*.json' -File -ErrorAction SilentlyContinue | Sort-Object Name | ForEach-Object { Get-Content -LiteralPath $_.FullName -Raw | ConvertFrom-Json })
-            $status.nativeProgress = $progress
+          } catch { $valid = $false }
+          if (!$valid) {
+            $fallback = @{ schema='tablo/cold-baseline-receipt/v1'; status='NOTRUN_OR_UNKNOWN'; diagnostic=$true; issueAccepted=$false; originalActorAccepted=$false; rootCause='UNKNOWN'; actorLaunchCount=$null; observerPhase='UNKNOWN'; firstFailureCategory=$null; gateExit=$null; gateProcessClosed=$null; observerControllerExit=$null }
+            [IO.File]::WriteAllText($safe, (($fallback | ConvertTo-Json -Compress)+"`n"), [Text.UTF8Encoding]::new($false))
           }
-          [IO.File]::WriteAllText((Join-Path $cellDirectory 'safe-summary.json'), ($status | ConvertTo-Json -Depth 30), [Text.UTF8Encoding]::new($false))
-      - name: Upload safe server-cell summary
+      - name: Project only the bounded scalar diagnostic receipt
         if: always()
-        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2, Node24
+        env:
+          COLD_PHASE_ENGINE: mysql
+        run: |
+          $cell = Join-Path $env:RUNNER_TEMP 'tablo-server-cell'
+          [IO.Directory]::CreateDirectory($cell) | Out-Null
+          $candidate = Join-Path $cell 'safe-cold-phase.json'
+          $safe = Join-Path $cell 'safe-cold-phase-upload.json'
+          $engine = if ($env:COLD_PHASE_ENGINE -cin @('mysql','mariadb')) { $env:COLD_PHASE_ENGINE } else { 'UNKNOWN' }
+          $valid = $false
+          try {
+            $php = Get-Command php -CommandType Application -ErrorAction SilentlyContinue | Select-Object -First 1
+            if ($engine -cne 'UNKNOWN' -and $null -ne $php -and (Test-Path -LiteralPath $candidate)) {
+              $privateError = Join-Path $cell 'private-upload-parser.stderr'
+              $projected = & $php.Source -n diagnostics/cold-phase/upload.php $candidate $engine 2> $privateError
+              if ($LASTEXITCODE -eq 0 -and ($projected -join "`n").Length -le 4096) {
+                [IO.File]::WriteAllText($safe, (($projected -join "`n")+"`n"), [Text.UTF8Encoding]::new($false))
+                $valid = $true
+              }
+            }
+          } catch { $valid = $false }
+          if (!$valid) {
+            $fallback = @{ schema='tablo/cold-phase-hosted-fallback/v1'; status='NOTRUN_OR_UNKNOWN'; diagnostic=$true; issueAccepted=$false; originalActorAccepted=$false; rootCause='UNKNOWN'; engine=$engine; phpMajor=8; phpMinor=5; actorTimeoutSeconds=6; wholeCaseTimeoutSeconds=8; memoryLimitBytes=2097152; measurementComplete=$false; peakPhpWorkingBytes=$null }
+            [IO.File]::WriteAllText($safe, ($fallback|ConvertTo-Json -Compress), [Text.UTF8Encoding]::new($false))
+          }
+      - name: Upload only sanitized scalar diagnostic facts
+        if: always()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
-          name: server-cell-${{ github.run_id }}-${{ github.run_attempt }}-${{ matrix.engine }}-php-${{ matrix.php }}${{ matrix.declarationOnly && '-declaration-only' || '' }}
-          path: ${{ runner.temp }}/tablo-server-cell/safe-*.json
+          name: cold-phase-${{ github.run_id }}-${{ github.run_attempt }}-php85
+          path: |
+            ${{ runner.temp }}/tablo-server-cell/safe-cold-phase-upload.json
+            ${{ runner.temp }}/tablo-server-cell/safe-cold-baseline-upload.json
           if-no-files-found: error
-          include-hidden-files: false
-          overwrite: false
-          archive: true
           retention-days: 7
