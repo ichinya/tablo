@@ -138,7 +138,7 @@
                 "Composer analyze",
                 "Composer verify"
             ],
-            "fingerprint": "sha256:57f01d65d58fd9b04c242ce320e11d567c4877ad05be26e37d8702187d36f010"
+            "fingerprint": "sha256:03091d2c22361524cfc499b22fc79ab2848d18ee3ff5d0d7a74ec3bb12390611"
         },
         {
             "path": "tests/Support/TransferPublicationFault.php",
@@ -188,7 +188,7 @@
                 "tools/server-io-uring-php-grammar.test.php",
                 "tools/server-supervisor-linux-fallback-unit.c"
             ],
-            "fingerprint": "sha256:4d98983f435aa27d7415ab4b88314d90bb517915286fcad9012dbc3087cf94be"
+            "fingerprint": "sha256:1d44c7e9164ec2716c5c6f6ef882a43183ef581179c5446211a256bad5794ceb"
         },
         {
             "path": "app/AddressRange.php",
@@ -972,7 +972,7 @@
                 "tests/Server/EngineTransferEnvelopeTest.php",
                 "tests/Support/TransferRowsAssertions.php"
             ],
-            "fingerprint": "sha256:dee3e8e9ab02fda5a407b0cbc7c9eb060c40c746e91692714ee6b5d444771b36"
+            "fingerprint": "sha256:875d6077dcdf74f52121237b50ef63ed9d034cf705ab843dc09aff360caaa5f8"
         },
         {
             "path": "app/DatabaseTransferSequence.php",

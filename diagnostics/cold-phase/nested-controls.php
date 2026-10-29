@@ -9,7 +9,7 @@ function nested_check(bool $value): void {
 }
 $root=dirname(__DIR__,2);
 $actor=file_get_contents(__DIR__.'/actor.php');
-$owners=['app/ServerTableAdmission.php'=>6,'app/DatabaseTransferVerification.php'=>9,'app/SchemaShape.php'=>9,'app/DatabaseTransferWire.php'=>3,'app/DatabaseTransferRows.php'=>6];
+$owners=['app/ServerTableAdmission.php'=>6,'app/DatabaseTransferVerification.php'=>9,'app/SchemaShape.php'=>9,'app/DatabaseTransferWire.php'=>3,'app/DatabaseTransferRows.php'=>8];
 \Tablo\RuntimeIni::$coldNestedProbe = null;
 foreach($owners as$owner=>$expectedCount){
     $text=str_replace("\r\n","\n",file_get_contents($root.'/'.$owner));
@@ -55,8 +55,13 @@ foreach(['nestedStep','nestedTable','nestedOuterPhase']as$field){
         nested_check(!str_contains(json_encode($safe,JSON_THROW_ON_ERROR),'PRIVATE_SQL_PATH_SECRET'));
     }
 }
+foreach ([624 => 'CODEC_ASCII_FRAMING_AFTER', 625 => 'CODEC_ASCII_TYPED_AFTER'] as $id => $label) {
+    nested_check(str_contains($actor, $id . " => '" . $label . "'"));
+    $mutant=$record;$mutant['nestedStep']=$label;
+    nested_check(cold_phase_project('mysql',json_encode($mutant,JSON_THROW_ON_ERROR)."\n",'',$transport)['measurementComplete']===true);
+}
 $mutant=$record;$mutant['nestedPeakPhpBytes']--;
 nested_check(cold_phase_project('mysql',json_encode($mutant,JSON_THROW_ON_ERROR)."\n",'',$transport)['measurementComplete']===false);
 echo json_encode(['schema'=>'tablo/cold-nested-controls/v1','status'=>'passed','checks'=>$nestedChecks,
-    'guardedAppObservations'=>33,'baselineGuardNoop'=>true,'strictLargestAndFirstTie'=>true,'outerFallback'=>true,
+    'guardedAppObservations'=>35,'baselineGuardNoop'=>true,'strictLargestAndFirstTie'=>true,'outerFallback'=>true,
     'actorLaunchCount'=>0,'databaseCalls'=>0,'issueAccepted'=>false],JSON_THROW_ON_ERROR),"\n";

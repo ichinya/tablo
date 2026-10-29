@@ -22,7 +22,7 @@ try {
     exit(1);
 }
 
-/** The baseline/reset and product operation order are copied from 421042c unchanged.
+/** The baseline/reset and product operation order are copied from 60b636a unchanged.
  * Added measurements are scalar cumulative peaks; there is no phase reset, warmup or I/O. */
 function cold_phase_actor(string $case): void
 {
@@ -232,6 +232,8 @@ function cold_phase_actor(string $case): void
             621 => 'CODEC_JSON_AFTER',
             622 => 'CODEC_WIRE_CANONICAL_AFTER',
             623 => 'CODEC_TYPED_AFTER',
+            624 => 'CODEC_ASCII_FRAMING_AFTER',
+            625 => 'CODEC_ASCII_TYPED_AFTER',
             default => 'UNKNOWN',
         },
         'nestedTable' => match ((int) $GLOBALS['tablo_cold_nested_table']) {

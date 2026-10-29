@@ -18,7 +18,7 @@ function cold_phase_assert_frozen(string $root): void
     if (!class_exists(\Tablo\Tools\ServerFixturePlan::class, autoload: false)) { require_once $root . '/tools/ServerFixturePlan.php'; }
     try { $record = json_decode(file_get_contents($root . '/diagnostics/cold-phase/frozen-source.json'), true, 8, JSON_THROW_ON_ERROR); }
     catch (Throwable) { throw new ColdPhaseFailure('FROZEN_DECLARATION'); }
-    if (($record['baseHead'] ?? null) !== '421042c7cbdc18ad1093b390ac141990062d35e7'
+    if (($record['baseHead'] ?? null) !== '60b636aa4cb14611b9129f24a63fb8493011343a'
         || !is_array($record['files'] ?? null) || !is_array($record['basePaths'] ?? null)
         || ($record['excludedOriginalPaths'] ?? null) !== ['tools/server-cell.php', 'contracts/reviewed-dependencies.json', '.github/workflows/verify.yml', 'app/ServerTableAdmission.php', 'app/DatabaseTransferVerification.php', 'app/SchemaShape.php', 'app/RuntimeIni.php', 'app/DatabaseTransferWire.php', 'app/DatabaseTransferRows.php']) {
         throw new ColdPhaseFailure('FROZEN_DECLARATION');
@@ -62,7 +62,7 @@ function cold_phase_measured_region(string $source): string
     return substr($source, $start, $end - $start + strlen($last));
 }
 
-/** Only explicitly marked scalar probes are stripped; all original bytes must then match frozen421. */
+/** Only explicitly marked scalar probes are stripped; all original bytes must then match frozen60b. */
 function cold_phase_strip_nested(string $source): string
 {
     return preg_replace('/^ *\/\/ COLD_NESTED_BEGIN ([0-9]+)\n.*?^ *\/\/ COLD_NESTED_END \\1\n/ms', '', $source);
