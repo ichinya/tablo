@@ -185,7 +185,7 @@ function database_transfer_chunk_read(#[\SensitiveParameter] string $directory, 
             if (!NativeWarning::ignore(static fn (): bool => rewind($handle))) { throw new DatabaseFailure('unavailable'); }
             foreach ($lines as $commitment) {
                 $line = database_transfer_chunk_line($handle, $commitment);
-                hash_update($hash, $line); $line = substr($line, offset: 0, length: -1);
+                hash_update($hash, $line); hash_update($hash, data: "\n");
                 $rows++; $values = DatabaseTransferRows::consumeLine($line, $table);
                 unset($line);
                 if ($consume === null) { yield $values; }
@@ -258,16 +258,23 @@ function database_transfer_chunk_commitments(#[\SensitiveParameter] string $bloc
  * @param \Tablo\DatabaseTransferArchive::ReadLine $commitment */
 function database_transfer_chunk_line(#[\SensitiveParameter] mixed $handle, array $commitment): string
 {
-    $line = '';
-    while (strlen($line) < $commitment['bytes']) {
-        $remaining = $commitment['bytes'] - strlen($line);
-        $fragment = NativeWarning::ignore(static fn () => fread($handle, $remaining));
+    $line = ''; $length = $commitment['bytes'] - 1;
+    if ($length < 0) { throw new DatabaseFailure('schema'); }
+    $remaining = 0;
+    $read = static function () use ($handle, &$remaining): string|false { return fread($handle, $remaining); };
+    while (strlen($line) < $length) {
+        $remaining = $length - strlen($line);
+        $fragment = NativeWarning::ignore($read);
         if ($fragment === false) { throw new DatabaseFailure('unavailable'); }
         if ($fragment === '') { throw new DatabaseFailure(feof($handle) ? 'schema' : 'unavailable'); }
         $line .= $fragment; unset($fragment);
     }
-    if (strlen($line) !== $commitment['bytes'] || !str_ends_with($line, "\n")
-        || !hash_equals($commitment['sha256'], hash('sha256', $line))) { throw new DatabaseFailure('schema'); }
+    $remaining = 1; $newline = NativeWarning::ignore($read);
+    if ($newline === false) { throw new DatabaseFailure('unavailable'); }
+    if ($newline === '') { throw new DatabaseFailure(feof($handle) ? 'schema' : 'unavailable'); }
+    if (strlen($line) !== $length || $newline !== "\n") { throw new DatabaseFailure('schema'); }
+    $hash = hash_init('sha256'); hash_update($hash, $line); hash_update($hash, $newline);
+    if (!hash_equals($commitment['sha256'], hash_final($hash))) { throw new DatabaseFailure('schema'); }
     return $line;
 }
 
