@@ -5,9 +5,12 @@ namespace Tablo\Tests\Unit;
 
 use Tablo\DatabaseFailure;
 use Tablo\DatabaseTransfer;
+use Tablo\DatabaseTransferManifest;
 use Tablo\DatabaseTransferRows;
 use Tablo\DatabaseTransferWire;
 use Tablo\JsonEncoding;
+use Tablo\JsonRecord;
+use Tablo\RequiredFile;
 use Tablo\DatabaseTransferVerification;
 use Tablo\ServerSchema;
 use Tablo\Tests\Support\TransferSqliteFixture;
@@ -113,6 +116,110 @@ function database_transfer_manifest_public_contract(): void
     $first->next();
     Assert::same($first->current()['name'], 'git_tokens');
     Assert::same($second->current()['name'], 'users');
+    database_transfer_header_public_oracles();
+}
+
+/** Public manifest bytes, ordered native values and independent aliases are the oracle. */
+function database_transfer_header_public_oracles(): void
+{
+    $fixture = new TransferSqliteFixture(); $source = null;
+    try {
+        $source = $fixture->source('header-source.sqlite'); $archive = $fixture->path('header-archive');
+        DatabaseTransfer::export($source, $fixture->vault, $archive, $fixture->path('header-export.sqlite'), offline: true); $source = null;
+        $wire = RequiredFile::bytes(file_get_contents($archive . '/manifest.json'));
+        $envelope = JsonRecord::decode($wire); $header = JsonRecord::checked($envelope['payload'] ?? null); $alias = $header;
+        database_transfer_header_case($fixture, $archive, $header, category: null);
+        database_transfer_header_case($fixture, $archive, array_reverse($header, preserve_keys: true), category: null);
+        $result = DatabaseTransferVerification::manifest($archive, $fixture->vault);
+        $result['header']['columns'][0]['columns'][0]['name'] = 'caller-change';
+        Assert::same($header, $alias); Assert::same(DatabaseTransferManifest::contract()[0]['columns'][0]['name'] ?? null, 'id');
+        database_transfer_header_refusals($fixture, $archive, $header);
+        database_transfer_header_descriptor_oracles($fixture, $archive, $header);
+        foreach ([' ' . $wire, $wire . "\n", str_replace('"payload":', replace: '"payload":null,"payload":', subject: $wire)] as $invalid) {
+            database_transfer_header_refuse($fixture, $archive, $invalid, DatabaseFailure::class, category: 'schema');
+        }
+        database_transfer_header_refuse($fixture, $archive, wire: '{', exception: \JsonException::class, category: null);
+        database_transfer_header_refuse($fixture, $archive, wire: 'null', exception: \RuntimeException::class, category: null);
+    } catch (\Throwable $error) { $fixture->directory->retainFailure($error); throw $error; }
+    finally { $source = null; $fixture->directory->close(); }
+}
+
+function database_transfer_header_refusals(TransferSqliteFixture $fixture, string $archive, array $header): void
+{
+    foreach ([null, false, 0, 0.0, -0.0, '', [], ['unexpected' => []]] as $columns) {
+        $changed = $header; $changed['columns'] = $columns;
+        database_transfer_header_case($fixture, $archive, $changed, category: 'schema');
+    }
+    foreach (['missing', 'extra', 'reordered', 'entry-order', 'column-order', 'nullable-integer'] as $fault) {
+        $changed = $header; $columns = JsonRecord::checked($header['columns'] ?? null);
+        $first = JsonRecord::checked($columns[0] ?? null); $fields = JsonRecord::checked($first['columns'] ?? null);
+        $column = JsonRecord::checked($fields[0] ?? null);
+        if ($fault === 'missing') { array_pop($columns); }
+        if ($fault === 'extra') { $columns[] = $first; }
+        if ($fault === 'reordered') { $columns = array_reverse($columns); }
+        if ($fault === 'entry-order') { $columns[0] = array_reverse($first, preserve_keys: true); }
+        if ($fault === 'column-order') { $fields[0] = array_reverse($column, preserve_keys: true); $first['columns'] = $fields; $columns[0] = $first; }
+        if ($fault === 'nullable-integer') { $column['nullable'] = 0; $fields[0] = $column; $first['columns'] = $fields; $columns[0] = $first; }
+        $changed['columns'] = $columns; $changed['verifier'] = 'invalid';
+        database_transfer_header_case($fixture, $archive, $changed, category: 'schema');
+    }
+    $changed = $header; $changed['verifier'] = 'invalid'; $changed['engine'] = 'unsupported';
+    database_transfer_header_case($fixture, $archive, $changed, category: 'schema', digestOverride: 'invalid');
+    database_transfer_header_case($fixture, $archive, $changed, category: 'key');
+    foreach (['columns', 'format', 'verifier', 'tables'] as $field) {
+        $changed = $header; unset($changed[$field]); database_transfer_header_case($fixture, $archive, $changed, category: 'schema');
+    }
+}
+
+/** Native fallback values are deliberately outside the packed descriptor's supported shape. */
+function database_transfer_header_descriptor_oracles(TransferSqliteFixture $fixture, string $archive, array $header): void
+{
+    $property = new \ReflectionProperty(DatabaseTransferManifest::class, 'dataTables');
+    /** @var \Tablo\DatabaseTransferManifest::Cache $saved Checked finite cache initialized by the independent public contract assertions. */
+    $saved = $property->getValue();
+    try {
+        foreach ([0, 0.0, -0.0] as $nullable) {
+            $cache = $saved; $cache[1][0][1] = [['name' => 'id', 'type' => 'bigint', 'nullable' => $nullable]];
+            $property->setValue(null, $cache);
+            database_transfer_header_descriptor_case($fixture, $archive, $header, is_int($nullable) ? null : 'schema');
+        }
+        foreach ([['field' => ['name' => 'id', 'type' => 'bigint', 'nullable' => false]],
+            [['nullable' => false, 'type' => 'bigint', 'name' => 'id']],
+            [['name' => 1.25, 'type' => 'bigint', 'nullable' => false]]] as $columns) {
+            $cache = $saved; $cache[1][0][1] = $columns; $property->setValue(null, $cache);
+            database_transfer_header_descriptor_case($fixture, $archive, $header, category: null);
+        }
+        $cache = $saved; $cache[1][15][1] = [['name' => NAN, 'type' => 'bigint', 'nullable' => false]];
+        $property->setValue(null, $cache); $header['format'] = 0; $header['columns'] = null;
+        $wire = JsonEncoding::encode(['payload' => $header, 'sha256' => 'invalid']);
+        database_transfer_header_refuse($fixture, $archive, $wire, \JsonException::class, category: null);
+    } finally { $property->setValue(null, $saved); }
+}
+
+function database_transfer_header_descriptor_case(TransferSqliteFixture $fixture, string $archive, array $header, ?string $category): void
+{
+    $header['layout'] = DatabaseTransferManifest::layout(); $header['columns'] = DatabaseTransferManifest::contract();
+    database_transfer_header_case($fixture, $archive, $header, $category);
+}
+
+function database_transfer_header_case(TransferSqliteFixture $fixture, string $archive, array $header, ?string $category, ?string $digestOverride = null): void
+{
+    $digest = hash('sha256', JsonEncoding::encode($header)); $before = $header;
+    $wire = JsonEncoding::encode(['payload' => $header, 'sha256' => $digestOverride ?? $digest]);
+    if ($category !== null) { database_transfer_header_refuse($fixture, $archive, $wire, DatabaseFailure::class, $category); return; }
+    Assert::same(file_put_contents($archive . '/manifest.json', $wire), strlen($wire));
+    $result = DatabaseTransferVerification::manifest($archive, $fixture->vault);
+    Assert::same($result, ['header' => $header, 'digest' => $digest]); Assert::same($header, $before);
+    Assert::same(RequiredFile::bytes(file_get_contents($archive . '/manifest.json')), $wire);
+}
+
+/** @param class-string<\Throwable> $exception */
+function database_transfer_header_refuse(TransferSqliteFixture $fixture, string $archive, string $wire, string $exception, ?string $category): void
+{
+    Assert::same(file_put_contents($archive . '/manifest.json', $wire), strlen($wire));
+    Assert::same(database_transfer_codec_failure(static fn (): array => DatabaseTransferVerification::manifest($archive, $fixture->vault)),
+        ['exception' => $exception, 'category' => $category, 'previous' => null, 'output' => '']);
+    Assert::same(RequiredFile::bytes(file_get_contents($archive . '/manifest.json')), $wire);
 }
 
 /** The unchanged public encoder is the independent byte oracle; this helper adds no test identity. */

@@ -138,7 +138,7 @@
                 "Composer analyze",
                 "Composer verify"
             ],
-            "fingerprint": "sha256:0a3c77fe06c269923e62c7f056796906584b6bd2aea5edc48ca0c162801993a4"
+            "fingerprint": "sha256:57f01d65d58fd9b04c242ce320e11d567c4877ad05be26e37d8702187d36f010"
         },
         {
             "path": "tests/Support/TransferPublicationFault.php",
@@ -1017,7 +1017,7 @@
                 "tests/Server/EngineTransferEnvelopeTest.php",
                 "tests/Support/TransferRowsAssertions.php"
             ],
-            "fingerprint": "sha256:ac1e439e64fb8a275924fcf3ebf855b602bca0fc2f5364e382e45c24cffe2021"
+            "fingerprint": "sha256:4b380dc4aeab84603be1310dba66e23cb95b26cac104e0080da1020470d89008"
         },
         {
             "path": "app/DeploymentFields.php",
