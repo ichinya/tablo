@@ -3144,7 +3144,7 @@
                 "Composer verify",
                 "Composer analyze"
             ],
-            "fingerprint": "sha256:e271ea2535d8e49c416b68add2686477ca38f1536e7bb7cd2b42a410585d8fbc"
+            "fingerprint": "sha256:355a2b6b9a1599cf839a4669b412c0f2fc6760eaddefbc39f28b3dadb7dac8a8"
         },
         {
             "path": "app/SchemaUpgrade.php",
