@@ -119,7 +119,7 @@ function database_transfer_manifest_public_contract(): void
     database_transfer_header_public_oracles();
 }
 
-/** Public manifest bytes, ordered native values and independent aliases are the oracle. */
+/** Public manifest bytes, key order and canonical cache isolation are the oracle. */
 function database_transfer_header_public_oracles(): void
 {
     $fixture = new TransferSqliteFixture(); $source = null;
@@ -127,13 +127,14 @@ function database_transfer_header_public_oracles(): void
         $source = $fixture->source('header-source.sqlite'); $archive = $fixture->path('header-archive');
         DatabaseTransfer::export($source, $fixture->vault, $archive, $fixture->path('header-export.sqlite'), offline: true); $source = null;
         $wire = RequiredFile::bytes(file_get_contents($archive . '/manifest.json'));
-        $envelope = JsonRecord::decode($wire); $header = JsonRecord::checked($envelope['payload'] ?? null); $alias = $header;
+        $envelope = JsonRecord::decode($wire); $header = JsonRecord::checked($envelope['payload'] ?? null);
         database_transfer_header_case($fixture, $archive, $header, category: null);
         database_transfer_header_case($fixture, $archive, array_reverse($header, preserve_keys: true), category: null);
         $result = DatabaseTransferVerification::manifest($archive, $fixture->vault);
         $result['header']['columns'][0]['columns'][0]['name'] = 'caller-change';
-        Assert::same($header, $alias); Assert::same(DatabaseTransferManifest::contract()[0]['columns'][0]['name'] ?? null, 'id');
+        Assert::same(DatabaseTransferManifest::contract()[0]['columns'][0]['name'] ?? null, 'id');
         database_transfer_header_refusals($fixture, $archive, $header);
+        database_transfer_header_numeric_object($fixture, $archive, $header);
         database_transfer_header_descriptor_oracles($fixture, $archive, $header);
         foreach ([' ' . $wire, $wire . "\n", str_replace('"payload":', replace: '"payload":null,"payload":', subject: $wire)] as $invalid) {
             database_transfer_header_refuse($fixture, $archive, $invalid, DatabaseFailure::class, category: 'schema');
@@ -169,6 +170,16 @@ function database_transfer_header_refusals(TransferSqliteFixture $fixture, strin
     foreach (['columns', 'format', 'verifier', 'tables'] as $field) {
         $changed = $header; unset($changed[$field]); database_transfer_header_case($fixture, $archive, $changed, category: 'schema');
     }
+}
+
+/** Correct numeric lookups do not make a differently ordered JSON object into a list. */
+function database_transfer_header_numeric_object(TransferSqliteFixture $fixture, string $archive, array $header): void
+{
+    $columns = JsonRecord::checked($header['columns'] ?? null);
+    $header['columns'] = array_replace([1 => $columns[1] ?? throw new \RuntimeException('Missing second fixed table.'),
+        0 => $columns[0] ?? throw new \RuntimeException('Missing first fixed table.')], $columns);
+    Assert::same(array_keys($header['columns']), [1, 0, ...range(2, end: 15)]);
+    database_transfer_header_case($fixture, $archive, $header, category: 'schema');
 }
 
 /** Native fallback values are deliberately outside the packed descriptor's supported shape. */
@@ -256,13 +267,69 @@ function database_transfer_codec_public_oracles(): void
     foreach ([null, '', 'ASCII punctuation !#$%&()*+,-.:;<=>?@[]^_`{|}~', $bytes, "\0\xff\xc0\x80", 'Café 🧪'] as $payload) {
         database_transfer_codec_value_case([null, PHP_INT_MIN, PHP_INT_MAX, $payload, 'Café 🧪'], $table);
     }
-    foreach ([3071, 3072, 3073, 4095, 4096, 4097, 90_000] as $size) {
+    foreach ([191, 192, 193, 383, 384, 385, 3071, 3072, 3073, 4095, 4096, 4097, 90_000] as $size) {
         database_transfer_codec_value_case([null, PHP_INT_MIN, PHP_INT_MAX, str_repeat('x', times: $size), null], $table);
     }
     database_transfer_codec_value_case([null, PHP_INT_MIN, PHP_INT_MAX, str_repeat("\xff", times: 90_000), ''], $table);
     $binary = ['name' => 'codec', 'columns' => [['name' => 'payload', 'type' => 'longblob', 'nullable' => true]], 'primary' => ['payload']];
     database_transfer_codec_wire_refusals($binary);
     database_transfer_codec_typed_refusals($binary);
+    database_transfer_codec_syntax_precedes_semantics();
+    database_transfer_codec_descriptor_fallback();
+}
+
+/** A malformed tail must not run validators that alter process-local parser state. */
+function database_transfer_codec_syntax_precedes_semantics(): void
+{
+    $time = ['name' => 'time', 'columns' => [['name' => 'created_at', 'type' => 'varbinary(20)', 'nullable' => false]], 'primary' => []];
+    \DateTimeImmutable::createFromFormat('!Y-m-d', '2026-02-31'); $before = \DateTimeImmutable::getLastErrors();
+    $wire = JsonEncoding::encode([['bytes', base64_encode('2026-01-01T00:00:00Z')]]) . 'x';
+    $line = $wire; $alias = $line;
+    $failure = database_transfer_codec_failure(static function () use (&$line, $time): array { return DatabaseTransferRows::consumeLine($line, $time); });
+    $after = \DateTimeImmutable::getLastErrors();
+    Assert::true($before !== false && $before['warning_count'] > 0); Assert::same($after, $before);
+    Assert::same($failure['exception'], \JsonException::class); Assert::same($line, $wire); Assert::same($alias, $wire);
+    foreach (['longtext' => '[["bytes","gA=="]]x', 'bigint' => '[["integer","01"]]x'] as $type => $malformed) {
+        $table = ['name' => 'state', 'columns' => [['name' => 'value', 'type' => $type, 'nullable' => false]], 'primary' => []];
+        preg_match('//u', $type === 'bigint' ? "\x80" : ''); $beforeRegex = preg_last_error(); $line = $malformed;
+        $failure = database_transfer_codec_failure(static function () use (&$line, $table): array { return DatabaseTransferRows::consumeLine($line, $table); });
+        $afterRegex = preg_last_error();
+        Assert::same($afterRegex, $beforeRegex); Assert::same($failure['exception'], \JsonException::class); Assert::same($line, $malformed);
+    }
+    $table = ['name' => 'json-state', 'columns' => [['name' => 'value', 'type' => 'longblob', 'nullable' => true]], 'primary' => []];
+    json_decode('{'); $beforeJson = json_last_error(); $line = '[["bytes","QQ=="]]';
+    $value = DatabaseTransferRows::consumeLine($line, $table); $afterJson = json_last_error();
+    Assert::same($beforeJson, JSON_ERROR_SYNTAX); Assert::same($afterJson, $beforeJson); Assert::same($value, ['A']); Assert::same($line, '');
+    json_decode('null');
+}
+
+/** Unsupported metadata reaches the original JSON-first decoder even under strict warnings. */
+function database_transfer_codec_descriptor_fallback(): void
+{
+    set_error_handler(static function (int $severity, string $message): never { throw new \ErrorException($message, code: 0, severity: $severity); });
+    try {
+        foreach ([['name' => 'value', 'type' => 'varbinary(999999999999999999999999)', 'nullable' => true],
+            ['name' => 'value', 'type' => 'longblob', 'nullable' => 0], ['name' => 'value', 'type' => null, 'nullable' => true]] as $column) {
+            $table = ['name' => 'fallback', 'columns' => [$column], 'primary' => []]; $wire = '[["bytes",""]]junk';
+            database_transfer_codec_unknown_columns_case($wire, $table);
+        }
+        $table = ['name' => 'fallback', 'columns' => ['value' => ['name' => 'value', 'type' => 'longblob', 'nullable' => true]], 'primary' => []];
+        $wire = '[["bytes","QQ=="]]junk'; database_transfer_codec_unknown_columns_case($wire, $table);
+        $table = ['name' => 'depth', 'columns' => [['name' => 'value', 'type' => 'longblob', 'nullable' => true]], 'primary' => []];
+        $wire = str_repeat('[', times: 17) . '0' . str_repeat(']', times: 17);
+        database_transfer_codec_failure_case($wire, $table, [\JsonException::class, null, $wire]);
+    } finally { restore_error_handler(); }
+}
+
+/** Reflection deliberately supplies unsupported native metadata to the public array parameters. */
+function database_transfer_codec_unknown_columns_case(string $wire, array $table): void
+{
+    $reference = new \ReflectionMethod(DatabaseTransferRows::class, 'line'); $consume = new \ReflectionMethod(DatabaseTransferRows::class, 'consumeLine');
+    $expected = database_transfer_codec_failure(static fn (): array => JsonRecord::checked($reference->invoke(null, $wire, $table)));
+    Assert::same($expected['exception'], \JsonException::class);
+    $line = $wire; $alias = $line; $arguments = [&$line, $table];
+    Assert::same(database_transfer_codec_failure(static fn (): array => JsonRecord::checked($consume->invokeArgs(null, $arguments))), $expected);
+    Assert::same($line, $wire); Assert::same($alias, $wire);
 }
 
 /** @return \Tablo\DatabaseTransferManifest::Table */
@@ -307,6 +374,7 @@ function database_transfer_codec_wire_refusals(array $table): void
 function database_transfer_codec_typed_refusals(array $table): void
 {
     foreach (['[["bytes","!"]]', '[["bytes","QQ"]]', '[["unknown","QQ=="]]',
+        '[["bytes","AB=="]]', '[["bytes","AAB="]]', '[["bytes","' . str_repeat('A', times: 254) . '==AAAA"]]',
         '[["integer","9223372036854775808"]]', '[["integer","01"]]', '[["integer","0"]]'] as $wire) {
         database_transfer_codec_failure_case($wire, $table, [DatabaseFailure::class, 'schema', '']);
     }
