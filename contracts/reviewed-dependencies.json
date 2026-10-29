@@ -188,7 +188,7 @@
                 "tools/server-io-uring-php-grammar.test.php",
                 "tools/server-supervisor-linux-fallback-unit.c"
             ],
-            "fingerprint": "sha256:8b77b09dd1f7e9da94f46521fa32cfe6d5281b1282b3ecddce278381f3afbdb6"
+            "fingerprint": "sha256:df9bd0933abe870d277fe0dcb696e0ab33c8af66254b1813d2e3cab69ceaf10b"
         },
         {
             "path": "app/AddressRange.php",
@@ -11437,7 +11437,7 @@
                 "tests/Server/EngineVerificationTest.php",
                 "tools/server-io-uring-php-grammar.test.php"
             ],
-            "fingerprint": "sha256:a461f52878bd87008644e6044ba014e874d121084cee989671fa7f417cada7b0"
+            "fingerprint": "sha256:614177b29f4080ebc83249cfcc123edb5a84f5908d0b10600c836eba855b7cd0"
         },
         {
             "path": "tests/ServerCross/EngineServerCrashTest.php",

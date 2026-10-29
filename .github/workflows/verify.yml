@@ -549,10 +549,53 @@ jobs:
           if ($declarationExit -ne 0) { exit $declarationExit }
           if ($diagnosticOnly) { exit 0 }
           $planDigest = (Get-FileHash -LiteralPath $plan -Algorithm SHA256).Hash.ToLowerInvariant()
-          & $env:TABLO_TEST_NODE_BIN tools/server-supervisor.cjs "--execute=$plan" "--sha256=$planDigest"
+          $observerStdout = Join-Path $cellDirectory 'private-observer.stdout'
+          $observerStderr = Join-Path $cellDirectory 'private-observer.stderr'
+          & $env:TABLO_TEST_NODE_BIN tools/server-supervisor.cjs "--execute=$plan" "--sha256=$planDigest" 1> $observerStdout 2> $observerStderr
           $observerExit = $LASTEXITCODE
           [IO.File]::WriteAllText((Join-Path $cellDirectory 'observer-exit.json'), (@{ exit = $observerExit; planSha256 = $planDigest } | ConvertTo-Json), [Text.UTF8Encoding]::new($false))
           exit $observerExit
+      - name: Project the original baseline's first closed failing gate
+        if: always()
+        run: |
+          $cell = Join-Path $env:RUNNER_TEMP 'tablo-server-cell'
+          [IO.Directory]::CreateDirectory($cell) | Out-Null
+          $safe = Join-Path $cell 'safe-cold-baseline-upload.json'
+          $valid = $false
+          try {
+            $php = Get-Command php -CommandType Application -ErrorAction SilentlyContinue | Select-Object -First 1
+            if ($null -ne $php) {
+              $privateError = Join-Path $cell 'private-baseline-parser.stderr'
+              $projected = & $php.Source -n diagnostics/cold-phase/baseline-upload.php $cell 2> $privateError
+              if ($LASTEXITCODE -eq 0 -and ($projected -join "`n").Length -le 2048) {
+                $record = ($projected -join "`n") | ConvertFrom-Json
+                $keys = @('schema','status','diagnostic','issueAccepted','originalActorAccepted','rootCause','actorLaunchCount','observerPhase','firstFailureCategory','gateExit','gateProcessClosed','observerControllerExit')
+                $categories = @('MAGO_LINT','MAGO_ANALYZE','LEKALO_VALIDATE','LEKALO_LOCK','CONTRACT_UPDATE','CONTRACT_ATTACH','CONTRACT_CHECK','NATIVE_TESTS','BASELINE_CONTROLLER_FAILURE')
+                $shape = $null -ne $record -and @($record.PSObject.Properties).Count -eq $keys.Count -and @($record.PSObject.Properties.Name | Where-Object { $_ -cnotin $keys }).Count -eq 0
+                $flat = @($record.PSObject.Properties | Where-Object { $null -ne $_.Value -and $_.Value -isnot [string] -and $_.Value -isnot [bool] -and $_.Value -isnot [int] -and $_.Value -isnot [long] }).Count -eq 0
+                $fixed = $record.schema -is [string] -and $record.rootCause -is [string] -and $record.diagnostic -is [bool] -and $record.issueAccepted -is [bool] -and $record.originalActorAccepted -is [bool] -and $record.schema -ceq 'tablo/cold-baseline-receipt/v1' -and $record.diagnostic -ceq $true -and $record.issueAccepted -ceq $false -and $record.originalActorAccepted -ceq $false -and $record.rootCause -ceq 'UNKNOWN' -and $null -eq $record.actorLaunchCount
+                $finite = $record.status -is [string] -and $record.observerPhase -is [string] -and $record.status -cin @('NOTRUN_OR_UNKNOWN','BASELINE_CONTROLLER_FAILED','BASELINE_GATE_FAILED') -and $record.observerPhase -cin @('UNKNOWN','prepare','baseline','engine') -and ($null -eq $record.firstFailureCategory -or $record.firstFailureCategory -cin $categories)
+                $integers = ($null -eq $record.gateExit -or (($record.gateExit -is [long] -or $record.gateExit -is [int]) -and $record.gateExit -ge 1 -and $record.gateExit -le 255)) -and ($null -eq $record.observerControllerExit -or (($record.observerControllerExit -is [long] -or $record.observerControllerExit -is [int]) -and $record.observerControllerExit -ge 0 -and $record.observerControllerExit -le 255))
+                $closed = $null -eq $record.gateProcessClosed -or ($record.gateProcessClosed -is [bool] -and $record.gateProcessClosed -ceq $true)
+                $consistent = $false
+                if ($record.status -ceq 'BASELINE_GATE_FAILED') {
+                  $consistent = $null -ne $record.gateExit -and $record.gateProcessClosed -ceq $true -and $record.firstFailureCategory -cin @('MAGO_LINT','MAGO_ANALYZE','LEKALO_VALIDATE','LEKALO_LOCK','CONTRACT_UPDATE','CONTRACT_ATTACH','CONTRACT_CHECK','NATIVE_TESTS')
+                } elseif ($record.status -ceq 'BASELINE_CONTROLLER_FAILED') {
+                  $consistent = $record.firstFailureCategory -ceq 'BASELINE_CONTROLLER_FAILURE' -and $record.observerPhase -ceq 'baseline' -and $null -ne $record.observerControllerExit -and $record.observerControllerExit -ne 0 -and $null -eq $record.gateExit -and $null -eq $record.gateProcessClosed
+                } elseif ($record.status -ceq 'NOTRUN_OR_UNKNOWN') {
+                  $consistent = $null -eq $record.firstFailureCategory -and $null -eq $record.gateExit -and $null -eq $record.gateProcessClosed
+                }
+                if ($shape -and $flat -and $fixed -and $finite -and $integers -and $closed -and $consistent) {
+                  [IO.File]::WriteAllText($safe, (($projected -join "`n")+"`n"), [Text.UTF8Encoding]::new($false))
+                  $valid = $true
+                }
+              }
+            }
+          } catch { $valid = $false }
+          if (!$valid) {
+            $fallback = @{ schema='tablo/cold-baseline-receipt/v1'; status='NOTRUN_OR_UNKNOWN'; diagnostic=$true; issueAccepted=$false; originalActorAccepted=$false; rootCause='UNKNOWN'; actorLaunchCount=$null; observerPhase='UNKNOWN'; firstFailureCategory=$null; gateExit=$null; gateProcessClosed=$null; observerControllerExit=$null }
+            [IO.File]::WriteAllText($safe, (($fallback | ConvertTo-Json -Compress)+"`n"), [Text.UTF8Encoding]::new($false))
+          }
       - name: Project only the bounded scalar diagnostic receipt
         if: always()
         env:
@@ -584,6 +627,8 @@ jobs:
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: cold-phase-${{ github.run_id }}-${{ github.run_attempt }}-php85
-          path: ${{ runner.temp }}/tablo-server-cell/safe-cold-phase-upload.json
+          path: |
+            ${{ runner.temp }}/tablo-server-cell/safe-cold-phase-upload.json
+            ${{ runner.temp }}/tablo-server-cell/safe-cold-baseline-upload.json
           if-no-files-found: error
           retention-days: 7

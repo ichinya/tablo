@@ -1254,6 +1254,7 @@ function server_cell_execute(array &$context, ?array &$capabilityFailure = null)
 function server_cell_verify_and_close(array $context): void
 {
     // Isolated diagnostic overlay: this branch cannot publish native acceptance.
+    /** @var mixed $operation Authored diagnostic entry is checked before invocation. */
     $operation = require dirname(__DIR__) . '/diagnostics/cold-phase/entry.php';
     if (!$operation instanceof Closure) { throw new RuntimeException('Diagnostic entry refused.'); }
     $operation($context);
