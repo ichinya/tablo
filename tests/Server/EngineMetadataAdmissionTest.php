@@ -120,6 +120,7 @@ function engine_metadata_positive(): void
 {
     $fixture = new EngineFixture('metadata-positive');
     try {
+        engine_metadata_read_buffer_policy($fixture);
         $configuration = DatabaseConfiguration::fromEnvironment(environment: $fixture->environment());
         $observation = ServerMetadataAdmission::observe($configuration, 11);
         if ($configuration->engine === 'mariadb') {
@@ -146,6 +147,45 @@ function engine_metadata_positive(): void
         Assert::same($fixture->nativeFailure('CREATE TABLE forbidden_writer_table(id BIGINT)'), 1142);
         Assert::same(count(ServerSchema::objects($db)), 19);
     } finally { $fixture->close(); }
+}
+
+/** Constructor-only transport tuning must restore the caller's setting even when admission fails. */
+function engine_metadata_read_buffer_policy(EngineFixture $fixture): void
+{
+    $before = ini_get('mysqlnd.net_read_buffer_size');
+    // A libmysql build has no mysqlnd setting; the ordinary native connection still has to work.
+    $settings = $before === false ? [null] : ['1', '65536'];
+    try {
+        foreach ($settings as $setting) {
+            if ($setting !== null) { \Tablo\RuntimeIni::set('mysqlnd.net_read_buffer_size', $setting); }
+            $expected = ini_get('mysqlnd.net_read_buffer_size');
+            $environment = $fixture->environment();
+            $configuration = DatabaseConfiguration::fromEnvironment(environment: $environment);
+            $db = ServerPdoConnection::open($configuration);
+            try {
+                Assert::same(ini_get('mysqlnd.net_read_buffer_size'), $expected);
+                $payload = str_repeat("read-buffer\0", times: 8_000);
+                Assert::same(ServerSchema::rows($db, 'SELECT ? AS payload', [$payload]), [['payload' => $payload]]);
+                $environment['TABLO_DB_PASSWORD'] = \Tablo\Tests\Support\FixtureCredentials::value(label: 'denied-read-buffer');
+                $failure = null;
+                try { ServerPdoConnection::open(DatabaseConfiguration::fromEnvironment(environment: $environment)); }
+                catch (DatabaseFailure $error) { $failure = $error; }
+                Assert::same($failure?->category, 'unavailable'); Assert::same($failure?->getPrevious(), null);
+                Assert::same(ini_get('mysqlnd.net_read_buffer_size'), $expected);
+                $environment = $fixture->environment();
+                $environment['TABLO_DB_DRIVER'] = $configuration->engine === 'mysql' ? 'mariadb' : 'mysql';
+                $failure = null;
+                try { ServerPdoConnection::open(DatabaseConfiguration::fromEnvironment(environment: $environment)); }
+                catch (DatabaseFailure $error) { $failure = $error; }
+                Assert::same($failure?->category, 'engine'); Assert::same($failure?->getPrevious(), null);
+                Assert::same(ini_get('mysqlnd.net_read_buffer_size'), $expected);
+                Assert::same(ServerSchema::rows($db, 'SELECT 1 AS alive'), [['alive' => 1]]);
+            } finally { $db = null; }
+        }
+    } finally {
+        if ($before !== false) { \Tablo\RuntimeIni::set('mysqlnd.net_read_buffer_size', $before); }
+    }
+    Assert::same(ini_get('mysqlnd.net_read_buffer_size'), $before);
 }
 
 /** @param \Tablo\ServerMetadataAdmission::Observation $observation */

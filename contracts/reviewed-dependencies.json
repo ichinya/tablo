@@ -908,7 +908,7 @@
                 "app/DatabaseTransferVerification.php",
                 "tests/Support/TransferRowsAssertions.php"
             ],
-            "fingerprint": "sha256:d8dd1630d851fbfe3a470e8fe0ddf56108f1e215c49a8eb4ff1d72ca307976c3"
+            "fingerprint": "sha256:1f17aba56abb263755f94685f790c4858bc461d57ab2a95bded2cd566d7d551d"
         },
         {
             "path": "app/DatabaseTransferImport.php",
@@ -972,7 +972,7 @@
                 "tests/Server/EngineTransferEnvelopeTest.php",
                 "tests/Support/TransferRowsAssertions.php"
             ],
-            "fingerprint": "sha256:2ab5ccefd3f62ef4f3b8879ed18edc84b67acf119a16c89040b7999d2e156ae7"
+            "fingerprint": "sha256:0bd62febfa0b784a8f04b94d5855514c5ea32ad95ca7257867e30a0ac1028aee"
         },
         {
             "path": "app/DatabaseTransferSequence.php",
@@ -1017,7 +1017,7 @@
                 "tests/Server/EngineTransferEnvelopeTest.php",
                 "tests/Support/TransferRowsAssertions.php"
             ],
-            "fingerprint": "sha256:4b380dc4aeab84603be1310dba66e23cb95b26cac104e0080da1020470d89008"
+            "fingerprint": "sha256:ac1e439e64fb8a275924fcf3ebf855b602bca0fc2f5364e382e45c24cffe2021"
         },
         {
             "path": "app/DeploymentFields.php",
@@ -3023,7 +3023,7 @@
                 "Composer verify",
                 "Composer analyze"
             ],
-            "fingerprint": "sha256:4948a685cd94ced7ac77dcec54a82d33f13d7e46af84cb3f3f836c930bfb0c3b"
+            "fingerprint": "sha256:091df1e828e5e0d269308855899ad5c4aa967783782f94bd7d35cff04c591781"
         },
         {
             "path": "app/SavedGitTokenInput.php",
@@ -11552,7 +11552,7 @@
                 "app/ServerMetadataAdmission.php",
                 "tests/Server/EngineMetadataAdmissionTest.php"
             ],
-            "fingerprint": "sha256:8b1b1691b290b3fd38c78dc4d6f7bcc44beec322cac3315ecbd1ae3e2026f1c0"
+            "fingerprint": "sha256:5e27a0860d5e7122087719d1b2ff2a7f8a08482b0db5cd096d1e907fcb8b34d1"
         },
         {
             "path": "app/ServerMetadataIdentity.php",
@@ -11610,7 +11610,7 @@
                 "Composer verify:server",
                 "All native binding admission prerequisites"
             ],
-            "fingerprint": "sha256:06ce77a978e0939e946d6a47aef8f38dd1872076ef365fe30c832e645f9de2af"
+            "fingerprint": "sha256:a575cb771af733a381011682fb463b04368b8f834d6c3cef04a4a6f0c51db350"
         },
         {
             "path": "tools/server-supervisor-linux.c",

@@ -116,10 +116,9 @@ function database_transfer_header_manifest(#[\SensitiveParameter] string $direct
     database_transfer_receipt_keys($header, ['format', 'engine', 'logicalVersion', 'layout', 'columns', 'installation', 'verifier', 'sequences', 'watermark', 'tables']);
     /** @var array{format: mixed, engine: mixed, logicalVersion: mixed, layout: mixed, columns: mixed, installation: mixed, verifier: mixed, sequences: mixed, watermark: mixed, tables: mixed} $header Exact keys checked above. */
     $digest = hash('sha256', JsonEncoding::encode($header));
-    $layout = DatabaseTransferManifest::layout();
-    $columnsMatch = database_transfer_header_columns_match($header['columns']);
-    if ([$header['format'], $header['logicalVersion'], $header['layout']] !== [1, 11, $layout]
-        || !$columnsMatch || ($envelope['sha256']) !== $digest) { throw new DatabaseFailure('schema'); }
+    $expected = [1, 11, DatabaseTransferManifest::layout(), DatabaseTransferManifest::contract()];
+    if ([$header['format'], $header['logicalVersion'], $header['layout'], $header['columns']] !== $expected
+        || ($envelope['sha256']) !== $digest) { throw new DatabaseFailure('schema'); }
     $installation = SqlColumn::string($header, 'installation');
     if (!hash_equals($vault->serverVerifier($installation), SqlColumn::string($header, 'verifier'))) { throw new DatabaseFailure('key'); }
     if (!in_array($header['engine'], ['sqlite', 'mysql', 'mariadb'], strict: true)) { throw new DatabaseFailure('schema'); }
@@ -134,24 +133,9 @@ function database_transfer_header_manifest(#[\SensitiveParameter] string $direct
         if ($chunks > DatabaseTransferManifest::MAX_CHUNKS) { throw new DatabaseFailure('schema'); }
     }
     if ($names !== DatabaseTransferManifest::TABLES) { throw new DatabaseFailure('schema'); }
-    unset($envelope);
-    // Preserve the public key position while releasing the decoded graph before canonical reuse.
-    $header['columns'] = [];
-    $header['columns'] = DatabaseTransferManifest::contract();
+    $header['columns'] = $expected[3];
     /** @var \Tablo\DatabaseTransferManifest::Header $header Structure and finite identities validated above. */
     return ['header' => $header, 'digest' => $digest];
-}
-
-/** Compare the complete fixed contract without retaining a second column graph. */
-function database_transfer_header_columns_match(#[\SensitiveParameter] mixed $input): bool
-{
-    $matches = is_array($input) && array_is_list($input); $count = 0;
-    $input = is_array($input) ? $input : [];
-    foreach (DatabaseTransferManifest::iterate() as $index => $table) {
-        $matches = (($input[$index] ?? null) === ['name' => $table['name'], 'columns' => $table['columns']]) && $matches;
-        $count++; unset($table);
-    }
-    return count($input) === $count && $matches;
 }
 
 
