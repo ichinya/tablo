@@ -2703,6 +2703,48 @@
             "initial": "ready"
           }
         ]
+      },
+      {
+        "identity": "Tablo\\Tests\\Server\\EngineMigrationDeniedRemainingDdlTest::deniedCreateStep18SelfUpdate",
+        "path": "tests/Server/EngineMigrationDeniedRemainingDdlTest.php",
+        "dataRows": [],
+        "minimumAssertions": 1,
+        "deadlineSeconds": 8,
+        "fixtures": [
+          {
+            "alias": "migration-denied-ddl-18",
+            "engine": "selected",
+            "initial": "empty"
+          }
+        ]
+      },
+      {
+        "identity": "Tablo\\Tests\\Server\\EngineMigrationDuplicateRemainingDdlTest::duplicateCreateAfterStep18SelfUpdate",
+        "path": "tests/Server/EngineMigrationDuplicateRemainingDdlTest.php",
+        "dataRows": [],
+        "minimumAssertions": 1,
+        "deadlineSeconds": 8,
+        "fixtures": [
+          {
+            "alias": "migration-duplicate-ddl-18",
+            "engine": "selected",
+            "initial": "empty"
+          }
+        ]
+      },
+      {
+        "identity": "Tablo\\Tests\\Server\\EngineMigrationPreviousTest::actualTenToElevenPreservesApiCredentialsAndEveryPredecessorRow",
+        "path": "tests/Server/EngineMigrationPreviousTest.php",
+        "dataRows": [],
+        "minimumAssertions": 1,
+        "deadlineSeconds": 8,
+        "fixtures": [
+          {
+            "alias": "migration-ten",
+            "engine": "selected",
+            "initial": "empty"
+          }
+        ]
       }
     ],
     "cross": [
@@ -4215,10 +4257,71 @@
       "requiredFamilies": [
         "History"
       ]
+    },
+    "dashboard.get_self_update": {
+      "kind": "query",
+      "main": [
+        "tests/Server/EngineWorkerTest.php",
+        "tests/Server/EngineFlowTest.php",
+        "tests/Server/EngineMigrationPreviousTest.php"
+      ],
+      "cross": [],
+      "requiredFamilies": [
+        "Worker",
+        "Flow",
+        "MigrationPrevious"
+      ]
+    },
+    "dashboard.update_self_update_settings": {
+      "kind": "command",
+      "main": [
+        "tests/Server/EngineWorkerTest.php",
+        "tests/Server/EngineFlowTest.php",
+        "tests/Server/EngineMigrationPreviousTest.php"
+      ],
+      "cross": [],
+      "requiredFamilies": [
+        "Worker",
+        "Flow",
+        "MigrationPrevious"
+      ]
+    },
+    "dashboard.check_self_update": {
+      "kind": "command",
+      "main": [
+        "tests/Server/EngineWorkerTest.php",
+        "tests/Server/EngineFlowTest.php",
+        "tests/Server/EngineMigrationPreviousTest.php"
+      ],
+      "cross": [],
+      "requiredFamilies": [
+        "Worker",
+        "Flow",
+        "MigrationPrevious"
+      ]
+    },
+    "dashboard.self_update": {
+      "kind": "entity",
+      "main": [
+        "tests/Server/EngineMigrationFreshTest.php",
+        "tests/Server/EngineMigrationPreviousTest.php",
+        "tests/Server/EngineWorkerTest.php",
+        "tests/Server/EngineTransferTest.php"
+      ],
+      "cross": [
+        "tests/ServerCross/EngineCrossTransferTest.php"
+      ],
+      "requiredFamilies": [
+        "MigrationFresh",
+        "MigrationPrevious",
+        "Worker",
+        "Transfer",
+        "CrossTransfer"
+      ]
     }
   },
   "baseline": {
-    "requiredIdentityCount": 528,
+    "requiredIdentityCount": 548,
     "identities": [
       {
         "identity": "Tablo\\Tests\\Http\\AdminPasswordTest::resetRevokesEveryProtectedRouteAndPreservesSetupAndData",
@@ -7915,6 +8018,146 @@
         "dataRows": [],
         "minimumAssertions": 1,
         "deadlineSeconds": null
+      },
+      {
+        "identity": "Tablo\\Tests\\Unit\\SelfUpdateComparisonTest::distinguishesDirectionDivergenceMissingInstalledAndExactBranch",
+        "path": "tests/Unit/SelfUpdateComparisonTest.php",
+        "dataRows": [],
+        "minimumAssertions": 1,
+        "deadlineSeconds": null
+      },
+      {
+        "identity": "Tablo\\Tests\\Unit\\SelfUpdateComparisonTest::retainsObservedForcePushAcrossIdenticalRepeatedResults",
+        "path": "tests/Unit/SelfUpdateComparisonTest.php",
+        "dataRows": [],
+        "minimumAssertions": 1,
+        "deadlineSeconds": null
+      },
+      {
+        "identity": "Tablo\\Tests\\Unit\\SelfUpdateFailureTest::sharedRateLimitDefersRetriesAndStopPreventsLaterRequests",
+        "path": "tests/Unit/SelfUpdateFailureTest.php",
+        "dataRows": [],
+        "minimumAssertions": 1,
+        "deadlineSeconds": null
+      },
+      {
+        "identity": "Tablo\\Tests\\Unit\\SelfUpdateFailureTest::invalidComparisonOrDifferentBranchCannotInventCurrentOrUpdate",
+        "path": "tests/Unit/SelfUpdateFailureTest.php",
+        "dataRows": [],
+        "minimumAssertions": 1,
+        "deadlineSeconds": null
+      },
+      {
+        "identity": "Tablo\\Tests\\Unit\\SelfUpdateFencingTest::singleClaimAndRevisionBindingRejectExpiredConfigurationAndBuildResults",
+        "path": "tests/Unit/SelfUpdateFencingTest.php",
+        "dataRows": [],
+        "minimumAssertions": 1,
+        "deadlineSeconds": null
+      },
+      {
+        "identity": "Tablo\\Tests\\Unit\\SelfUpdateMigrationTest::additiveTenToElevenPreservesRowsAndRollsBackAtEveryPublicationStage",
+        "path": "tests/Unit/SelfUpdateMigrationTest.php",
+        "dataRows": [],
+        "minimumAssertions": 1,
+        "deadlineSeconds": null
+      },
+      {
+        "identity": "Tablo\\Tests\\Unit\\SelfUpdateScheduleTest::usesSixHourDueTimeAndBoundedRetriesWithoutErasingLastSuccess",
+        "path": "tests/Unit/SelfUpdateScheduleTest.php",
+        "dataRows": [],
+        "minimumAssertions": 1,
+        "deadlineSeconds": null
+      },
+      {
+        "identity": "Tablo\\Tests\\Unit\\SelfUpdateScheduleTest::missingMetadataNeverFetchesRemoteHeadAndDoesNotClaimSuccessfulVerification",
+        "path": "tests/Unit/SelfUpdateScheduleTest.php",
+        "dataRows": [],
+        "minimumAssertions": 1,
+        "deadlineSeconds": null
+      },
+      {
+        "identity": "Tablo\\Tests\\Unit\\SelfUpdateWorkerTest::pollsUpdateDueIndependentlyWithNoSitesAndOneDaySiteInterval",
+        "path": "tests/Unit/SelfUpdateWorkerTest.php",
+        "dataRows": [],
+        "minimumAssertions": 1,
+        "deadlineSeconds": null
+      },
+      {
+        "identity": "Tablo\\Tests\\Http\\SelfUpdateTest::authenticatedBannerAndPollingReadPersistedNoticeWithoutProviderRequestsOrMutation",
+        "path": "tests/Http/SelfUpdateTest.php",
+        "dataRows": [],
+        "minimumAssertions": 1,
+        "deadlineSeconds": null
+      },
+      {
+        "identity": "Tablo\\Tests\\Http\\SelfUpdateTest::selfUpdateSettingsRequireSessionAndCsrfAndCommitOnlyValidatedValues",
+        "path": "tests/Http/SelfUpdateTest.php",
+        "dataRows": [],
+        "minimumAssertions": 1,
+        "deadlineSeconds": null
+      },
+      {
+        "identity": "Tablo\\Tests\\Unit\\SelfUpdateWorkerTest::dueCheckRunsBetweenSitesDuringAnEightHourPassWithoutStarvingSites",
+        "path": "tests/Unit/SelfUpdateWorkerTest.php",
+        "dataRows": [],
+        "minimumAssertions": 1,
+        "deadlineSeconds": null
+      },
+      {
+        "identity": "Tablo\\Tests\\Unit\\SelfUpdateWorkerTest::stopBetweenSitesSkipsBothDueUpdateAndTheNextSite",
+        "path": "tests/Unit/SelfUpdateWorkerTest.php",
+        "dataRows": [],
+        "minimumAssertions": 1,
+        "deadlineSeconds": null
+      },
+      {
+        "identity": "Tablo\\Tests\\Unit\\SelfUpdateWorkerTest::storageAndUnexpectedRuntimeFailuresEscapeBeforeSiteNetworkOrRetryWrites",
+        "path": "tests/Unit/SelfUpdateWorkerTest.php",
+        "dataRows": [],
+        "minimumAssertions": 1,
+        "deadlineSeconds": null
+      },
+      {
+        "identity": "Tablo\\Tests\\Unit\\SelfUpdateWorkerTest::confirmedTransportAndGitHubFailuresStillAllowSiteMonitoring",
+        "path": "tests/Unit/SelfUpdateWorkerTest.php",
+        "dataRows": [],
+        "minimumAssertions": 1,
+        "deadlineSeconds": null
+      },
+      {
+        "identity": "Tablo\\Tests\\Unit\\SelfUpdateFailureTest::stopReleasesClaimAndRestartChecksImmediatelyWithoutSpendingRetryBudget",
+        "path": "tests/Unit/SelfUpdateFailureTest.php",
+        "dataRows": [],
+        "minimumAssertions": 1,
+        "deadlineSeconds": null
+      },
+      {
+        "identity": "Tablo\\Tests\\Network\\WorkerSharedFailureTest::realCliReadonlySelfUpdateClaimFailsBeforeHealthAndPreservesSuccessDespiteFailedFinish",
+        "path": "tests/Network/WorkerSharedFailureTest.php",
+        "dataRows": [],
+        "minimumAssertions": 1,
+        "deadlineSeconds": null
+      },
+      {
+        "identity": "Tablo\\Tests\\Unit\\SelfUpdateComparisonTest::reusesInstalledComparisonForObservedTransitionWithoutLosingStopOrForcePushRules",
+        "path": "tests/Unit/SelfUpdateComparisonTest.php",
+        "dataRows": [],
+        "minimumAssertions": 1,
+        "deadlineSeconds": null
+      },
+      {
+        "identity": "Tablo\\Tests\\Unit\\SelfUpdateComparisonTest::exhaustedQuotaOnSuccessfulComparisonDoesNotTurnReusedEvidenceIntoFailure",
+        "path": "tests/Unit/SelfUpdateComparisonTest.php",
+        "dataRows": [],
+        "minimumAssertions": 1,
+        "deadlineSeconds": null
+      },
+      {
+        "identity": "Tablo\\Tests\\Unit\\SelfUpdateScheduleTest::invalidBranchMetadataBecomesNoDataWhileValidNamesKeepTheirExactEncodedPath",
+        "path": "tests/Unit/SelfUpdateScheduleTest.php",
+        "dataRows": [],
+        "minimumAssertions": 1,
+        "deadlineSeconds": null
       }
     ],
     "prerequisite": "Unchanged Composer verify with explicitly isolated SQLite configuration; source/dependency refusal must happen before native subprocesses.",
@@ -7930,8 +8173,8 @@
       "identity": "Tablo\\Tests\\Network\\PasswordHelperTest::shippedHelperPreservesHostEncodingAndExactCredentials",
       "path": "tests/Network/PasswordHelperTest.php",
       "reason": "Native Windows PowerShell host required.",
-      "windowsPassed": 528,
-      "linuxPassed": 521,
+      "windowsPassed": 548,
+      "linuxPassed": 541,
       "additionalSkips": [
         {
           "identity": "Tablo\\Tests\\Network\\PasswordHelperFixtureObservationTest::preHelperStallEmitsEntryWhileNativeStagesRemainUnobserved",
@@ -8210,8 +8453,8 @@
   },
   "ddlFailureQualification": {
     "source": "tests/Server/EngineMigrationFailureTest.php",
-    "independentCases": 36,
-    "stepsPerMechanism": 18,
+    "independentCases": 38,
+    "stepsPerMechanism": 19,
     "cases": [
       {
         "identity": "Tablo\\Tests\\Server\\EngineMigrationDeniedDdlTest::deniedCreateStep00TabloMigrationJournal",
@@ -8571,6 +8814,26 @@
         "phase": "after-ddl",
         "expectedNativeCode": 1050,
         "fixtureAlias": "migration-duplicate-ddl-17",
+        "nativeStatus": "NOTRUN"
+      },
+      {
+        "identity": "Tablo\\Tests\\Server\\EngineMigrationDeniedRemainingDdlTest::deniedCreateStep18SelfUpdate",
+        "path": "tests/Server/EngineMigrationDeniedRemainingDdlTest.php",
+        "step": 18,
+        "table": "self_update",
+        "phase": "before-ddl",
+        "expectedNativeCode": 1142,
+        "fixtureAlias": "migration-denied-ddl-18",
+        "nativeStatus": "NOTRUN"
+      },
+      {
+        "identity": "Tablo\\Tests\\Server\\EngineMigrationDuplicateRemainingDdlTest::duplicateCreateAfterStep18SelfUpdate",
+        "path": "tests/Server/EngineMigrationDuplicateRemainingDdlTest.php",
+        "step": 18,
+        "table": "self_update",
+        "phase": "after-ddl",
+        "expectedNativeCode": 1050,
+        "fixtureAlias": "migration-duplicate-ddl-18",
         "nativeStatus": "NOTRUN"
       }
     ],
@@ -8945,5 +9208,15 @@
     "approvedFixItems": 12,
     "migrationCallerPreservation": "Latent guard gap: both migration state entry points refuse before transaction control and publication barriers; real raw/WriteTransaction caller regressions authored, NOTRUN.",
     "transferCliRefusal": "Three malformed public CLI invocations require configuration refusal before synthetic key/database/filesystem allocation; three sequential direct children, each bounded to 2s, total native case 8s; NOTRUN."
+  },
+  "selfUpdateQualification": {
+    "source": "Issue35 authored native coverage; all previous baseline identities retained",
+    "baselineAdded": 20,
+    "baselineTotal": 548,
+    "mainAdded": 3,
+    "mainTotal": 197,
+    "crossTotal": 6,
+    "nativeStatus": "NOTRUN",
+    "caps": "Unchanged64catalogs/8s native/20s HTTP/2MiB working-data limits"
   }
 }

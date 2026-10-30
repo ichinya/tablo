@@ -1,5 +1,9 @@
 ARG PHP_IMAGE=php:8.4-apache
 FROM ${PHP_IMAGE}
+ARG TABLO_BUILD_REPOSITORY=ichinya/tablo
+ARG TABLO_BUILD_BRANCH=
+ARG TABLO_BUILD_SHA=
+ENV TABLO_BUILD_REPOSITORY=${TABLO_BUILD_REPOSITORY} TABLO_BUILD_BRANCH=${TABLO_BUILD_BRANCH} TABLO_BUILD_SHA=${TABLO_BUILD_SHA}
 
 # Pinned upstream release containing the WAL-reset fix. sqlite3.c SHA3 and source ID:
 # https://sqlite.org/releaselog/3_53_4.html (inherits the 3.51.3 WAL-reset fix).

@@ -45,9 +45,9 @@ final class EngineMigrationProcessTest
             $contenderId = self::result($contender->finish(self::remaining($deadline)), "ENGINE_MIGRATION_READY\nENGINE_MIGRATION_CONTENDED\n");
             Assert::true($ownerId !== $contenderId);
             Assert::same(RequiredFile::digest($receipt), $receiptDigest);
-            Assert::same(count(ServerSchema::objects($observer)), 18);
-            Assert::same($fixture->scalar("SELECT COUNT(*) FROM tablo_migration_journal WHERE phase = 'done'", $observer), 18);
-            Assert::same((new ServerMigration($observer, $fixture->vault))->status(), ['format' => 1, 'logical_version' => 10, 'phase' => 'ready']);
+            Assert::same(count(ServerSchema::objects($observer)), 19);
+            Assert::same($fixture->scalar("SELECT COUNT(*) FROM tablo_migration_journal WHERE phase = 'done'", $observer), 19);
+            Assert::same((new ServerMigration($observer, $fixture->vault))->status(), ['format' => 1, 'logical_version' => 11, 'phase' => 'ready']);
         } catch (\Throwable $error) {
             $primary = $error; $directory->retainFailure($error); throw $error;
         } finally {
@@ -69,7 +69,7 @@ final class EngineMigrationProcessTest
         Assert::same($result['exit_code'], 0); Assert::same($result['stderr'], '');
         Assert::true(str_starts_with($result['stdout'], $prefix));
         $record = JsonRecord::decode(substr($result['stdout'], offset: strlen($prefix)));
-        Assert::same([$record['status'] ?? null, $record['phase'] ?? null, $record['version'] ?? null], ['passed', 'ready', 10]);
+        Assert::same([$record['status'] ?? null, $record['phase'] ?? null, $record['version'] ?? null], ['passed', 'ready', 11]);
         return DatabaseInteger::positive($record['connectionId'] ?? null);
     }
 }

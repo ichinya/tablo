@@ -72,7 +72,7 @@ function database_transfer_value_primary(array $table, #[\SensitiveParameter] ar
 function database_transfer_sqlite_target_sqlite(PDO $scratch, array $header): void
 {
     DatabaseTransferSequence::apply($scratch, $header['sequences'], $header['watermark']);
-    $scratch->exec('PRAGMA main.user_version = 10');
+    $scratch->exec('PRAGMA main.user_version = 11');
     if (ServerSchema::rows($scratch, 'PRAGMA foreign_key_check') !== []) { throw new DatabaseFailure('schema'); }
 }
 
@@ -85,7 +85,7 @@ function database_transfer_cursor_table(PDO $db, #[\SensitiveParameter] string $
 {
     $plan = $position['plan']; $step = $position['step'];
     $journal = new ServerMigrationJournal($db, $plan);
-    $journal->intent($step, $receipt['sha256'], 10, 10, $table['name']);
+    $journal->intent($step, $receipt['sha256'], 11, 11, $table['name']);
     $records = ServerSchema::rows($db, 'SELECT `cursor` FROM tablo_migration_journal WHERE plan = ? AND step = ?', [$plan, $step]);
     $cursor = SqlColumn::nullableString($records[0] ?? [], 'cursor');
     $record = $cursor === null ? ['rows' => 0, 'primary' => []] : JsonRecord::decode($cursor);

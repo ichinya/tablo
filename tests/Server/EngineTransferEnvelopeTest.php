@@ -133,7 +133,7 @@ function engine_transfer_oversize_archive(string $directory): void
     throw new \RuntimeException('Fixed sites archive absent.');
 }
 
-/** All fifteen domain tables, three metadata tables and generated columns must remain unchanged. */
+/** All sixteen domain tables, three metadata tables and generated columns must remain unchanged. */
 function engine_transfer_target_snapshot(\PDO $db): array
 {
     $rows = [];
@@ -151,7 +151,7 @@ function engine_transfer_import_row_envelope(): void
         $directory = EngineTransferEnvelopeTest::archive($fixture);
         engine_transfer_oversize_archive($directory);
         $manifest = DatabaseTransferVerification::manifest($directory, $fixture->vault);
-        Assert::same($manifest['header']['logicalVersion'], 10);
+        Assert::same($manifest['header']['logicalVersion'], 11);
         $target = $fixture->maintenance(); $before = engine_transfer_target_snapshot($target);
         $floors = \Tablo\DatabaseTransferSequence::floors($target); $caught = null;
         try { DatabaseTransfer::importServer($target, $fixture->vault, $directory, dirname($directory) . '/import.sqlite', offline: true); }

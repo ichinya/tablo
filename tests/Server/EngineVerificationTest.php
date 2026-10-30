@@ -497,7 +497,7 @@ function engine_verification_integrated_baseline(array $policies): void
     $catalog = \Tablo\JsonRecord::decode(\Tablo\RequiredFile::bytes(file_get_contents(dirname(__DIR__, levels: 2) . '/tools/server-native-tests.json')));
     $declaration = \Tablo\JsonRecord::checked($catalog['baseline'] ?? null);
     $required = \Tablo\Tools\server_native_baseline_declaration($declaration);
-    Assert::same(count($required), 528);
+    Assert::same(count($required), 548);
     foreach ($policies as $policy) { Assert::same($required[$policy['identity']]['path'] ?? null, $policy['path']); }
     $identities = \Tablo\JsonRecord::checked($declaration['identities'] ?? null);
     $variants = [];
@@ -565,12 +565,12 @@ function engine_verification_platform_case(string $root, TemporaryDirectory $dir
 function engine_verification_baseline_summary(array $policies): void
 {
     $cases = [];
-    for ($index = 0; $index < 521; $index++) { $cases['Synthetic\\Baseline::case' . $index] = ['status' => 'passed', 'assertions' => 1, 'seconds' => 0.01]; }
-    $linux = PHP_OS_FAMILY === 'Linux'; $passed = $linux ? 521 : 528;
+    for ($index = 0; $index < 541; $index++) { $cases['Synthetic\\Baseline::case' . $index] = ['status' => 'passed', 'assertions' => 1, 'seconds' => 0.01]; }
+    $linux = PHP_OS_FAMILY === 'Linux'; $passed = $linux ? 541 : 548;
     foreach ($policies as $policy) { $cases[$policy['identity']] = ['status' => $linux ? 'skipped_platform' : 'passed', 'assertions' => $linux ? 0 : 1, 'seconds' => 0.01]; }
     $native = ['cases' => $cases, 'assertions' => $passed, 'platform' => PHP_OS_FAMILY];
-    $summary = ['status' => 'passed', 'totals' => ['total' => 528, 'passed' => $passed, 'assertions' => $passed, 'skipped' => $linux ? 7 : 0], 'failures' => []];
-    \Tablo\Tools\server_native_baseline_summary($summary, $native); Assert::same(count($native['cases']), 528);
+    $summary = ['status' => 'passed', 'totals' => ['total' => 548, 'passed' => $passed, 'assertions' => $passed, 'skipped' => $linux ? 7 : 0], 'failures' => []];
+    \Tablo\Tools\server_native_baseline_summary($summary, $native); Assert::same(count($native['cases']), 548);
     engine_verification_baseline_summary_invalid($summary, $native);
     engine_verification_baseline_skips_invalid($summary, $native, $policies[0]['identity'] ?? throw new \RuntimeException('Independent original platform tuple missing.'));
 }
@@ -972,10 +972,10 @@ function engine_verification_initialize_failure(): void
     Assert::false(str_contains(\Tablo\JsonEncoding::encode($record), dirname(__DIR__, levels: 2)));
     foreach (['message', 'trace', 'previous', 'errorInfo', 'sql', 'values'] as $field) { Assert::false(array_key_exists($field, $record)); }
     $error->errorInfo = [$secret, '1064', $secret];
-    $invalid = \server_cell_initialize_failure($error, ['engine' => $secret, 'stage' => $secret, 'point' => $secret, 'step' => 18]);
+    $invalid = \server_cell_initialize_failure($error, ['engine' => $secret, 'stage' => $secret, 'point' => $secret, 'step' => 19]);
     Assert::same([$invalid['engine'], $invalid['stage'], $invalid['point'], $invalid['step'], $invalid['sqlState'], $invalid['nativeCode']], [null, 'unknown', null, null, null, null]);
     Assert::false(str_contains(\Tablo\JsonEncoding::encode($invalid), $secret));
-    foreach ([-1 => null, 0 => 0, 17 => 17, 18 => null] as $step => $expected) {
+    foreach ([-1 => null, 0 => 0, 17 => 17, 18 => 18, 19 => null] as $step => $expected) {
         $boundedProgress = $progress; $boundedProgress['step'] = $step;
         $bounded = \server_cell_initialize_failure(new \RuntimeException($secret), $boundedProgress);
         Assert::same($bounded['step'], $expected);

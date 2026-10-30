@@ -43,4 +43,8 @@ final class EngineMigrationDuplicateRemainingDdlTest
     #[Test]
     public function duplicateCreateAfterStep17ReadApiToken(): void
     { EngineMigrationFailureTest::duplicateDdlAt(17); }
+
+    #[Test]
+    public function duplicateCreateAfterStep18SelfUpdate(): void
+    { EngineMigrationFailureTest::duplicateDdlAt(18); }
 }

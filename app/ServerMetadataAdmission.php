@@ -63,7 +63,7 @@ final class ServerMetadataAdmission
     {
         $session = DatabaseSession::get($db) ?? throw new DatabaseFailure('schema');
         if ($session->configuration->engine !== 'mariadb' || !in_array($session->configuration->role, ['writer', 'control'], strict: true)) { throw new DatabaseFailure('schema'); }
-        $observation = $session->metadataObservation ?? self::observe($session->configuration, 10);
+        $observation = $session->metadataObservation ?? self::observe($session->configuration, 11);
         self::bind($db, $observation);
         return $observation['checks'][$table] ?? throw new DatabaseFailure('schema');
     }
@@ -83,9 +83,9 @@ function server_metadata_expected_names(PDO $db, array $names, int $version, arr
 {
     $source = server_metadata_expected_tables($db, $expectedTables);
     $expected = $source instanceof ServerAdmissionRecords ? $source->names($version)
-        : array_column(array_values(array_filter($source, static fn (array $table): bool => $version === 10 || $table['name'] !== 'read_api_token')), 'name');
+        : array_column(array_values(array_filter($source, static fn (array $table): bool => ($version >= 10 || $table['name'] !== 'read_api_token') && ($version >= 11 || $table['name'] !== 'self_update'))), 'name');
     sort($expected, SORT_STRING);
-    if (!in_array($version, [9, 10], strict: true) || implode("\0", $names) !== implode("\0", $expected)) { throw new DatabaseFailure('schema'); }
+    if (!in_array($version, [9, 10, 11], strict: true) || implode("\0", $names) !== implode("\0", $expected)) { throw new DatabaseFailure('schema'); }
 }
 
 /** Internal fallback uses sealed MariaDB records; explicit sources are returned unchanged.
@@ -105,7 +105,7 @@ function server_metadata_expected_tables(PDO $db, array|ServerAdmissionRecords|n
 function server_metadata_check_observation(PDO $db, DatabaseConfiguration $configuration, ?int $version, array|ServerAdmissionRecords|null $expectedTables = null): array
 {
     if ($expectedTables instanceof ServerAdmissionRecords) { $expectedTables->assertEngine($configuration->engine); }
-    if ($configuration->engine !== 'mariadb' || !in_array($configuration->role, ['writer', 'control'], strict: true) || $version !== 10) { return []; }
+    if ($configuration->engine !== 'mariadb' || !in_array($configuration->role, ['writer', 'control'], strict: true) || $version !== 11) { return []; }
     $tables = server_metadata_expected_tables($db, $expectedTables); unset($expectedTables);
     if ($tables instanceof ServerAdmissionRecords) { return server_metadata_record_checks($db, $tables); }
     $checks = [];

@@ -17,13 +17,13 @@ final class ServerSchema
 {
     /** @return Layout */
     public static function layout(PDO $db): array { return ServerSchemaDescriptor::layout($db); }
-    public static function checksum(PDO $db, int $version = 10): string { return ServerSchemaDescriptor::checksum($db, $version); }
+    public static function checksum(PDO $db, int $version = 11): string { return ServerSchemaDescriptor::checksum($db, $version); }
     public static function admit(PDO $db): void
     {
         if (DatabaseSession::get($db)?->configuration->role !== 'reader') { ServerTableAdmission::layout($db); }
         ServerSchemaState::ready($db);
     }
-    public static function validateLayout(PDO $db, int $version = 10): void { ServerTableAdmission::layout($db, $version); }
+    public static function validateLayout(PDO $db, int $version = 11): void { ServerTableAdmission::layout($db, $version); }
     /** @param Table $table */
     public static function validateTable(PDO $db, array $table): void { ServerTableAdmission::verify($db, $table); }
     /** @return list<string> */

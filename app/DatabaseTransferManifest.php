@@ -19,7 +19,7 @@ final class DatabaseTransferManifest
     /** @var Cache|null */
     private static ?array $dataTables = null;
     public const TABLES = ['users', 'git_tokens', 'installation_settings', 'worker_runtime', 'github_cooldowns',
-        'notification_settings', 'read_api_token', 'sites', 'worker_progress', 'check_history', 'incidents',
+        'notification_settings', 'read_api_token', 'self_update', 'sites', 'worker_progress', 'check_history', 'incidents',
         'incident_checkpoints', 'notification_checkpoints', 'notification_slots', 'login_limits'];
     public const CHUNK_BYTES = 262_144;
     public const CHUNK_ROWS = 128;
@@ -102,7 +102,7 @@ final class DatabaseTransferManifest
         $rows = ServerSchema::rows($db, 'SELECT installation_id FROM notification_settings WHERE id = 1');
         $installation = SqlColumn::string($rows[0] ?? [], 'installation_id');
         return ['format' => 1, 'engine' => DatabaseSession::get($db)?->configuration->engine ?? 'sqlite',
-            'logicalVersion' => 10, 'layout' => self::layout(), 'columns' => self::contract(),
+            'logicalVersion' => 11, 'layout' => self::layout(), 'columns' => self::contract(),
             'installation' => $installation, 'verifier' => $vault->serverVerifier($installation),
             'sequences' => DatabaseTransferSequence::floors($db), 'watermark' => DatabaseTransferSequence::watermark($db), 'tables' => $tables];
     }

@@ -28,6 +28,7 @@ jobs:
     env:
       LEKALO_REF: 9510dd0767a56c0ab34b8d3c8ceb2a14db8de825
       COMPOSER_PROCESS_TIMEOUT: '1800'
+      COMPOSER_CACHE_DIR: ${{ github.workspace }}/.ci/composer-cache
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
       - name: Qualify Node and check standalone browser controls
@@ -76,6 +77,11 @@ jobs:
           extensions: ctype, curl, fileinfo, iconv, mbstring, openssl, pdo_sqlite, tokenizer, xml, xmlwriter
           coverage: none
           tools: composer:v2
+      - name: Cache Composer package downloads
+        uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
+        with:
+          path: ${{ env.COMPOSER_CACHE_DIR }}/files
+          key: composer-files-v1-${{ runner.os }}-${{ runner.arch }}-php-${{ matrix.php }}-${{ hashFiles('composer.lock') }}
       - name: Install PHP dependencies
         run: |
           composer validate --strict
@@ -398,6 +404,7 @@ jobs:
     env:
       LEKALO_REF: 9510dd0767a56c0ab34b8d3c8ceb2a14db8de825
       COMPOSER_PROCESS_TIMEOUT: '1800'
+      COMPOSER_CACHE_DIR: ${{ github.workspace }}/.ci/composer-cache
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
       - name: Seed safe declaration status before input preparation
@@ -417,6 +424,11 @@ jobs:
           extensions: ctype, curl, fileinfo, iconv, mbstring, openssl, pdo_mysql, pdo_sqlite, tokenizer, xml, xmlwriter
           coverage: none
           tools: composer:v2
+      - name: Cache Composer package downloads
+        uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
+        with:
+          path: ${{ env.COMPOSER_CACHE_DIR }}/files
+          key: composer-files-v1-${{ runner.os }}-${{ runner.arch }}-php-${{ matrix.php }}-${{ hashFiles('composer.lock') }}
       - name: Install PHP dependencies
         run: |
           composer validate --strict

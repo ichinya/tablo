@@ -157,7 +157,7 @@ function engine_transfer_manifest_empty_header(\Tablo\TokenVault $vault): array
         $receipts[] = ['name' => $name, 'rows' => 0, 'sha256' => hash('sha256', data: ''), 'chunks' => []];
     }
     $installation = str_repeat('a', times: 32);
-    return ['format' => 1, 'engine' => 'sqlite', 'logicalVersion' => 10, 'layout' => DatabaseTransferManifest::layout(),
+    return ['format' => 1, 'engine' => 'sqlite', 'logicalVersion' => 11, 'layout' => DatabaseTransferManifest::layout(),
         'columns' => DatabaseTransferManifest::contract(), 'installation' => $installation,
         'verifier' => $vault->serverVerifier($installation), 'sequences' => ['sites' => 0, 'git_tokens' => 0, 'check_history' => 0],
         'watermark' => 0, 'tables' => $receipts];
@@ -243,7 +243,7 @@ function engine_transfer_archive_lines(array $table, array $sites): void
         engine_transfer_codec_precedence($table);
         engine_transfer_archive_reader_bounds($directory->path, $table, $sites);
         engine_transfer_archive_reader_lifetime($directory->path, $table);
-        foreach (['change', 'truncate', 'append'] as $fault) { engine_transfer_archive_reader_mutation($directory->path, $table, $fault); }
+        foreach (['change', 'truncate', 'append', 'newline', 'newline-truncate'] as $fault) { engine_transfer_archive_reader_mutation($directory->path, $table, $fault); }
     } finally { $directory->close(); }
 }
 
@@ -678,6 +678,30 @@ function engine_transfer_archive_reader_mutation(string $directory, array $table
     Assert::same($remaining['rows'], $fault === 'append' ? [$rows[1]] : []);
     Assert::same($retained, $rows[0]); Assert::same(count(get_resources(type: 'stream')), $streams);
     unset($reader); Assert::same(count(get_resources(type: 'stream')), $streams);
+    if (in_array($fault, ['newline', 'newline-truncate'], strict: true)) { engine_transfer_archive_visitor_mutation($directory, $table, $fault); }
+}
+
+/** Mutation after the first visitor callback follows the already authenticated first pass.
+ * @param \Tablo\DatabaseTransferManifest::Table $table */
+function engine_transfer_archive_visitor_mutation(string $directory, array $table, string $fault): void
+{
+    $rows = [['first', 1, 2], ['second', 3, 4]];
+    $first = engine_transfer_archive_line($rows[0]); $second = engine_transfer_archive_line($rows[1]);
+    $receipt = engine_transfer_archive_fixture($directory, $table, [$first . $second], [2]);
+    $streams = count(get_resources(type: 'stream')); $seen = []; $retained = null; $failure = null;
+    try {
+        DatabaseTransferArchive::visit($directory, $table, $receipt,
+            static function (array $values) use (&$seen, &$retained, $directory, $table, $first, $second, $fault): void {
+                $seen[] = $values;
+                if (count($seen) !== 1) { return; }
+                $retained = $values;
+                $replacement = engine_transfer_archive_mutation_bytes($first, $second, $fault);
+                Assert::same(file_put_contents($directory . '/' . $table['name'] . '.0.jsonl', $replacement), strlen($replacement));
+            });
+    } catch (DatabaseFailure $error) { $failure = $error; }
+    Assert::same($failure?->category, 'schema'); Assert::same($failure?->getPrevious(), null);
+    Assert::same($seen, [$rows[0]]); Assert::same($retained, $rows[0]);
+    Assert::same(count(get_resources(type: 'stream')), $streams);
 }
 
 function engine_transfer_archive_mutation_bytes(string $first, string $second, string $fault): string
@@ -686,6 +710,8 @@ function engine_transfer_archive_mutation_bytes(string $first, string $second, s
         'change' => $first . engine_transfer_archive_line(['forged', 3, 4]),
         'truncate' => $first . substr($second, offset: 0, length: -2),
         'append' => $first . $second . engine_transfer_archive_line(['added', 5, 6]),
+        'newline' => $first . substr($second, offset: 0, length: -1) . 'x',
+        'newline-truncate' => $first . substr($second, offset: 0, length: -1),
         default => throw new \RuntimeException('Unknown synthetic mutation.'),
     };
 }
@@ -751,7 +777,7 @@ function engine_transfer_archive_writing(array $small, array $sites): void
  * @param list<\Tablo\DatabaseTransferRows::Values> $rows */
 function engine_transfer_archive_database(array $table, array $rows = []): \PDO
 {
-    $db = \Tablo\SchemaReference::reference(10, ['endpoint' => true]);
+    $db = \Tablo\SchemaReference::reference(11, ['endpoint' => true]);
     $db->exec('PRAGMA foreign_keys = ON');
     foreach ($rows as $values) { DatabaseTransferRows::insert($db, $table, $values); }
     return $db;

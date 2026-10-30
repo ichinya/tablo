@@ -20,7 +20,7 @@ final class ServerTableAdmission
         ServerForeignAdmission::verify($db, $table);
         ServerCheckAdmission::verify($db, $table);
     }
-    public static function layout(PDO $db, int $version = 10): void
+    public static function layout(PDO $db, int $version = 11): void
     {
         $session = DatabaseSession::get($db); $owned = false;
         try {
@@ -28,7 +28,7 @@ final class ServerTableAdmission
             $selection = server_table_admission_selection($allTables, $version);
             $tables = $selection['tables']; $expected = $selection['expected']; unset($selection);
             sort($expected, SORT_STRING);
-            if ($version === 10 && $session?->configuration->engine === 'mariadb'
+            if ($version === 11 && $session?->configuration->engine === 'mariadb'
                 && in_array($session->configuration->role, ['writer', 'control'], strict: true) && $session->metadataObservation === null) {
                 // One admission owns one fresh observation; a factory snapshot stays borrowed.
                 $session->metadataObservation = ServerMetadataAdmission::observe($session->configuration, $version, expectedTables: $allTables); $owned = true;
@@ -48,16 +48,19 @@ final class ServerTableAdmission
 
 }
 
-/** @internal Version10 MariaDB writer/control layout selects sealed records independently of observation ownership.
+/** @internal Current migrators and MariaDB writer/control select sealed records independently of observation ownership.
  * Ownership is still decided again after source validation by layout's original condition.
  * @return list<\Tablo\ServerSchema::AdmissionTable>|ServerAdmissionRecords */
 function server_table_admission_source(PDO $db, ?DatabaseSession $session, int $version): array|ServerAdmissionRecords
 {
-    if ($version === 10 && $session?->configuration->engine === 'mariadb'
-        && in_array($session->configuration->role, ['writer', 'control'], strict: true)) {
+    if ($version === 11 && $session !== null
+        && ($session->configuration->role === 'migrator'
+            || ($session->configuration->engine === 'mariadb' && in_array($session->configuration->role, ['writer', 'control'], strict: true)))) {
         return ServerAdmissionRecords::forConnection($db);
     }
-    return ServerSchemaDescriptor::admissionTables(ServerSchema::layout($db));
+    $layout = ServerSchema::layout($db);
+    $layout['tables'] = ServerSchemaProjection::tables($layout['tables'], $version);
+    return ServerSchemaDescriptor::admissionTables($layout);
 }
 
 /** @internal
@@ -73,6 +76,6 @@ function server_table_admission_record_tables(PDO $db, \Generator $tables): void
 function server_table_admission_selection(array|ServerAdmissionRecords $source, int $version): array
 {
     if ($source instanceof ServerAdmissionRecords) { return ['tables' => $source->tables($version), 'expected' => $source->names($version)]; }
-    $tables = array_values(array_filter($source, static fn (array $table): bool => $version === 10 || $table['name'] !== 'read_api_token'));
+    $tables = array_values(array_filter($source, static fn (array $table): bool => ($version >= 10 || $table['name'] !== 'read_api_token') && ($version >= 11 || $table['name'] !== 'self_update')));
     return ['tables' => $tables, 'expected' => array_column($tables, 'name')];
 }

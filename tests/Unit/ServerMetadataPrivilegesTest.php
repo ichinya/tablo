@@ -79,8 +79,8 @@ function metadata_checks_direct_role(MetadataPrivilegesPdo $db, DatabaseConfigur
 {
     $queries = $db->queries;
     Assert::true(class_exists(\Tablo\ServerMetadataAdmission::class));
-    Assert::same(\Tablo\server_metadata_check_observation($db, $configuration, version: 10), []);
-    Assert::same(\Tablo\server_metadata_check_observation($db, $configuration, version: 10, expectedTables: \Tablo\ServerSchema::layout($db)['tables']), []);
+    Assert::same(\Tablo\server_metadata_check_observation($db, $configuration, version: 11), []);
+    Assert::same(\Tablo\server_metadata_check_observation($db, $configuration, version: 11, expectedTables: \Tablo\ServerSchema::layout($db)['tables']), []);
     $caught = null;
     try { \Tablo\ServerMetadataAdmission::checks($db, 'tablo_migration_journal'); } catch (DatabaseFailure $error) { $caught = $error; }
     Assert::same($caught?->category, 'schema'); Assert::same($caught?->getPrevious(), null);
@@ -91,7 +91,7 @@ function metadata_checks_direct_role(MetadataPrivilegesPdo $db, DatabaseConfigur
 function metadata_checks_table(string $engine, string $name = 'tablo_migration_journal'): array
 {
     /** @var \Tablo\ServerSchema::Layout $layout Independent frozen pre-record descriptor oracle. */
-    $layout = json_decode(\Tablo\RequiredFile::bytes(file_get_contents(dirname(__DIR__, levels: 2) . '/tests/fixtures/server-layouts/v10/' . ($engine === 'mysql' ? 'mysql84' : 'mariadb114') . '-layout.json')),
+    $layout = json_decode(\Tablo\RequiredFile::bytes(file_get_contents(dirname(__DIR__, levels: 2) . '/tests/fixtures/server-layouts/v11/' . ($engine === 'mysql' ? 'mysql84' : 'mariadb114') . '-layout.json')),
         associative: true, flags: JSON_THROW_ON_ERROR);
     foreach ($layout['tables'] as $table) { if ($table['name'] === $name) { return $table; } }
     throw new \RuntimeException('Missing public table descriptor.');
@@ -125,16 +125,17 @@ function metadata_checks_query(MetadataPrivilegesPdo $db, string $query, array $
         ? 'SELECT c.CONSTRAINT_NAME AS name, c.CHECK_CLAUSE AS clause, t.ENFORCED AS enforced FROM information_schema.CHECK_CONSTRAINTS c JOIN information_schema.TABLE_CONSTRAINTS t ON t.CONSTRAINT_SCHEMA = c.CONSTRAINT_SCHEMA AND t.CONSTRAINT_NAME = c.CONSTRAINT_NAME WHERE t.TABLE_SCHEMA = DATABASE() AND t.TABLE_NAME = ? AND t.CONSTRAINT_TYPE = ?'
         : 'SELECT CONSTRAINT_NAME AS name, CHECK_CLAUSE AS clause FROM information_schema.CHECK_CONSTRAINTS WHERE CONSTRAINT_SCHEMA = DATABASE() AND TABLE_NAME = ?';
     if ($query === $expected) { return metadata_checks_rows($db, $query, \Tablo\SqlColumn::string($bindings, key: '1')); }
-    if ($query === 'SELECT DATABASE() AS catalog, VERSION() AS version, @@version_comment AS comment, @@hostname AS host, @@port AS port, @@server_id AS server_id, @@server_uid AS server_uid') {
-        return [['catalog' => 'tablo_meta', 'version' => '11.4', 'comment' => 'fixture', 'host' => 'fixture', 'port' => 3306, 'server_id' => 1, 'server_uid' => 'fixture']];
+    $uid = $db->engine === 'mariadb' ? '@@server_uid' : '@@server_uuid';
+    if ($query === 'SELECT DATABASE() AS catalog, VERSION() AS version, @@version_comment AS comment, @@hostname AS host, @@port AS port, @@server_id AS server_id, ' . $uid . ' AS server_uid') {
+        return [['catalog' => 'tablo_meta', 'version' => $db->engine === 'mariadb' ? '11.4' : '8.4', 'comment' => 'fixture', 'host' => 'fixture', 'port' => 3306, 'server_id' => 1, 'server_uid' => 'fixture']];
     }
     throw new \RuntimeException('Unexpected CHECK metadata SQL.');
 }
 
 function metadata_checks_observation(MetadataPrivilegesPdo $writer, DatabaseConfiguration $configuration): MetadataPrivilegesPdo
 {
-    $metadata = new MetadataPrivilegesPdo('mariadb', fault: $writer->fault);
-    $environment = ['TABLO_DB_DRIVER' => 'mariadb', 'TABLO_DB_NAME' => 'tablo_meta', 'TABLO_DB_HOST' => '127.0.0.1', 'TABLO_DB_PORT' => '3306',
+    $metadata = new MetadataPrivilegesPdo($configuration->engine, fault: $writer->fault);
+    $environment = ['TABLO_DB_DRIVER' => $configuration->engine, 'TABLO_DB_NAME' => 'tablo_meta', 'TABLO_DB_HOST' => '127.0.0.1', 'TABLO_DB_PORT' => '3306',
         'TABLO_DB_USER' => 'writer', 'TABLO_DB_PASSWORD' => '', 'TABLO_DB_TLS' => 'local', 'TABLO_DB_METADATA_USER' => 'meta', 'TABLO_DB_METADATA_PASSWORD' => ''];
     \Tablo\DatabaseSession::register($metadata, DatabaseConfiguration::fromEnvironment(environment: $environment)->metadata());
     Assert::true(class_exists(\Tablo\ServerMetadataAdmission::class));
@@ -153,16 +154,21 @@ function metadata_checks_invocation_tables(MetadataPrivilegesPdo $metadata, Data
     $tables = \Tablo\ServerSchema::layout($metadata)['tables']; $before = $tables;
     $queryStart = count($metadata->queries);
     $default = []; $provided = []; $defaultFailure = null; $providedFailure = null;
-    try { $default = \Tablo\server_metadata_check_observation($metadata, $configuration, version: 10); }
+    try { $default = \Tablo\server_metadata_check_observation($metadata, $configuration, version: 11); }
     catch (DatabaseFailure $error) { $defaultFailure = $error; }
     $defaultQueries = array_slice($metadata->queries, $queryStart);
-    try { $provided = \Tablo\server_metadata_check_observation($metadata, $configuration, version: 10, expectedTables: $tables); }
+    try { $provided = \Tablo\server_metadata_check_observation($metadata, $configuration, version: 11, expectedTables: $tables); }
     catch (DatabaseFailure $error) { $providedFailure = $error; }
     metadata_checks_record_equivalence($metadata, $configuration, $default, $defaultFailure, $defaultQueries);
     Assert::same($providedFailure?->category, $defaultFailure?->category);
     Assert::same($providedFailure?->getPrevious(), null); Assert::same($tables, $before);
     if ($defaultFailure !== null) { throw $defaultFailure; }
     Assert::same($provided, $default);
+    if ($configuration->role === 'migrator') {
+        Assert::same($default, []); Assert::same($defaultQueries, []);
+        Assert::same(array_slice($metadata->queries, $queryStart), []);
+        return $default;
+    }
     Assert::same(array_keys($provided), array_column($tables, 'name'));
     $tail = $tables[17] ?? throw new \RuntimeException('Missing final public table.');
     $check = $tail['checks'][3] ?? throw new \RuntimeException('Missing final public CHECK.');
@@ -242,7 +248,7 @@ function metadata_layout_invocation_refusals(MetadataPrivilegesPdo $db, array $o
 {
     $session = \Tablo\DatabaseSession::get($db) ?? throw new \RuntimeException('Missing admitted session.');
     $tables = \Tablo\ServerSchema::layout($db)['tables']; $session->metadataObservation = $observation;
-    foreach ([0, 9, 10, 11] as $version) {
+    foreach ([0, 9, 10, 12] as $version) {
         foreach ([null, $tables, metadata_checks_records('mariadb')] as $provided) {
             $caught = null;
             try { \Tablo\ServerMetadataAdmission::objects($db, $version, expectedTables: $provided); }
@@ -340,7 +346,7 @@ function metadata_checks_records(string $engine): \Tablo\ServerAdmissionRecords
 function metadata_checks_record_equivalence(MetadataPrivilegesPdo $metadata, DatabaseConfiguration $configuration, array $expected, ?DatabaseFailure $failure, array $queries): void
 {
     $records = metadata_checks_records($configuration->engine); $recorded = []; $caught = null; $start = count($metadata->queries);
-    try { $recorded = \Tablo\server_metadata_check_observation($metadata, $configuration, version: 10, expectedTables: $records); }
+    try { $recorded = \Tablo\server_metadata_check_observation($metadata, $configuration, version: 11, expectedTables: $records); }
     catch (DatabaseFailure $error) { $caught = $error; }
     Assert::same($caught?->category, $failure?->category); Assert::same($caught?->getPrevious(), null);
     Assert::same($recorded, $expected); Assert::same(array_slice($metadata->queries, $start), $queries);
@@ -355,10 +361,10 @@ function metadata_records_engine_binding(): void
     $names = $records->names(); sort($names, SORT_STRING);
     $expected = new \ReflectionMethod(\Tablo\ServerMetadataAdmission::class, 'expected');
     foreach ([
-        static fn () => \Tablo\ServerMetadataAdmission::observe($configuration, version: 10, expectedTables: $records),
-        static fn () => \Tablo\ServerMetadataAdmission::objects($db, version: 10, expectedTables: $records),
+        static fn () => \Tablo\ServerMetadataAdmission::observe($configuration, version: 11, expectedTables: $records),
+        static fn () => \Tablo\ServerMetadataAdmission::objects($db, version: 11, expectedTables: $records),
         static fn () => $expected->invoke(null, $db, $names, 10, $records),
-        static fn () => \Tablo\server_metadata_check_observation($db, $configuration, version: 10, expectedTables: $records),
+        static fn () => \Tablo\server_metadata_check_observation($db, $configuration, version: 11, expectedTables: $records),
     ] as $operation) {
         $caught = null;
         try { $operation(); } catch (DatabaseFailure $error) { $caught = $error; }
@@ -371,21 +377,23 @@ function metadata_records_engine_binding(): void
 function metadata_records_layout_selection(): void
 {
     foreach (['mysql', 'mariadb'] as $engine) {
-        foreach (['writer', 'control', 'migrator', 'reader'] as $role) {
-            foreach ([9, 10] as $version) { metadata_records_layout_case($engine, $role, $version); }
+        foreach (['writer', 'control', 'migrator', 'reader', 'metadata'] as $role) {
+            foreach ([9, 10, 11] as $version) { metadata_records_layout_case($engine, $role, $version); }
         }
     }
 }
 
 function metadata_records_layout_case(string $engine, string $role, int $version): void
 {
-    $db = new MetadataPrivilegesPdo($engine, fault: 'checks/'); $configuration = metadata_checks_configuration($engine, $role);
+    $db = new MetadataPrivilegesPdo($engine, fault: 'checks/'); $configuration = metadata_records_default_configuration($engine, $role);
     $session = \Tablo\DatabaseSession::register($db, $configuration);
     $source = \Tablo\server_table_admission_source($db, $session, $version);
-    $selected = $engine === 'mariadb' && in_array($role, ['writer', 'control'], strict: true) && $version === 10;
+    $selected = $version === 11 && ($role === 'migrator' || ($engine === 'mariadb' && in_array($role, ['writer', 'control'], strict: true)));
     Assert::same($source instanceof \Tablo\ServerAdmissionRecords, $selected);
     Assert::same($session->metadataObservation, null); Assert::same($db->queries, []);
-    if (!$selected) { Assert::true(is_array($source)); return; }
+    if (!$selected) {
+        Assert::true(is_array($source)); Assert::same($source, metadata_records_golden_projection($engine, $version)); return;
+    }
     metadata_checks_observation($db, $configuration);
     $borrowed = $session->metadataObservation ?? throw new \RuntimeException('Missing borrowed fixture observation.');
     try { metadata_records_borrowed_selection($db, $session, $version, $borrowed); }
@@ -409,7 +417,26 @@ function metadata_records_default_selection(): void
         foreach (['writer', 'control', 'migrator', 'reader', 'metadata'] as $role) { metadata_records_default_case($engine, $role); }
         metadata_records_default_explicit($engine);
         metadata_records_default_foreign($engine);
+        metadata_records_iterator_ownership($engine);
     }
+}
+
+/** Independent suspended readers must preserve a reusable owner and survive its release. */
+function metadata_records_iterator_ownership(string $engine): void
+{
+    $records = metadata_checks_records($engine); $expected = metadata_records_golden_projection($engine);
+    $users = $expected[3] ?? throw new \RuntimeException('Missing frozen users descriptor.');
+    $left = $records->tables(); $right = $records->tables(version: 9); $left->rewind();
+    for ($index = 0; $index < 3; $index++) { $left->next(); }
+    Assert::same($left->current(), $users);
+    Assert::same(iterator_to_array($right, preserve_keys: false), metadata_records_golden_projection($engine, version: 9));
+    Assert::same($left->current(), $users);
+    Assert::same(iterator_to_array($records->tables(), preserve_keys: false), $expected);
+    unset($records, $right);
+    for ($index = 3; $left->valid(); $index++, $left->next()) {
+        Assert::same($left->current(), $expected[$index] ?? throw new \RuntimeException('Unexpected table after frozen descriptor end.'));
+    }
+    Assert::same($index, count($expected));
 }
 
 function metadata_records_default_case(string $engine, string $role): void
@@ -420,8 +447,8 @@ function metadata_records_default_case(string $engine, string $role): void
     Assert::same($source instanceof \Tablo\ServerAdmissionRecords, $engine === 'mariadb');
     $actual = $source instanceof \Tablo\ServerAdmissionRecords ? iterator_to_array($source->tables(), preserve_keys: false) : $source;
     $golden = metadata_records_golden_projection($engine); Assert::same($actual, $golden);
-    foreach ([9, 10] as $version) {
-        $selected = array_values(array_filter($golden, static fn (array $table): bool => $version === 10 || $table['name'] !== 'read_api_token'));
+    foreach ([9, 10, 11] as $version) {
+        $selected = metadata_records_golden_projection($engine, $version);
         $names = array_column($selected, 'name'); sort($names, SORT_STRING);
         \Tablo\server_metadata_expected_names($db, $names, $version, expectedTables: null);
         if ($source instanceof \Tablo\ServerAdmissionRecords) {
@@ -463,13 +490,16 @@ function metadata_records_default_configuration(string $engine, string $role): D
 }
 
 /** @return list<\Tablo\ServerSchema::AdmissionTable> */
-function metadata_records_golden_projection(string $engine): array
+function metadata_records_golden_projection(string $engine, int $version = 11): array
 {
     $stem = match ($engine) { 'mysql' => 'mysql84', 'mariadb' => 'mariadb114', default => throw new \RuntimeException('Unknown independent layout fixture.') };
     /** @var \Tablo\ServerSchema::Layout $layout Independent frozen full JSON, not the record reader. */
-    $layout = json_decode(\Tablo\RequiredFile::bytes(file_get_contents(dirname(__DIR__, levels: 2) . '/tests/fixtures/server-layouts/v10/' . $stem . '-layout.json')),
+    $layout = json_decode(\Tablo\RequiredFile::bytes(file_get_contents(dirname(__DIR__, levels: 2) . '/tests/fixtures/server-layouts/v' . ($version >= 11 ? '11' : '10') . '/' . $stem . '-layout.json')),
         associative: true, flags: JSON_THROW_ON_ERROR);
     $expected = [];
-    foreach ($layout['tables'] as $table) { unset($table['create'], $table['checksum']); $expected[] = $table; }
+    foreach ($layout['tables'] as $table) {
+        if ($version < 10 && $table['name'] === 'read_api_token') { continue; }
+        unset($table['create'], $table['checksum']); $expected[] = $table;
+    }
     return $expected;
 }

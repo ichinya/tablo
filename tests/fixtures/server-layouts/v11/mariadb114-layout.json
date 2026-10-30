@@ -1,0 +1,1884 @@
+{
+  "format": 1,
+  "engine": "mariadb",
+  "logicalVersion": 11,
+  "syntheticPredecessor": 9,
+  "collation": "utf8mb4_nopad_bin",
+  "tables": [
+    {
+      "name": "tablo_migration_journal",
+      "columns": [
+        {
+          "name": "plan",
+          "type": "varbinary(64)",
+          "nullable": false,
+          "default": null
+        },
+        {
+          "name": "step",
+          "type": "bigint",
+          "nullable": false,
+          "default": null
+        },
+        {
+          "name": "checksum",
+          "type": "varbinary(64)",
+          "nullable": false,
+          "default": null
+        },
+        {
+          "name": "predecessor",
+          "type": "bigint",
+          "nullable": false,
+          "default": null
+        },
+        {
+          "name": "target",
+          "type": "bigint",
+          "nullable": false,
+          "default": null
+        },
+        {
+          "name": "before_predicate",
+          "type": "varbinary(96)",
+          "nullable": false,
+          "default": null
+        },
+        {
+          "name": "after_predicate",
+          "type": "varbinary(96)",
+          "nullable": false,
+          "default": null
+        },
+        {
+          "name": "phase",
+          "type": "varbinary(16)",
+          "nullable": false,
+          "default": null
+        },
+        {
+          "name": "cursor",
+          "type": "longblob",
+          "nullable": true,
+          "default": null
+        },
+        {
+          "name": "failure_category",
+          "type": "varbinary(32)",
+          "nullable": true,
+          "default": null
+        }
+      ],
+      "primary": [
+        "plan",
+        "step"
+      ],
+      "checks": [
+        {
+          "name": "tablo_migration_journal_c1",
+          "expression": "`step` >= 0"
+        },
+        {
+          "name": "tablo_migration_journal_c2",
+          "expression": "`phase` IN ('intent','done','failed')"
+        }
+      ],
+      "indexes": [],
+      "foreign": [],
+      "create": "CREATE TABLE `tablo_migration_journal` (\n  `plan` varbinary(64) NOT NULL,\n  `step` bigint NOT NULL,\n  `checksum` varbinary(64) NOT NULL,\n  `predecessor` bigint NOT NULL,\n  `target` bigint NOT NULL,\n  `before_predicate` varbinary(96) NOT NULL,\n  `after_predicate` varbinary(96) NOT NULL,\n  `phase` varbinary(16) NOT NULL,\n  `cursor` longblob NULL,\n  `failure_category` varbinary(32) NULL,\n  PRIMARY KEY (`plan`,`step`),\n  CONSTRAINT `tablo_migration_journal_c1` CHECK (`step` >= 0),\n  CONSTRAINT `tablo_migration_journal_c2` CHECK (`phase` IN ('intent','done','failed'))\n) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_nopad_bin",
+      "checksum": "b1c9f278b1fc21ae37354e173ea8d6edcad7f22026a1183b644956ec32a3f13d"
+    },
+    {
+      "name": "tablo_database_state",
+      "columns": [
+        {
+          "name": "id",
+          "type": "bigint",
+          "nullable": false,
+          "default": null
+        },
+        {
+          "name": "format",
+          "type": "bigint",
+          "nullable": false,
+          "default": null
+        },
+        {
+          "name": "logical_version",
+          "type": "bigint",
+          "nullable": false,
+          "default": null
+        },
+        {
+          "name": "layout_checksum",
+          "type": "varbinary(64)",
+          "nullable": false,
+          "default": null
+        },
+        {
+          "name": "phase",
+          "type": "varbinary(16)",
+          "nullable": false,
+          "default": null
+        },
+        {
+          "name": "installation_id",
+          "type": "varbinary(32)",
+          "nullable": false,
+          "default": null
+        },
+        {
+          "name": "key_verifier",
+          "type": "varbinary(64)",
+          "nullable": false,
+          "default": null
+        },
+        {
+          "name": "committed_history_high_watermark",
+          "type": "bigint",
+          "nullable": false,
+          "default": "0"
+        }
+      ],
+      "primary": [
+        "id"
+      ],
+      "checks": [
+        {
+          "name": "tablo_database_state_c1",
+          "expression": "`id` = 1"
+        },
+        {
+          "name": "tablo_database_state_c2",
+          "expression": "`format` = 1"
+        },
+        {
+          "name": "tablo_database_state_c3",
+          "expression": "`logical_version` BETWEEN 0 AND 11"
+        },
+        {
+          "name": "tablo_database_state_c4",
+          "expression": "`phase` IN ('initializing','migrating','importing','failed','ready')"
+        },
+        {
+          "name": "tablo_database_state_c5",
+          "expression": "`committed_history_high_watermark` >= 0"
+        }
+      ],
+      "indexes": [],
+      "foreign": [],
+      "create": "CREATE TABLE `tablo_database_state` (\n  `id` bigint NOT NULL,\n  `format` bigint NOT NULL,\n  `logical_version` bigint NOT NULL,\n  `layout_checksum` varbinary(64) NOT NULL,\n  `phase` varbinary(16) NOT NULL,\n  `installation_id` varbinary(32) NOT NULL,\n  `key_verifier` varbinary(64) NOT NULL,\n  `committed_history_high_watermark` bigint NOT NULL DEFAULT 0,\n  PRIMARY KEY (`id`),\n  CONSTRAINT `tablo_database_state_c1` CHECK (`id` = 1),\n  CONSTRAINT `tablo_database_state_c2` CHECK (`format` = 1),\n  CONSTRAINT `tablo_database_state_c3` CHECK (`logical_version` BETWEEN 0 AND 11),\n  CONSTRAINT `tablo_database_state_c4` CHECK (`phase` IN ('initializing','migrating','importing','failed','ready')),\n  CONSTRAINT `tablo_database_state_c5` CHECK (`committed_history_high_watermark` >= 0)\n) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_nopad_bin",
+      "checksum": "e1cd5ccbfe01292305095e8aa07d1865b84660f5e2c710ae24a0e167c4812954"
+    },
+    {
+      "name": "tablo_writer_guard",
+      "columns": [
+        {
+          "name": "id",
+          "type": "bigint",
+          "nullable": false,
+          "default": null
+        }
+      ],
+      "primary": [
+        "id"
+      ],
+      "checks": [
+        {
+          "name": "tablo_writer_guard_c1",
+          "expression": "`id` = 1"
+        }
+      ],
+      "indexes": [],
+      "foreign": [],
+      "create": "CREATE TABLE `tablo_writer_guard` (\n  `id` bigint NOT NULL,\n  PRIMARY KEY (`id`),\n  CONSTRAINT `tablo_writer_guard_c1` CHECK (`id` = 1)\n) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_nopad_bin",
+      "checksum": "60feefdfd8a7714e3ebbc7fea50acaae91bce170e12c5256cce95147347b8219"
+    },
+    {
+      "name": "users",
+      "columns": [
+        {
+          "name": "id",
+          "type": "bigint",
+          "nullable": false,
+          "default": null
+        },
+        {
+          "name": "password_hash",
+          "type": "longblob",
+          "nullable": false,
+          "default": null
+        },
+        {
+          "name": "created_at",
+          "type": "varbinary(20)",
+          "nullable": false,
+          "default": null
+        }
+      ],
+      "primary": [
+        "id"
+      ],
+      "checks": [
+        {
+          "name": "users_c1",
+          "expression": "`id` = 1"
+        },
+        {
+          "name": "users_c2",
+          "expression": "OCTET_LENGTH(`created_at`) = 20 AND ASCII(SUBSTRING(`created_at`,1,1)) BETWEEN 48 AND 57 AND ASCII(SUBSTRING(`created_at`,2,1)) BETWEEN 48 AND 57 AND ASCII(SUBSTRING(`created_at`,3,1)) BETWEEN 48 AND 57 AND ASCII(SUBSTRING(`created_at`,4,1)) BETWEEN 48 AND 57 AND ASCII(SUBSTRING(`created_at`,6,1)) BETWEEN 48 AND 57 AND ASCII(SUBSTRING(`created_at`,7,1)) BETWEEN 48 AND 57 AND ASCII(SUBSTRING(`created_at`,9,1)) BETWEEN 48 AND 57 AND ASCII(SUBSTRING(`created_at`,10,1)) BETWEEN 48 AND 57 AND ASCII(SUBSTRING(`created_at`,12,1)) BETWEEN 48 AND 57 AND ASCII(SUBSTRING(`created_at`,13,1)) BETWEEN 48 AND 57 AND ASCII(SUBSTRING(`created_at`,15,1)) BETWEEN 48 AND 57 AND ASCII(SUBSTRING(`created_at`,16,1)) BETWEEN 48 AND 57 AND ASCII(SUBSTRING(`created_at`,18,1)) BETWEEN 48 AND 57 AND ASCII(SUBSTRING(`created_at`,19,1)) BETWEEN 48 AND 57 AND SUBSTRING(`created_at`,5,1) = '-' AND SUBSTRING(`created_at`,8,1) = '-' AND SUBSTRING(`created_at`,11,1) = 'T' AND SUBSTRING(`created_at`,14,1) = ':' AND SUBSTRING(`created_at`,17,1) = ':' AND SUBSTRING(`created_at`,20,1) = 'Z' AND CAST(SUBSTRING(`created_at`,1,4) AS UNSIGNED) BETWEEN 1 AND 9999 AND CAST(SUBSTRING(`created_at`,6,2) AS UNSIGNED) BETWEEN 1 AND 12 AND CAST(SUBSTRING(`created_at`,9,2) AS UNSIGNED) BETWEEN 1 AND 31 AND CAST(SUBSTRING(`created_at`,12,2) AS UNSIGNED) BETWEEN 0 AND 23 AND CAST(SUBSTRING(`created_at`,15,2) AS UNSIGNED) BETWEEN 0 AND 59 AND CAST(SUBSTRING(`created_at`,18,2) AS UNSIGNED) BETWEEN 0 AND 59 AND (CAST(SUBSTRING(`created_at`,9,2) AS UNSIGNED) <= 28 OR (CAST(SUBSTRING(`created_at`,9,2) AS UNSIGNED) = 29 AND (CAST(SUBSTRING(`created_at`,6,2) AS UNSIGNED) <> 2 OR (MOD(CAST(SUBSTRING(`created_at`,1,4) AS UNSIGNED),4) = 0 AND (MOD(CAST(SUBSTRING(`created_at`,1,4) AS UNSIGNED),100) <> 0 OR MOD(CAST(SUBSTRING(`created_at`,1,4) AS UNSIGNED),400) = 0)))) OR (CAST(SUBSTRING(`created_at`,9,2) AS UNSIGNED) = 30 AND CAST(SUBSTRING(`created_at`,6,2) AS UNSIGNED) <> 2) OR (CAST(SUBSTRING(`created_at`,9,2) AS UNSIGNED) = 31 AND CAST(SUBSTRING(`created_at`,6,2) AS UNSIGNED) IN (1,3,5,7,8,10,12)))"
+        }
+      ],
+      "indexes": [],
+      "foreign": [],
+      "create": "CREATE TABLE `users` (\n  `id` bigint NOT NULL,\n  `password_hash` longblob NOT NULL,\n  `created_at` varbinary(20) NOT NULL,\n  PRIMARY KEY (`id`),\n  CONSTRAINT `users_c1` CHECK (`id` = 1),\n  CONSTRAINT `users_c2` CHECK (OCTET_LENGTH(`created_at`) = 20 AND ASCII(SUBSTRING(`created_at`,1,1)) BETWEEN 48 AND 57 AND ASCII(SUBSTRING(`created_at`,2,1)) BETWEEN 48 AND 57 AND ASCII(SUBSTRING(`created_at`,3,1)) BETWEEN 48 AND 57 AND ASCII(SUBSTRING(`created_at`,4,1)) BETWEEN 48 AND 57 AND ASCII(SUBSTRING(`created_at`,6,1)) BETWEEN 48 AND 57 AND ASCII(SUBSTRING(`created_at`,7,1)) BETWEEN 48 AND 57 AND ASCII(SUBSTRING(`created_at`,9,1)) BETWEEN 48 AND 57 AND ASCII(SUBSTRING(`created_at`,10,1)) BETWEEN 48 AND 57 AND ASCII(SUBSTRING(`created_at`,12,1)) BETWEEN 48 AND 57 AND ASCII(SUBSTRING(`created_at`,13,1)) BETWEEN 48 AND 57 AND ASCII(SUBSTRING(`created_at`,15,1)) BETWEEN 48 AND 57 AND ASCII(SUBSTRING(`created_at`,16,1)) BETWEEN 48 AND 57 AND ASCII(SUBSTRING(`created_at`,18,1)) BETWEEN 48 AND 57 AND ASCII(SUBSTRING(`created_at`,19,1)) BETWEEN 48 AND 57 AND SUBSTRING(`created_at`,5,1) = '-' AND SUBSTRING(`created_at`,8,1) = '-' AND SUBSTRING(`created_at`,11,1) = 'T' AND SUBSTRING(`created_at`,14,1) = ':' AND SUBSTRING(`created_at`,17,1) = ':' AND SUBSTRING(`created_at`,20,1) = 'Z' AND CAST(SUBSTRING(`created_at`,1,4) AS UNSIGNED) BETWEEN 1 AND 9999 AND CAST(SUBSTRING(`created_at`,6,2) AS UNSIGNED) BETWEEN 1 AND 12 AND CAST(SUBSTRING(`created_at`,9,2) AS UNSIGNED) BETWEEN 1 AND 31 AND CAST(SUBSTRING(`created_at`,12,2) AS UNSIGNED) BETWEEN 0 AND 23 AND CAST(SUBSTRING(`created_at`,15,2) AS UNSIGNED) BETWEEN 0 AND 59 AND CAST(SUBSTRING(`created_at`,18,2) AS UNSIGNED) BETWEEN 0 AND 59 AND (CAST(SUBSTRING(`created_at`,9,2) AS UNSIGNED) <= 28 OR (CAST(SUBSTRING(`created_at`,9,2) AS UNSIGNED) = 29 AND (CAST(SUBSTRING(`created_at`,6,2) AS UNSIGNED) <> 2 OR (MOD(CAST(SUBSTRING(`created_at`,1,4) AS UNSIGNED),4) = 0 AND (MOD(CAST(SUBSTRING(`created_at`,1,4) AS UNSIGNED),100) <> 0 OR MOD(CAST(SUBSTRING(`created_at`,1,4) AS UNSIGNED),400) = 0)))) OR (CAST(SUBSTRING(`created_at`,9,2) AS UNSIGNED) = 30 AND CAST(SUBSTRING(`created_at`,6,2) AS UNSIGNED) <> 2) OR (CAST(SUBSTRING(`created_at`,9,2) AS UNSIGNED) = 31 AND CAST(SUBSTRING(`created_at`,6,2) AS UNSIGNED) IN (1,3,5,7,8,10,12))))\n) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_nopad_bin",
+      "checksum": "d40f6170af6edc283faa2f160d66f87ec47b55091787b91e882e9d7e3bc26fb2"
+    },
+    {
+      "name": "git_tokens",
+      "columns": [
+        {
+          "name": "id",
+          "type": "bigint",
+          "nullable": false,
+          "default": null,
+          "auto": true
+        },
+        {
+          "name": "name",
+          "type": "varchar(80)",
+          "nullable": false,
+          "default": null
+        },
+        {
+          "name": "provider",
+          "type": "varbinary(32)",
+          "nullable": false,
+          "default": null
+        },
+        {
+          "name": "encrypted_token",
+          "type": "longblob",
+          "nullable": false,
+          "default": null
+        },
+        {
+          "name": "created_at",
+          "type": "varbinary(20)",
+          "nullable": false,
+          "default": null
+        },
+        {
+          "name": "updated_at",
+          "type": "varbinary(20)",
+          "nullable": false,
+          "default": null
+        },
+        {
+          "name": "name_key",
+          "type": "varbinary(320)",
+          "nullable": true,
+          "default": null,
+          "generated": "REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(CAST(`name` AS BINARY),X'41',X'61'),X'42',X'62'),X'43',X'63'),X'44',X'64'),X'45',X'65'),X'46',X'66'),X'47',X'67'),X'48',X'68'),X'49',X'69'),X'4a',X'6a'),X'4b',X'6b'),X'4c',X'6c'),X'4d',X'6d'),X'4e',X'6e'),X'4f',X'6f'),X'50',X'70'),X'51',X'71'),X'52',X'72'),X'53',X'73'),X'54',X'74'),X'55',X'75'),X'56',X'76'),X'57',X'77'),X'58',X'78'),X'59',X'79'),X'5a',X'7a')"
+        }
+      ],
+      "primary": [
+        "id"
+      ],
+      "checks": [
+        {
+          "name": "git_tokens_c1",
+          "expression": "OCTET_LENGTH(`name`) BETWEEN 1 AND 320 AND LOCATE(X'00',CAST(`name` AS BINARY)) = 0"
+        },
+        {
+          "name": "git_tokens_c2",
+          "expression": "OCTET_LENGTH(`created_at`) = 20 AND ASCII(SUBSTRING(`created_at`,1,1)) BETWEEN 48 AND 57 AND ASCII(SUBSTRING(`created_at`,2,1)) BETWEEN 48 AND 57 AND ASCII(SUBSTRING(`created_at`,3,1)) BETWEEN 48 AND 57 AND ASCII(SUBSTRING(`created_at`,4,1)) BETWEEN 48 AND 57 AND ASCII(SUBSTRING(`created_at`,6,1)) BETWEEN 48 AND 57 AND ASCII(SUBSTRING(`created_at`,7,1)) BETWEEN 48 AND 57 AND ASCII(SUBSTRING(`created_at`,9,1)) BETWEEN 48 AND 57 AND ASCII(SUBSTRING(`created_at`,10,1)) BETWEEN 48 AND 57 AND ASCII(SUBSTRING(`created_at`,12,1)) BETWEEN 48 AND 57 AND ASCII(SUBSTRING(`created_at`,13,1)) BETWEEN 48 AND 57 AND ASCII(SUBSTRING(`created_at`,15,1)) BETWEEN 48 AND 57 AND ASCII(SUBSTRING(`created_at`,16,1)) BETWEEN 48 AND 57 AND ASCII(SUBSTRING(`created_at`,18,1)) BETWEEN 48 AND 57 AND ASCII(SUBSTRING(`created_at`,19,1)) BETWEEN 48 AND 57 AND SUBSTRING(`created_at`,5,1) = '-' AND SUBSTRING(`created_at`,8,1) = '-' AND SUBSTRING(`created_at`,11,1) = 'T' AND SUBSTRING(`created_at`,14,1) = ':' AND SUBSTRING(`created_at`,17,1) = ':' AND SUBSTRING(`created_at`,20,1) = 'Z' AND CAST(SUBSTRING(`created_at`,1,4) AS UNSIGNED) BETWEEN 1 AND 9999 AND CAST(SUBSTRING(`created_at`,6,2) AS UNSIGNED) BETWEEN 1 AND 12 AND CAST(SUBSTRING(`created_at`,9,2) AS UNSIGNED) BETWEEN 1 AND 31 AND CAST(SUBSTRING(`created_at`,12,2) AS UNSIGNED) BETWEEN 0 AND 23 AND CAST(SUBSTRING(`created_at`,15,2) AS UNSIGNED) BETWEEN 0 AND 59 AND CAST(SUBSTRING(`created_at`,18,2) AS UNSIGNED) BETWEEN 0 AND 59 AND (CAST(SUBSTRING(`created_at`,9,2) AS UNSIGNED) <= 28 OR (CAST(SUBSTRING(`created_at`,9,2) AS UNSIGNED) = 29 AND (CAST(SUBSTRING(`created_at`,6,2) AS UNSIGNED) <> 2 OR (MOD(CAST(SUBSTRING(`created_at`,1,4) AS UNSIGNED),4) = 0 AND (MOD(CAST(SUBSTRING(`created_at`,1,4) AS UNSIGNED),100) <> 0 OR MOD(CAST(SUBSTRING(`created_at`,1,4) AS UNSIGNED),400) = 0)))) OR (CAST(SUBSTRING(`created_at`,9,2) AS UNSIGNED) = 30 AND CAST(SUBSTRING(`created_at`,6,2) AS UNSIGNED) <> 2) OR (CAST(SUBSTRING(`created_at`,9,2) AS UNSIGNED) = 31 AND CAST(SUBSTRING(`created_at`,6,2) AS UNSIGNED) IN (1,3,5,7,8,10,12)))"
+        },
+        {
+          "name": "git_tokens_c3",
+          "expression": "OCTET_LENGTH(`updated_at`) = 20 AND ASCII(SUBSTRING(`updated_at`,1,1)) BETWEEN 48 AND 57 AND ASCII(SUBSTRING(`updated_at`,2,1)) BETWEEN 48 AND 57 AND ASCII(SUBSTRING(`updated_at`,3,1)) BETWEEN 48 AND 57 AND ASCII(SUBSTRING(`updated_at`,4,1)) BETWEEN 48 AND 57 AND ASCII(SUBSTRING(`updated_at`,6,1)) BETWEEN 48 AND 57 AND ASCII(SUBSTRING(`updated_at`,7,1)) BETWEEN 48 AND 57 AND ASCII(SUBSTRING(`updated_at`,9,1)) BETWEEN 48 AND 57 AND ASCII(SUBSTRING(`updated_at`,10,1)) BETWEEN 48 AND 57 AND ASCII(SUBSTRING(`updated_at`,12,1)) BETWEEN 48 AND 57 AND ASCII(SUBSTRING(`updated_at`,13,1)) BETWEEN 48 AND 57 AND ASCII(SUBSTRING(`updated_at`,15,1)) BETWEEN 48 AND 57 AND ASCII(SUBSTRING(`updated_at`,16,1)) BETWEEN 48 AND 57 AND ASCII(SUBSTRING(`updated_at`,18,1)) BETWEEN 48 AND 57 AND ASCII(SUBSTRING(`updated_at`,19,1)) BETWEEN 48 AND 57 AND SUBSTRING(`updated_at`,5,1) = '-' AND SUBSTRING(`updated_at`,8,1) = '-' AND SUBSTRING(`updated_at`,11,1) = 'T' AND SUBSTRING(`updated_at`,14,1) = ':' AND SUBSTRING(`updated_at`,17,1) = ':' AND SUBSTRING(`updated_at`,20,1) = 'Z' AND CAST(SUBSTRING(`updated_at`,1,4) AS UNSIGNED) BETWEEN 1 AND 9999 AND CAST(SUBSTRING(`updated_at`,6,2) AS UNSIGNED) BETWEEN 1 AND 12 AND CAST(SUBSTRING(`updated_at`,9,2) AS UNSIGNED) BETWEEN 1 AND 31 AND CAST(SUBSTRING(`updated_at`,12,2) AS UNSIGNED) BETWEEN 0 AND 23 AND CAST(SUBSTRING(`updated_at`,15,2) AS UNSIGNED) BETWEEN 0 AND 59 AND CAST(SUBSTRING(`updated_at`,18,2) AS UNSIGNED) BETWEEN 0 AND 59 AND (CAST(SUBSTRING(`updated_at`,9,2) AS UNSIGNED) <= 28 OR (CAST(SUBSTRING(`updated_at`,9,2) AS UNSIGNED) = 29 AND (CAST(SUBSTRING(`updated_at`,6,2) AS UNSIGNED) <> 2 OR (MOD(CAST(SUBSTRING(`updated_at`,1,4) AS UNSIGNED),4) = 0 AND (MOD(CAST(SUBSTRING(`updated_at`,1,4) AS UNSIGNED),100) <> 0 OR MOD(CAST(SUBSTRING(`updated_at`,1,4) AS UNSIGNED),400) = 0)))) OR (CAST(SUBSTRING(`updated_at`,9,2) AS UNSIGNED) = 30 AND CAST(SUBSTRING(`updated_at`,6,2) AS UNSIGNED) <> 2) OR (CAST(SUBSTRING(`updated_at`,9,2) AS UNSIGNED) = 31 AND CAST(SUBSTRING(`updated_at`,6,2) AS UNSIGNED) IN (1,3,5,7,8,10,12)))"
+        }
+      ],
+      "indexes": [
+        {
+          "name": "git_tokens_provider_name",
+          "columns": [
+            "provider",
+            "name_key"
+          ],
+          "unique": true
+        }
+      ],
+      "foreign": [],
+      "create": "CREATE TABLE `git_tokens` (\n  `id` bigint NOT NULL AUTO_INCREMENT,\n  `name` varchar(80) NOT NULL,\n  `provider` varbinary(32) NOT NULL,\n  `encrypted_token` longblob NOT NULL,\n  `created_at` varbinary(20) NOT NULL,\n  `updated_at` varbinary(20) NOT NULL,\n  `name_key` varbinary(320) GENERATED ALWAYS AS (REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(CAST(`name` AS BINARY),X'41',X'61'),X'42',X'62'),X'43',X'63'),X'44',X'64'),X'45',X'65'),X'46',X'66'),X'47',X'67'),X'48',X'68'),X'49',X'69'),X'4a',X'6a'),X'4b',X'6b'),X'4c',X'6c'),X'4d',X'6d'),X'4e',X'6e'),X'4f',X'6f'),X'50',X'70'),X'51',X'71'),X'52',X'72'),X'53',X'73'),X'54',X'74'),X'55',X'75'),X'56',X'76'),X'57',X'77'),X'58',X'78'),X'59',X'79'),X'5a',X'7a')) STORED,\n  PRIMARY KEY (`id`),\n  UNIQUE KEY `git_tokens_provider_name` (`provider`,`name_key`),\n  CONSTRAINT `git_tokens_c1` CHECK (OCTET_LENGTH(`name`) BETWEEN 1 AND 320 AND LOCATE(X'00',CAST(`name` AS BINARY)) = 0),\n  CONSTRAINT `git_tokens_c2` CHECK (OCTET_LENGTH(`created_at`) = 20 AND ASCII(SUBSTRING(`created_at`,1,1)) BETWEEN 48 AND 57 AND ASCII(SUBSTRING(`created_at`,2,1)) BETWEEN 48 AND 57 AND ASCII(SUBSTRING(`created_at`,3,1)) BETWEEN 48 AND 57 AND ASCII(SUBSTRING(`created_at`,4,1)) BETWEEN 48 AND 57 AND ASCII(SUBSTRING(`created_at`,6,1)) BETWEEN 48 AND 57 AND ASCII(SUBSTRING(`created_at`,7,1)) BETWEEN 48 AND 57 AND ASCII(SUBSTRING(`created_at`,9,1)) BETWEEN 48 AND 57 AND ASCII(SUBSTRING(`created_at`,10,1)) BETWEEN 48 AND 57 AND ASCII(SUBSTRING(`created_at`,12,1)) BETWEEN 48 AND 57 AND ASCII(SUBSTRING(`created_at`,13,1)) BETWEEN 48 AND 57 AND ASCII(SUBSTRING(`created_at`,15,1)) BETWEEN 48 AND 57 AND ASCII(SUBSTRING(`created_at`,16,1)) BETWEEN 48 AND 57 AND ASCII(SUBSTRING(`created_at`,18,1)) BETWEEN 48 AND 57 AND ASCII(SUBSTRING(`created_at`,19,1)) BETWEEN 48 AND 57 AND SUBSTRING(`created_at`,5,1) = '-' AND SUBSTRING(`created_at`,8,1) = '-' AND SUBSTRING(`created_at`,11,1) = 'T' AND SUBSTRING(`created_at`,14,1) = ':' AND SUBSTRING(`created_at`,17,1) = ':' AND SUBSTRING(`created_at`,20,1) = 'Z' AND CAST(SUBSTRING(`created_at`,1,4) AS UNSIGNED) BETWEEN 1 AND 9999 AND CAST(SUBSTRING(`created_at`,6,2) AS UNSIGNED) BETWEEN 1 AND 12 AND CAST(SUBSTRING(`created_at`,9,2) AS UNSIGNED) BETWEEN 1 AND 31 AND CAST(SUBSTRING(`created_at`,12,2) AS UNSIGNED) BETWEEN 0 AND 23 AND CAST(SUBSTRING(`created_at`,15,2) AS UNSIGNED) BETWEEN 0 AND 59 AND CAST(SUBSTRING(`created_at`,18,2) AS UNSIGNED) BETWEEN 0 AND 59 AND (CAST(SUBSTRING(`created_at`,9,2) AS UNSIGNED) <= 28 OR (CAST(SUBSTRING(`created_at`,9,2) AS UNSIGNED) = 29 AND (CAST(SUBSTRING(`created_at`,6,2) AS UNSIGNED) <> 2 OR (MOD(CAST(SUBSTRING(`created_at`,1,4) AS UNSIGNED),4) = 0 AND (MOD(CAST(SUBSTRING(`created_at`,1,4) AS UNSIGNED),100) <> 0 OR MOD(CAST(SUBSTRING(`created_at`,1,4) AS UNSIGNED),400) = 0)))) OR (CAST(SUBSTRING(`created_at`,9,2) AS UNSIGNED) = 30 AND CAST(SUBSTRING(`created_at`,6,2) AS UNSIGNED) <> 2) OR (CAST(SUBSTRING(`created_at`,9,2) AS UNSIGNED) = 31 AND CAST(SUBSTRING(`created_at`,6,2) AS UNSIGNED) IN (1,3,5,7,8,10,12)))),\n  CONSTRAINT `git_tokens_c3` CHECK (OCTET_LENGTH(`updated_at`) = 20 AND ASCII(SUBSTRING(`updated_at`,1,1)) BETWEEN 48 AND 57 AND ASCII(SUBSTRING(`updated_at`,2,1)) BETWEEN 48 AND 57 AND ASCII(SUBSTRING(`updated_at`,3,1)) BETWEEN 48 AND 57 AND ASCII(SUBSTRING(`updated_at`,4,1)) BETWEEN 48 AND 57 AND ASCII(SUBSTRING(`updated_at`,6,1)) BETWEEN 48 AND 57 AND ASCII(SUBSTRING(`updated_at`,7,1)) BETWEEN 48 AND 57 AND ASCII(SUBSTRING(`updated_at`,9,1)) BETWEEN 48 AND 57 AND ASCII(SUBSTRING(`updated_at`,10,1)) BETWEEN 48 AND 57 AND ASCII(SUBSTRING(`updated_at`,12,1)) BETWEEN 48 AND 57 AND ASCII(SUBSTRING(`updated_at`,13,1)) BETWEEN 48 AND 57 AND ASCII(SUBSTRING(`updated_at`,15,1)) BETWEEN 48 AND 57 AND ASCII(SUBSTRING(`updated_at`,16,1)) BETWEEN 48 AND 57 AND ASCII(SUBSTRING(`updated_at`,18,1)) BETWEEN 48 AND 57 AND ASCII(SUBSTRING(`updated_at`,19,1)) BETWEEN 48 AND 57 AND SUBSTRING(`updated_at`,5,1) = '-' AND SUBSTRING(`updated_at`,8,1) = '-' AND SUBSTRING(`updated_at`,11,1) = 'T' AND SUBSTRING(`updated_at`,14,1) = ':' AND SUBSTRING(`updated_at`,17,1) = ':' AND SUBSTRING(`updated_at`,20,1) = 'Z' AND CAST(SUBSTRING(`updated_at`,1,4) AS UNSIGNED) BETWEEN 1 AND 9999 AND CAST(SUBSTRING(`updated_at`,6,2) AS UNSIGNED) BETWEEN 1 AND 12 AND CAST(SUBSTRING(`updated_at`,9,2) AS UNSIGNED) BETWEEN 1 AND 31 AND CAST(SUBSTRING(`updated_at`,12,2) AS UNSIGNED) BETWEEN 0 AND 23 AND CAST(SUBSTRING(`updated_at`,15,2) AS UNSIGNED) BETWEEN 0 AND 59 AND CAST(SUBSTRING(`updated_at`,18,2) AS UNSIGNED) BETWEEN 0 AND 59 AND (CAST(SUBSTRING(`updated_at`,9,2) AS UNSIGNED) <= 28 OR (CAST(SUBSTRING(`updated_at`,9,2) AS UNSIGNED) = 29 AND (CAST(SUBSTRING(`updated_at`,6,2) AS UNSIGNED) <> 2 OR (MOD(CAST(SUBSTRING(`updated_at`,1,4) AS UNSIGNED),4) = 0 AND (MOD(CAST(SUBSTRING(`updated_at`,1,4) AS UNSIGNED),100) <> 0 OR MOD(CAST(SUBSTRING(`updated_at`,1,4) AS UNSIGNED),400) = 0)))) OR (CAST(SUBSTRING(`updated_at`,9,2) AS UNSIGNED) = 30 AND CAST(SUBSTRING(`updated_at`,6,2) AS UNSIGNED) <> 2) OR (CAST(SUBSTRING(`updated_at`,9,2) AS UNSIGNED) = 31 AND CAST(SUBSTRING(`updated_at`,6,2) AS UNSIGNED) IN (1,3,5,7,8,10,12))))\n) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_nopad_bin",
+      "checksum": "a12f3dc87782a79dd749643f340230c32efa1fab80db3fada49c9d9b90101a48"
+    },
+    {
+      "name": "sites",
+      "columns": [
+        {
+          "name": "id",
+          "type": "bigint",
+          "nullable": false,
+          "default": null,
+          "auto": true
+        },
+        {
+          "name": "name",
+          "type": "longtext",
+          "nullable": false,
+          "default": null
+        },
+        {
+          "name": "url",
+          "type": "longtext",
+          "nullable": false,
+          "default": null
+        },
+        {
+          "name": "provider",
+          "type": "varbinary(16)",
+          "nullable": false,
+          "default": "'github'"
+        },
+        {
+          "name": "repository",
+          "type": "longtext",
+          "nullable": false,
+          "default": null
+        },
+        {
+          "name": "github_token",
+          "type": "longblob",
+          "nullable": true,
+          "default": null
+        },
+        {
+          "name": "git_token_id",
+          "type": "bigint",
+          "nullable": true,
+          "default": null
+        },
+        {
+          "name": "branch",
+          "type": "longtext",
+          "nullable": false,
+          "default": "'main'"
+        },
+        {
+          "name": "health_path",
+          "type": "longtext",
+          "nullable": false,
+          "default": "'/up'"
+        },
+        {
+          "name": "version_path",
+          "type": "longtext",
+          "nullable": false,
+          "default": "''"
+        },
+        {
+          "name": "version_json_path",
+          "type": "longtext",
+          "nullable": false,
+          "default": "''"
+        },
+        {
+          "name": "health_check_mode",
+          "type": "varbinary(16)",
+          "nullable": false,
+          "default": "'http'"
+        },
+        {
+          "name": "health_json_path",
+          "type": "longtext",
+          "nullable": false,
+          "default": "''"
+        },
+        {
+          "name": "health_json_operator",
+          "type": "varbinary(16)",
+          "nullable": false,
+          "default": "'=='"
+        },
+        {
+          "name": "health_json_expected_value",
+          "type": "longtext",
+          "nullable": false,
+          "default": "''"
+        },
+        {
+          "name": "comparison_mode",
+          "type": "varbinary(16)",
+          "nullable": false,
+          "default": "'release'"
+        },
+        {
+          "name": "enabled",
+          "type": "bigint",
+          "nullable": false,
+          "default": "1"
+        },
+        {
+          "name": "sort_order",
+          "type": "bigint",
+          "nullable": false,
+          "default": "0"
+        },
+        {
+          "name": "online",
+          "type": "bigint",
+          "nullable": true,
+          "default": null
+        },
+        {
+          "name": "deployed_version",
+          "type": "longtext",
+          "nullable": true,
+          "default": null
+        },
+        {
+          "name": "deployed_commit",
+          "type": "varbinary(256)",
+          "nullable": true,
+          "default": null
+        },
+        {
+          "name": "latest_release",
+          "type": "longtext",
+          "nullable": true,
+          "default": null
+        },
+        {
+          "name": "latest_commit",
+          "type": "varbinary(256)",
+          "nullable": true,
+          "default": null
+        },
+        {
+          "name": "open_issues",
+          "type": "bigint",
+          "nullable": true,
+          "default": null
+        },
+        {
+          "name": "open_prs",
+          "type": "bigint",
+          "nullable": true,
+          "default": null
+        },
+        {
+          "name": "response_time_ms",
+          "type": "bigint",
+          "nullable": true,
+          "default": null
+        },
+        {
+          "name": "last_error",
+          "type": "longtext",
+          "nullable": true,
+          "default": null
+        },
+        {
+          "name": "checked_at",
+          "type": "varbinary(20)",
+          "nullable": true,
+          "default": null
+        },
+        {
+          "name": "created_at",
+          "type": "varbinary(20)",
+          "nullable": false,
+          "default": null
+        },
+        {
+          "name": "updated_at",
+          "type": "varbinary(20)",
+          "nullable": false,
+          "default": null
+        },
+        {
+          "name": "health_error_code",
+          "type": "varbinary(64)",
+          "nullable": true,
+          "default": null
+        },
+        {
+          "name": "health_http_status",
+          "type": "bigint",
+          "nullable": true,
+          "default": null
+        },
+        {
+          "name": "config_revision",
+          "type": "bigint",
+          "nullable": false,
+          "default": "0"
+        },
+        {
+          "name": "endpoint_token",
+          "type": "longblob",
+          "nullable": true,
+          "default": null
+        }
+      ],
+      "primary": [
+        "id"
+      ],
+      "checks": [
+        {
+          "name": "sites_c1",
+          "expression": "`provider` IN ('github')"
+        },
+        {
+          "name": "sites_c2",
+          "expression": "`health_check_mode` IN ('http','json')"
+        },
+        {
+          "name": "sites_c3",
+          "expression": "`health_json_operator` IN ('>','>=','<','<=','!=','==','contains')"
+        },
+        {
+          "name": "sites_c4",
+          "expression": "`comparison_mode` IN ('release','branch')"
+        },
+        {
+          "name": "sites_c5",
+          "expression": "`enabled` IN (0,1)"
+        },
+        {
+          "name": "sites_c6",
+          "expression": "`online` IN (0,1)"
+        },
+        {
+          "name": "sites_c7",
+          "expression": "`health_http_status` BETWEEN 100 AND 599"
+        },
+        {
+          "name": "sites_c8",
+          "expression": "`config_revision` >= 0"
+        },
+        {
+          "name": "sites_c9",
+          "expression": "OCTET_LENGTH(`created_at`) = 20 AND ASCII(SUBSTRING(`created_at`,1,1)) BETWEEN 48 AND 57 AND ASCII(SUBSTRING(`created_at`,2,1)) BETWEEN 48 AND 57 AND ASCII(SUBSTRING(`created_at`,3,1)) BETWEEN 48 AND 57 AND ASCII(SUBSTRING(`created_at`,4,1)) BETWEEN 48 AND 57 AND ASCII(SUBSTRING(`created_at`,6,1)) BETWEEN 48 AND 57 AND ASCII(SUBSTRING(`created_at`,7,1)) BETWEEN 48 AND 57 AND ASCII(SUBSTRING(`created_at`,9,1)) BETWEEN 48 AND 57 AND ASCII(SUBSTRING(`created_at`,10,1)) BETWEEN 48 AND 57 AND ASCII(SUBSTRING(`created_at`,12,1)) BETWEEN 48 AND 57 AND ASCII(SUBSTRING(`created_at`,13,1)) BETWEEN 48 AND 57 AND ASCII(SUBSTRING(`created_at`,15,1)) BETWEEN 48 AND 57 AND ASCII(SUBSTRING(`created_at`,16,1)) BETWEEN 48 AND 57 AND ASCII(SUBSTRING(`created_at`,18,1)) BETWEEN 48 AND 57 AND ASCII(SUBSTRING(`created_at`,19,1)) BETWEEN 48 AND 57 AND SUBSTRING(`created_at`,5,1) = '-' AND SUBSTRING(`created_at`,8,1) = '-' AND SUBSTRING(`created_at`,11,1) = 'T' AND SUBSTRING(`created_at`,14,1) = ':' AND SUBSTRING(`created_at`,17,1) = ':' AND SUBSTRING(`created_at`,20,1) = 'Z' AND CAST(SUBSTRING(`created_at`,1,4) AS UNSIGNED) BETWEEN 1 AND 9999 AND CAST(SUBSTRING(`created_at`,6,2) AS UNSIGNED) BETWEEN 1 AND 12 AND CAST(SUBSTRING(`created_at`,9,2) AS UNSIGNED) BETWEEN 1 AND 31 AND CAST(SUBSTRING(`created_at`,12,2) AS UNSIGNED) BETWEEN 0 AND 23 AND CAST(SUBSTRING(`created_at`,15,2) AS UNSIGNED) BETWEEN 0 AND 59 AND CAST(SUBSTRING(`created_at`,18,2) AS UNSIGNED) BETWEEN 0 AND 59 AND (CAST(SUBSTRING(`created_at`,9,2) AS UNSIGNED) <= 28 OR (CAST(SUBSTRING(`created_at`,9,2) AS UNSIGNED) = 29 AND (CAST(SUBSTRING(`created_at`,6,2) AS UNSIGNED) <> 2 OR (MOD(CAST(SUBSTRING(`created_at`,1,4) AS UNSIGNED),4) = 0 AND (MOD(CAST(SUBSTRING(`created_at`,1,4) AS UNSIGNED),100) <> 0 OR MOD(CAST(SUBSTRING(`created_at`,1,4) AS UNSIGNED),400) = 0)))) OR (CAST(SUBSTRING(`created_at`,9,2) AS UNSIGNED) = 30 AND CAST(SUBSTRING(`created_at`,6,2) AS UNSIGNED) <> 2) OR (CAST(SUBSTRING(`created_at`,9,2) AS UNSIGNED) = 31 AND CAST(SUBSTRING(`created_at`,6,2) AS UNSIGNED) IN (1,3,5,7,8,10,12)))"
+        },
+        {
+          "name": "sites_c10",
+          "expression": "OCTET_LENGTH(`updated_at`) = 20 AND ASCII(SUBSTRING(`updated_at`,1,1)) BETWEEN 48 AND 57 AND ASCII(SUBSTRING(`updated_at`,2,1)) BETWEEN 48 AND 57 AND ASCII(SUBSTRING(`updated_at`,3,1)) BETWEEN 48 AND 57 AND ASCII(SUBSTRING(`updated_at`,4,1)) BETWEEN 48 AND 57 AND ASCII(SUBSTRING(`updated_at`,6,1)) BETWEEN 48 AND 57 AND ASCII(SUBSTRING(`updated_at`,7,1)) BETWEEN 48 AND 57 AND ASCII(SUBSTRING(`updated_at`,9,1)) BETWEEN 48 AND 57 AND ASCII(SUBSTRING(`updated_at`,10,1)) BETWEEN 48 AND 57 AND ASCII(SUBSTRING(`updated_at`,12,1)) BETWEEN 48 AND 57 AND ASCII(SUBSTRING(`updated_at`,13,1)) BETWEEN 48 AND 57 AND ASCII(SUBSTRING(`updated_at`,15,1)) BETWEEN 48 AND 57 AND ASCII(SUBSTRING(`updated_at`,16,1)) BETWEEN 48 AND 57 AND ASCII(SUBSTRING(`updated_at`,18,1)) BETWEEN 48 AND 57 AND ASCII(SUBSTRING(`updated_at`,19,1)) BETWEEN 48 AND 57 AND SUBSTRING(`updated_at`,5,1) = '-' AND SUBSTRING(`updated_at`,8,1) = '-' AND SUBSTRING(`updated_at`,11,1) = 'T' AND SUBSTRING(`updated_at`,14,1) = ':' AND SUBSTRING(`updated_at`,17,1) = ':' AND SUBSTRING(`updated_at`,20,1) = 'Z' AND CAST(SUBSTRING(`updated_at`,1,4) AS UNSIGNED) BETWEEN 1 AND 9999 AND CAST(SUBSTRING(`updated_at`,6,2) AS UNSIGNED) BETWEEN 1 AND 12 AND CAST(SUBSTRING(`updated_at`,9,2) AS UNSIGNED) BETWEEN 1 AND 31 AND CAST(SUBSTRING(`updated_at`,12,2) AS UNSIGNED) BETWEEN 0 AND 23 AND CAST(SUBSTRING(`updated_at`,15,2) AS UNSIGNED) BETWEEN 0 AND 59 AND CAST(SUBSTRING(`updated_at`,18,2) AS UNSIGNED) BETWEEN 0 AND 59 AND (CAST(SUBSTRING(`updated_at`,9,2) AS UNSIGNED) <= 28 OR (CAST(SUBSTRING(`updated_at`,9,2) AS UNSIGNED) = 29 AND (CAST(SUBSTRING(`updated_at`,6,2) AS UNSIGNED) <> 2 OR (MOD(CAST(SUBSTRING(`updated_at`,1,4) AS UNSIGNED),4) = 0 AND (MOD(CAST(SUBSTRING(`updated_at`,1,4) AS UNSIGNED),100) <> 0 OR MOD(CAST(SUBSTRING(`updated_at`,1,4) AS UNSIGNED),400) = 0)))) OR (CAST(SUBSTRING(`updated_at`,9,2) AS UNSIGNED) = 30 AND CAST(SUBSTRING(`updated_at`,6,2) AS UNSIGNED) <> 2) OR (CAST(SUBSTRING(`updated_at`,9,2) AS UNSIGNED) = 31 AND CAST(SUBSTRING(`updated_at`,6,2) AS UNSIGNED) IN (1,3,5,7,8,10,12)))"
+        },
+        {
+          "name": "sites_c11",
+          "expression": "OCTET_LENGTH(`checked_at`) = 20 AND ASCII(SUBSTRING(`checked_at`,1,1)) BETWEEN 48 AND 57 AND ASCII(SUBSTRING(`checked_at`,2,1)) BETWEEN 48 AND 57 AND ASCII(SUBSTRING(`checked_at`,3,1)) BETWEEN 48 AND 57 AND ASCII(SUBSTRING(`checked_at`,4,1)) BETWEEN 48 AND 57 AND ASCII(SUBSTRING(`checked_at`,6,1)) BETWEEN 48 AND 57 AND ASCII(SUBSTRING(`checked_at`,7,1)) BETWEEN 48 AND 57 AND ASCII(SUBSTRING(`checked_at`,9,1)) BETWEEN 48 AND 57 AND ASCII(SUBSTRING(`checked_at`,10,1)) BETWEEN 48 AND 57 AND ASCII(SUBSTRING(`checked_at`,12,1)) BETWEEN 48 AND 57 AND ASCII(SUBSTRING(`checked_at`,13,1)) BETWEEN 48 AND 57 AND ASCII(SUBSTRING(`checked_at`,15,1)) BETWEEN 48 AND 57 AND ASCII(SUBSTRING(`checked_at`,16,1)) BETWEEN 48 AND 57 AND ASCII(SUBSTRING(`checked_at`,18,1)) BETWEEN 48 AND 57 AND ASCII(SUBSTRING(`checked_at`,19,1)) BETWEEN 48 AND 57 AND SUBSTRING(`checked_at`,5,1) = '-' AND SUBSTRING(`checked_at`,8,1) = '-' AND SUBSTRING(`checked_at`,11,1) = 'T' AND SUBSTRING(`checked_at`,14,1) = ':' AND SUBSTRING(`checked_at`,17,1) = ':' AND SUBSTRING(`checked_at`,20,1) = 'Z' AND CAST(SUBSTRING(`checked_at`,1,4) AS UNSIGNED) BETWEEN 1 AND 9999 AND CAST(SUBSTRING(`checked_at`,6,2) AS UNSIGNED) BETWEEN 1 AND 12 AND CAST(SUBSTRING(`checked_at`,9,2) AS UNSIGNED) BETWEEN 1 AND 31 AND CAST(SUBSTRING(`checked_at`,12,2) AS UNSIGNED) BETWEEN 0 AND 23 AND CAST(SUBSTRING(`checked_at`,15,2) AS UNSIGNED) BETWEEN 0 AND 59 AND CAST(SUBSTRING(`checked_at`,18,2) AS UNSIGNED) BETWEEN 0 AND 59 AND (CAST(SUBSTRING(`checked_at`,9,2) AS UNSIGNED) <= 28 OR (CAST(SUBSTRING(`checked_at`,9,2) AS UNSIGNED) = 29 AND (CAST(SUBSTRING(`checked_at`,6,2) AS UNSIGNED) <> 2 OR (MOD(CAST(SUBSTRING(`checked_at`,1,4) AS UNSIGNED),4) = 0 AND (MOD(CAST(SUBSTRING(`checked_at`,1,4) AS UNSIGNED),100) <> 0 OR MOD(CAST(SUBSTRING(`checked_at`,1,4) AS UNSIGNED),400) = 0)))) OR (CAST(SUBSTRING(`checked_at`,9,2) AS UNSIGNED) = 30 AND CAST(SUBSTRING(`checked_at`,6,2) AS UNSIGNED) <> 2) OR (CAST(SUBSTRING(`checked_at`,9,2) AS UNSIGNED) = 31 AND CAST(SUBSTRING(`checked_at`,6,2) AS UNSIGNED) IN (1,3,5,7,8,10,12)))"
+        }
+      ],
+      "indexes": [
+        {
+          "name": "sites_git_token",
+          "columns": [
+            "git_token_id"
+          ],
+          "unique": false
+        }
+      ],
+      "foreign": [
+        {
+          "column": "git_token_id",
+          "table": "git_tokens",
+          "target": "id",
+          "onDelete": "RESTRICT",
+          "onUpdate": "RESTRICT"
+        }
+      ],
+      "create": "CREATE TABLE `sites` (\n  `id` bigint NOT NULL AUTO_INCREMENT,\n  `name` longtext NOT NULL,\n  `url` longtext NOT NULL,\n  `provider` varbinary(16) NOT NULL DEFAULT 'github',\n  `repository` longtext NOT NULL,\n  `github_token` longblob NULL,\n  `git_token_id` bigint NULL,\n  `branch` longtext NOT NULL DEFAULT ('main'),\n  `health_path` longtext NOT NULL DEFAULT ('/up'),\n  `version_path` longtext NOT NULL DEFAULT (''),\n  `version_json_path` longtext NOT NULL DEFAULT (''),\n  `health_check_mode` varbinary(16) NOT NULL DEFAULT 'http',\n  `health_json_path` longtext NOT NULL DEFAULT (''),\n  `health_json_operator` varbinary(16) NOT NULL DEFAULT '==',\n  `health_json_expected_value` longtext NOT NULL DEFAULT (''),\n  `comparison_mode` varbinary(16) NOT NULL DEFAULT 'release',\n  `enabled` bigint NOT NULL DEFAULT 1,\n  `sort_order` bigint NOT NULL DEFAULT 0,\n  `online` bigint NULL,\n  `deployed_version` longtext NULL,\n  `deployed_commit` varbinary(256) NULL,\n  `latest_release` longtext NULL,\n  `latest_commit` varbinary(256) NULL,\n  `open_issues` bigint NULL,\n  `open_prs` bigint NULL,\n  `response_time_ms` bigint NULL,\n  `last_error` longtext NULL,\n  `checked_at` varbinary(20) NULL,\n  `created_at` varbinary(20) NOT NULL,\n  `updated_at` varbinary(20) NOT NULL,\n  `health_error_code` varbinary(64) NULL,\n  `health_http_status` bigint NULL,\n  `config_revision` bigint NOT NULL DEFAULT 0,\n  `endpoint_token` longblob NULL,\n  PRIMARY KEY (`id`),\n  KEY `sites_git_token` (`git_token_id`),\n  CONSTRAINT `sites_git_token_id_fk` FOREIGN KEY (`git_token_id`) REFERENCES `git_tokens` (`id`) ON DELETE RESTRICT ON UPDATE RESTRICT,\n  CONSTRAINT `sites_c1` CHECK (`provider` IN ('github')),\n  CONSTRAINT `sites_c2` CHECK (`health_check_mode` IN ('http','json')),\n  CONSTRAINT `sites_c3` CHECK (`health_json_operator` IN ('>','>=','<','<=','!=','==','contains')),\n  CONSTRAINT `sites_c4` CHECK (`comparison_mode` IN ('release','branch')),\n  CONSTRAINT `sites_c5` CHECK (`enabled` IN (0,1)),\n  CONSTRAINT `sites_c6` CHECK (`online` IN (0,1)),\n  CONSTRAINT `sites_c7` CHECK (`health_http_status` BETWEEN 100 AND 599),\n  CONSTRAINT `sites_c8` CHECK (`config_revision` >= 0),\n  CONSTRAINT `sites_c9` CHECK (OCTET_LENGTH(`created_at`) = 20 AND ASCII(SUBSTRING(`created_at`,1,1)) BETWEEN 48 AND 57 AND ASCII(SUBSTRING(`created_at`,2,1)) BETWEEN 48 AND 57 AND ASCII(SUBSTRING(`created_at`,3,1)) BETWEEN 48 AND 57 AND ASCII(SUBSTRING(`created_at`,4,1)) BETWEEN 48 AND 57 AND ASCII(SUBSTRING(`created_at`,6,1)) BETWEEN 48 AND 57 AND ASCII(SUBSTRING(`created_at`,7,1)) BETWEEN 48 AND 57 AND ASCII(SUBSTRING(`created_at`,9,1)) BETWEEN 48 AND 57 AND ASCII(SUBSTRING(`created_at`,10,1)) BETWEEN 48 AND 57 AND ASCII(SUBSTRING(`created_at`,12,1)) BETWEEN 48 AND 57 AND ASCII(SUBSTRING(`created_at`,13,1)) BETWEEN 48 AND 57 AND ASCII(SUBSTRING(`created_at`,15,1)) BETWEEN 48 AND 57 AND ASCII(SUBSTRING(`created_at`,16,1)) BETWEEN 48 AND 57 AND ASCII(SUBSTRING(`created_at`,18,1)) BETWEEN 48 AND 57 AND ASCII(SUBSTRING(`created_at`,19,1)) BETWEEN 48 AND 57 AND SUBSTRING(`created_at`,5,1) = '-' AND SUBSTRING(`created_at`,8,1) = '-' AND SUBSTRING(`created_at`,11,1) = 'T' AND SUBSTRING(`created_at`,14,1) = ':' AND SUBSTRING(`created_at`,17,1) = ':' AND SUBSTRING(`created_at`,20,1) = 'Z' AND CAST(SUBSTRING(`created_at`,1,4) AS UNSIGNED) BETWEEN 1 AND 9999 AND CAST(SUBSTRING(`created_at`,6,2) AS UNSIGNED) BETWEEN 1 AND 12 AND CAST(SUBSTRING(`created_at`,9,2) AS UNSIGNED) BETWEEN 1 AND 31 AND CAST(SUBSTRING(`created_at`,12,2) AS UNSIGNED) BETWEEN 0 AND 23 AND CAST(SUBSTRING(`created_at`,15,2) AS UNSIGNED) BETWEEN 0 AND 59 AND CAST(SUBSTRING(`created_at`,18,2) AS UNSIGNED) BETWEEN 0 AND 59 AND (CAST(SUBSTRING(`created_at`,9,2) AS UNSIGNED) <= 28 OR (CAST(SUBSTRING(`created_at`,9,2) AS UNSIGNED) = 29 AND (CAST(SUBSTRING(`created_at`,6,2) AS UNSIGNED) <> 2 OR (MOD(CAST(SUBSTRING(`created_at`,1,4) AS UNSIGNED),4) = 0 AND (MOD(CAST(SUBSTRING(`created_at`,1,4) AS UNSIGNED),100) <> 0 OR MOD(CAST(SUBSTRING(`created_at`,1,4) AS UNSIGNED),400) = 0)))) OR (CAST(SUBSTRING(`created_at`,9,2) AS UNSIGNED) = 30 AND CAST(SUBSTRING(`created_at`,6,2) AS UNSIGNED) <> 2) OR (CAST(SUBSTRING(`created_at`,9,2) AS UNSIGNED) = 31 AND CAST(SUBSTRING(`created_at`,6,2) AS UNSIGNED) IN (1,3,5,7,8,10,12)))),\n  CONSTRAINT `sites_c10` CHECK (OCTET_LENGTH(`updated_at`) = 20 AND ASCII(SUBSTRING(`updated_at`,1,1)) BETWEEN 48 AND 57 AND ASCII(SUBSTRING(`updated_at`,2,1)) BETWEEN 48 AND 57 AND ASCII(SUBSTRING(`updated_at`,3,1)) BETWEEN 48 AND 57 AND ASCII(SUBSTRING(`updated_at`,4,1)) BETWEEN 48 AND 57 AND ASCII(SUBSTRING(`updated_at`,6,1)) BETWEEN 48 AND 57 AND ASCII(SUBSTRING(`updated_at`,7,1)) BETWEEN 48 AND 57 AND ASCII(SUBSTRING(`updated_at`,9,1)) BETWEEN 48 AND 57 AND ASCII(SUBSTRING(`updated_at`,10,1)) BETWEEN 48 AND 57 AND ASCII(SUBSTRING(`updated_at`,12,1)) BETWEEN 48 AND 57 AND ASCII(SUBSTRING(`updated_at`,13,1)) BETWEEN 48 AND 57 AND ASCII(SUBSTRING(`updated_at`,15,1)) BETWEEN 48 AND 57 AND ASCII(SUBSTRING(`updated_at`,16,1)) BETWEEN 48 AND 57 AND ASCII(SUBSTRING(`updated_at`,18,1)) BETWEEN 48 AND 57 AND ASCII(SUBSTRING(`updated_at`,19,1)) BETWEEN 48 AND 57 AND SUBSTRING(`updated_at`,5,1) = '-' AND SUBSTRING(`updated_at`,8,1) = '-' AND SUBSTRING(`updated_at`,11,1) = 'T' AND SUBSTRING(`updated_at`,14,1) = ':' AND SUBSTRING(`updated_at`,17,1) = ':' AND SUBSTRING(`updated_at`,20,1) = 'Z' AND CAST(SUBSTRING(`updated_at`,1,4) AS UNSIGNED) BETWEEN 1 AND 9999 AND CAST(SUBSTRING(`updated_at`,6,2) AS UNSIGNED) BETWEEN 1 AND 12 AND CAST(SUBSTRING(`updated_at`,9,2) AS UNSIGNED) BETWEEN 1 AND 31 AND CAST(SUBSTRING(`updated_at`,12,2) AS UNSIGNED) BETWEEN 0 AND 23 AND CAST(SUBSTRING(`updated_at`,15,2) AS UNSIGNED) BETWEEN 0 AND 59 AND CAST(SUBSTRING(`updated_at`,18,2) AS UNSIGNED) BETWEEN 0 AND 59 AND (CAST(SUBSTRING(`updated_at`,9,2) AS UNSIGNED) <= 28 OR (CAST(SUBSTRING(`updated_at`,9,2) AS UNSIGNED) = 29 AND (CAST(SUBSTRING(`updated_at`,6,2) AS UNSIGNED) <> 2 OR (MOD(CAST(SUBSTRING(`updated_at`,1,4) AS UNSIGNED),4) = 0 AND (MOD(CAST(SUBSTRING(`updated_at`,1,4) AS UNSIGNED),100) <> 0 OR MOD(CAST(SUBSTRING(`updated_at`,1,4) AS UNSIGNED),400) = 0)))) OR (CAST(SUBSTRING(`updated_at`,9,2) AS UNSIGNED) = 30 AND CAST(SUBSTRING(`updated_at`,6,2) AS UNSIGNED) <> 2) OR (CAST(SUBSTRING(`updated_at`,9,2) AS UNSIGNED) = 31 AND CAST(SUBSTRING(`updated_at`,6,2) AS UNSIGNED) IN (1,3,5,7,8,10,12)))),\n  CONSTRAINT `sites_c11` CHECK (OCTET_LENGTH(`checked_at`) = 20 AND ASCII(SUBSTRING(`checked_at`,1,1)) BETWEEN 48 AND 57 AND ASCII(SUBSTRING(`checked_at`,2,1)) BETWEEN 48 AND 57 AND ASCII(SUBSTRING(`checked_at`,3,1)) BETWEEN 48 AND 57 AND ASCII(SUBSTRING(`checked_at`,4,1)) BETWEEN 48 AND 57 AND ASCII(SUBSTRING(`checked_at`,6,1)) BETWEEN 48 AND 57 AND ASCII(SUBSTRING(`checked_at`,7,1)) BETWEEN 48 AND 57 AND ASCII(SUBSTRING(`checked_at`,9,1)) BETWEEN 48 AND 57 AND ASCII(SUBSTRING(`checked_at`,10,1)) BETWEEN 48 AND 57 AND ASCII(SUBSTRING(`checked_at`,12,1)) BETWEEN 48 AND 57 AND ASCII(SUBSTRING(`checked_at`,13,1)) BETWEEN 48 AND 57 AND ASCII(SUBSTRING(`checked_at`,15,1)) BETWEEN 48 AND 57 AND ASCII(SUBSTRING(`checked_at`,16,1)) BETWEEN 48 AND 57 AND ASCII(SUBSTRING(`checked_at`,18,1)) BETWEEN 48 AND 57 AND ASCII(SUBSTRING(`checked_at`,19,1)) BETWEEN 48 AND 57 AND SUBSTRING(`checked_at`,5,1) = '-' AND SUBSTRING(`checked_at`,8,1) = '-' AND SUBSTRING(`checked_at`,11,1) = 'T' AND SUBSTRING(`checked_at`,14,1) = ':' AND SUBSTRING(`checked_at`,17,1) = ':' AND SUBSTRING(`checked_at`,20,1) = 'Z' AND CAST(SUBSTRING(`checked_at`,1,4) AS UNSIGNED) BETWEEN 1 AND 9999 AND CAST(SUBSTRING(`checked_at`,6,2) AS UNSIGNED) BETWEEN 1 AND 12 AND CAST(SUBSTRING(`checked_at`,9,2) AS UNSIGNED) BETWEEN 1 AND 31 AND CAST(SUBSTRING(`checked_at`,12,2) AS UNSIGNED) BETWEEN 0 AND 23 AND CAST(SUBSTRING(`checked_at`,15,2) AS UNSIGNED) BETWEEN 0 AND 59 AND CAST(SUBSTRING(`checked_at`,18,2) AS UNSIGNED) BETWEEN 0 AND 59 AND (CAST(SUBSTRING(`checked_at`,9,2) AS UNSIGNED) <= 28 OR (CAST(SUBSTRING(`checked_at`,9,2) AS UNSIGNED) = 29 AND (CAST(SUBSTRING(`checked_at`,6,2) AS UNSIGNED) <> 2 OR (MOD(CAST(SUBSTRING(`checked_at`,1,4) AS UNSIGNED),4) = 0 AND (MOD(CAST(SUBSTRING(`checked_at`,1,4) AS UNSIGNED),100) <> 0 OR MOD(CAST(SUBSTRING(`checked_at`,1,4) AS UNSIGNED),400) = 0)))) OR (CAST(SUBSTRING(`checked_at`,9,2) AS UNSIGNED) = 30 AND CAST(SUBSTRING(`checked_at`,6,2) AS UNSIGNED) <> 2) OR (CAST(SUBSTRING(`checked_at`,9,2) AS UNSIGNED) = 31 AND CAST(SUBSTRING(`checked_at`,6,2) AS UNSIGNED) IN (1,3,5,7,8,10,12))))\n) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_nopad_bin",
+      "checksum": "d7c945cc592c05ad2002aa81b88ae7f2384f38486ed920d967260b24c8968972"
+    },
+    {
+      "name": "login_limits",
+      "columns": [
+        {
+          "name": "key",
+          "type": "varbinary(128)",
+          "nullable": false,
+          "default": null
+        },
+        {
+          "name": "failures",
+          "type": "bigint",
+          "nullable": false,
+          "default": "0"
+        },
+        {
+          "name": "window_start",
+          "type": "bigint",
+          "nullable": false,
+          "default": null
+        }
+      ],
+      "primary": [
+        "key"
+      ],
+      "checks": [],
+      "indexes": [],
+      "foreign": [],
+      "create": "CREATE TABLE `login_limits` (\n  `key` varbinary(128) NOT NULL,\n  `failures` bigint NOT NULL DEFAULT 0,\n  `window_start` bigint NOT NULL,\n  PRIMARY KEY (`key`)\n) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_nopad_bin",
+      "checksum": "4f774f7df59bae3b3716aff3cc5c458dda796d0aea400c8c2eca52e7412def6b"
+    },
+    {
+      "name": "github_cooldowns",
+      "columns": [
+        {
+          "name": "scope",
+          "type": "varbinary(256)",
+          "nullable": false,
+          "default": null
+        },
+        {
+          "name": "resource",
+          "type": "varbinary(16)",
+          "nullable": false,
+          "default": null
+        },
+        {
+          "name": "eligible_at",
+          "type": "bigint",
+          "nullable": false,
+          "default": null
+        }
+      ],
+      "primary": [
+        "scope",
+        "resource"
+      ],
+      "checks": [
+        {
+          "name": "github_cooldowns_c1",
+          "expression": "`resource` IN ('core','search','secondary')"
+        },
+        {
+          "name": "github_cooldowns_c2",
+          "expression": "`eligible_at` >= 0"
+        }
+      ],
+      "indexes": [],
+      "foreign": [],
+      "create": "CREATE TABLE `github_cooldowns` (\n  `scope` varbinary(256) NOT NULL,\n  `resource` varbinary(16) NOT NULL,\n  `eligible_at` bigint NOT NULL,\n  PRIMARY KEY (`scope`,`resource`),\n  CONSTRAINT `github_cooldowns_c1` CHECK (`resource` IN ('core','search','secondary')),\n  CONSTRAINT `github_cooldowns_c2` CHECK (`eligible_at` >= 0)\n) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_nopad_bin",
+      "checksum": "d420440c5b5444c4c78436eeb33f124b3ce93ba94f68b879362968f1455702de"
+    },
+    {
+      "name": "installation_settings",
+      "columns": [
+        {
+          "name": "id",
+          "type": "bigint",
+          "nullable": false,
+          "default": null
+        },
+        {
+          "name": "check_interval_minutes",
+          "type": "bigint",
+          "nullable": false,
+          "default": "10"
+        },
+        {
+          "name": "session_idle_timeout_minutes",
+          "type": "bigint",
+          "nullable": false,
+          "default": "30"
+        }
+      ],
+      "primary": [
+        "id"
+      ],
+      "checks": [
+        {
+          "name": "installation_settings_c1",
+          "expression": "`id` = 1"
+        },
+        {
+          "name": "installation_settings_c2",
+          "expression": "`check_interval_minutes` BETWEEN 1 AND 153722867280912930"
+        },
+        {
+          "name": "installation_settings_c3",
+          "expression": "`session_idle_timeout_minutes` BETWEEN 1 AND 720"
+        }
+      ],
+      "indexes": [],
+      "foreign": [],
+      "create": "CREATE TABLE `installation_settings` (\n  `id` bigint NOT NULL,\n  `check_interval_minutes` bigint NOT NULL DEFAULT 10,\n  `session_idle_timeout_minutes` bigint NOT NULL DEFAULT 30,\n  PRIMARY KEY (`id`),\n  CONSTRAINT `installation_settings_c1` CHECK (`id` = 1),\n  CONSTRAINT `installation_settings_c2` CHECK (`check_interval_minutes` BETWEEN 1 AND 153722867280912930),\n  CONSTRAINT `installation_settings_c3` CHECK (`session_idle_timeout_minutes` BETWEEN 1 AND 720)\n) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_nopad_bin",
+      "checksum": "602d7c5ab1f7e583b4e588fd8a196edd6d72d809df1b86979434f9f51c31f4fe"
+    },
+    {
+      "name": "worker_runtime",
+      "columns": [
+        {
+          "name": "id",
+          "type": "bigint",
+          "nullable": false,
+          "default": null
+        },
+        {
+          "name": "run_id",
+          "type": "longblob",
+          "nullable": true,
+          "default": null
+        },
+        {
+          "name": "stop_requested",
+          "type": "bigint",
+          "nullable": false,
+          "default": "0"
+        },
+        {
+          "name": "fairness_turn",
+          "type": "bigint",
+          "nullable": false,
+          "default": "0"
+        }
+      ],
+      "primary": [
+        "id"
+      ],
+      "checks": [
+        {
+          "name": "worker_runtime_c1",
+          "expression": "`id` = 1"
+        },
+        {
+          "name": "worker_runtime_c2",
+          "expression": "`stop_requested` IN (0,1)"
+        },
+        {
+          "name": "worker_runtime_c3",
+          "expression": "`fairness_turn` >= 0"
+        }
+      ],
+      "indexes": [],
+      "foreign": [],
+      "create": "CREATE TABLE `worker_runtime` (\n  `id` bigint NOT NULL,\n  `run_id` longblob NULL,\n  `stop_requested` bigint NOT NULL DEFAULT 0,\n  `fairness_turn` bigint NOT NULL DEFAULT 0,\n  PRIMARY KEY (`id`),\n  CONSTRAINT `worker_runtime_c1` CHECK (`id` = 1),\n  CONSTRAINT `worker_runtime_c2` CHECK (`stop_requested` IN (0,1)),\n  CONSTRAINT `worker_runtime_c3` CHECK (`fairness_turn` >= 0)\n) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_nopad_bin",
+      "checksum": "258f872cd78171046e5aa3daef147cc83ee9325ca1e1921794af4c3ac8a4a7b5"
+    },
+    {
+      "name": "worker_progress",
+      "columns": [
+        {
+          "name": "site_id",
+          "type": "bigint",
+          "nullable": false,
+          "default": null
+        },
+        {
+          "name": "config_revision",
+          "type": "bigint",
+          "nullable": false,
+          "default": null
+        },
+        {
+          "name": "latest_release",
+          "type": "bigint",
+          "nullable": false,
+          "default": "0"
+        },
+        {
+          "name": "latest_commit",
+          "type": "bigint",
+          "nullable": false,
+          "default": "0"
+        },
+        {
+          "name": "open_issues",
+          "type": "bigint",
+          "nullable": false,
+          "default": "0"
+        },
+        {
+          "name": "open_prs",
+          "type": "bigint",
+          "nullable": false,
+          "default": "0"
+        }
+      ],
+      "primary": [
+        "site_id"
+      ],
+      "checks": [
+        {
+          "name": "worker_progress_c1",
+          "expression": "`config_revision` >= 0"
+        },
+        {
+          "name": "worker_progress_c2",
+          "expression": "`latest_release` >= 0"
+        },
+        {
+          "name": "worker_progress_c3",
+          "expression": "`latest_commit` >= 0"
+        },
+        {
+          "name": "worker_progress_c4",
+          "expression": "`open_issues` >= 0"
+        },
+        {
+          "name": "worker_progress_c5",
+          "expression": "`open_prs` >= 0"
+        }
+      ],
+      "indexes": [],
+      "foreign": [
+        {
+          "column": "site_id",
+          "table": "sites",
+          "target": "id",
+          "onDelete": "CASCADE",
+          "onUpdate": "RESTRICT"
+        }
+      ],
+      "create": "CREATE TABLE `worker_progress` (\n  `site_id` bigint NOT NULL,\n  `config_revision` bigint NOT NULL,\n  `latest_release` bigint NOT NULL DEFAULT 0,\n  `latest_commit` bigint NOT NULL DEFAULT 0,\n  `open_issues` bigint NOT NULL DEFAULT 0,\n  `open_prs` bigint NOT NULL DEFAULT 0,\n  PRIMARY KEY (`site_id`),\n  CONSTRAINT `worker_progress_site_id_fk` FOREIGN KEY (`site_id`) REFERENCES `sites` (`id`) ON DELETE CASCADE ON UPDATE RESTRICT,\n  CONSTRAINT `worker_progress_c1` CHECK (`config_revision` >= 0),\n  CONSTRAINT `worker_progress_c2` CHECK (`latest_release` >= 0),\n  CONSTRAINT `worker_progress_c3` CHECK (`latest_commit` >= 0),\n  CONSTRAINT `worker_progress_c4` CHECK (`open_issues` >= 0),\n  CONSTRAINT `worker_progress_c5` CHECK (`open_prs` >= 0)\n) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_nopad_bin",
+      "checksum": "f4de8edab76b40fc71558a0a1fcc67e83dc7c4d070b155eb64175ea3b1c85c51"
+    },
+    {
+      "name": "check_history",
+      "columns": [
+        {
+          "name": "id",
+          "type": "bigint",
+          "nullable": false,
+          "default": null,
+          "auto": true
+        },
+        {
+          "name": "site_id",
+          "type": "bigint",
+          "nullable": false,
+          "default": null
+        },
+        {
+          "name": "config_revision",
+          "type": "bigint",
+          "nullable": false,
+          "default": null
+        },
+        {
+          "name": "checked_at",
+          "type": "varbinary(20)",
+          "nullable": false,
+          "default": null
+        },
+        {
+          "name": "online",
+          "type": "bigint",
+          "nullable": true,
+          "default": null
+        },
+        {
+          "name": "health_error_code",
+          "type": "varbinary(64)",
+          "nullable": true,
+          "default": null
+        },
+        {
+          "name": "health_http_status",
+          "type": "bigint",
+          "nullable": true,
+          "default": null
+        },
+        {
+          "name": "response_time_ms",
+          "type": "bigint",
+          "nullable": true,
+          "default": null
+        },
+        {
+          "name": "deployed_version",
+          "type": "varbinary(200)",
+          "nullable": true,
+          "default": null
+        },
+        {
+          "name": "deployed_commit",
+          "type": "varbinary(64)",
+          "nullable": true,
+          "default": null
+        },
+        {
+          "name": "latest_release",
+          "type": "varbinary(200)",
+          "nullable": true,
+          "default": null
+        },
+        {
+          "name": "latest_commit",
+          "type": "varbinary(64)",
+          "nullable": true,
+          "default": null
+        },
+        {
+          "name": "version_status",
+          "type": "varbinary(16)",
+          "nullable": false,
+          "default": null
+        },
+        {
+          "name": "version_error_code",
+          "type": "varbinary(64)",
+          "nullable": true,
+          "default": null
+        },
+        {
+          "name": "version_http_status",
+          "type": "bigint",
+          "nullable": true,
+          "default": null
+        },
+        {
+          "name": "release_error_code",
+          "type": "varbinary(64)",
+          "nullable": true,
+          "default": null
+        },
+        {
+          "name": "release_http_status",
+          "type": "bigint",
+          "nullable": true,
+          "default": null
+        },
+        {
+          "name": "commit_error_code",
+          "type": "varbinary(64)",
+          "nullable": true,
+          "default": null
+        },
+        {
+          "name": "commit_http_status",
+          "type": "bigint",
+          "nullable": true,
+          "default": null
+        }
+      ],
+      "primary": [
+        "id"
+      ],
+      "checks": [
+        {
+          "name": "check_history_c1",
+          "expression": "`config_revision` >= 0"
+        },
+        {
+          "name": "check_history_c2",
+          "expression": "OCTET_LENGTH(`checked_at`) = 20 AND ASCII(SUBSTRING(`checked_at`,1,1)) BETWEEN 48 AND 57 AND ASCII(SUBSTRING(`checked_at`,2,1)) BETWEEN 48 AND 57 AND ASCII(SUBSTRING(`checked_at`,3,1)) BETWEEN 48 AND 57 AND ASCII(SUBSTRING(`checked_at`,4,1)) BETWEEN 48 AND 57 AND ASCII(SUBSTRING(`checked_at`,6,1)) BETWEEN 48 AND 57 AND ASCII(SUBSTRING(`checked_at`,7,1)) BETWEEN 48 AND 57 AND ASCII(SUBSTRING(`checked_at`,9,1)) BETWEEN 48 AND 57 AND ASCII(SUBSTRING(`checked_at`,10,1)) BETWEEN 48 AND 57 AND ASCII(SUBSTRING(`checked_at`,12,1)) BETWEEN 48 AND 57 AND ASCII(SUBSTRING(`checked_at`,13,1)) BETWEEN 48 AND 57 AND ASCII(SUBSTRING(`checked_at`,15,1)) BETWEEN 48 AND 57 AND ASCII(SUBSTRING(`checked_at`,16,1)) BETWEEN 48 AND 57 AND ASCII(SUBSTRING(`checked_at`,18,1)) BETWEEN 48 AND 57 AND ASCII(SUBSTRING(`checked_at`,19,1)) BETWEEN 48 AND 57 AND SUBSTRING(`checked_at`,5,1) = '-' AND SUBSTRING(`checked_at`,8,1) = '-' AND SUBSTRING(`checked_at`,11,1) = 'T' AND SUBSTRING(`checked_at`,14,1) = ':' AND SUBSTRING(`checked_at`,17,1) = ':' AND SUBSTRING(`checked_at`,20,1) = 'Z' AND CAST(SUBSTRING(`checked_at`,1,4) AS UNSIGNED) BETWEEN 1 AND 9999 AND CAST(SUBSTRING(`checked_at`,6,2) AS UNSIGNED) BETWEEN 1 AND 12 AND CAST(SUBSTRING(`checked_at`,9,2) AS UNSIGNED) BETWEEN 1 AND 31 AND CAST(SUBSTRING(`checked_at`,12,2) AS UNSIGNED) BETWEEN 0 AND 23 AND CAST(SUBSTRING(`checked_at`,15,2) AS UNSIGNED) BETWEEN 0 AND 59 AND CAST(SUBSTRING(`checked_at`,18,2) AS UNSIGNED) BETWEEN 0 AND 59 AND (CAST(SUBSTRING(`checked_at`,9,2) AS UNSIGNED) <= 28 OR (CAST(SUBSTRING(`checked_at`,9,2) AS UNSIGNED) = 29 AND (CAST(SUBSTRING(`checked_at`,6,2) AS UNSIGNED) <> 2 OR (MOD(CAST(SUBSTRING(`checked_at`,1,4) AS UNSIGNED),4) = 0 AND (MOD(CAST(SUBSTRING(`checked_at`,1,4) AS UNSIGNED),100) <> 0 OR MOD(CAST(SUBSTRING(`checked_at`,1,4) AS UNSIGNED),400) = 0)))) OR (CAST(SUBSTRING(`checked_at`,9,2) AS UNSIGNED) = 30 AND CAST(SUBSTRING(`checked_at`,6,2) AS UNSIGNED) <> 2) OR (CAST(SUBSTRING(`checked_at`,9,2) AS UNSIGNED) = 31 AND CAST(SUBSTRING(`checked_at`,6,2) AS UNSIGNED) IN (1,3,5,7,8,10,12)))"
+        },
+        {
+          "name": "check_history_c3",
+          "expression": "`online` IN (0,1)"
+        },
+        {
+          "name": "check_history_c4",
+          "expression": "`health_error_code` IN ('http','timeout','refused','dns','ssrf','tls','size','invalid-response','invalid-url','network','check-error','json-condition','redirect-location-missing','redirect-location-invalid','redirect-origin','redirect-cycle','redirect-limit')"
+        },
+        {
+          "name": "check_history_c5",
+          "expression": "`response_time_ms` BETWEEN 0 AND 2147483647"
+        },
+        {
+          "name": "check_history_c6",
+          "expression": "`version_status` IN ('skipped','ok','error')"
+        },
+        {
+          "name": "check_history_c7",
+          "expression": "`version_error_code` IN ('http','timeout','refused','dns','ssrf','tls','size','invalid-response','invalid-url','network','check-error','json-condition','invalid-data','redirect-location-missing','redirect-location-invalid','redirect-origin','redirect-cycle','redirect-limit')"
+        },
+        {
+          "name": "check_history_c8",
+          "expression": "`release_error_code` IN ('access','rate-limit','budget','credential-changed','renamed','branch-unconfirmed','release-unconfirmed','incomplete-search','invalid-data','unavailable','check-error')"
+        },
+        {
+          "name": "check_history_c9",
+          "expression": "`commit_error_code` IN ('access','rate-limit','budget','credential-changed','renamed','branch-unconfirmed','release-unconfirmed','incomplete-search','invalid-data','unavailable','check-error')"
+        },
+        {
+          "name": "check_history_c10",
+          "expression": "(`version_status` = 'error') = (`version_error_code` IS NOT NULL)"
+        },
+        {
+          "name": "check_history_c11",
+          "expression": "OCTET_LENGTH(`deployed_commit`) BETWEEN 7 AND 64 AND OCTET_LENGTH(REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(`deployed_commit`,'0',''),'1',''),'2',''),'3',''),'4',''),'5',''),'6',''),'7',''),'8',''),'9',''),'a',''),'b',''),'c',''),'d',''),'e',''),'f','')) = 0"
+        },
+        {
+          "name": "check_history_c12",
+          "expression": "OCTET_LENGTH(`latest_commit`) BETWEEN 7 AND 64 AND OCTET_LENGTH(REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(`latest_commit`,'0',''),'1',''),'2',''),'3',''),'4',''),'5',''),'6',''),'7',''),'8',''),'9',''),'a',''),'b',''),'c',''),'d',''),'e',''),'f','')) = 0"
+        },
+        {
+          "name": "check_history_c13",
+          "expression": "`health_http_status` BETWEEN 100 AND 599"
+        },
+        {
+          "name": "check_history_c14",
+          "expression": "`version_http_status` BETWEEN 100 AND 599"
+        },
+        {
+          "name": "check_history_c15",
+          "expression": "`release_http_status` BETWEEN 100 AND 599"
+        },
+        {
+          "name": "check_history_c16",
+          "expression": "`commit_http_status` BETWEEN 100 AND 599"
+        },
+        {
+          "name": "check_history_c17",
+          "expression": "OCTET_LENGTH(`deployed_version`) BETWEEN 1 AND 200"
+        },
+        {
+          "name": "check_history_c18",
+          "expression": "OCTET_LENGTH(`latest_release`) BETWEEN 1 AND 200"
+        }
+      ],
+      "indexes": [
+        {
+          "name": "check_history_site_time",
+          "columns": [
+            "site_id",
+            "checked_at",
+            "id"
+          ],
+          "unique": false
+        },
+        {
+          "name": "check_history_time",
+          "columns": [
+            "checked_at",
+            "id"
+          ],
+          "unique": false
+        }
+      ],
+      "foreign": [
+        {
+          "column": "site_id",
+          "table": "sites",
+          "target": "id",
+          "onDelete": "CASCADE",
+          "onUpdate": "RESTRICT"
+        }
+      ],
+      "create": "CREATE TABLE `check_history` (\n  `id` bigint NOT NULL AUTO_INCREMENT,\n  `site_id` bigint NOT NULL,\n  `config_revision` bigint NOT NULL,\n  `checked_at` varbinary(20) NOT NULL,\n  `online` bigint NULL,\n  `health_error_code` varbinary(64) NULL,\n  `health_http_status` bigint NULL,\n  `response_time_ms` bigint NULL,\n  `deployed_version` varbinary(200) NULL,\n  `deployed_commit` varbinary(64) NULL,\n  `latest_release` varbinary(200) NULL,\n  `latest_commit` varbinary(64) NULL,\n  `version_status` varbinary(16) NOT NULL,\n  `version_error_code` varbinary(64) NULL,\n  `version_http_status` bigint NULL,\n  `release_error_code` varbinary(64) NULL,\n  `release_http_status` bigint NULL,\n  `commit_error_code` varbinary(64) NULL,\n  `commit_http_status` bigint NULL,\n  PRIMARY KEY (`id`),\n  KEY `check_history_site_time` (`site_id`,`checked_at`,`id`),\n  KEY `check_history_time` (`checked_at`,`id`),\n  CONSTRAINT `check_history_site_id_fk` FOREIGN KEY (`site_id`) REFERENCES `sites` (`id`) ON DELETE CASCADE ON UPDATE RESTRICT,\n  CONSTRAINT `check_history_c1` CHECK (`config_revision` >= 0),\n  CONSTRAINT `check_history_c2` CHECK (OCTET_LENGTH(`checked_at`) = 20 AND ASCII(SUBSTRING(`checked_at`,1,1)) BETWEEN 48 AND 57 AND ASCII(SUBSTRING(`checked_at`,2,1)) BETWEEN 48 AND 57 AND ASCII(SUBSTRING(`checked_at`,3,1)) BETWEEN 48 AND 57 AND ASCII(SUBSTRING(`checked_at`,4,1)) BETWEEN 48 AND 57 AND ASCII(SUBSTRING(`checked_at`,6,1)) BETWEEN 48 AND 57 AND ASCII(SUBSTRING(`checked_at`,7,1)) BETWEEN 48 AND 57 AND ASCII(SUBSTRING(`checked_at`,9,1)) BETWEEN 48 AND 57 AND ASCII(SUBSTRING(`checked_at`,10,1)) BETWEEN 48 AND 57 AND ASCII(SUBSTRING(`checked_at`,12,1)) BETWEEN 48 AND 57 AND ASCII(SUBSTRING(`checked_at`,13,1)) BETWEEN 48 AND 57 AND ASCII(SUBSTRING(`checked_at`,15,1)) BETWEEN 48 AND 57 AND ASCII(SUBSTRING(`checked_at`,16,1)) BETWEEN 48 AND 57 AND ASCII(SUBSTRING(`checked_at`,18,1)) BETWEEN 48 AND 57 AND ASCII(SUBSTRING(`checked_at`,19,1)) BETWEEN 48 AND 57 AND SUBSTRING(`checked_at`,5,1) = '-' AND SUBSTRING(`checked_at`,8,1) = '-' AND SUBSTRING(`checked_at`,11,1) = 'T' AND SUBSTRING(`checked_at`,14,1) = ':' AND SUBSTRING(`checked_at`,17,1) = ':' AND SUBSTRING(`checked_at`,20,1) = 'Z' AND CAST(SUBSTRING(`checked_at`,1,4) AS UNSIGNED) BETWEEN 1 AND 9999 AND CAST(SUBSTRING(`checked_at`,6,2) AS UNSIGNED) BETWEEN 1 AND 12 AND CAST(SUBSTRING(`checked_at`,9,2) AS UNSIGNED) BETWEEN 1 AND 31 AND CAST(SUBSTRING(`checked_at`,12,2) AS UNSIGNED) BETWEEN 0 AND 23 AND CAST(SUBSTRING(`checked_at`,15,2) AS UNSIGNED) BETWEEN 0 AND 59 AND CAST(SUBSTRING(`checked_at`,18,2) AS UNSIGNED) BETWEEN 0 AND 59 AND (CAST(SUBSTRING(`checked_at`,9,2) AS UNSIGNED) <= 28 OR (CAST(SUBSTRING(`checked_at`,9,2) AS UNSIGNED) = 29 AND (CAST(SUBSTRING(`checked_at`,6,2) AS UNSIGNED) <> 2 OR (MOD(CAST(SUBSTRING(`checked_at`,1,4) AS UNSIGNED),4) = 0 AND (MOD(CAST(SUBSTRING(`checked_at`,1,4) AS UNSIGNED),100) <> 0 OR MOD(CAST(SUBSTRING(`checked_at`,1,4) AS UNSIGNED),400) = 0)))) OR (CAST(SUBSTRING(`checked_at`,9,2) AS UNSIGNED) = 30 AND CAST(SUBSTRING(`checked_at`,6,2) AS UNSIGNED) <> 2) OR (CAST(SUBSTRING(`checked_at`,9,2) AS UNSIGNED) = 31 AND CAST(SUBSTRING(`checked_at`,6,2) AS UNSIGNED) IN (1,3,5,7,8,10,12)))),\n  CONSTRAINT `check_history_c3` CHECK (`online` IN (0,1)),\n  CONSTRAINT `check_history_c4` CHECK (`health_error_code` IN ('http','timeout','refused','dns','ssrf','tls','size','invalid-response','invalid-url','network','check-error','json-condition','redirect-location-missing','redirect-location-invalid','redirect-origin','redirect-cycle','redirect-limit')),\n  CONSTRAINT `check_history_c5` CHECK (`response_time_ms` BETWEEN 0 AND 2147483647),\n  CONSTRAINT `check_history_c6` CHECK (`version_status` IN ('skipped','ok','error')),\n  CONSTRAINT `check_history_c7` CHECK (`version_error_code` IN ('http','timeout','refused','dns','ssrf','tls','size','invalid-response','invalid-url','network','check-error','json-condition','invalid-data','redirect-location-missing','redirect-location-invalid','redirect-origin','redirect-cycle','redirect-limit')),\n  CONSTRAINT `check_history_c8` CHECK (`release_error_code` IN ('access','rate-limit','budget','credential-changed','renamed','branch-unconfirmed','release-unconfirmed','incomplete-search','invalid-data','unavailable','check-error')),\n  CONSTRAINT `check_history_c9` CHECK (`commit_error_code` IN ('access','rate-limit','budget','credential-changed','renamed','branch-unconfirmed','release-unconfirmed','incomplete-search','invalid-data','unavailable','check-error')),\n  CONSTRAINT `check_history_c10` CHECK ((`version_status` = 'error') = (`version_error_code` IS NOT NULL)),\n  CONSTRAINT `check_history_c11` CHECK (OCTET_LENGTH(`deployed_commit`) BETWEEN 7 AND 64 AND OCTET_LENGTH(REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(`deployed_commit`,'0',''),'1',''),'2',''),'3',''),'4',''),'5',''),'6',''),'7',''),'8',''),'9',''),'a',''),'b',''),'c',''),'d',''),'e',''),'f','')) = 0),\n  CONSTRAINT `check_history_c12` CHECK (OCTET_LENGTH(`latest_commit`) BETWEEN 7 AND 64 AND OCTET_LENGTH(REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(`latest_commit`,'0',''),'1',''),'2',''),'3',''),'4',''),'5',''),'6',''),'7',''),'8',''),'9',''),'a',''),'b',''),'c',''),'d',''),'e',''),'f','')) = 0),\n  CONSTRAINT `check_history_c13` CHECK (`health_http_status` BETWEEN 100 AND 599),\n  CONSTRAINT `check_history_c14` CHECK (`version_http_status` BETWEEN 100 AND 599),\n  CONSTRAINT `check_history_c15` CHECK (`release_http_status` BETWEEN 100 AND 599),\n  CONSTRAINT `check_history_c16` CHECK (`commit_http_status` BETWEEN 100 AND 599),\n  CONSTRAINT `check_history_c17` CHECK (OCTET_LENGTH(`deployed_version`) BETWEEN 1 AND 200),\n  CONSTRAINT `check_history_c18` CHECK (OCTET_LENGTH(`latest_release`) BETWEEN 1 AND 200)\n) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_nopad_bin",
+      "checksum": "13ab12db1056e957d1c0f17a1991c2b8e8768db6da707ef7939a649d11b5c296"
+    },
+    {
+      "name": "incidents",
+      "columns": [
+        {
+          "name": "id",
+          "type": "bigint",
+          "nullable": false,
+          "default": null
+        },
+        {
+          "name": "site_id",
+          "type": "bigint",
+          "nullable": false,
+          "default": null
+        },
+        {
+          "name": "config_revision",
+          "type": "bigint",
+          "nullable": false,
+          "default": null
+        },
+        {
+          "name": "opened_at",
+          "type": "varbinary(20)",
+          "nullable": false,
+          "default": null
+        },
+        {
+          "name": "health_error_code",
+          "type": "varbinary(64)",
+          "nullable": true,
+          "default": null
+        },
+        {
+          "name": "health_http_status",
+          "type": "bigint",
+          "nullable": true,
+          "default": null
+        },
+        {
+          "name": "recovery_history_id",
+          "type": "bigint",
+          "nullable": true,
+          "default": null
+        },
+        {
+          "name": "recovered_at",
+          "type": "varbinary(20)",
+          "nullable": true,
+          "default": null
+        },
+        {
+          "name": "interruption_history_id",
+          "type": "bigint",
+          "nullable": true,
+          "default": null
+        },
+        {
+          "name": "end_reason",
+          "type": "varbinary(32)",
+          "nullable": true,
+          "default": null
+        },
+        {
+          "name": "uncertain",
+          "type": "bigint",
+          "nullable": false,
+          "default": "0"
+        },
+        {
+          "name": "clock_invalid",
+          "type": "bigint",
+          "nullable": false,
+          "default": "0"
+        },
+        {
+          "name": "unresolved_site_id",
+          "type": "bigint",
+          "nullable": true,
+          "default": null,
+          "generated": "CASE WHEN `end_reason` IS NULL THEN `site_id` ELSE NULL END"
+        }
+      ],
+      "primary": [
+        "id"
+      ],
+      "checks": [
+        {
+          "name": "incidents_c1",
+          "expression": "`id` > 0"
+        },
+        {
+          "name": "incidents_c2",
+          "expression": "`config_revision` >= 0"
+        },
+        {
+          "name": "incidents_c3",
+          "expression": "OCTET_LENGTH(`opened_at`) = 20 AND ASCII(SUBSTRING(`opened_at`,1,1)) BETWEEN 48 AND 57 AND ASCII(SUBSTRING(`opened_at`,2,1)) BETWEEN 48 AND 57 AND ASCII(SUBSTRING(`opened_at`,3,1)) BETWEEN 48 AND 57 AND ASCII(SUBSTRING(`opened_at`,4,1)) BETWEEN 48 AND 57 AND ASCII(SUBSTRING(`opened_at`,6,1)) BETWEEN 48 AND 57 AND ASCII(SUBSTRING(`opened_at`,7,1)) BETWEEN 48 AND 57 AND ASCII(SUBSTRING(`opened_at`,9,1)) BETWEEN 48 AND 57 AND ASCII(SUBSTRING(`opened_at`,10,1)) BETWEEN 48 AND 57 AND ASCII(SUBSTRING(`opened_at`,12,1)) BETWEEN 48 AND 57 AND ASCII(SUBSTRING(`opened_at`,13,1)) BETWEEN 48 AND 57 AND ASCII(SUBSTRING(`opened_at`,15,1)) BETWEEN 48 AND 57 AND ASCII(SUBSTRING(`opened_at`,16,1)) BETWEEN 48 AND 57 AND ASCII(SUBSTRING(`opened_at`,18,1)) BETWEEN 48 AND 57 AND ASCII(SUBSTRING(`opened_at`,19,1)) BETWEEN 48 AND 57 AND SUBSTRING(`opened_at`,5,1) = '-' AND SUBSTRING(`opened_at`,8,1) = '-' AND SUBSTRING(`opened_at`,11,1) = 'T' AND SUBSTRING(`opened_at`,14,1) = ':' AND SUBSTRING(`opened_at`,17,1) = ':' AND SUBSTRING(`opened_at`,20,1) = 'Z' AND CAST(SUBSTRING(`opened_at`,1,4) AS UNSIGNED) BETWEEN 1 AND 9999 AND CAST(SUBSTRING(`opened_at`,6,2) AS UNSIGNED) BETWEEN 1 AND 12 AND CAST(SUBSTRING(`opened_at`,9,2) AS UNSIGNED) BETWEEN 1 AND 31 AND CAST(SUBSTRING(`opened_at`,12,2) AS UNSIGNED) BETWEEN 0 AND 23 AND CAST(SUBSTRING(`opened_at`,15,2) AS UNSIGNED) BETWEEN 0 AND 59 AND CAST(SUBSTRING(`opened_at`,18,2) AS UNSIGNED) BETWEEN 0 AND 59 AND (CAST(SUBSTRING(`opened_at`,9,2) AS UNSIGNED) <= 28 OR (CAST(SUBSTRING(`opened_at`,9,2) AS UNSIGNED) = 29 AND (CAST(SUBSTRING(`opened_at`,6,2) AS UNSIGNED) <> 2 OR (MOD(CAST(SUBSTRING(`opened_at`,1,4) AS UNSIGNED),4) = 0 AND (MOD(CAST(SUBSTRING(`opened_at`,1,4) AS UNSIGNED),100) <> 0 OR MOD(CAST(SUBSTRING(`opened_at`,1,4) AS UNSIGNED),400) = 0)))) OR (CAST(SUBSTRING(`opened_at`,9,2) AS UNSIGNED) = 30 AND CAST(SUBSTRING(`opened_at`,6,2) AS UNSIGNED) <> 2) OR (CAST(SUBSTRING(`opened_at`,9,2) AS UNSIGNED) = 31 AND CAST(SUBSTRING(`opened_at`,6,2) AS UNSIGNED) IN (1,3,5,7,8,10,12)))"
+        },
+        {
+          "name": "incidents_c4",
+          "expression": "OCTET_LENGTH(`recovered_at`) = 20 AND ASCII(SUBSTRING(`recovered_at`,1,1)) BETWEEN 48 AND 57 AND ASCII(SUBSTRING(`recovered_at`,2,1)) BETWEEN 48 AND 57 AND ASCII(SUBSTRING(`recovered_at`,3,1)) BETWEEN 48 AND 57 AND ASCII(SUBSTRING(`recovered_at`,4,1)) BETWEEN 48 AND 57 AND ASCII(SUBSTRING(`recovered_at`,6,1)) BETWEEN 48 AND 57 AND ASCII(SUBSTRING(`recovered_at`,7,1)) BETWEEN 48 AND 57 AND ASCII(SUBSTRING(`recovered_at`,9,1)) BETWEEN 48 AND 57 AND ASCII(SUBSTRING(`recovered_at`,10,1)) BETWEEN 48 AND 57 AND ASCII(SUBSTRING(`recovered_at`,12,1)) BETWEEN 48 AND 57 AND ASCII(SUBSTRING(`recovered_at`,13,1)) BETWEEN 48 AND 57 AND ASCII(SUBSTRING(`recovered_at`,15,1)) BETWEEN 48 AND 57 AND ASCII(SUBSTRING(`recovered_at`,16,1)) BETWEEN 48 AND 57 AND ASCII(SUBSTRING(`recovered_at`,18,1)) BETWEEN 48 AND 57 AND ASCII(SUBSTRING(`recovered_at`,19,1)) BETWEEN 48 AND 57 AND SUBSTRING(`recovered_at`,5,1) = '-' AND SUBSTRING(`recovered_at`,8,1) = '-' AND SUBSTRING(`recovered_at`,11,1) = 'T' AND SUBSTRING(`recovered_at`,14,1) = ':' AND SUBSTRING(`recovered_at`,17,1) = ':' AND SUBSTRING(`recovered_at`,20,1) = 'Z' AND CAST(SUBSTRING(`recovered_at`,1,4) AS UNSIGNED) BETWEEN 1 AND 9999 AND CAST(SUBSTRING(`recovered_at`,6,2) AS UNSIGNED) BETWEEN 1 AND 12 AND CAST(SUBSTRING(`recovered_at`,9,2) AS UNSIGNED) BETWEEN 1 AND 31 AND CAST(SUBSTRING(`recovered_at`,12,2) AS UNSIGNED) BETWEEN 0 AND 23 AND CAST(SUBSTRING(`recovered_at`,15,2) AS UNSIGNED) BETWEEN 0 AND 59 AND CAST(SUBSTRING(`recovered_at`,18,2) AS UNSIGNED) BETWEEN 0 AND 59 AND (CAST(SUBSTRING(`recovered_at`,9,2) AS UNSIGNED) <= 28 OR (CAST(SUBSTRING(`recovered_at`,9,2) AS UNSIGNED) = 29 AND (CAST(SUBSTRING(`recovered_at`,6,2) AS UNSIGNED) <> 2 OR (MOD(CAST(SUBSTRING(`recovered_at`,1,4) AS UNSIGNED),4) = 0 AND (MOD(CAST(SUBSTRING(`recovered_at`,1,4) AS UNSIGNED),100) <> 0 OR MOD(CAST(SUBSTRING(`recovered_at`,1,4) AS UNSIGNED),400) = 0)))) OR (CAST(SUBSTRING(`recovered_at`,9,2) AS UNSIGNED) = 30 AND CAST(SUBSTRING(`recovered_at`,6,2) AS UNSIGNED) <> 2) OR (CAST(SUBSTRING(`recovered_at`,9,2) AS UNSIGNED) = 31 AND CAST(SUBSTRING(`recovered_at`,6,2) AS UNSIGNED) IN (1,3,5,7,8,10,12)))"
+        },
+        {
+          "name": "incidents_c5",
+          "expression": "`health_error_code` IN ('http','timeout','refused','dns','ssrf','tls','size','invalid-response','invalid-url','network','check-error','json-condition')"
+        },
+        {
+          "name": "incidents_c6",
+          "expression": "`health_http_status` BETWEEN 100 AND 599"
+        },
+        {
+          "name": "incidents_c7",
+          "expression": "`recovery_history_id` > `id`"
+        },
+        {
+          "name": "incidents_c8",
+          "expression": "`interruption_history_id` > `id`"
+        },
+        {
+          "name": "incidents_c9",
+          "expression": "`end_reason` IN ('recovered','config-changed')"
+        },
+        {
+          "name": "incidents_c10",
+          "expression": "`uncertain` IN (0,1)"
+        },
+        {
+          "name": "incidents_c11",
+          "expression": "`clock_invalid` IN (0,1)"
+        },
+        {
+          "name": "incidents_c12",
+          "expression": "(`end_reason` <=> 'recovered') = (`recovery_history_id` IS NOT NULL AND `recovered_at` IS NOT NULL)"
+        },
+        {
+          "name": "incidents_c13",
+          "expression": "(`end_reason` <=> 'config-changed') = (`interruption_history_id` IS NOT NULL)"
+        },
+        {
+          "name": "incidents_c14",
+          "expression": "(`end_reason` <=> 'recovered') OR (`recovery_history_id` IS NULL AND `recovered_at` IS NULL)"
+        }
+      ],
+      "indexes": [
+        {
+          "name": "incidents_unresolved",
+          "columns": [
+            "unresolved_site_id"
+          ],
+          "unique": true
+        },
+        {
+          "name": "incidents_site_id",
+          "columns": [
+            "site_id",
+            "id"
+          ],
+          "unique": false
+        }
+      ],
+      "foreign": [
+        {
+          "column": "site_id",
+          "table": "sites",
+          "target": "id",
+          "onDelete": "CASCADE",
+          "onUpdate": "RESTRICT"
+        }
+      ],
+      "create": "CREATE TABLE `incidents` (\n  `id` bigint NOT NULL,\n  `site_id` bigint NOT NULL,\n  `config_revision` bigint NOT NULL,\n  `opened_at` varbinary(20) NOT NULL,\n  `health_error_code` varbinary(64) NULL,\n  `health_http_status` bigint NULL,\n  `recovery_history_id` bigint NULL,\n  `recovered_at` varbinary(20) NULL,\n  `interruption_history_id` bigint NULL,\n  `end_reason` varbinary(32) NULL,\n  `uncertain` bigint NOT NULL DEFAULT 0,\n  `clock_invalid` bigint NOT NULL DEFAULT 0,\n  `unresolved_site_id` bigint GENERATED ALWAYS AS (CASE WHEN `end_reason` IS NULL THEN `site_id` ELSE NULL END) VIRTUAL,\n  PRIMARY KEY (`id`),\n  UNIQUE KEY `incidents_unresolved` (`unresolved_site_id`),\n  KEY `incidents_site_id` (`site_id`,`id`),\n  CONSTRAINT `incidents_site_id_fk` FOREIGN KEY (`site_id`) REFERENCES `sites` (`id`) ON DELETE CASCADE ON UPDATE RESTRICT,\n  CONSTRAINT `incidents_c1` CHECK (`id` > 0),\n  CONSTRAINT `incidents_c2` CHECK (`config_revision` >= 0),\n  CONSTRAINT `incidents_c3` CHECK (OCTET_LENGTH(`opened_at`) = 20 AND ASCII(SUBSTRING(`opened_at`,1,1)) BETWEEN 48 AND 57 AND ASCII(SUBSTRING(`opened_at`,2,1)) BETWEEN 48 AND 57 AND ASCII(SUBSTRING(`opened_at`,3,1)) BETWEEN 48 AND 57 AND ASCII(SUBSTRING(`opened_at`,4,1)) BETWEEN 48 AND 57 AND ASCII(SUBSTRING(`opened_at`,6,1)) BETWEEN 48 AND 57 AND ASCII(SUBSTRING(`opened_at`,7,1)) BETWEEN 48 AND 57 AND ASCII(SUBSTRING(`opened_at`,9,1)) BETWEEN 48 AND 57 AND ASCII(SUBSTRING(`opened_at`,10,1)) BETWEEN 48 AND 57 AND ASCII(SUBSTRING(`opened_at`,12,1)) BETWEEN 48 AND 57 AND ASCII(SUBSTRING(`opened_at`,13,1)) BETWEEN 48 AND 57 AND ASCII(SUBSTRING(`opened_at`,15,1)) BETWEEN 48 AND 57 AND ASCII(SUBSTRING(`opened_at`,16,1)) BETWEEN 48 AND 57 AND ASCII(SUBSTRING(`opened_at`,18,1)) BETWEEN 48 AND 57 AND ASCII(SUBSTRING(`opened_at`,19,1)) BETWEEN 48 AND 57 AND SUBSTRING(`opened_at`,5,1) = '-' AND SUBSTRING(`opened_at`,8,1) = '-' AND SUBSTRING(`opened_at`,11,1) = 'T' AND SUBSTRING(`opened_at`,14,1) = ':' AND SUBSTRING(`opened_at`,17,1) = ':' AND SUBSTRING(`opened_at`,20,1) = 'Z' AND CAST(SUBSTRING(`opened_at`,1,4) AS UNSIGNED) BETWEEN 1 AND 9999 AND CAST(SUBSTRING(`opened_at`,6,2) AS UNSIGNED) BETWEEN 1 AND 12 AND CAST(SUBSTRING(`opened_at`,9,2) AS UNSIGNED) BETWEEN 1 AND 31 AND CAST(SUBSTRING(`opened_at`,12,2) AS UNSIGNED) BETWEEN 0 AND 23 AND CAST(SUBSTRING(`opened_at`,15,2) AS UNSIGNED) BETWEEN 0 AND 59 AND CAST(SUBSTRING(`opened_at`,18,2) AS UNSIGNED) BETWEEN 0 AND 59 AND (CAST(SUBSTRING(`opened_at`,9,2) AS UNSIGNED) <= 28 OR (CAST(SUBSTRING(`opened_at`,9,2) AS UNSIGNED) = 29 AND (CAST(SUBSTRING(`opened_at`,6,2) AS UNSIGNED) <> 2 OR (MOD(CAST(SUBSTRING(`opened_at`,1,4) AS UNSIGNED),4) = 0 AND (MOD(CAST(SUBSTRING(`opened_at`,1,4) AS UNSIGNED),100) <> 0 OR MOD(CAST(SUBSTRING(`opened_at`,1,4) AS UNSIGNED),400) = 0)))) OR (CAST(SUBSTRING(`opened_at`,9,2) AS UNSIGNED) = 30 AND CAST(SUBSTRING(`opened_at`,6,2) AS UNSIGNED) <> 2) OR (CAST(SUBSTRING(`opened_at`,9,2) AS UNSIGNED) = 31 AND CAST(SUBSTRING(`opened_at`,6,2) AS UNSIGNED) IN (1,3,5,7,8,10,12)))),\n  CONSTRAINT `incidents_c4` CHECK (OCTET_LENGTH(`recovered_at`) = 20 AND ASCII(SUBSTRING(`recovered_at`,1,1)) BETWEEN 48 AND 57 AND ASCII(SUBSTRING(`recovered_at`,2,1)) BETWEEN 48 AND 57 AND ASCII(SUBSTRING(`recovered_at`,3,1)) BETWEEN 48 AND 57 AND ASCII(SUBSTRING(`recovered_at`,4,1)) BETWEEN 48 AND 57 AND ASCII(SUBSTRING(`recovered_at`,6,1)) BETWEEN 48 AND 57 AND ASCII(SUBSTRING(`recovered_at`,7,1)) BETWEEN 48 AND 57 AND ASCII(SUBSTRING(`recovered_at`,9,1)) BETWEEN 48 AND 57 AND ASCII(SUBSTRING(`recovered_at`,10,1)) BETWEEN 48 AND 57 AND ASCII(SUBSTRING(`recovered_at`,12,1)) BETWEEN 48 AND 57 AND ASCII(SUBSTRING(`recovered_at`,13,1)) BETWEEN 48 AND 57 AND ASCII(SUBSTRING(`recovered_at`,15,1)) BETWEEN 48 AND 57 AND ASCII(SUBSTRING(`recovered_at`,16,1)) BETWEEN 48 AND 57 AND ASCII(SUBSTRING(`recovered_at`,18,1)) BETWEEN 48 AND 57 AND ASCII(SUBSTRING(`recovered_at`,19,1)) BETWEEN 48 AND 57 AND SUBSTRING(`recovered_at`,5,1) = '-' AND SUBSTRING(`recovered_at`,8,1) = '-' AND SUBSTRING(`recovered_at`,11,1) = 'T' AND SUBSTRING(`recovered_at`,14,1) = ':' AND SUBSTRING(`recovered_at`,17,1) = ':' AND SUBSTRING(`recovered_at`,20,1) = 'Z' AND CAST(SUBSTRING(`recovered_at`,1,4) AS UNSIGNED) BETWEEN 1 AND 9999 AND CAST(SUBSTRING(`recovered_at`,6,2) AS UNSIGNED) BETWEEN 1 AND 12 AND CAST(SUBSTRING(`recovered_at`,9,2) AS UNSIGNED) BETWEEN 1 AND 31 AND CAST(SUBSTRING(`recovered_at`,12,2) AS UNSIGNED) BETWEEN 0 AND 23 AND CAST(SUBSTRING(`recovered_at`,15,2) AS UNSIGNED) BETWEEN 0 AND 59 AND CAST(SUBSTRING(`recovered_at`,18,2) AS UNSIGNED) BETWEEN 0 AND 59 AND (CAST(SUBSTRING(`recovered_at`,9,2) AS UNSIGNED) <= 28 OR (CAST(SUBSTRING(`recovered_at`,9,2) AS UNSIGNED) = 29 AND (CAST(SUBSTRING(`recovered_at`,6,2) AS UNSIGNED) <> 2 OR (MOD(CAST(SUBSTRING(`recovered_at`,1,4) AS UNSIGNED),4) = 0 AND (MOD(CAST(SUBSTRING(`recovered_at`,1,4) AS UNSIGNED),100) <> 0 OR MOD(CAST(SUBSTRING(`recovered_at`,1,4) AS UNSIGNED),400) = 0)))) OR (CAST(SUBSTRING(`recovered_at`,9,2) AS UNSIGNED) = 30 AND CAST(SUBSTRING(`recovered_at`,6,2) AS UNSIGNED) <> 2) OR (CAST(SUBSTRING(`recovered_at`,9,2) AS UNSIGNED) = 31 AND CAST(SUBSTRING(`recovered_at`,6,2) AS UNSIGNED) IN (1,3,5,7,8,10,12)))),\n  CONSTRAINT `incidents_c5` CHECK (`health_error_code` IN ('http','timeout','refused','dns','ssrf','tls','size','invalid-response','invalid-url','network','check-error','json-condition')),\n  CONSTRAINT `incidents_c6` CHECK (`health_http_status` BETWEEN 100 AND 599),\n  CONSTRAINT `incidents_c7` CHECK (`recovery_history_id` > `id`),\n  CONSTRAINT `incidents_c8` CHECK (`interruption_history_id` > `id`),\n  CONSTRAINT `incidents_c9` CHECK (`end_reason` IN ('recovered','config-changed')),\n  CONSTRAINT `incidents_c10` CHECK (`uncertain` IN (0,1)),\n  CONSTRAINT `incidents_c11` CHECK (`clock_invalid` IN (0,1)),\n  CONSTRAINT `incidents_c12` CHECK ((`end_reason` <=> 'recovered') = (`recovery_history_id` IS NOT NULL AND `recovered_at` IS NOT NULL)),\n  CONSTRAINT `incidents_c13` CHECK ((`end_reason` <=> 'config-changed') = (`interruption_history_id` IS NOT NULL)),\n  CONSTRAINT `incidents_c14` CHECK ((`end_reason` <=> 'recovered') OR (`recovery_history_id` IS NULL AND `recovered_at` IS NULL))\n) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_nopad_bin",
+      "checksum": "5e57c1acc44d72dc03a29c8a1b5fcd214fb69c623c4150a63e01be6f718fd460"
+    },
+    {
+      "name": "incident_checkpoints",
+      "columns": [
+        {
+          "name": "site_id",
+          "type": "bigint",
+          "nullable": false,
+          "default": null
+        },
+        {
+          "name": "last_history_id",
+          "type": "bigint",
+          "nullable": false,
+          "default": null
+        },
+        {
+          "name": "config_revision",
+          "type": "bigint",
+          "nullable": false,
+          "default": null
+        },
+        {
+          "name": "watermark",
+          "type": "varbinary(20)",
+          "nullable": false,
+          "default": null
+        }
+      ],
+      "primary": [
+        "site_id"
+      ],
+      "checks": [
+        {
+          "name": "incident_checkpoints_c1",
+          "expression": "`last_history_id` > 0"
+        },
+        {
+          "name": "incident_checkpoints_c2",
+          "expression": "`config_revision` >= 0"
+        },
+        {
+          "name": "incident_checkpoints_c3",
+          "expression": "OCTET_LENGTH(`watermark`) = 20 AND ASCII(SUBSTRING(`watermark`,1,1)) BETWEEN 48 AND 57 AND ASCII(SUBSTRING(`watermark`,2,1)) BETWEEN 48 AND 57 AND ASCII(SUBSTRING(`watermark`,3,1)) BETWEEN 48 AND 57 AND ASCII(SUBSTRING(`watermark`,4,1)) BETWEEN 48 AND 57 AND ASCII(SUBSTRING(`watermark`,6,1)) BETWEEN 48 AND 57 AND ASCII(SUBSTRING(`watermark`,7,1)) BETWEEN 48 AND 57 AND ASCII(SUBSTRING(`watermark`,9,1)) BETWEEN 48 AND 57 AND ASCII(SUBSTRING(`watermark`,10,1)) BETWEEN 48 AND 57 AND ASCII(SUBSTRING(`watermark`,12,1)) BETWEEN 48 AND 57 AND ASCII(SUBSTRING(`watermark`,13,1)) BETWEEN 48 AND 57 AND ASCII(SUBSTRING(`watermark`,15,1)) BETWEEN 48 AND 57 AND ASCII(SUBSTRING(`watermark`,16,1)) BETWEEN 48 AND 57 AND ASCII(SUBSTRING(`watermark`,18,1)) BETWEEN 48 AND 57 AND ASCII(SUBSTRING(`watermark`,19,1)) BETWEEN 48 AND 57 AND SUBSTRING(`watermark`,5,1) = '-' AND SUBSTRING(`watermark`,8,1) = '-' AND SUBSTRING(`watermark`,11,1) = 'T' AND SUBSTRING(`watermark`,14,1) = ':' AND SUBSTRING(`watermark`,17,1) = ':' AND SUBSTRING(`watermark`,20,1) = 'Z' AND CAST(SUBSTRING(`watermark`,1,4) AS UNSIGNED) BETWEEN 1 AND 9999 AND CAST(SUBSTRING(`watermark`,6,2) AS UNSIGNED) BETWEEN 1 AND 12 AND CAST(SUBSTRING(`watermark`,9,2) AS UNSIGNED) BETWEEN 1 AND 31 AND CAST(SUBSTRING(`watermark`,12,2) AS UNSIGNED) BETWEEN 0 AND 23 AND CAST(SUBSTRING(`watermark`,15,2) AS UNSIGNED) BETWEEN 0 AND 59 AND CAST(SUBSTRING(`watermark`,18,2) AS UNSIGNED) BETWEEN 0 AND 59 AND (CAST(SUBSTRING(`watermark`,9,2) AS UNSIGNED) <= 28 OR (CAST(SUBSTRING(`watermark`,9,2) AS UNSIGNED) = 29 AND (CAST(SUBSTRING(`watermark`,6,2) AS UNSIGNED) <> 2 OR (MOD(CAST(SUBSTRING(`watermark`,1,4) AS UNSIGNED),4) = 0 AND (MOD(CAST(SUBSTRING(`watermark`,1,4) AS UNSIGNED),100) <> 0 OR MOD(CAST(SUBSTRING(`watermark`,1,4) AS UNSIGNED),400) = 0)))) OR (CAST(SUBSTRING(`watermark`,9,2) AS UNSIGNED) = 30 AND CAST(SUBSTRING(`watermark`,6,2) AS UNSIGNED) <> 2) OR (CAST(SUBSTRING(`watermark`,9,2) AS UNSIGNED) = 31 AND CAST(SUBSTRING(`watermark`,6,2) AS UNSIGNED) IN (1,3,5,7,8,10,12)))"
+        }
+      ],
+      "indexes": [],
+      "foreign": [
+        {
+          "column": "site_id",
+          "table": "sites",
+          "target": "id",
+          "onDelete": "CASCADE",
+          "onUpdate": "RESTRICT"
+        }
+      ],
+      "create": "CREATE TABLE `incident_checkpoints` (\n  `site_id` bigint NOT NULL,\n  `last_history_id` bigint NOT NULL,\n  `config_revision` bigint NOT NULL,\n  `watermark` varbinary(20) NOT NULL,\n  PRIMARY KEY (`site_id`),\n  CONSTRAINT `incident_checkpoints_site_id_fk` FOREIGN KEY (`site_id`) REFERENCES `sites` (`id`) ON DELETE CASCADE ON UPDATE RESTRICT,\n  CONSTRAINT `incident_checkpoints_c1` CHECK (`last_history_id` > 0),\n  CONSTRAINT `incident_checkpoints_c2` CHECK (`config_revision` >= 0),\n  CONSTRAINT `incident_checkpoints_c3` CHECK (OCTET_LENGTH(`watermark`) = 20 AND ASCII(SUBSTRING(`watermark`,1,1)) BETWEEN 48 AND 57 AND ASCII(SUBSTRING(`watermark`,2,1)) BETWEEN 48 AND 57 AND ASCII(SUBSTRING(`watermark`,3,1)) BETWEEN 48 AND 57 AND ASCII(SUBSTRING(`watermark`,4,1)) BETWEEN 48 AND 57 AND ASCII(SUBSTRING(`watermark`,6,1)) BETWEEN 48 AND 57 AND ASCII(SUBSTRING(`watermark`,7,1)) BETWEEN 48 AND 57 AND ASCII(SUBSTRING(`watermark`,9,1)) BETWEEN 48 AND 57 AND ASCII(SUBSTRING(`watermark`,10,1)) BETWEEN 48 AND 57 AND ASCII(SUBSTRING(`watermark`,12,1)) BETWEEN 48 AND 57 AND ASCII(SUBSTRING(`watermark`,13,1)) BETWEEN 48 AND 57 AND ASCII(SUBSTRING(`watermark`,15,1)) BETWEEN 48 AND 57 AND ASCII(SUBSTRING(`watermark`,16,1)) BETWEEN 48 AND 57 AND ASCII(SUBSTRING(`watermark`,18,1)) BETWEEN 48 AND 57 AND ASCII(SUBSTRING(`watermark`,19,1)) BETWEEN 48 AND 57 AND SUBSTRING(`watermark`,5,1) = '-' AND SUBSTRING(`watermark`,8,1) = '-' AND SUBSTRING(`watermark`,11,1) = 'T' AND SUBSTRING(`watermark`,14,1) = ':' AND SUBSTRING(`watermark`,17,1) = ':' AND SUBSTRING(`watermark`,20,1) = 'Z' AND CAST(SUBSTRING(`watermark`,1,4) AS UNSIGNED) BETWEEN 1 AND 9999 AND CAST(SUBSTRING(`watermark`,6,2) AS UNSIGNED) BETWEEN 1 AND 12 AND CAST(SUBSTRING(`watermark`,9,2) AS UNSIGNED) BETWEEN 1 AND 31 AND CAST(SUBSTRING(`watermark`,12,2) AS UNSIGNED) BETWEEN 0 AND 23 AND CAST(SUBSTRING(`watermark`,15,2) AS UNSIGNED) BETWEEN 0 AND 59 AND CAST(SUBSTRING(`watermark`,18,2) AS UNSIGNED) BETWEEN 0 AND 59 AND (CAST(SUBSTRING(`watermark`,9,2) AS UNSIGNED) <= 28 OR (CAST(SUBSTRING(`watermark`,9,2) AS UNSIGNED) = 29 AND (CAST(SUBSTRING(`watermark`,6,2) AS UNSIGNED) <> 2 OR (MOD(CAST(SUBSTRING(`watermark`,1,4) AS UNSIGNED),4) = 0 AND (MOD(CAST(SUBSTRING(`watermark`,1,4) AS UNSIGNED),100) <> 0 OR MOD(CAST(SUBSTRING(`watermark`,1,4) AS UNSIGNED),400) = 0)))) OR (CAST(SUBSTRING(`watermark`,9,2) AS UNSIGNED) = 30 AND CAST(SUBSTRING(`watermark`,6,2) AS UNSIGNED) <> 2) OR (CAST(SUBSTRING(`watermark`,9,2) AS UNSIGNED) = 31 AND CAST(SUBSTRING(`watermark`,6,2) AS UNSIGNED) IN (1,3,5,7,8,10,12))))\n) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_nopad_bin",
+      "checksum": "705aa5c7e910209bd7f2cabef1294ac3e2fb256d071d7fb9c87c967ed4dff190"
+    },
+    {
+      "name": "notification_settings",
+      "columns": [
+        {
+          "name": "id",
+          "type": "bigint",
+          "nullable": false,
+          "default": null
+        },
+        {
+          "name": "installation_id",
+          "type": "varbinary(32)",
+          "nullable": false,
+          "default": null
+        },
+        {
+          "name": "revision",
+          "type": "bigint",
+          "nullable": false,
+          "default": "0"
+        },
+        {
+          "name": "activation_id",
+          "type": "bigint",
+          "nullable": false,
+          "default": "0"
+        },
+        {
+          "name": "enabled",
+          "type": "bigint",
+          "nullable": false,
+          "default": "0"
+        },
+        {
+          "name": "blocked",
+          "type": "bigint",
+          "nullable": false,
+          "default": "0"
+        },
+        {
+          "name": "endpoint_cipher",
+          "type": "longblob",
+          "nullable": true,
+          "default": null
+        },
+        {
+          "name": "bearer_cipher",
+          "type": "longblob",
+          "nullable": true,
+          "default": null
+        },
+        {
+          "name": "unavailable",
+          "type": "bigint",
+          "nullable": false,
+          "default": "1"
+        },
+        {
+          "name": "recovery",
+          "type": "bigint",
+          "nullable": false,
+          "default": "1"
+        },
+        {
+          "name": "version_lag",
+          "type": "bigint",
+          "nullable": false,
+          "default": "1"
+        },
+        {
+          "name": "include_name",
+          "type": "bigint",
+          "nullable": false,
+          "default": "0"
+        },
+        {
+          "name": "include_url",
+          "type": "bigint",
+          "nullable": false,
+          "default": "0"
+        }
+      ],
+      "primary": [
+        "id"
+      ],
+      "checks": [
+        {
+          "name": "notification_settings_c1",
+          "expression": "`id` = 1"
+        },
+        {
+          "name": "notification_settings_c2",
+          "expression": "OCTET_LENGTH(`installation_id`) = 32"
+        },
+        {
+          "name": "notification_settings_c3",
+          "expression": "`revision` >= 0"
+        },
+        {
+          "name": "notification_settings_c4",
+          "expression": "`activation_id` >= 0"
+        },
+        {
+          "name": "notification_settings_c5",
+          "expression": "`enabled` IN (0,1)"
+        },
+        {
+          "name": "notification_settings_c6",
+          "expression": "`blocked` IN (0,1)"
+        },
+        {
+          "name": "notification_settings_c7",
+          "expression": "`unavailable` IN (0,1)"
+        },
+        {
+          "name": "notification_settings_c8",
+          "expression": "`recovery` IN (0,1)"
+        },
+        {
+          "name": "notification_settings_c9",
+          "expression": "`version_lag` IN (0,1)"
+        },
+        {
+          "name": "notification_settings_c10",
+          "expression": "`include_name` IN (0,1)"
+        },
+        {
+          "name": "notification_settings_c11",
+          "expression": "`include_url` IN (0,1)"
+        }
+      ],
+      "indexes": [],
+      "foreign": [],
+      "create": "CREATE TABLE `notification_settings` (\n  `id` bigint NOT NULL,\n  `installation_id` varbinary(32) NOT NULL,\n  `revision` bigint NOT NULL DEFAULT 0,\n  `activation_id` bigint NOT NULL DEFAULT 0,\n  `enabled` bigint NOT NULL DEFAULT 0,\n  `blocked` bigint NOT NULL DEFAULT 0,\n  `endpoint_cipher` longblob NULL,\n  `bearer_cipher` longblob NULL,\n  `unavailable` bigint NOT NULL DEFAULT 1,\n  `recovery` bigint NOT NULL DEFAULT 1,\n  `version_lag` bigint NOT NULL DEFAULT 1,\n  `include_name` bigint NOT NULL DEFAULT 0,\n  `include_url` bigint NOT NULL DEFAULT 0,\n  PRIMARY KEY (`id`),\n  CONSTRAINT `notification_settings_c1` CHECK (`id` = 1),\n  CONSTRAINT `notification_settings_c2` CHECK (OCTET_LENGTH(`installation_id`) = 32),\n  CONSTRAINT `notification_settings_c3` CHECK (`revision` >= 0),\n  CONSTRAINT `notification_settings_c4` CHECK (`activation_id` >= 0),\n  CONSTRAINT `notification_settings_c5` CHECK (`enabled` IN (0,1)),\n  CONSTRAINT `notification_settings_c6` CHECK (`blocked` IN (0,1)),\n  CONSTRAINT `notification_settings_c7` CHECK (`unavailable` IN (0,1)),\n  CONSTRAINT `notification_settings_c8` CHECK (`recovery` IN (0,1)),\n  CONSTRAINT `notification_settings_c9` CHECK (`version_lag` IN (0,1)),\n  CONSTRAINT `notification_settings_c10` CHECK (`include_name` IN (0,1)),\n  CONSTRAINT `notification_settings_c11` CHECK (`include_url` IN (0,1))\n) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_nopad_bin",
+      "checksum": "e0540c9a68324a740d887dd5c4247b93983980292ffba8d5d0d9d821d49b816c"
+    },
+    {
+      "name": "notification_checkpoints",
+      "columns": [
+        {
+          "name": "site_id",
+          "type": "bigint",
+          "nullable": false,
+          "default": null
+        },
+        {
+          "name": "last_history_id",
+          "type": "bigint",
+          "nullable": false,
+          "default": null
+        },
+        {
+          "name": "config_revision",
+          "type": "bigint",
+          "nullable": false,
+          "default": null
+        },
+        {
+          "name": "state",
+          "type": "longtext",
+          "nullable": false,
+          "default": null
+        }
+      ],
+      "primary": [
+        "site_id"
+      ],
+      "checks": [
+        {
+          "name": "notification_checkpoints_c1",
+          "expression": "`last_history_id` > 0"
+        },
+        {
+          "name": "notification_checkpoints_c2",
+          "expression": "`config_revision` >= 0"
+        },
+        {
+          "name": "notification_checkpoints_c3",
+          "expression": "OCTET_LENGTH(`state`) <= 4096"
+        }
+      ],
+      "indexes": [],
+      "foreign": [
+        {
+          "column": "site_id",
+          "table": "sites",
+          "target": "id",
+          "onDelete": "CASCADE",
+          "onUpdate": "RESTRICT"
+        }
+      ],
+      "create": "CREATE TABLE `notification_checkpoints` (\n  `site_id` bigint NOT NULL,\n  `last_history_id` bigint NOT NULL,\n  `config_revision` bigint NOT NULL,\n  `state` longtext NOT NULL,\n  PRIMARY KEY (`site_id`),\n  CONSTRAINT `notification_checkpoints_site_id_fk` FOREIGN KEY (`site_id`) REFERENCES `sites` (`id`) ON DELETE CASCADE ON UPDATE RESTRICT,\n  CONSTRAINT `notification_checkpoints_c1` CHECK (`last_history_id` > 0),\n  CONSTRAINT `notification_checkpoints_c2` CHECK (`config_revision` >= 0),\n  CONSTRAINT `notification_checkpoints_c3` CHECK (OCTET_LENGTH(`state`) <= 4096)\n) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_nopad_bin",
+      "checksum": "8e7aecbd45715aa80cc5237831a9e6fa17418b3e257141c84f1a313926798bb4"
+    },
+    {
+      "name": "notification_slots",
+      "columns": [
+        {
+          "name": "site_id",
+          "type": "bigint",
+          "nullable": false,
+          "default": null
+        },
+        {
+          "name": "event",
+          "type": "varbinary(32)",
+          "nullable": false,
+          "default": null
+        },
+        {
+          "name": "event_id",
+          "type": "varbinary(128)",
+          "nullable": false,
+          "default": null
+        },
+        {
+          "name": "source_id",
+          "type": "bigint",
+          "nullable": false,
+          "default": null
+        },
+        {
+          "name": "config_revision",
+          "type": "bigint",
+          "nullable": false,
+          "default": null
+        },
+        {
+          "name": "channel_revision",
+          "type": "bigint",
+          "nullable": false,
+          "default": null
+        },
+        {
+          "name": "payload",
+          "type": "longtext",
+          "nullable": false,
+          "default": null
+        },
+        {
+          "name": "private_cipher",
+          "type": "longblob",
+          "nullable": true,
+          "default": null
+        },
+        {
+          "name": "created_at",
+          "type": "bigint",
+          "nullable": false,
+          "default": null
+        },
+        {
+          "name": "expires_at",
+          "type": "bigint",
+          "nullable": false,
+          "default": null
+        },
+        {
+          "name": "due_at",
+          "type": "bigint",
+          "nullable": false,
+          "default": null
+        },
+        {
+          "name": "status",
+          "type": "varbinary(16)",
+          "nullable": false,
+          "default": null
+        },
+        {
+          "name": "attempts",
+          "type": "bigint",
+          "nullable": false,
+          "default": "0"
+        },
+        {
+          "name": "claim",
+          "type": "longblob",
+          "nullable": true,
+          "default": null
+        },
+        {
+          "name": "lease_until",
+          "type": "bigint",
+          "nullable": true,
+          "default": null
+        },
+        {
+          "name": "last_code",
+          "type": "varbinary(64)",
+          "nullable": true,
+          "default": null
+        },
+        {
+          "name": "http_status",
+          "type": "bigint",
+          "nullable": true,
+          "default": null
+        },
+        {
+          "name": "acknowledged_at",
+          "type": "bigint",
+          "nullable": true,
+          "default": null
+        },
+        {
+          "name": "coalesced",
+          "type": "bigint",
+          "nullable": false,
+          "default": "0"
+        }
+      ],
+      "primary": [
+        "site_id",
+        "event"
+      ],
+      "checks": [
+        {
+          "name": "notification_slots_c1",
+          "expression": "`event` IN ('unavailable','recovery','version_lag')"
+        },
+        {
+          "name": "notification_slots_c2",
+          "expression": "`source_id` > 0"
+        },
+        {
+          "name": "notification_slots_c3",
+          "expression": "`config_revision` >= 0"
+        },
+        {
+          "name": "notification_slots_c4",
+          "expression": "`channel_revision` >= 0"
+        },
+        {
+          "name": "notification_slots_c5",
+          "expression": "OCTET_LENGTH(`payload`) <= 8192"
+        },
+        {
+          "name": "notification_slots_c6",
+          "expression": "`status` IN ('pending','inflight','sent','failed','cancelled','expired')"
+        },
+        {
+          "name": "notification_slots_c7",
+          "expression": "`attempts` BETWEEN 0 AND 3"
+        },
+        {
+          "name": "notification_slots_c8",
+          "expression": "`http_status` BETWEEN 100 AND 599"
+        },
+        {
+          "name": "notification_slots_c9",
+          "expression": "`coalesced` >= 0"
+        }
+      ],
+      "indexes": [
+        {
+          "name": "notification_due",
+          "columns": [
+            "status",
+            "due_at"
+          ],
+          "unique": false
+        },
+        {
+          "name": "notification_eligible",
+          "columns": [
+            "status",
+            "channel_revision",
+            "expires_at",
+            "due_at"
+          ],
+          "unique": false
+        }
+      ],
+      "foreign": [
+        {
+          "column": "site_id",
+          "table": "sites",
+          "target": "id",
+          "onDelete": "CASCADE",
+          "onUpdate": "RESTRICT"
+        }
+      ],
+      "create": "CREATE TABLE `notification_slots` (\n  `site_id` bigint NOT NULL,\n  `event` varbinary(32) NOT NULL,\n  `event_id` varbinary(128) NOT NULL,\n  `source_id` bigint NOT NULL,\n  `config_revision` bigint NOT NULL,\n  `channel_revision` bigint NOT NULL,\n  `payload` longtext NOT NULL,\n  `private_cipher` longblob NULL,\n  `created_at` bigint NOT NULL,\n  `expires_at` bigint NOT NULL,\n  `due_at` bigint NOT NULL,\n  `status` varbinary(16) NOT NULL,\n  `attempts` bigint NOT NULL DEFAULT 0,\n  `claim` longblob NULL,\n  `lease_until` bigint NULL,\n  `last_code` varbinary(64) NULL,\n  `http_status` bigint NULL,\n  `acknowledged_at` bigint NULL,\n  `coalesced` bigint NOT NULL DEFAULT 0,\n  PRIMARY KEY (`site_id`,`event`),\n  KEY `notification_due` (`status`,`due_at`),\n  KEY `notification_eligible` (`status`,`channel_revision`,`expires_at`,`due_at`),\n  CONSTRAINT `notification_slots_site_id_fk` FOREIGN KEY (`site_id`) REFERENCES `sites` (`id`) ON DELETE CASCADE ON UPDATE RESTRICT,\n  CONSTRAINT `notification_slots_c1` CHECK (`event` IN ('unavailable','recovery','version_lag')),\n  CONSTRAINT `notification_slots_c2` CHECK (`source_id` > 0),\n  CONSTRAINT `notification_slots_c3` CHECK (`config_revision` >= 0),\n  CONSTRAINT `notification_slots_c4` CHECK (`channel_revision` >= 0),\n  CONSTRAINT `notification_slots_c5` CHECK (OCTET_LENGTH(`payload`) <= 8192),\n  CONSTRAINT `notification_slots_c6` CHECK (`status` IN ('pending','inflight','sent','failed','cancelled','expired')),\n  CONSTRAINT `notification_slots_c7` CHECK (`attempts` BETWEEN 0 AND 3),\n  CONSTRAINT `notification_slots_c8` CHECK (`http_status` BETWEEN 100 AND 599),\n  CONSTRAINT `notification_slots_c9` CHECK (`coalesced` >= 0)\n) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_nopad_bin",
+      "checksum": "28531d7faa25c642b510896ad805006f291b0b93bf6d31ab8bc6f1997ef1348d"
+    },
+    {
+      "name": "read_api_token",
+      "columns": [
+        {
+          "name": "id",
+          "type": "bigint",
+          "nullable": false,
+          "default": null
+        },
+        {
+          "name": "secret_hash",
+          "type": "varbinary(64)",
+          "nullable": false,
+          "default": null
+        },
+        {
+          "name": "administrator_fingerprint",
+          "type": "varbinary(64)",
+          "nullable": false,
+          "default": null
+        },
+        {
+          "name": "created_at",
+          "type": "varbinary(20)",
+          "nullable": false,
+          "default": null
+        }
+      ],
+      "primary": [
+        "id"
+      ],
+      "checks": [
+        {
+          "name": "read_api_token_c1",
+          "expression": "`id` = 1"
+        },
+        {
+          "name": "read_api_token_c2",
+          "expression": "OCTET_LENGTH(`secret_hash`) BETWEEN 64 AND 64 AND OCTET_LENGTH(REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(`secret_hash`,'0',''),'1',''),'2',''),'3',''),'4',''),'5',''),'6',''),'7',''),'8',''),'9',''),'a',''),'b',''),'c',''),'d',''),'e',''),'f','')) = 0"
+        },
+        {
+          "name": "read_api_token_c3",
+          "expression": "OCTET_LENGTH(`administrator_fingerprint`) BETWEEN 64 AND 64 AND OCTET_LENGTH(REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(`administrator_fingerprint`,'0',''),'1',''),'2',''),'3',''),'4',''),'5',''),'6',''),'7',''),'8',''),'9',''),'a',''),'b',''),'c',''),'d',''),'e',''),'f','')) = 0"
+        },
+        {
+          "name": "read_api_token_c4",
+          "expression": "OCTET_LENGTH(`created_at`) = 20 AND ASCII(SUBSTRING(`created_at`,1,1)) BETWEEN 48 AND 57 AND ASCII(SUBSTRING(`created_at`,2,1)) BETWEEN 48 AND 57 AND ASCII(SUBSTRING(`created_at`,3,1)) BETWEEN 48 AND 57 AND ASCII(SUBSTRING(`created_at`,4,1)) BETWEEN 48 AND 57 AND ASCII(SUBSTRING(`created_at`,6,1)) BETWEEN 48 AND 57 AND ASCII(SUBSTRING(`created_at`,7,1)) BETWEEN 48 AND 57 AND ASCII(SUBSTRING(`created_at`,9,1)) BETWEEN 48 AND 57 AND ASCII(SUBSTRING(`created_at`,10,1)) BETWEEN 48 AND 57 AND ASCII(SUBSTRING(`created_at`,12,1)) BETWEEN 48 AND 57 AND ASCII(SUBSTRING(`created_at`,13,1)) BETWEEN 48 AND 57 AND ASCII(SUBSTRING(`created_at`,15,1)) BETWEEN 48 AND 57 AND ASCII(SUBSTRING(`created_at`,16,1)) BETWEEN 48 AND 57 AND ASCII(SUBSTRING(`created_at`,18,1)) BETWEEN 48 AND 57 AND ASCII(SUBSTRING(`created_at`,19,1)) BETWEEN 48 AND 57 AND SUBSTRING(`created_at`,5,1) = '-' AND SUBSTRING(`created_at`,8,1) = '-' AND SUBSTRING(`created_at`,11,1) = 'T' AND SUBSTRING(`created_at`,14,1) = ':' AND SUBSTRING(`created_at`,17,1) = ':' AND SUBSTRING(`created_at`,20,1) = 'Z' AND CAST(SUBSTRING(`created_at`,1,4) AS UNSIGNED) BETWEEN 1 AND 9999 AND CAST(SUBSTRING(`created_at`,6,2) AS UNSIGNED) BETWEEN 1 AND 12 AND CAST(SUBSTRING(`created_at`,9,2) AS UNSIGNED) BETWEEN 1 AND 31 AND CAST(SUBSTRING(`created_at`,12,2) AS UNSIGNED) BETWEEN 0 AND 23 AND CAST(SUBSTRING(`created_at`,15,2) AS UNSIGNED) BETWEEN 0 AND 59 AND CAST(SUBSTRING(`created_at`,18,2) AS UNSIGNED) BETWEEN 0 AND 59 AND (CAST(SUBSTRING(`created_at`,9,2) AS UNSIGNED) <= 28 OR (CAST(SUBSTRING(`created_at`,9,2) AS UNSIGNED) = 29 AND (CAST(SUBSTRING(`created_at`,6,2) AS UNSIGNED) <> 2 OR (MOD(CAST(SUBSTRING(`created_at`,1,4) AS UNSIGNED),4) = 0 AND (MOD(CAST(SUBSTRING(`created_at`,1,4) AS UNSIGNED),100) <> 0 OR MOD(CAST(SUBSTRING(`created_at`,1,4) AS UNSIGNED),400) = 0)))) OR (CAST(SUBSTRING(`created_at`,9,2) AS UNSIGNED) = 30 AND CAST(SUBSTRING(`created_at`,6,2) AS UNSIGNED) <> 2) OR (CAST(SUBSTRING(`created_at`,9,2) AS UNSIGNED) = 31 AND CAST(SUBSTRING(`created_at`,6,2) AS UNSIGNED) IN (1,3,5,7,8,10,12)))"
+        }
+      ],
+      "indexes": [],
+      "foreign": [],
+      "create": "CREATE TABLE `read_api_token` (\n  `id` bigint NOT NULL,\n  `secret_hash` varbinary(64) NOT NULL,\n  `administrator_fingerprint` varbinary(64) NOT NULL,\n  `created_at` varbinary(20) NOT NULL,\n  PRIMARY KEY (`id`),\n  CONSTRAINT `read_api_token_c1` CHECK (`id` = 1),\n  CONSTRAINT `read_api_token_c2` CHECK (OCTET_LENGTH(`secret_hash`) BETWEEN 64 AND 64 AND OCTET_LENGTH(REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(`secret_hash`,'0',''),'1',''),'2',''),'3',''),'4',''),'5',''),'6',''),'7',''),'8',''),'9',''),'a',''),'b',''),'c',''),'d',''),'e',''),'f','')) = 0),\n  CONSTRAINT `read_api_token_c3` CHECK (OCTET_LENGTH(`administrator_fingerprint`) BETWEEN 64 AND 64 AND OCTET_LENGTH(REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(`administrator_fingerprint`,'0',''),'1',''),'2',''),'3',''),'4',''),'5',''),'6',''),'7',''),'8',''),'9',''),'a',''),'b',''),'c',''),'d',''),'e',''),'f','')) = 0),\n  CONSTRAINT `read_api_token_c4` CHECK (OCTET_LENGTH(`created_at`) = 20 AND ASCII(SUBSTRING(`created_at`,1,1)) BETWEEN 48 AND 57 AND ASCII(SUBSTRING(`created_at`,2,1)) BETWEEN 48 AND 57 AND ASCII(SUBSTRING(`created_at`,3,1)) BETWEEN 48 AND 57 AND ASCII(SUBSTRING(`created_at`,4,1)) BETWEEN 48 AND 57 AND ASCII(SUBSTRING(`created_at`,6,1)) BETWEEN 48 AND 57 AND ASCII(SUBSTRING(`created_at`,7,1)) BETWEEN 48 AND 57 AND ASCII(SUBSTRING(`created_at`,9,1)) BETWEEN 48 AND 57 AND ASCII(SUBSTRING(`created_at`,10,1)) BETWEEN 48 AND 57 AND ASCII(SUBSTRING(`created_at`,12,1)) BETWEEN 48 AND 57 AND ASCII(SUBSTRING(`created_at`,13,1)) BETWEEN 48 AND 57 AND ASCII(SUBSTRING(`created_at`,15,1)) BETWEEN 48 AND 57 AND ASCII(SUBSTRING(`created_at`,16,1)) BETWEEN 48 AND 57 AND ASCII(SUBSTRING(`created_at`,18,1)) BETWEEN 48 AND 57 AND ASCII(SUBSTRING(`created_at`,19,1)) BETWEEN 48 AND 57 AND SUBSTRING(`created_at`,5,1) = '-' AND SUBSTRING(`created_at`,8,1) = '-' AND SUBSTRING(`created_at`,11,1) = 'T' AND SUBSTRING(`created_at`,14,1) = ':' AND SUBSTRING(`created_at`,17,1) = ':' AND SUBSTRING(`created_at`,20,1) = 'Z' AND CAST(SUBSTRING(`created_at`,1,4) AS UNSIGNED) BETWEEN 1 AND 9999 AND CAST(SUBSTRING(`created_at`,6,2) AS UNSIGNED) BETWEEN 1 AND 12 AND CAST(SUBSTRING(`created_at`,9,2) AS UNSIGNED) BETWEEN 1 AND 31 AND CAST(SUBSTRING(`created_at`,12,2) AS UNSIGNED) BETWEEN 0 AND 23 AND CAST(SUBSTRING(`created_at`,15,2) AS UNSIGNED) BETWEEN 0 AND 59 AND CAST(SUBSTRING(`created_at`,18,2) AS UNSIGNED) BETWEEN 0 AND 59 AND (CAST(SUBSTRING(`created_at`,9,2) AS UNSIGNED) <= 28 OR (CAST(SUBSTRING(`created_at`,9,2) AS UNSIGNED) = 29 AND (CAST(SUBSTRING(`created_at`,6,2) AS UNSIGNED) <> 2 OR (MOD(CAST(SUBSTRING(`created_at`,1,4) AS UNSIGNED),4) = 0 AND (MOD(CAST(SUBSTRING(`created_at`,1,4) AS UNSIGNED),100) <> 0 OR MOD(CAST(SUBSTRING(`created_at`,1,4) AS UNSIGNED),400) = 0)))) OR (CAST(SUBSTRING(`created_at`,9,2) AS UNSIGNED) = 30 AND CAST(SUBSTRING(`created_at`,6,2) AS UNSIGNED) <> 2) OR (CAST(SUBSTRING(`created_at`,9,2) AS UNSIGNED) = 31 AND CAST(SUBSTRING(`created_at`,6,2) AS UNSIGNED) IN (1,3,5,7,8,10,12))))\n) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_nopad_bin",
+      "checksum": "59b1ce9bdad0bab0baca2efd58266af6953aa66a2f981015d5895b4ce33f7698"
+    },
+    {
+      "name": "self_update",
+      "columns": [
+        {
+          "name": "id",
+          "type": "bigint",
+          "nullable": false,
+          "default": null
+        },
+        {
+          "name": "enabled",
+          "type": "bigint",
+          "nullable": false,
+          "default": "1"
+        },
+        {
+          "name": "interval_minutes",
+          "type": "bigint",
+          "nullable": false,
+          "default": "360"
+        },
+        {
+          "name": "revision",
+          "type": "bigint",
+          "nullable": false,
+          "default": "0"
+        },
+        {
+          "name": "build_fingerprint",
+          "type": "varbinary(64)",
+          "nullable": false,
+          "default": "''"
+        },
+        {
+          "name": "observed_sha",
+          "type": "varbinary(40)",
+          "nullable": true,
+          "default": null
+        },
+        {
+          "name": "status",
+          "type": "varbinary(16)",
+          "nullable": false,
+          "default": "'no_data'"
+        },
+        {
+          "name": "latest_sha",
+          "type": "varbinary(40)",
+          "nullable": true,
+          "default": null
+        },
+        {
+          "name": "new_commits",
+          "type": "bigint",
+          "nullable": true,
+          "default": null
+        },
+        {
+          "name": "successful_at",
+          "type": "bigint",
+          "nullable": true,
+          "default": null
+        },
+        {
+          "name": "attempted_at",
+          "type": "bigint",
+          "nullable": true,
+          "default": null
+        },
+        {
+          "name": "error_code",
+          "type": "varbinary(32)",
+          "nullable": true,
+          "default": null
+        },
+        {
+          "name": "failures",
+          "type": "bigint",
+          "nullable": false,
+          "default": "0"
+        },
+        {
+          "name": "next_due",
+          "type": "bigint",
+          "nullable": false,
+          "default": "0"
+        },
+        {
+          "name": "claim_token",
+          "type": "varbinary(32)",
+          "nullable": true,
+          "default": null
+        },
+        {
+          "name": "claim_until",
+          "type": "bigint",
+          "nullable": false,
+          "default": "0"
+        }
+      ],
+      "primary": [
+        "id"
+      ],
+      "checks": [
+        {
+          "name": "self_update_c1",
+          "expression": "`id` = 1"
+        },
+        {
+          "name": "self_update_c2",
+          "expression": "`enabled` IN (0,1)"
+        },
+        {
+          "name": "self_update_c3",
+          "expression": "`interval_minutes` BETWEEN 1 AND 525600"
+        },
+        {
+          "name": "self_update_c4",
+          "expression": "`revision` >= 0"
+        },
+        {
+          "name": "self_update_c5",
+          "expression": "`status` IN ('no_data','current','behind','ahead','diverged','force_pushed','unknown')"
+        },
+        {
+          "name": "self_update_c6",
+          "expression": "`new_commits` IS NULL OR `new_commits` >= 0"
+        },
+        {
+          "name": "self_update_c7",
+          "expression": "`failures` >= 0"
+        },
+        {
+          "name": "self_update_c8",
+          "expression": "`next_due` >= 0"
+        },
+        {
+          "name": "self_update_c9",
+          "expression": "`claim_until` >= 0"
+        }
+      ],
+      "indexes": [],
+      "foreign": [],
+      "create": "CREATE TABLE `self_update` (\n  `id` bigint NOT NULL,\n  `enabled` bigint NOT NULL DEFAULT 1,\n  `interval_minutes` bigint NOT NULL DEFAULT 360,\n  `revision` bigint NOT NULL DEFAULT 0,\n  `build_fingerprint` varbinary(64) NOT NULL DEFAULT '',\n  `observed_sha` varbinary(40) NULL,\n  `status` varbinary(16) NOT NULL DEFAULT 'no_data',\n  `latest_sha` varbinary(40) NULL,\n  `new_commits` bigint NULL,\n  `successful_at` bigint NULL,\n  `attempted_at` bigint NULL,\n  `error_code` varbinary(32) NULL,\n  `failures` bigint NOT NULL DEFAULT 0,\n  `next_due` bigint NOT NULL DEFAULT 0,\n  `claim_token` varbinary(32) NULL,\n  `claim_until` bigint NOT NULL DEFAULT 0,\n  PRIMARY KEY (`id`),\n  CONSTRAINT `self_update_c1` CHECK (`id` = 1),\n  CONSTRAINT `self_update_c2` CHECK (`enabled` IN (0,1)),\n  CONSTRAINT `self_update_c3` CHECK (`interval_minutes` BETWEEN 1 AND 525600),\n  CONSTRAINT `self_update_c4` CHECK (`revision` >= 0),\n  CONSTRAINT `self_update_c5` CHECK (`status` IN ('no_data','current','behind','ahead','diverged','force_pushed','unknown')),\n  CONSTRAINT `self_update_c6` CHECK (`new_commits` IS NULL OR `new_commits` >= 0),\n  CONSTRAINT `self_update_c7` CHECK (`failures` >= 0),\n  CONSTRAINT `self_update_c8` CHECK (`next_due` >= 0),\n  CONSTRAINT `self_update_c9` CHECK (`claim_until` >= 0)\n) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_nopad_bin",
+      "checksum": "af9b5ea2e2ff5d6734d7e4c19aa2c761536f7aa4d2bd6c4baa97f9dc0e75a9b7"
+    }
+  ]
+}

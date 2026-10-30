@@ -33,12 +33,12 @@ final class EngineMigrationFailureTest
     {
         $fixture = new EngineFixture('migration-failure-publication');
         $db = $fixture->maintenance();
-        self::interrupt($fixture, 'before-publication', 10);
-        Assert::same(count(ServerSchema::objects($db)), 18);
+        self::interrupt($fixture, 'before-publication', 11);
+        Assert::same(count(ServerSchema::objects($db)), 19);
         Assert::same((new ServerMigration($db, $fixture->vault))->status(), ['format' => 1, 'logical_version' => 0, 'phase' => 'initializing']);
         self::notAdmitted($fixture);
         (new ServerMigration($db, $fixture->vault))->initialize(EngineSchedule::receipt($fixture->case));
-        Assert::same((new ServerMigration($db, $fixture->vault))->status(), ['format' => 1, 'logical_version' => 10, 'phase' => 'ready']);
+        Assert::same((new ServerMigration($db, $fixture->vault))->status(), ['format' => 1, 'logical_version' => 11, 'phase' => 'ready']);
         $fixture->close();
     }
 
@@ -47,12 +47,12 @@ final class EngineMigrationFailureTest
     {
         $fixture = new EngineFixture('migration-failure-published');
         $db = $fixture->maintenance();
-        self::interrupt($fixture, 'after-publication', 10);
+        self::interrupt($fixture, 'after-publication', 11);
         $before = ServerSchema::rows($db, 'SELECT * FROM tablo_database_state');
-        Assert::same((new ServerMigration($db, $fixture->vault))->status(), ['format' => 1, 'logical_version' => 10, 'phase' => 'ready']);
+        Assert::same((new ServerMigration($db, $fixture->vault))->status(), ['format' => 1, 'logical_version' => 11, 'phase' => 'ready']);
         (new ServerMigration($db, $fixture->vault))->initialize(EngineSchedule::receipt($fixture->case));
         Assert::same(ServerSchema::rows($db, 'SELECT * FROM tablo_database_state'), $before);
-        Assert::same($fixture->scalar('SELECT COUNT(*) FROM tablo_migration_journal', $db), 18);
+        Assert::same($fixture->scalar('SELECT COUNT(*) FROM tablo_migration_journal', $db), 19);
         Assert::same($fixture->scalar('SELECT COUNT(*) FROM notification_settings', $db), 1);
         $fixture->close();
     }
@@ -72,9 +72,9 @@ final class EngineMigrationFailureTest
         Assert::same(ServerSchema::rows($db, 'SELECT phase, failure_category FROM tablo_migration_journal WHERE step = 3'), [['phase' => 'failed', 'failure_category' => 'storage']]);
         self::notAdmitted($fixture);
         (new ServerMigration($db, $fixture->vault))->initialize(EngineSchedule::receipt($fixture->case));
-        Assert::same(count(ServerSchema::objects($db)), 18);
-        Assert::same($fixture->scalar("SELECT COUNT(*) FROM tablo_migration_journal WHERE phase = 'done'", $db), 18);
-        Assert::same((new ServerMigration($db, $fixture->vault))->status(), ['format' => 1, 'logical_version' => 10, 'phase' => 'ready']);
+        Assert::same(count(ServerSchema::objects($db)), 19);
+        Assert::same($fixture->scalar("SELECT COUNT(*) FROM tablo_migration_journal WHERE phase = 'done'", $db), 19);
+        Assert::same((new ServerMigration($db, $fixture->vault))->status(), ['format' => 1, 'logical_version' => 11, 'phase' => 'ready']);
     }
 
     private static function interrupt(EngineFixture $fixture, string $phase, int $step): void
@@ -150,8 +150,8 @@ function engine_migration_duplicate_ddl(int $step): void
 
 function engine_migration_ddl_sql(\PDO $db, int $step): string
 {
-    $tables = ServerSchema::layout($db)['tables']; Assert::same(count($tables), 18);
-    if ($step < 0 || $step > 17) { throw new \RuntimeException('DDL failure step outside the fixed bootstrap plan.'); }
+    $tables = ServerSchema::layout($db)['tables']; Assert::same(count($tables), 19);
+    if ($step < 0 || $step > 18) { throw new \RuntimeException('DDL failure step outside the fixed bootstrap plan.'); }
     return ($tables[$step] ?? throw new \RuntimeException('DDL failure step absent.'))['create'];
 }
 
@@ -185,9 +185,9 @@ function engine_migration_ddl_resume(EngineFixture $fixture, \PDO $previous): vo
     $db = $fixture->maintenance(); $migration = new ServerMigration($db, $fixture->vault);
     Assert::true($fixture->scalar('SELECT CONNECTION_ID()', $db) !== $fixture->scalar('SELECT CONNECTION_ID()', $previous));
     $migration->initialize($receipt); Assert::same(\Tablo\RequiredFile::digest($receipt), $digest);
-    Assert::same($migration->status(), ['format' => 1, 'logical_version' => 10, 'phase' => 'ready']);
-    Assert::same(count(ServerSchema::objects($db)), 18);
-    Assert::same($fixture->scalar("SELECT COUNT(*) FROM tablo_migration_journal WHERE phase = 'done'", $db), 18);
+    Assert::same($migration->status(), ['format' => 1, 'logical_version' => 11, 'phase' => 'ready']);
+    Assert::same(count(ServerSchema::objects($db)), 19);
+    Assert::same($fixture->scalar("SELECT COUNT(*) FROM tablo_migration_journal WHERE phase = 'done'", $db), 19);
     Assert::same($fixture->scalar('SELECT COUNT(*) FROM users', $db), 0);
     foreach (['notification_settings', 'installation_settings', 'worker_runtime'] as $table) {
         Assert::same($fixture->scalar('SELECT COUNT(*) FROM ' . $table, $db), 1);

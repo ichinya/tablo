@@ -43,9 +43,10 @@ final class SessionSettingsMigrationTest extends CompositionSchemaFixtureCase
         $db->statements = [];
         Database::migrate($db);
         $ddl = array_values(array_filter($db->statements, static fn(string $sql): bool => preg_match('/^(CREATE|ALTER|DROP)/', $sql) === 1));
-        Assert::same(count($ddl), 2);
+        Assert::same(count($ddl), 3);
         Assert::true(str_starts_with(\Tablo\Tests\Support\FixtureValue::at($ddl, 0), 'ALTER TABLE installation_settings ADD COLUMN'));
         Assert::same(\Tablo\Tests\Support\FixtureValue::at($ddl, 1), \Tablo\ReadApiTokenSchema::sql());
+        Assert::same(\Tablo\Tests\Support\FixtureValue::at($ddl, 2), \Tablo\SelfUpdateSchema::sql());
         Assert::same(\Tablo\SchemaShape::rows($db, 'SELECT * FROM read_api_token'), []);
         Assert::same((int) SqlStatement::checked($db->query('PRAGMA user_version'))->fetchColumn(), Database::CURRENT_SCHEMA_VERSION);
         $settings = new SettingsRepository($db);

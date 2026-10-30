@@ -8,7 +8,7 @@ use RuntimeException;
 
 final class Database
 {
-    public const CURRENT_SCHEMA_VERSION = 10;
+    public const CURRENT_SCHEMA_VERSION = 11;
 
 
     // Prospective activation: these additive DDL statements never read current values or retained history.

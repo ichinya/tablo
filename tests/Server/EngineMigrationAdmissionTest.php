@@ -22,9 +22,9 @@ final class EngineMigrationAdmissionTest
         // A genuine future layout may admit a version the current product cannot.
         $drop = getenv('TABLO_TEST_DB_DRIVER') === 'mysql' ? 'DROP CHECK' : 'DROP CONSTRAINT';
         $db->exec('ALTER TABLE tablo_database_state ' . $drop . ' tablo_database_state_c3');
-        $db->exec('ALTER TABLE tablo_database_state ADD CONSTRAINT tablo_database_state_c3 CHECK (logical_version BETWEEN 0 AND 11)');
-        $db->exec('UPDATE tablo_database_state SET logical_version = 11 WHERE id = 1');
-        Assert::same($fixture->scalar('SELECT logical_version FROM tablo_database_state', $db), 11);
+        $db->exec('ALTER TABLE tablo_database_state ADD CONSTRAINT tablo_database_state_c3 CHECK (logical_version BETWEEN 0 AND 12)');
+        $db->exec('UPDATE tablo_database_state SET logical_version = 12 WHERE id = 1');
+        Assert::same($fixture->scalar('SELECT logical_version FROM tablo_database_state', $db), 12);
         $caught = null;
         try { \Tablo\ServerSchemaState::ready($db); } catch (DatabaseFailure $error) { $caught = $error; }
         Assert::same($caught?->category, 'schema'); Assert::same($caught?->getPrevious(), null);
@@ -76,11 +76,19 @@ final class EngineMigrationAdmissionTest
     public function unrecognizedAdditionalObjectIsRefusedWithoutDroppingIt(): void
     {
         $fixture = new EngineFixture('admission-object');
-        $maintenance = $fixture->maintenance();
-        $maintenance->exec('CREATE TABLE unexpected_owned_table(id BIGINT NOT NULL PRIMARY KEY) ENGINE=InnoDB');
-        self::refuses($fixture);
-        Assert::same(count(ServerSchema::objects($maintenance)), 19);
-        $fixture->close();
+        try {
+            $maintenance = $fixture->maintenance(); $baseline = ServerSchema::objects($maintenance);
+            Assert::same(count($baseline), 19, 'current schema11 has nineteen normal objects');
+            Assert::true(in_array('self_update', $baseline, strict: true));
+            $maintenance->exec('CREATE TABLE unexpected_owned_table(id BIGINT NOT NULL PRIMARY KEY) ENGINE=InnoDB');
+            $maintenance->exec('INSERT INTO unexpected_owned_table(id) VALUES(41)');
+            self::refuses($fixture);
+            $after = ServerSchema::objects($maintenance);
+            Assert::same(count($after), 20, 'nineteen normal objects plus one unexpected table remain after refusal');
+            Assert::same(array_values(array_intersect($after, $baseline)), $baseline);
+            Assert::same(array_values(array_diff($after, $baseline)), ['unexpected_owned_table']);
+            Assert::same(ServerSchema::rows($maintenance, 'SELECT id FROM unexpected_owned_table'), [['id' => 41]]);
+        } finally { $fixture->close(); }
     }
 
     #[Test]

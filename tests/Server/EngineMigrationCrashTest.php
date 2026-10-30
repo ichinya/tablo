@@ -32,11 +32,11 @@ final class EngineMigrationCrashTest
 
     #[Test]
     public function clientExitBeforePublicationLeavesCompleteDdlNonReadyUntilFreshResume(): void
-    { self::schedule('exit-before-publication', 18, phase: 'initializing'); }
+    { self::schedule('exit-before-publication', 19, phase: 'initializing'); }
 
     #[Test]
     public function clientExitAfterPublicationPreservesReadyIdentityAndResumeIsANoop(): void
-    { self::schedule('exit-after-publication', 18, phase: 'ready'); }
+    { self::schedule('exit-after-publication', 19, phase: 'ready'); }
 
     private static function schedule(string $operation, int $tables, string $phase): void
     {
@@ -67,9 +67,9 @@ final class EngineMigrationCrashTest
             Assert::true(self::releasedLock($resume, $deadline));
             (new ServerMigration($resume, $fixture->vault))->initialize($receipt);
             if ($digest !== null) { Assert::same(RequiredFile::digest($receipt), $digest); }
-            self::durableState($fixture, $resume, 18, phase: 'ready');
-            Assert::same($fixture->scalar("SELECT COUNT(*) FROM tablo_migration_journal WHERE phase = 'done'", $resume), 18);
-            if ($phase === 'ready') { Assert::same(self::snapshot($resume, 18), $before); }
+            self::durableState($fixture, $resume, 19, phase: 'ready');
+            Assert::same($fixture->scalar("SELECT COUNT(*) FROM tablo_migration_journal WHERE phase = 'done'", $resume), 19);
+            if ($phase === 'ready') { Assert::same(self::snapshot($resume, 19), $before); }
         } catch (\Throwable $error) {
             $primary = $error; $directory->retainFailure($error); throw $error;
         } finally {
@@ -83,7 +83,7 @@ final class EngineMigrationCrashTest
         Assert::same(count(ServerSchema::objects($db)), $tables);
         if ($tables === 0) { return; }
         Assert::same((new ServerMigration($db, $fixture->vault))->status(),
-            ['format' => 1, 'logical_version' => $phase === 'ready' ? 10 : 0, 'phase' => $phase]);
+            ['format' => 1, 'logical_version' => $phase === 'ready' ? 11 : 0, 'phase' => $phase]);
         if ($tables === 4) {
             Assert::same(ServerSchema::rows($db, 'SELECT phase, failure_category FROM tablo_migration_journal WHERE step = 3'),
                 [['phase' => 'intent', 'failure_category' => null]]);

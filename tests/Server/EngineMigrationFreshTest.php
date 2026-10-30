@@ -22,10 +22,10 @@ final class EngineMigrationFreshTest
         Assert::same(ServerSchema::objects($db), []);
         $migration = new ServerMigration($db, $fixture->vault);
         $migration->initialize(EngineSchedule::receipt($fixture->case));
-        Assert::same(count(ServerSchema::objects($db)), 18);
-        Assert::same($migration->status(), ['format' => 1, 'logical_version' => 10, 'phase' => 'ready']);
+        Assert::same(count(ServerSchema::objects($db)), 19);
+        Assert::same($migration->status(), ['format' => 1, 'logical_version' => 11, 'phase' => 'ready']);
         Assert::same(self::count($db, 'SELECT COUNT(*) AS value FROM read_api_token'), 0);
-        Assert::same(self::count($db, 'SELECT COUNT(*) AS value FROM tablo_migration_journal WHERE phase = \'done\''), 18);
+        Assert::same(self::count($db, 'SELECT COUNT(*) AS value FROM tablo_migration_journal WHERE phase = \'done\''), 19);
         Assert::same(self::count($db, 'SELECT COUNT(*) AS value FROM users'), 0);
         Assert::same(DatabaseSession::get($db)?->configuration->engine, getenv('TABLO_TEST_DB_DRIVER'));
         $fixture->close();
@@ -42,7 +42,7 @@ final class EngineMigrationFreshTest
         $migration->initialize(EngineSchedule::receipt($fixture->case));
         Assert::same(ServerSchema::rows($db, 'SELECT * FROM tablo_database_state'), $before);
         Assert::same(self::count($db, 'SELECT COUNT(*) AS value FROM notification_settings'), 1);
-        Assert::same(self::count($db, 'SELECT COUNT(*) AS value FROM tablo_migration_journal'), 18);
+        Assert::same(self::count($db, 'SELECT COUNT(*) AS value FROM tablo_migration_journal'), 19);
         $fixture->close();
     }
 

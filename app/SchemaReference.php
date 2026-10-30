@@ -24,6 +24,7 @@ final class SchemaReference
         if ($version >= 7) { NotificationSchema::migrate($db); }
         if ($version >= 9) { SchemaLayoutUpgrade::addSessionSettings($db); }
         if ($version >= 10) { ReadApiTokenSchema::migrate($db); }
+        if ($version >= 11) { SelfUpdateSchema::migrate($db); }
         return $db;
     }
 }

@@ -14,6 +14,7 @@ final class EngineConstraintsTest
     #[Test]
     public function expressionAdmissionPreservesGroupingAndLiteralBytes(): void
     {
+        \Tablo\Tests\Support\ServerExpressionLeaves::check();
         Assert::same(ServerExpression::canonical('((`id` > 0))'), ServerExpression::canonical('id > 0'));
         Assert::false(ServerExpression::canonical('id = 1 AND (enabled = 1 OR online = 0)') === ServerExpression::canonical('(id = 1 AND enabled = 1) OR online = 0'));
         Assert::false(ServerExpression::canonical("event = 'pending '") === ServerExpression::canonical("event = 'pending'"));

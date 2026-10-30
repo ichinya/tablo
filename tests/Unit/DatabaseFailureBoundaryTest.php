@@ -137,7 +137,7 @@ final class DatabaseFailureBoundaryTest
     private static function database(TemporaryDirectory $directory): FailureBoundaryPdo
     {
         $db = new FailureBoundaryPdo($directory->path . '/database.sqlite');
-        SchemaReference::reference(10, ['endpoint' => true], $db); $db->exec('PRAGMA main.user_version = 10');
+        SchemaReference::reference(11, ['endpoint' => true], $db); $db->exec('PRAGMA main.user_version = 11');
         return $db;
     }
 

@@ -44,12 +44,14 @@ final class SchemaShape
         foreach (self::objects($expected) as $name => $object) {
             if ($object['type'] !== 'table' || $name === 'sqlite_sequence') { continue; }
             $actual = $actualObjects[$name] ?? null;
+            unset($actualObjects[$name]);
             if ($actual === null && $version === 0) { continue; }
             if ($actual === null || $actual['type'] !== 'table') { self::refuse(); }
             if ($actual['sql'] === null || $object['sql'] === null) { self::refuse(); }
             $columns = SchemaColumnShape::columns($db, $name);
             $wanted = SchemaColumnShape::columns($expected, $name);
             $missing = SchemaColumnShape::validate($columns, $wanted, $version, $name);
+            unset($columns, $wanted);
             SchemaCheckShape::validate($actual['sql'], $object['sql'], $version, $missing);
             SchemaForeignShape::validate(SchemaForeignShape::foreignKeys($db, $name), SchemaForeignShape::foreignKeys($expected, $name), $version, $missing);
             SchemaIndexShape::validate(SchemaIndexShape::indexes($db, $name), SchemaIndexShape::indexes($expected, $name));

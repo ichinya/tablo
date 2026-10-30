@@ -18,12 +18,13 @@ final class WebRoutes
         $github = new GitHubConnection($sites, $http);
         $this->auth = new Auth($db);
         $this->settings = new SettingsRepository($db);
+        $page->withSelfUpdate(new SelfUpdateRepository($db));
         $manual = new ManualCheckPage($sites, $github, $vault, new NotificationDelivery($db, $vault), $page);
         $this->pages = [
             new AuthenticationPages($this->auth, new ClientAddress(getenv('TABLO_TRUSTED_PROXIES')), $page),
             new DashboardPage($sites, new DashboardStatePage(new SavedDashboardRepository($db), $page), $page), new IncidentPage(new IncidentRepository($db), $page),
             new AvailabilityPage(new AvailabilityRepository($db), $page),
-            (new SettingsPages($this->settings, new NotificationSettings($db, $vault), new NotificationOutbox($db), $tokens, $page))->withReadApiTokens(new ReadApiTokenRepository($db)),
+            (new SettingsPages($this->settings, new NotificationSettings($db, $vault), new NotificationOutbox($db), $tokens, $page))->withReadApiTokens(new ReadApiTokenRepository($db))->withSelfUpdate(new SelfUpdateRepository($db)),
             new ReadApiTokenPages($db, new ReadApiTokenRepository($db), $page),
             new TokenPages($tokens, $page), new SitePages($sites, $github, $tokens, $manual, $page),
         ];

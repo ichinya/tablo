@@ -5,17 +5,16 @@ namespace Tablo\Tests\Unit;
 
 use PDO;
 use PDOStatement;
-use Tablo\DatabaseFailure;
 
 /** Real SQLite rows with a selected typed storage failure at the repository boundary. */
 final class FailureBoundaryPdo extends PDO
 {
-    private ?DatabaseFailure $failure = null;
+    private ?\Throwable $failure = null;
     private string $fragment = '';
 
     public function __construct(string $path) { parent::__construct('sqlite:' . $path, options: [PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION, PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC]); }
 
-    public function arm(DatabaseFailure $failure, string $fragment): void
+    public function arm(\Throwable $failure, string $fragment): void
     { $this->failure = $failure; $this->fragment = $fragment; }
 
     public function disarm(): void { $this->failure = null; }

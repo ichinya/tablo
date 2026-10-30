@@ -24,8 +24,8 @@ final class EngineMigrationPreviousTest
         $tables = self::materialize($fixture, $db); $before = self::snapshot($db, $tables);
         $migration = new ServerMigration($db, $fixture->vault);
         $migration->migrate();
-        Assert::same($migration->status(), ['format' => 1, 'logical_version' => 10, 'phase' => 'ready']);
-        Assert::same(count(ServerSchema::objects($db)), 18);
+        Assert::same($migration->status(), ['format' => 1, 'logical_version' => 11, 'phase' => 'ready']);
+        Assert::same(count(ServerSchema::objects($db)), 19);
         Assert::same($fixture->scalar('SELECT COUNT(*) FROM read_api_token', $db), 0);
         Assert::same(self::snapshot($db, $tables), $before);
         Assert::same(DatabaseTransferSequence::floors($db), ['sites' => 2000, 'git_tokens' => 7000, 'check_history' => 9000]);
@@ -49,12 +49,12 @@ final class EngineMigrationPreviousTest
         });
         $caught = null;
         try { $migration->migrate(); } catch (\RuntimeException $error) { $caught = $error; }
-        Assert::same($caught, $failure); Assert::same(count(ServerSchema::objects($db)), 18);
+        Assert::same($caught, $failure); Assert::same(count(ServerSchema::objects($db)), 17);
         Assert::same($migration->status(), ['format' => 1, 'logical_version' => 9, 'phase' => 'migrating']);
-        Assert::same(ServerSchema::rows($db, 'SELECT predecessor,target,phase FROM tablo_migration_journal'), [['predecessor' => 9, 'target' => 10, 'phase' => 'intent']]);
+        Assert::same(ServerSchema::rows($db, 'SELECT predecessor,target,phase FROM tablo_migration_journal'), [['predecessor' => 9, 'target' => 11, 'phase' => 'intent']]);
         Assert::same(self::snapshot($db, $tables), $before);
         $resumed = new ServerMigration($fixture->maintenance(), $fixture->vault); $resumed->migrate();
-        Assert::same($resumed->status(), ['format' => 1, 'logical_version' => 10, 'phase' => 'ready']);
+        Assert::same($resumed->status(), ['format' => 1, 'logical_version' => 11, 'phase' => 'ready']);
         Assert::same($fixture->scalar('SELECT COUNT(*) FROM read_api_token', $db), 0);
         Assert::same(self::snapshot($db, $tables), $before);
         Assert::same(DatabaseTransferSequence::floors($db), ['sites' => 2000, 'git_tokens' => 7000, 'check_history' => 9000]);
@@ -85,10 +85,10 @@ final class EngineMigrationPreviousTest
         Assert::same($points, [['before-ddl', 0]]);
         Assert::same($migration->status(), ['format' => 1, 'logical_version' => 9, 'phase' => 'migrating']);
         Assert::same(count(ServerSchema::objects($db)), 17);
-        Assert::same(ServerSchema::rows($db, 'SELECT predecessor,target,phase FROM tablo_migration_journal'), [['predecessor' => 9, 'target' => 10, 'phase' => 'intent']]);
+        Assert::same(ServerSchema::rows($db, 'SELECT predecessor,target,phase FROM tablo_migration_journal'), [['predecessor' => 9, 'target' => 11, 'phase' => 'intent']]);
         Assert::same(self::snapshot($db, $tables), $before);
         $resumed = new ServerMigration($fixture->maintenance(), $fixture->vault); $resumed->migrate();
-        Assert::same($resumed->status(), ['format' => 1, 'logical_version' => 10, 'phase' => 'ready']);
+        Assert::same($resumed->status(), ['format' => 1, 'logical_version' => 11, 'phase' => 'ready']);
         Assert::same($fixture->scalar('SELECT COUNT(*) FROM read_api_token', $db), 0);
         Assert::same(self::snapshot($db, $tables), $before); $fixture->close();
     }
@@ -104,6 +104,10 @@ final class EngineMigrationPreviousTest
     #[Test]
     public function nativePhaseConstraintBeforeCommitRollsBackAndKeepsItsSanitizedCategory(): void
     { engine_migration_phase_constraint(); }
+
+    #[Test]
+    public function actualTenToElevenPreservesApiCredentialsAndEveryPredecessorRow(): void
+    { engine_migration_ten_to_eleven(); }
 
     /** @return list<array> */
     public static function materialize(EngineFixture $fixture, PDO $db): array
@@ -178,18 +182,18 @@ function engine_schema_checksum_public_equivalence(PDO $db): void
     $layout = ServerSchema::layout($db);
     $golden = engine_schema_descriptor_golden($layout['engine']);
     Assert::same($layout, $golden);
-    foreach ([9, 10] as $version) {
-        $reference = hash('sha256', \Tablo\JsonEncoding::encode(array_values(array_filter($golden['tables'],
-            static fn (array $table): bool => $version === 10 || $table['name'] !== 'read_api_token'))));
+    foreach ([9, 10, 11] as $version) {
+        $reference = hash('sha256', \Tablo\JsonEncoding::encode(engine_schema_version_tables($golden, $version)));
         Assert::same($reference, engine_schema_descriptor_digest($layout['engine'], $version));
         Assert::same(ServerSchema::checksum($db, $version), $reference);
     }
-    Assert::same(ServerSchema::checksum($db), ServerSchema::checksum($db, version: 10));
+    Assert::same(ServerSchema::checksum($db), ServerSchema::checksum($db, version: 11));
 }
 
 /** Pure coverage invokes the same private algorithm used by the public checksum. */
 function engine_schema_checksum_streaming_contract(): void
 {
+    engine_schema_historical_source_custody();
     $method = new \ReflectionMethod(\Tablo\ServerSchemaDescriptor::class, '_checksumTables');
     foreach ([[], [[]], [['name' => 'one']], [
         ['name' => 'first', 'values' => [null, false, true, 0, 1, -1, 1.0, 1.5, -0.0, '1', '', [], ['nested' => []]]],
@@ -203,13 +207,21 @@ function engine_schema_checksum_streaming_contract(): void
     engine_schema_descriptor_records_contract();
 }
 
+function engine_schema_historical_source_custody(): void
+{
+    foreach (['mysql84' => 'c38753d3032251af4cfaff02729aaef222c34fb929f690c1fc45964d9400a01e',
+        'mariadb114' => 'ed9fb39e4c0a1c74461d0c19af6ef6cae5db581d7531a58e5e6ec4e5a776c704'] as $stem => $expected) {
+        Assert::same(hash_file('sha256', dirname(__DIR__) . '/fixtures/server-layouts/v10/' . $stem . '-layout.json'), $expected);
+    }
+}
+
 /** Frozen old JSON is a test oracle only; the application never opens this directory.
  * @return \Tablo\ServerSchema::Layout */
-function engine_schema_descriptor_golden(string $engine): array
+function engine_schema_descriptor_golden(string $engine, int $version = 11): array
 {
     $stem = match ($engine) { 'mysql' => 'mysql84', 'mariadb' => 'mariadb114', default => throw new \RuntimeException('Unknown descriptor fixture.') };
     /** @var \Tablo\ServerSchema::Layout $layout */
-    $layout = json_decode(\Tablo\RequiredFile::bytes(file_get_contents(dirname(__DIR__) . '/fixtures/server-layouts/v10/' . $stem . '-layout.json')),
+    $layout = json_decode(\Tablo\RequiredFile::bytes(file_get_contents(dirname(__DIR__) . '/fixtures/server-layouts/v' . ($version >= 11 ? '11' : '10') . '/' . $stem . '-layout.json')),
         associative: true, flags: JSON_THROW_ON_ERROR);
     Assert::same($layout['engine'], $engine);
     return $layout;
@@ -222,12 +234,12 @@ function engine_schema_descriptor_digest(string $engine, int $version): string
     return $digests[$version];
 }
 
-/** @return array{9: string, 10: string} */
+/** @return array{9: string, 10: string, 11: string} */
 function engine_schema_descriptor_digests(string $engine): array
 {
     return match ($engine) {
-        'mysql' => [9 => '4aea292a93b941e03fde9425fe9171d5aed0f640749d6db5264be27737c5402a', 10 => 'eb552f693d4a62a35471699b5028e0071400981e0bffcf04cfc236e904fb870c'],
-        'mariadb' => [9 => '94a0924d22edc7a4beed0df471a22d9d155241fc5d8b46508719a6b0f47d7eea', 10 => 'ee419c2eca38b465fcc40416e6e749e09043bd5e623c1dab0513ceea0b2f9893'],
+        'mysql' => [9 => '4aea292a93b941e03fde9425fe9171d5aed0f640749d6db5264be27737c5402a', 10 => 'eb552f693d4a62a35471699b5028e0071400981e0bffcf04cfc236e904fb870c', 11 => '31e5fc75fc6901742741b3193bbbfbf74630e7e0a51d7caabf628844d770db91'],
+        'mariadb' => [9 => '94a0924d22edc7a4beed0df471a22d9d155241fc5d8b46508719a6b0f47d7eea', 10 => 'ee419c2eca38b465fcc40416e6e749e09043bd5e623c1dab0513ceea0b2f9893', 11 => '65bfe56eb03dfe8ba3080491a708fe90d787455fa09f2c5ee91210ae9a1059f7'],
         default => throw new \RuntimeException('Unknown descriptor digest fixture.'),
     };
 }
@@ -241,20 +253,20 @@ function engine_schema_descriptor_records_contract(): void
     Assert::true(stream_wrapper_register('tabloschemafixture', EngineSchemaDescriptorStream::class));
     try {
         engine_schema_descriptor_engine_selection();
-        foreach (['mysql' => ['mysql84', 'c38753d3032251af4cfaff02729aaef222c34fb929f690c1fc45964d9400a01e'],
-            'mariadb' => ['mariadb114', 'ed9fb39e4c0a1c74461d0c19af6ef6cae5db581d7531a58e5e6ec4e5a776c704']] as $engine => [$stem, $rawHash]) {
+        foreach (['mysql' => ['mysql84', 'b2fbf7ea3030e6b7606f5ad0c86a73d7766b8973e74166b36eb4f5b61d5bee27'],
+            'mariadb' => ['mariadb114', 'b555e90e68b86a4cbc8e522db18d466eb8c6af9d39cf0e16740a0b2f3780fead']] as $engine => [$stem, $rawHash]) {
             $root = dirname(__DIR__, levels: 2);
-            Assert::same(hash_file('sha256', $root . '/tests/fixtures/server-layouts/v10/' . $stem . '-layout.json'), $rawHash);
+            Assert::same(hash_file('sha256', $root . '/tests/fixtures/server-layouts/v11/' . $stem . '-layout.json'), $rawHash);
             $golden = engine_schema_descriptor_golden($engine);
             $bytes = \Tablo\RequiredFile::bytes(file_get_contents($root . '/database/' . $stem . '-layout.jsonl'));
-            Assert::same(count(explode("\n", $bytes)), 20);
+            Assert::same(count(explode("\n", $bytes)), 21);
             Assert::same($loader->invoke(null, $root . '/database/' . $stem . '-layout.jsonl', $engine), $golden);
             Assert::same(\Tablo\ServerSchemaDescriptor::forEngine($engine), $golden);
             $loaded = engine_schema_descriptor_source($loader, $bytes, $engine);
             Assert::same($loaded['layout'], $golden); Assert::null($loaded['failure']);
             engine_schema_descriptor_golden_contract($golden);
-            foreach ([9, 10] as $version) {
-                $tables = array_values(array_filter($golden['tables'], static fn (array $table): bool => $version === 10 || $table['name'] !== 'read_api_token'));
+            foreach ([9, 10, 11] as $version) {
+                $tables = engine_schema_version_tables($golden, $version);
                 $reference = hash('sha256', \Tablo\JsonEncoding::encode($tables));
                 Assert::same($reference, engine_schema_descriptor_digest($engine, $version));
                 Assert::same($checksum->invoke(null, $tables), $reference);
@@ -281,7 +293,7 @@ function engine_schema_descriptor_records_contract(): void
 function engine_schema_descriptor_golden_contract(array $golden): void
 {
     Assert::same(array_keys($golden), ['format', 'engine', 'logicalVersion', 'syntheticPredecessor', 'collation', 'tables']);
-    Assert::same(count($golden['tables']), 18);
+    Assert::same(count($golden['tables']), 19);
     foreach ($golden['tables'] as $table) {
         Assert::same(array_keys($table), ['name', 'columns', 'primary', 'checks', 'indexes', 'foreign', 'create', 'checksum']);
         Assert::same(hash('sha256', $table['create']), $table['checksum']);
@@ -306,7 +318,7 @@ function engine_schema_admission_projection_contract(string $engine): void
     $before = \Tablo\JsonEncoding::encode($layout);
     $tables = \Tablo\ServerSchemaDescriptor::admissionTables($layout);
     Assert::same(\Tablo\ServerSchemaDescriptor::admissionTables(\Tablo\ServerSchemaDescriptor::forEngine($engine)), $tables);
-    Assert::same(array_keys($tables), array_keys($layout['tables'])); Assert::same(count($tables), 18);
+    Assert::same(array_keys($tables), array_keys($layout['tables'])); Assert::same(count($tables), 19);
     $names = array_map(static fn (mixed $table): string => SqlColumn::string(JsonRecord::checked($table), 'name'), $tables);
     Assert::same($names, array_column($layout['tables'], 'name'));
     Assert::same(array_slice($names, offset: 0, length: 3), ['tablo_migration_journal', 'tablo_database_state', 'tablo_writer_guard']);
@@ -318,9 +330,9 @@ function engine_schema_admission_projection_contract(string $engine): void
         Assert::same($actual, $expected, 'every admission value, native type and order must be preserved');
         Assert::false(array_key_exists('create', $actual)); Assert::false(array_key_exists('checksum', $actual));
     }
-    foreach ([9 => 17, 10 => 18] as $version => $count) {
-        $selected = array_values(array_filter($names, static fn (string $name): bool => $version === 10 || $name !== 'read_api_token'));
-        $full = array_values(array_filter($layout['tables'], static fn (array $table): bool => $version === 10 || $table['name'] !== 'read_api_token'));
+    foreach ([9 => 17, 10 => 18, 11 => 19] as $version => $count) {
+        $selected = array_values(array_filter($names, static fn (string $name): bool => ($version >= 10 || $name !== 'read_api_token') && ($version >= 11 || $name !== 'self_update')));
+        $full = engine_schema_version_tables($layout, $version);
         Assert::same(count($selected), $count); Assert::same($selected, array_column($full, 'name'));
     }
     Assert::same($layout, $golden); Assert::same(\Tablo\JsonEncoding::encode($layout), $before);
@@ -409,7 +421,7 @@ function engine_schema_descriptor_framing(\ReflectionMethod $loader, string $byt
 function engine_schema_descriptor_integrity(\ReflectionMethod $loader, string $bytes, string $engine): void
 {
     $lines = explode("\n", $bytes);
-    foreach ([0, 8, 17] as $table) {
+    foreach ([0, 8, 17, 18] as $table) {
         $changed = $lines; $frame = JsonRecord::checked(json_decode($lines[1 + $table] ?? '', associative: true, flags: JSON_THROW_ON_ERROR));
         $value = \Tablo\server_schema_descriptor_table($frame); $value['checksum'] = str_repeat('0', times: 64);
         $changed[1 + $table] = \Tablo\JsonEncoding::encode(['tables' => [$value]]);
@@ -622,8 +634,8 @@ function engine_migration_uncertain_phase(): void
         Assert::same(count(ServerSchema::objects($db)), 17); Assert::same(ServerSchema::rows($db, 'SELECT * FROM tablo_migration_journal'), $journal);
         Assert::same(EngineMigrationPreviousTest::snapshot($db, $tables), $before);
         $resumed = new ServerMigration($fixture->maintenance(), $fixture->vault); $resumed->migrate();
-        Assert::same($resumed->status(), ['format' => 1, 'logical_version' => 10, 'phase' => 'ready']);
-        Assert::same(ServerSchema::rows($db, 'SELECT predecessor,target,phase FROM tablo_migration_journal'), [['predecessor' => 9, 'target' => 10, 'phase' => 'done']]);
+        Assert::same($resumed->status(), ['format' => 1, 'logical_version' => 11, 'phase' => 'ready']);
+        Assert::same(ServerSchema::rows($db, 'SELECT predecessor,target,phase FROM tablo_migration_journal'), array_fill(0, count: 3, value: ['predecessor' => 9, 'target' => 11, 'phase' => 'done']));
         Assert::same(EngineMigrationPreviousTest::snapshot($db, $tables), $before);
     } finally { $fixture->close(); }
 }
@@ -644,11 +656,11 @@ function engine_migration_uncertain_publication(): void
         Assert::same($caught?->getPrevious(), null); Assert::same($caught->sqlState, null); Assert::same($caught->nativeCode, null);
         Assert::true($fault->committedWithoutAcknowledgement); Assert::same($fault->rollbackAttempts, 1);
         Assert::false($fault->inTransaction()); Assert::false(\Tablo\WriteTransaction::owns($fault));
-        Assert::same(array_pop($points), ['before-publication', 10]);
+        Assert::same(array_pop($points), ['before-publication', 11]);
         $state = ServerSchema::rows($db, 'SELECT * FROM tablo_database_state'); $journal = ServerSchema::rows($db, 'SELECT * FROM tablo_migration_journal');
-        Assert::same($migration->status(), ['format' => 1, 'logical_version' => 10, 'phase' => 'ready']);
-        Assert::same(count(ServerSchema::objects($db)), 18);
-        Assert::same(ServerSchema::rows($db, 'SELECT predecessor,target,phase FROM tablo_migration_journal'), [['predecessor' => 9, 'target' => 10, 'phase' => 'done']]);
+        Assert::same($migration->status(), ['format' => 1, 'logical_version' => 11, 'phase' => 'ready']);
+        Assert::same(count(ServerSchema::objects($db)), 19);
+        Assert::same(ServerSchema::rows($db, 'SELECT predecessor,target,phase FROM tablo_migration_journal'), array_fill(0, count: 3, value: ['predecessor' => 9, 'target' => 11, 'phase' => 'done']));
         (new ServerMigration($fixture->maintenance(), $fixture->vault))->migrate();
         Assert::same(ServerSchema::rows($db, 'SELECT * FROM tablo_database_state'), $state);
         Assert::same(ServerSchema::rows($db, 'SELECT * FROM tablo_migration_journal'), $journal);
@@ -1027,8 +1039,9 @@ function engine_schema_admission_records_positive(\ReflectionMethod $loader, str
     Assert::same($names, array_column($reference, 'name')); $names[0] = 'caller-change';
     Assert::same($owner->names(), array_column($reference, 'name'));
     EngineSchemaDescriptorStream::$bytes = '';
-    foreach ([9, 10] as $version) {
-        $expected = array_values(array_filter($reference, static fn (array $table): bool => $version === 10 || $table['name'] !== 'read_api_token'));
+    foreach ([9, 10, 11] as $version) {
+        $layout = engine_schema_descriptor_golden($engine); $layout['tables'] = engine_schema_version_tables($layout, $version);
+        $expected = \Tablo\ServerSchemaDescriptor::admissionTables($layout);
         Assert::same(iterator_to_array($owner->tables($version), preserve_keys: false), $expected);
         Assert::same($owner->names($version), array_column($expected, 'name'));
     }
@@ -1062,7 +1075,7 @@ function engine_schema_admission_records_source(\ReflectionMethod $loader, strin
 function engine_schema_admission_records_integrity(\ReflectionMethod $loader, string $bytes, string $engine): void
 {
     $lines = explode("\n", $bytes);
-    foreach ([0, 8, 17] as $index) {
+    foreach ([0, 8, 17, 18] as $index) {
         foreach (['sha', 'create-type', 'checksum-type', 'name-type'] as $fault) {
             $changed = $lines;
             $changed[1 + $index] = engine_schema_admission_records_fault($changed[1 + $index] ?? '', $fault);
@@ -1094,7 +1107,7 @@ function engine_schema_admission_records_invalid(\ReflectionMethod $loader, stri
 
 function engine_schema_admission_records_framing(\ReflectionMethod $loader, string $bytes, string $engine): void
 {
-    $lines = explode("\n", $bytes); $tail = $lines[18] ?? throw new \RuntimeException('Missing final source record.');
+    $lines = explode("\n", $bytes); $tail = $lines[19] ?? throw new \RuntimeException('Missing final source record.');
     foreach ([substr($bytes, offset: 0, length: -1), $bytes . "\n", $bytes . "\0", $bytes . $tail . "\n", substr($bytes, offset: 0, length: -80),
         str_replace('"records":2', replace: '"records":1', subject: $bytes), str_replace('"format":1', replace: '"format":"1"', subject: $bytes),
         str_replace('{"records":2,"layout":', replace: '{"unknown":0,"records":2,"layout":', subject: $bytes),
@@ -1183,7 +1196,7 @@ function engine_schema_source_checksum_result(\ReflectionMethod $loader, string 
 function engine_schema_source_checksum_integrity(\ReflectionMethod $loader, string $bytes, string $engine, int $version): void
 {
     $lines = explode("\n", $bytes);
-    foreach ([0, 8, 17] as $index) {
+    foreach ([0, 8, 17, 18] as $index) {
         foreach (['sha', 'create-type', 'checksum-type'] as $fault) {
             $changed = $lines;
             $table = \Tablo\server_schema_descriptor_table(JsonRecord::checked(json_decode($changed[1 + $index] ?? '', associative: true, flags: JSON_THROW_ON_ERROR)));
@@ -1204,7 +1217,7 @@ function engine_schema_source_checksum_integrity(\ReflectionMethod $loader, stri
 
 function engine_schema_source_checksum_framing(\ReflectionMethod $loader, string $bytes, string $engine, int $version): void
 {
-    $lines = explode("\n", $bytes); $tail = $lines[18] ?? throw new \RuntimeException('Missing final source record.');
+    $lines = explode("\n", $bytes); $tail = $lines[19] ?? throw new \RuntimeException('Missing final source record.');
     foreach ([substr($bytes, offset: 0, length: -1), $bytes . "\n", $bytes . "\0", $bytes . $tail . "\n", substr($bytes, offset: 0, length: -80),
         str_replace('"records":2', replace: '"records":1', subject: $bytes), str_replace('"format":1', replace: '"format":"1"', subject: $bytes),
         str_replace('{"records":2,"layout":', replace: '{"unknown":0,"records":2,"layout":', subject: $bytes),
@@ -1242,14 +1255,61 @@ function engine_schema_source_checksum_encoding(\ReflectionMethod $loader, strin
     $fullLoader = new \ReflectionMethod(\Tablo\ServerSchemaDescriptor::class, 'sourceLayout');
     $full = engine_schema_descriptor_source($fullLoader, $input, $engine)['layout'] ?? throw new \RuntimeException('Encoding fixture was not parsed by the old full-layout path.');
     // The full reader checked each ordered table frame before this encoding-failure oracle.
-    $tables = array_values(array_filter(JsonRecord::checked($full['tables'] ?? null), static fn (array $table): bool => $version === 10 || ($table['name'] ?? null) !== 'read_api_token'));
+    $tables = engine_schema_version_raw($full, $version);
     $method = new \ReflectionMethod(\Tablo\ServerSchemaDescriptor::class, '_checksumTables');
     $expected = engine_schema_checksum_outcome(static fn () => $method->invoke(null, $tables)); Assert::true($expected['error'] !== null);
     Assert::same(engine_schema_checksum_outcome(static fn () => engine_schema_source_checksum_result($loader, $input, $engine, $version)['checksum']), $expected);
     $closed = engine_schema_source_checksum_result($loader, $input, $engine, $version, options: ['failClose' => true]);
     engine_schema_descriptor_refusal($closed['failure']); Assert::same($closed['checksum'], null);
-    $last = \Tablo\server_schema_descriptor_table(JsonRecord::checked(json_decode($lines[18] ?? '', associative: true, flags: JSON_THROW_ON_ERROR)));
-    $last['checksum'] = str_repeat('0', times: 64); $lines[18] = \Tablo\JsonEncoding::encode(['tables' => [$last]]);
+    $last = \Tablo\server_schema_descriptor_table(JsonRecord::checked(json_decode($lines[19] ?? '', associative: true, flags: JSON_THROW_ON_ERROR)));
+    $last['checksum'] = str_repeat('0', times: 64); $lines[19] = \Tablo\JsonEncoding::encode(['tables' => [$last]]);
     $actual = engine_schema_source_checksum_result($loader, implode("\n", $lines), $engine, $version);
     engine_schema_descriptor_refusal($actual['failure']); Assert::same($actual['checksum'], null);
+}
+
+/** @param \Tablo\ServerSchema::Layout $layout
+ * @return list<\Tablo\ServerSchema::Table> */
+function engine_schema_version_tables(array $layout, int $version): array
+{
+    $historical = $version < 11 ? engine_schema_descriptor_golden($layout['engine'], $version) : $layout;
+    return array_values(array_filter($historical['tables'], static fn (array $table): bool => $version >= 10 || $table['name'] !== 'read_api_token'));
+}
+
+/** Encoding-failure controls preserve mutations outside the finite predecessor state CHECK. */
+function engine_schema_version_raw(array $layout, int $version): array
+{
+    $tables = JsonRecord::checked($layout['tables'] ?? null); $selected = [];
+    foreach (array_keys($tables) as $index) {
+        $table = JsonRecord::checked($tables[$index] ?? null);
+        if ($version < 10 && ($table['name'] ?? null) === 'read_api_token') { continue; }
+        if ($version < 11 && ($table['name'] ?? null) === 'self_update') { continue; }
+        if ($version < 11 && ($table['name'] ?? null) === 'tablo_database_state') {
+            $golden = engine_schema_descriptor_golden(SqlColumn::string($layout, 'engine'), $version);
+            $table = $golden['tables'][1] ?? throw new \RuntimeException('Missing historical state oracle.');
+        }
+        $selected[] = $table;
+    }
+    return $selected;
+}
+
+function engine_migration_ten_to_eleven(): void
+{
+    $fixture = new EngineFixture('migration-ten');
+    try {
+        $db = $fixture->maintenance(); $tables = EngineMigrationPreviousTest::materialize($fixture, $db);
+        $layout = engine_schema_descriptor_golden(SqlColumn::string($fixture->environment(), 'TABLO_DB_DRIVER'), version: 10);
+        $api = $layout['tables'][17] ?? throw new \RuntimeException('Missing historical API table.');
+        $db->exec($api['create']);
+        ServerSchema::rows($db, 'UPDATE tablo_database_state SET logical_version = 10, layout_checksum = ? WHERE id = 1', [ServerSchema::checksum($db, version: 10)]);
+        ServerSchema::rows($db, 'INSERT INTO read_api_token VALUES(1,?,?,?)', [str_repeat('a', times: 64), str_repeat('b', times: 64), '2026-10-28T00:00:00Z']);
+        ServerSchema::validateLayout($db, version: 10);
+        $before = EngineMigrationPreviousTest::snapshot($db, $tables); $credential = ServerSchema::rows($db, 'SELECT * FROM read_api_token');
+        $migration = new ServerMigration($db, $fixture->vault); $migration->migrate();
+        Assert::same($migration->status(), ['format' => 1, 'logical_version' => 11, 'phase' => 'ready']);
+        Assert::same(EngineMigrationPreviousTest::snapshot($db, $tables), $before); Assert::same(ServerSchema::rows($db, 'SELECT * FROM read_api_token'), $credential);
+        Assert::same((new \Tablo\SelfUpdateRepository($db))->get()['interval_minutes'], 360);
+        $journal = ServerSchema::rows($db, 'SELECT * FROM tablo_migration_journal'); $migration->migrate();
+        Assert::same(ServerSchema::rows($db, 'SELECT * FROM tablo_migration_journal'), $journal);
+        Assert::same(DatabaseTransferSequence::floors($db), ['sites' => 2000, 'git_tokens' => 7000, 'check_history' => 9000]);
+    } finally { $fixture->close(); }
 }

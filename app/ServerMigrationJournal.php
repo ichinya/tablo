@@ -29,6 +29,9 @@ final class ServerMigrationJournal
         ServerSchema::rows($this->db, "UPDATE tablo_migration_journal SET phase = 'done', failure_category = NULL WHERE plan = ? AND step = ?", [$this->plan, $step]);
     }
 
+    public function widenStateIntent(int $predecessor, string $checksum): void
+    { server_migration_widen_intent($this->db, $this->plan, $predecessor, $checksum); }
+
     public function failed(int $step, string $category): void
     {
         ServerSchema::rows($this->db, "UPDATE tablo_migration_journal SET phase = 'failed', failure_category = ? WHERE plan = ? AND step = ?", [$category, $this->plan, $step]);
@@ -40,3 +43,18 @@ final class ServerMigrationJournal
     }
 
 }
+
+function server_migration_widen_intent(\PDO $db, string $plan, int $predecessor, string $checksum): void
+{
+        $rows = ServerSchema::rows($db, 'SELECT checksum, predecessor, target, before_predicate, after_predicate, phase FROM tablo_migration_journal WHERE plan = ? AND step = 0', [$plan]);
+        if ($rows !== []) {
+            if (count($rows) !== 1) { throw new DatabaseFailure('schema'); }
+            $row = $rows[0];
+            $observed = [SqlColumn::string($row, 'checksum'), DatabaseInteger::checked($row['predecessor'] ?? null), DatabaseInteger::checked($row['target'] ?? null),
+                SqlColumn::string($row, 'before_predicate'), SqlColumn::string($row, 'after_predicate')];
+            if ($observed !== [$checksum, $predecessor, 11, 'state:logical-version-max10', 'state:logical-version-max11']
+                || !in_array(SqlColumn::string($row, 'phase'), ['intent', 'done', 'failed'], strict: true)) { throw new DatabaseFailure('schema'); }
+            return;
+        }
+        ServerSchema::rows($db, "INSERT INTO tablo_migration_journal (plan, step, checksum, predecessor, target, before_predicate, after_predicate, phase) VALUES (?, 0, ?, ?, 11, 'state:logical-version-max10', 'state:logical-version-max11', 'intent')", [$plan, $checksum, $predecessor]);
+    }

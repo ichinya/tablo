@@ -45,9 +45,12 @@ final class IncidentConcurrencyTest
             Assert::same(count($idleStatements), 1, 'exact idle ALTER executes once');
             $tokenStatements = array_values(array_filter($statements, static fn (string $sql): bool => str_starts_with($sql, 'CREATE TABLE read_api_token')));
             Assert::same($tokenStatements, [\Tablo\ReadApiTokenSchema::sql()], 'exact API token CREATE executes once');
-            $originalStatements = array_values(array_filter($statements, static fn (string $sql): bool => !in_array($sql, [...$idleStatements, ...$tokenStatements], strict: true)));
+            $selfUpdateStatements = array_values(array_filter($statements, static fn (string $sql): bool => str_starts_with($sql, 'CREATE TABLE self_update')));
+            Assert::same(count($selfUpdateStatements), 1, 'self-update singleton CREATE executes exactly once');
+            Assert::same($selfUpdateStatements, [\Tablo\SelfUpdateSchema::sql()], 'exact constrained self-update CREATE is additive');
+            $originalStatements = array_values(array_filter($statements, static fn (string $sql): bool => !in_array($sql, [...$idleStatements, ...$tokenStatements, ...$selfUpdateStatements], strict: true)));
             Assert::same(count($originalStatements), 14, 'preserve original endpoint/history/incident/notification DDL count');
-            // Frozen original schema-five migration DDL content and order; idle/token additions are checked separately.
+            // Frozen original schema-five DDL content/order; all three additive upgrades are checked separately.
             Assert::same(array_map(static fn (string $sql): string => hash('sha256', $sql), $originalStatements), [
                 '4f176a1573788304019359ba6d825cfe61587a70b7104025f73a8e6e167cc9e2',
                 '699e8a6c856abf4e5f024a6cfb1a21a0b154df9399c63bc5f680acf54bff43b1',
@@ -64,8 +67,8 @@ final class IncidentConcurrencyTest
                 '116e2fecdd1624b36957083165ef5579a82a16f08c918c0c7dacdabf330e8dc9',
                 '8a4070d31881a873114b8518413e329abefa57207a9caef94c0311ac7244e2ce',
             ]);
-            Assert::same(array_slice($statements, offset: -2), [...$idleStatements, \Tablo\ReadApiTokenSchema::sql()], 'idle then API token DDL follow the unchanged original sequence');
-            Assert::same(\Tablo\Tests\Support\FixtureValue::at($firstObservation, 'ddl'), 16, 'original fourteen statements plus exactly one idle ALTER and one token CREATE');
+            Assert::same(array_slice($statements, offset: -3), [...$idleStatements, \Tablo\ReadApiTokenSchema::sql(), \Tablo\SelfUpdateSchema::sql()], 'idle, API token and self-update DDL follow the unchanged original sequence');
+            Assert::same(\Tablo\Tests\Support\FixtureValue::at($firstObservation, 'ddl'), 17, 'original fourteen statements plus exactly one idle ALTER, token CREATE and self-update CREATE');
             Assert::same(\Tablo\Tests\Support\FixtureValue::at(\Tablo\JsonRecord::checked(json_decode($b['stdout'], associative: true)), 'ddl'), 0);
             Assert::same(\Tablo\Tests\Support\FixtureValue::at(\Tablo\JsonRecord::decode($b['stdout']), 'ddl_statements'), [], 'waiting opener replays no DDL');
             $db = Database::connect($path);

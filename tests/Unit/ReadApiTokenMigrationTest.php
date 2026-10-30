@@ -31,7 +31,7 @@ final class ReadApiTokenMigrationTest
         $db = self::versionNine(); $before = A::snapshot($db); $db->statements = [];
         Database::migrate($db);
         $ddl = array_values(array_filter($db->statements, static fn (string $sql): bool => preg_match('/^(CREATE|ALTER|DROP)/', $sql) === 1));
-        Assert::same($ddl, [ReadApiTokenSchema::sql()]);
+        Assert::same($ddl, [ReadApiTokenSchema::sql(), \Tablo\SelfUpdateSchema::sql()]);
         Assert::same(A::rows($db, 'SELECT * FROM read_api_token'), []);
         $after = A::snapshot($db);
         foreach (array_keys($before) as $key) {

@@ -72,10 +72,9 @@ function database_transfer_verification_scratch(PDO $scratch, #[\SensitiveParame
 function database_transfer_verification_table(PDO $db, array $table, array $receipt): void
 {
     $rows = 0; $hash = hash_init('sha256');
-    foreach (DatabaseTransferRows::read($db, $table) as $values) {
+    DatabaseTransferRows::visit($db, $table, static function (array $values) use (&$rows, $hash): void {
         $rows++; hash_update($hash, DatabaseTransferWire::completeLine($values));
-        unset($values);
-    }
+    });
     if ([$rows, hash_final($hash)] !== [$receipt['rows'], $receipt['sha256']]) { throw new DatabaseFailure('schema'); }
 }
 
@@ -117,7 +116,7 @@ function database_transfer_header_manifest(#[\SensitiveParameter] string $direct
     database_transfer_receipt_keys($header, ['format', 'engine', 'logicalVersion', 'layout', 'columns', 'installation', 'verifier', 'sequences', 'watermark', 'tables']);
     /** @var array{format: mixed, engine: mixed, logicalVersion: mixed, layout: mixed, columns: mixed, installation: mixed, verifier: mixed, sequences: mixed, watermark: mixed, tables: mixed} $header Exact keys checked above. */
     $digest = hash('sha256', JsonEncoding::encode($header));
-    $expected = [1, 10, DatabaseTransferManifest::layout(), DatabaseTransferManifest::contract()];
+    $expected = [1, 11, DatabaseTransferManifest::layout(), DatabaseTransferManifest::contract()];
     if ([$header['format'], $header['logicalVersion'], $header['layout'], $header['columns']] !== $expected
         || ($envelope['sha256']) !== $digest) { throw new DatabaseFailure('schema'); }
     $installation = SqlColumn::string($header, 'installation');

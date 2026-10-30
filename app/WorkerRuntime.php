@@ -9,6 +9,7 @@ final class WorkerRuntime
     public readonly SettingsRepository $settings;
     public readonly WorkerStateRepository $state;
     public readonly NotificationDelivery $notifications;
+    public readonly SelfUpdateCheck $selfUpdate;
     /** @var \Closure(): GitHubConnection */
     public readonly \Closure $connection;
     /** @var \Closure(): (int|float) */
@@ -18,6 +19,13 @@ final class WorkerRuntime
     /** @var \Closure(string): void */
     public readonly \Closure $output;
     public readonly TokenVault $vault;
+    /** @param \Closure(): bool $stop */
+    public function checkSelfUpdate(\Closure $stop): void
+    {
+        if ($stop()) { return; }
+        $this->sites->assertWorkerKeyAvailable();
+        $this->selfUpdate->runDue($stop);
+    }
     public function __construct(\PDO $db,HttpClient $http,?WorkerHooks $hooks,#[\SensitiveParameter] ?TokenVault $vault)
     {
         $this->vault = $vault ?? TokenVault::forDatabase($db);
@@ -25,6 +33,7 @@ final class WorkerRuntime
         $this->settings = new SettingsRepository($db);
         $this->state = new WorkerStateRepository($db, $this->sites);
         $this->notifications = new NotificationDelivery($db,$this->vault);
+        $this->selfUpdate = new SelfUpdateCheck($db, $http, $hooks?->epoch);
         $sites = $this->sites;
         $this->connection = $hooks->connection ?? static fn (): GitHubConnection => new GitHubConnection($sites, $http, worker: true);
         $this->clock = $hooks->clock ?? static fn (): float => hrtime(true) / 1e9;

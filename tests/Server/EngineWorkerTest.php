@@ -30,6 +30,7 @@ final class EngineWorkerTest
         $db = $fixture->database(); $other = $fixture->independent();
         $first = new WorkerLock(); $second = new WorkerLock();
         try {
+            engine_worker_self_update($db, $other);
             Assert::true($first->acquire($db)); Assert::false($second->acquire($other));
             WriteTransaction::run($db, static fn (): int|false => $db->exec('UPDATE installation_settings SET check_interval_minutes = 17'));
             Assert::false($db->inTransaction()); Assert::false($second->acquire($other));
@@ -173,4 +174,21 @@ final class EngineWorkerTest
         Assert::same($fixture->scalar('SELECT COUNT(*) FROM check_history'), 1);
         Assert::same($fixture->scalar('SELECT committed_history_high_watermark FROM tablo_database_state'), 1);
     }
+}
+
+function engine_worker_self_update(\PDO $db, \PDO $other): void
+{
+    $first = new \Tablo\SelfUpdateRepository($db); $second = new \Tablo\SelfUpdateRepository($other);
+    $build = new \Tablo\BuildMetadata('ichinya/tablo', 'main', str_repeat('a', times: 40));
+    $claim = $first->claim($build, 1000) ?? throw new \RuntimeException('Native claim required.');
+    Assert::same($second->claim($build, 1001), null);
+    Assert::true($first->complete($claim, $build, 1001, new \Tablo\SelfUpdateResult('behind', str_repeat('b', times: 40), 3)));
+    Assert::same($second->get()['new_commits'], 3); Assert::same($second->get()['successful_at'], 1001);
+    $claim = $first->claim($build, 22_601) ?? throw new \RuntimeException('Native retry claim required.');
+    Assert::true($first->complete($claim, $build, 22_602, new \Tablo\SelfUpdateResult('unknown', error: 'unavailable')));
+    Assert::same($second->get()['status'], 'behind'); Assert::same($second->get()['successful_at'], 1001);
+    $claim = $first->claim($build, 22_902) ?? throw new \RuntimeException('Native reconfiguration claim required.');
+    $second->configure(null, '60');
+    Assert::false($first->complete($claim, $build, 22_903, new \Tablo\SelfUpdateResult('current', $build->sha)));
+    Assert::same($first->get()['enabled'], 0);
 }

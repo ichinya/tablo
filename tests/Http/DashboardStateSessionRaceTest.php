@@ -30,12 +30,14 @@ final class DashboardStateSessionRaceTest
         try {
             $csrf = $web->authenticate(); (new SettingsRepository($web->database()))->updateIdleTimeout('2');
             A::insert($web->database());
+            $build = self::seedUpdate($web->database());
             $server = new TestServer($barrier, dirname(__DIR__) . '/fixtures/dashboard-state-race-router.php',
                 dirname(__DIR__, levels: 2) . '/public', [
                     'TABLO_DB' => $web->directory->path . '/test.sqlite',
                     'TABLO_TEST_RUNTIME' => $web->directory->path . '/runtime',
                     'TABLO_DASHBOARD_STATE_BARRIER' => $barrier->path,
                     'TABLO_COOKIE_SECURE' => '0', 'TABLO_TRUSTED_PROXIES' => '',
+                    'TABLO_BUILD_REPOSITORY' => $build->repository, 'TABLO_BUILD_BRANCH' => $build->branch, 'TABLO_BUILD_SHA' => $build->sha,
                 ]);
             $action = new SessionConcurrentAction($fixture, $web->server->base);
             $action->prepare($race);
@@ -54,12 +56,22 @@ final class DashboardStateSessionRaceTest
             Assert::same($data['sessionCookieIssued'] ?? null, false, 'late poll cannot replace the current cookie');
             $body = JsonRecord::decode(FixtureValue::string($data['body'] ?? null));
             Assert::same(array_key_exists('html', $body), $race === 'navigation');
+            Assert::same(str_contains(FixtureValue::string($data['body'] ?? null), 'private-self-update-race'), $race === 'navigation', 'prepared update banner is sent only after current-session revalidation');
             Assert::same((int) \Tablo\SqlStatement::checked($web->database()->query('SELECT COUNT(*) FROM check_history'))->fetchColumn(), 0);
         } catch (\Throwable $error) { $web->directory->retainFailure($error); $barrier->retainFailure($error); throw $error; }
         finally {
             file_put_contents($barrier->path . '/release', data: 'release');
             $child?->close(); $server?->close(); $fixture->close(); $barrier->close();
         }
+    }
+
+    private static function seedUpdate(\PDO $db): \Tablo\BuildMetadata
+    {
+        $build = new \Tablo\BuildMetadata('ichinya/tablo', 'private-self-update-race', str_repeat('a', times: 40));
+        $updates = new \Tablo\SelfUpdateRepository($db);
+        $claim = $updates->claim($build, time()) ?? throw new \RuntimeException('Race update claim required.');
+        $updates->complete($claim, $build, time(), new \Tablo\SelfUpdateResult('behind', str_repeat('b', times: 40), 3));
+        return $build;
     }
 
     private function entered(TemporaryDirectory $barrier): void

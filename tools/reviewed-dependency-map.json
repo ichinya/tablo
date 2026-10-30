@@ -4,7 +4,8 @@
     "consumers": [
       "Composer lint",
       "Composer analyze",
-      "Composer verify"
+      "Composer verify",
+      "tests/Support/TransferRowsAssertions.php"
     ]
   },
   "tests/Unit/DatabaseFailureOutputTest.php": {
@@ -38,6 +39,31 @@
       "Composer analyze",
       "tests/Unit/DatabaseTransferNameTest.php",
       "tests/Unit/DatabaseTransferPublicationTest.php"
+    ]
+  },
+  "tests/Support/TransferRowsAssertions.php": {
+    "owner": "Typed transfer visitor and pull equivalence, partial archive and cursor failure controls",
+    "consumers": [
+      "Composer lint",
+      "Composer analyze",
+      "tests/Unit/DatabaseTransferNameTest.php"
+    ]
+  },
+  "tests/Support/TransferRowsPdo.php": {
+    "owner": "Synthetic native SQLite transfer rows with observed ordered data cursors",
+    "consumers": [
+      "Composer lint",
+      "Composer analyze",
+      "tests/Support/TransferRowsAssertions.php",
+      "tests/Support/TransferRowsStatement.php"
+    ]
+  },
+  "tests/Support/TransferRowsStatement.php": {
+    "owner": "Real SQLite execute fetch and close faults preserving data cursor lifecycle",
+    "consumers": [
+      "Composer lint",
+      "Composer analyze",
+      "tests/Support/TransferRowsPdo.php"
     ]
   },
   "tests/Unit/TransferTargetTripwirePdo.php": {
@@ -714,7 +740,8 @@
       "app/DatabaseTransfer.php",
       "app/DatabaseTransferImport.php",
       "app/DatabaseTransferManifest.php",
-      "app/DatabaseTransferVerification.php"
+      "app/DatabaseTransferVerification.php",
+      "tests/Support/TransferRowsAssertions.php"
     ]
   },
   "app/DatabaseTransferImport.php": {
@@ -769,7 +796,8 @@
       "app/DatabaseTransferTarget.php",
       "app/DatabaseTransferVerification.php",
       "tests/Server/EngineTransferAdmissionTest.php",
-      "tests/Server/EngineTransferEnvelopeTest.php"
+      "tests/Server/EngineTransferEnvelopeTest.php",
+      "tests/Support/TransferRowsAssertions.php"
     ]
   },
   "app/DatabaseTransferSequence.php": {
@@ -807,7 +835,8 @@
       "app/DatabaseTransfer.php",
       "app/DatabaseTransferImport.php",
       "tests/Server/EngineTransferTest.php",
-      "tests/Server/EngineTransferEnvelopeTest.php"
+      "tests/Server/EngineTransferEnvelopeTest.php",
+      "tests/Support/TransferRowsAssertions.php"
     ]
   },
   "app/DeploymentFields.php": {
@@ -10198,6 +10227,214 @@
       "Composer analyze",
       "Composer verify",
       "tests/Http/AvailabilityPageTest.php"
+    ]
+  },
+  "app/BuildMetadata.php": {
+    "owner": "Tablo\\BuildMetadata",
+    "consumers": [
+      "Composer lint",
+      "Composer analyze",
+      "Composer verify",
+      "Private self-update worker/schema/presentation"
+    ]
+  },
+  "app/GitHubComparison.php": {
+    "owner": "Tablo\\GitHubComparison",
+    "consumers": [
+      "Composer lint",
+      "Composer analyze",
+      "Composer verify",
+      "Private self-update worker/schema/presentation"
+    ]
+  },
+  "app/GitHubUpdateSource.php": {
+    "owner": "Tablo\\GitHubUpdateSource",
+    "consumers": [
+      "Composer lint",
+      "Composer analyze",
+      "Composer verify",
+      "Private self-update worker/schema/presentation"
+    ]
+  },
+  "app/self-update-schema.php": {
+    "owner": "Tablo\\SelfUpdateSchema",
+    "consumers": [
+      "Composer lint",
+      "Composer analyze",
+      "Composer verify",
+      "Private self-update worker/schema/presentation"
+    ]
+  },
+  "app/SelfUpdateRow.php": {
+    "owner": "Tablo\\SelfUpdateRow",
+    "consumers": [
+      "Composer lint",
+      "Composer analyze",
+      "Composer verify",
+      "Private self-update worker/schema/presentation"
+    ]
+  },
+  "app/self-update-repository.php": {
+    "owner": "Tablo\\SelfUpdateRepository",
+    "consumers": [
+      "Composer lint",
+      "Composer analyze",
+      "Composer verify",
+      "Private self-update worker/schema/presentation"
+    ]
+  },
+  "app/SelfUpdateResult.php": {
+    "owner": "Tablo\\SelfUpdateResult",
+    "consumers": [
+      "Composer lint",
+      "Composer analyze",
+      "Composer verify",
+      "Private self-update worker/schema/presentation"
+    ]
+  },
+  "app/self-update-check.php": {
+    "owner": "Tablo\\SelfUpdateCheck",
+    "consumers": [
+      "Composer lint",
+      "Composer analyze",
+      "Composer verify",
+      "Private self-update worker/schema/presentation"
+    ]
+  },
+  "app/SelfUpdateProbe.php": {
+    "owner": "Tablo\\SelfUpdateProbe",
+    "consumers": [
+      "Composer lint",
+      "Composer analyze",
+      "Composer verify",
+      "Private self-update worker/schema/presentation"
+    ]
+  },
+  "app/self-update-presentation.php": {
+    "owner": "Tablo\\SelfUpdatePresentation",
+    "consumers": [
+      "Composer lint",
+      "Composer analyze",
+      "Composer verify",
+      "Private self-update worker/schema/presentation"
+    ]
+  },
+  "app/ServerSchemaProjection.php": {
+    "owner": "Tablo\\ServerSchemaProjection",
+    "consumers": [
+      "Composer lint",
+      "Composer analyze",
+      "Composer verify",
+      "Private self-update worker/schema/presentation"
+    ]
+  },
+  "tests/Unit/SelfUpdateComparisonTest.php": {
+    "owner": "Controlled self-update provenance, comparison, schedule, fencing and persistence evidence",
+    "consumers": [
+      "Composer lint",
+      "Composer analyze",
+      "Composer verify"
+    ]
+  },
+  "tests/Unit/SelfUpdateScheduleTest.php": {
+    "owner": "Controlled self-update provenance, comparison, schedule, fencing and persistence evidence",
+    "consumers": [
+      "Composer lint",
+      "Composer analyze",
+      "Composer verify"
+    ]
+  },
+  "tests/Unit/SelfUpdateFencingTest.php": {
+    "owner": "Controlled self-update provenance, comparison, schedule, fencing and persistence evidence",
+    "consumers": [
+      "Composer lint",
+      "Composer analyze",
+      "Composer verify"
+    ]
+  },
+  "tests/Unit/SelfUpdateMigrationTest.php": {
+    "owner": "Controlled self-update provenance, comparison, schedule, fencing and persistence evidence",
+    "consumers": [
+      "Composer lint",
+      "Composer analyze",
+      "Composer verify"
+    ]
+  },
+  "tests/Unit/SelfUpdateWorkerTest.php": {
+    "owner": "Controlled self-update provenance, comparison, schedule, fencing and persistence evidence",
+    "consumers": [
+      "Composer lint",
+      "Composer analyze",
+      "Composer verify"
+    ]
+  },
+  "tests/Unit/SelfUpdateFailureTest.php": {
+    "owner": "Controlled self-update provenance, comparison, schedule, fencing and persistence evidence",
+    "consumers": [
+      "Composer lint",
+      "Composer analyze",
+      "Composer verify"
+    ]
+  },
+  "tests/Support/SelfUpdateHttp.php": {
+    "owner": "Controlled self-update provenance, comparison, schedule, fencing and persistence evidence",
+    "consumers": [
+      "Composer lint",
+      "Composer analyze",
+      "Composer verify"
+    ]
+  },
+  "tests/Http/SelfUpdateTest.php": {
+    "owner": "Controlled self-update provenance, comparison, schedule, fencing and persistence evidence",
+    "consumers": [
+      "Composer lint",
+      "Composer analyze",
+      "Composer verify"
+    ]
+  },
+  "tests/fixtures/server-layouts/v11/mysql84-layout.json": {
+    "owner": "Frozen logical11 source/admission/checksum oracle",
+    "consumers": [
+      "tests/Server/EngineMigrationPreviousTest.php",
+      "tests/Unit/ServerMetadataPrivilegesTest.php"
+    ]
+  },
+  "tests/fixtures/server-layouts/v11/mariadb114-layout.json": {
+    "owner": "Frozen logical11 source/admission/checksum oracle",
+    "consumers": [
+      "tests/Server/EngineMigrationPreviousTest.php",
+      "tests/Unit/ServerMetadataPrivilegesTest.php"
+    ]
+  },
+  "views/self-update.volt": {
+    "owner": "Persistent authenticated saved-state update banner",
+    "consumers": [
+      "app/PageResponse.php",
+      "views/layout.volt",
+      "views/dashboard-snapshot.volt"
+    ]
+  },
+  "tests/Support/SelfUpdateWorkerHttp.php": {
+    "owner": "Serial fake-clock long-pass and stop scheduling evidence",
+    "consumers": [
+      "Composer lint",
+      "Composer analyze",
+      "Composer verify"
+    ]
+  },
+  "tests/Support/ServerExpressionLeaves.php": {
+    "owner": "Bounded invocation-local AST leaf equivalence, lifetime and finite-guard evidence",
+    "consumers": [
+      "Composer lint",
+      "Composer analyze",
+      "tests/Unit/SqlSchemaAdmissionTest.php",
+      "tests/Server/EngineConstraintsTest.php"
+    ]
+  },
+  "tests/fixtures/server-expression-canonical-v1.json": {
+    "owner": "Frozen pre-leaf canonical SHA256 outputs for both engine CHECK descriptors",
+    "consumers": [
+      "tests/Support/ServerExpressionLeaves.php"
     ]
   }
 }

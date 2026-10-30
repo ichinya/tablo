@@ -18,11 +18,11 @@ final class EngineMetadataAdmissionTest
 {
     #[Test]
     public function hiddenTableRefusesBeforeTheFixedGrantWriterCanMutate(): void
-    { engine_metadata_hidden('metadata-table', counter: 'tables', expected: 19); }
+    { engine_metadata_hidden('metadata-table', counter: 'tables', expected: 20); }
 
     #[Test]
     public function hiddenViewRefusesBeforeTheFixedGrantWriterCanMutate(): void
-    { engine_metadata_hidden('metadata-view', counter: 'tables', expected: 19); }
+    { engine_metadata_hidden('metadata-view', counter: 'tables', expected: 20); }
 
     #[Test]
     public function triggerRefusesEvenWhenTheMysqlWriterCannotSeeItsRow(): void
@@ -38,7 +38,7 @@ final class EngineMetadataAdmissionTest
 
     #[Test]
     public function revokedMetadataVisibilityRefusesRatherThanTreatingFilteredRowsAsAbsent(): void
-    { engine_metadata_hidden('metadata-limited', counter: 'tables', expected: 18); }
+    { engine_metadata_hidden('metadata-limited', counter: 'tables', expected: 19); }
 
     #[Test]
     public function missingMetadataCredentialsNeverFallBackToWriterOrMigrator(): void
@@ -54,7 +54,7 @@ final class EngineMetadataAdmissionTest
 
     #[Test]
     public function evenAnInactiveGrantedRoleRefusesTheDirectMetadataProfile(): void
-    { engine_metadata_hidden('metadata-role', counter: 'tables', expected: 18); }
+    { engine_metadata_hidden('metadata-role', counter: 'tables', expected: 19); }
 }
 
 function engine_metadata_hidden(string $case, string $counter, int $expected): void
@@ -67,7 +67,7 @@ function engine_metadata_hidden(string $case, string $counter, int $expected): v
         $record = engine_metadata_control_record($fixture, $configuration);
         Assert::same($record['kind'] ?? null, $case); Assert::same($record[$counter] ?? null, $expected);
         if (in_array($case, ['metadata-table', 'metadata-view'], strict: true)) {
-            Assert::same($fixture->scalar('SELECT COUNT(*) FROM information_schema.TABLES WHERE TABLE_SCHEMA = DATABASE()', $db), 18);
+            Assert::same($fixture->scalar('SELECT COUNT(*) FROM information_schema.TABLES WHERE TABLE_SCHEMA = DATABASE()', $db), 19);
         }
         if ($case === 'metadata-trigger') {
             Assert::same($fixture->scalar('SELECT COUNT(*) FROM information_schema.TRIGGERS WHERE TRIGGER_SCHEMA = DATABASE()', $db), $configuration->engine === 'mysql' ? 0 : 1);
@@ -105,7 +105,7 @@ function engine_metadata_cross_catalog(): void
     try {
         $db = $fixture->database(); $other = $peer->database();
         $before = engine_metadata_snapshot($db); $peerBefore = engine_metadata_snapshot($other);
-        $peerObservation = ServerMetadataAdmission::observe(DatabaseConfiguration::fromEnvironment(environment: $peer->environment()), 10);
+        $peerObservation = ServerMetadataAdmission::observe(DatabaseConfiguration::fromEnvironment(environment: $peer->environment()), 11);
         $binding = null;
         try { ServerMetadataAdmission::bind($db, $peerObservation); } catch (DatabaseFailure $error) { $binding = $error; }
         Assert::same($binding?->category, 'schema'); Assert::same($binding?->getPrevious(), null);
@@ -120,8 +120,9 @@ function engine_metadata_positive(): void
 {
     $fixture = new EngineFixture('metadata-positive');
     try {
+        engine_metadata_read_buffer_policy($fixture);
         $configuration = DatabaseConfiguration::fromEnvironment(environment: $fixture->environment());
-        $observation = ServerMetadataAdmission::observe($configuration, 10);
+        $observation = ServerMetadataAdmission::observe($configuration, 11);
         if ($configuration->engine === 'mariadb') {
             $metadata = ServerPdoConnection::open($configuration->metadata());
             try {
@@ -129,7 +130,7 @@ function engine_metadata_positive(): void
                 Assert::same($fixture->scalar('SELECT COUNT(*) FROM information_schema.APPLICABLE_ROLES', $metadata), 0);
             } finally { $metadata = null; }
         }
-        Assert::same(count($observation['objects']), 18); Assert::same($observation['server']['catalog'] ?? null, $configuration->catalog);
+        Assert::same(count($observation['objects']), 19); Assert::same($observation['server']['catalog'] ?? null, $configuration->catalog);
         $db = $fixture->database();
         engine_metadata_writer_grants($db, $configuration);
         engine_metadata_journal_checks($fixture, $db, $configuration);
@@ -144,37 +145,80 @@ function engine_metadata_positive(): void
         ServerMetadataAdmission::bind($admitted, $observation);
         Assert::same($fixture->scalar('SELECT COUNT(*) FROM check_history', $admitted), 1);
         Assert::same($fixture->nativeFailure('CREATE TABLE forbidden_writer_table(id BIGINT)'), 1142);
-        Assert::same(count(ServerSchema::objects($db)), 18);
+        Assert::same(count(ServerSchema::objects($db)), 19);
     } finally { $fixture->close(); }
+}
+
+/** Constructor-only transport tuning must restore the caller's setting even when admission fails. */
+function engine_metadata_read_buffer_policy(EngineFixture $fixture): void
+{
+    $before = ini_get('mysqlnd.net_read_buffer_size');
+    // A libmysql build has no mysqlnd setting; the ordinary native connection still has to work.
+    $settings = $before === false ? [null] : ['1', '65536'];
+    try {
+        foreach ($settings as $setting) {
+            if ($setting !== null) { \Tablo\RuntimeIni::set('mysqlnd.net_read_buffer_size', $setting); }
+            $expected = ini_get('mysqlnd.net_read_buffer_size');
+            $environment = $fixture->environment();
+            $configuration = DatabaseConfiguration::fromEnvironment(environment: $environment);
+            $db = ServerPdoConnection::open($configuration);
+            try {
+                Assert::same(ini_get('mysqlnd.net_read_buffer_size'), $expected);
+                $payload = str_repeat("read-buffer\0", times: 8_000);
+                Assert::same(ServerSchema::rows($db, 'SELECT ? AS payload', [$payload]), [['payload' => $payload]]);
+                $environment['TABLO_DB_PASSWORD'] = \Tablo\Tests\Support\FixtureCredentials::value(label: 'denied-read-buffer');
+                $failure = null;
+                try { ServerPdoConnection::open(DatabaseConfiguration::fromEnvironment(environment: $environment)); }
+                catch (DatabaseFailure $error) { $failure = $error; }
+                Assert::same($failure?->category, 'unavailable'); Assert::same($failure?->getPrevious(), null);
+                Assert::same(ini_get('mysqlnd.net_read_buffer_size'), $expected);
+                $environment = $fixture->environment();
+                $environment['TABLO_DB_DRIVER'] = $configuration->engine === 'mysql' ? 'mariadb' : 'mysql';
+                $failure = null;
+                try { ServerPdoConnection::open(DatabaseConfiguration::fromEnvironment(environment: $environment)); }
+                catch (DatabaseFailure $error) { $failure = $error; }
+                Assert::same($failure?->category, 'engine'); Assert::same($failure?->getPrevious(), null);
+                Assert::same(ini_get('mysqlnd.net_read_buffer_size'), $expected);
+                Assert::same(ServerSchema::rows($db, 'SELECT 1 AS alive'), [['alive' => 1]]);
+            } finally { $db = null; }
+        }
+    } finally {
+        if ($before !== false) { \Tablo\RuntimeIni::set('mysqlnd.net_read_buffer_size', $before); }
+    }
+    Assert::same(ini_get('mysqlnd.net_read_buffer_size'), $before);
 }
 
 /** @param \Tablo\ServerMetadataAdmission::Observation $observation */
 function engine_metadata_invocation_tables(\PDO $db, DatabaseConfiguration $configuration, array $observation): void
 {
     $tables = ServerSchema::layout($db)['tables']; $before = $tables;
-    $provided = ServerMetadataAdmission::observe($configuration, version: 10, expectedTables: $tables);
+    $provided = ServerMetadataAdmission::observe($configuration, version: 11, expectedTables: $tables);
     Assert::same(engine_metadata_sorted_observation($provided), engine_metadata_sorted_observation($observation));
     Assert::same($tables, $before);
     if ($configuration->engine === 'mariadb') {
-        $tail = $tables[17] ?? throw new \RuntimeException('Missing final public table.');
+        $tail = $tables[17] ?? throw new \RuntimeException('Missing historical API table.');
         $check = $tail['checks'][3] ?? throw new \RuntimeException('Missing final public CHECK.');
         Assert::same([$tail['name'], $check['name']], ['read_api_token', 'read_api_token_c4']);
         $fingerprint = hash('sha256', "tablo/check-canonical/v1\0" . \Tablo\ServerExpression::canonical($check['expression']));
         Assert::same($observation['checks']['read_api_token']['read_api_token_c4'] ?? null, $fingerprint);
         Assert::same($provided['checks']['read_api_token']['read_api_token_c4'] ?? null, $fingerprint);
     }
-    // This borrowed inventory exercises the existing version-9 name rule, not a real version-9 catalog.
+    // Borrowed observations exercise historical name rules, never actual predecessor catalogs.
     $withoutApi = $provided;
-    $withoutApi['objects'] = array_values(array_filter($provided['objects'], static fn (array $object): bool => $object['name'] !== 'read_api_token'));
+    $withoutApi['objects'] = array_values(array_filter($provided['objects'], static fn (array $object): bool => !in_array($object['name'], ['read_api_token', 'self_update'], strict: true)));
+    $ten = $provided; $ten['objects'] = array_values(array_filter($provided['objects'], static fn (array $object): bool => $object['name'] !== 'self_update'));
+    Assert::same([count($withoutApi['objects']), count($ten['objects']), count($provided['objects'])], [17, 18, 19]);
     $missing = $provided;
     $missing['objects'] = array_values(array_filter($provided['objects'], static fn (array $object): bool => $object['name'] !== 'users'));
     $extra = $provided; $extra['objects'][] = ['name' => 'zz_source96_unexpected', 'kind' => 'BASE TABLE'];
     foreach ([null, $tables] as $expectedTables) {
-        engine_metadata_expected_case($db, $provided, version: 10, expectedTables: $expectedTables);
+        engine_metadata_expected_case($db, $provided, version: 11, expectedTables: $expectedTables);
         engine_metadata_expected_case($db, $withoutApi, version: 9, expectedTables: $expectedTables);
+        engine_metadata_expected_case($db, $ten, version: 10, expectedTables: $expectedTables);
+        foreach ([9, 11] as $version) { engine_metadata_expected_case($db, $ten, $version, $expectedTables, category: 'schema'); }
         foreach ([0, 11] as $version) { engine_metadata_expected_case($db, $withoutApi, $version, $expectedTables, category: 'schema'); }
-        engine_metadata_expected_case($db, $missing, version: 10, expectedTables: $expectedTables, category: 'schema');
-        engine_metadata_expected_case($db, $extra, version: 10, expectedTables: $expectedTables, category: 'schema');
+        engine_metadata_expected_case($db, $missing, version: 11, expectedTables: $expectedTables, category: 'schema');
+        engine_metadata_expected_case($db, $extra, version: 11, expectedTables: $expectedTables, category: 'schema');
     }
 }
 
@@ -242,12 +286,12 @@ function engine_metadata_borrowed_layout(\PDO $db, array $observation): void
 function engine_metadata_owned_layout_failure(EngineFixture $fixture, \PDO $db, DatabaseConfiguration $configuration, array $observation): void
 {
     $session = \Tablo\DatabaseSession::get($db) ?? throw new \RuntimeException('Missing admitted session.');
-    $tail = ServerSchema::layout($db)['tables'][17] ?? throw new \RuntimeException('Missing final public table.');
+    $tail = ServerSchema::layout($db)['tables'][17] ?? throw new \RuntimeException('Missing historical API table.');
     $check = $tail['checks'][3] ?? throw new \RuntimeException('Missing final public CHECK.');
     Assert::same([$tail['name'], $check['name']], ['read_api_token', 'read_api_token_c4']);
     $maintenance = $fixture->maintenance();
     foreach ([['table' => 'tablo_database_state', 'constraint' => 'tablo_database_state_c3',
-        'original' => 'logical_version BETWEEN 0 AND 10', 'replacement' => 'logical_version BETWEEN 0 AND 11'],
+        'original' => 'logical_version BETWEEN 0 AND 11', 'replacement' => 'logical_version BETWEEN 0 AND 12'],
         ['table' => 'read_api_token', 'constraint' => 'read_api_token_c4',
             'original' => $check['expression'], 'replacement' => 'OCTET_LENGTH(`created_at`) >= 0']] as $change) {
         $changed = false;
@@ -255,7 +299,7 @@ function engine_metadata_owned_layout_failure(EngineFixture $fixture, \PDO $db, 
             $maintenance->exec('ALTER TABLE ' . $change['table'] . ' DROP CONSTRAINT ' . $change['constraint']
                 . ', ADD CONSTRAINT ' . $change['constraint'] . ' CHECK (' . $change['replacement'] . ')');
             $changed = true;
-            $observed = ServerMetadataAdmission::observe($configuration, 10);
+            $observed = ServerMetadataAdmission::observe($configuration, 11);
             $before = $observation['checks'][$change['table']] ?? throw new \RuntimeException('Missing admitted CHECKs.');
             $after = $observed['checks'][$change['table']] ?? throw new \RuntimeException('Missing observed CHECKs.');
             Assert::same(count($after), count($before));

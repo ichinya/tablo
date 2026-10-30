@@ -89,7 +89,7 @@ function database_transfer_archive_stream(PDO $source, PDO $scratch, array $tabl
     if ($remainingChunks < 0 || $remainingChunks > DatabaseTransferManifest::MAX_CHUNKS) { throw new DatabaseFailure('configuration'); }
     $chunks = []; $rows = 0; $chunk = database_transfer_archive_pending_chunk(); $hash = hash_init('sha256');
     try {
-        foreach (DatabaseTransferRows::read($source, $table) as $values) {
+        DatabaseTransferRows::visit($source, $table, static function (array $values) use ($scratch, $table, $directory, $remainingChunks, &$chunks, &$chunk, &$rows, $hash): void {
             $line = DatabaseTransferWire::completeLine($values);
             if (strlen($line) > DatabaseTransferManifest::CHUNK_BYTES) { throw new DatabaseFailure('schema'); }
             if ($chunk['rows'] === DatabaseTransferManifest::CHUNK_ROWS || $chunk['bytes'] + strlen($line) > DatabaseTransferManifest::CHUNK_BYTES) {
@@ -99,8 +99,7 @@ function database_transfer_archive_stream(PDO $source, PDO $scratch, array $tabl
             DatabaseTransferPreflight::row($scratch, $table, $values);
             database_transfer_archive_append($chunk, $directory, $table['name'], count($chunks), $line);
             $rows++; hash_update($hash, $line);
-            unset($line, $values);
-        }
+        });
         if ($chunk['rows'] !== 0) { $chunks[] = database_transfer_archive_chunk($chunk); }
         return ['name' => $table['name'], 'rows' => $rows, 'sha256' => hash_final($hash), 'chunks' => $chunks];
     } finally {

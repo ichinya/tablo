@@ -61,6 +61,9 @@ final class EngineFixtureSafetyTest
     #[Test]
     public function finiteCatalogSlotsAndFixtureAliasesRefuseForeignOrUnboundedPlans(): void
     {
+        engine_fixture_migration_exit_markers();
+        engine_fixture_migration_process_results();
+        engine_fixture_native_binding_set();
         require_once dirname(__DIR__, levels: 2) . '/tools/ServerFixturePlan.php';
         $nonce = '1234567890abcdef1234567890abcdef';
         foreach (['mysql' => 'm', 'mariadb' => 'a'] as $engine => $letter) {
@@ -457,6 +460,91 @@ function engine_fixture_observer_admission(): void
 function engine_fixture_observer_error(\Closure $operation): ?\RuntimeException
 {
     try { $operation(); return null; } catch (\RuntimeException $error) { return $error; }
+}
+
+/** Actual finite binding admission, without a server, subprocess or copied verifier. */
+function engine_fixture_native_binding_set(): void
+{
+    $root = dirname(__DIR__, levels: 2); $loaded = !function_exists('server_verify_bindings');
+    require_once $root . '/tools/verify-server.php';
+    require_once $root . '/tools/ServerTestEvidence.php';
+    require_once $root . '/tools/BindingsDeclaration.php';
+    $directory = new \Tablo\Tests\Support\TemporaryDirectory('tablo-native-binding-set-');
+    try {
+        mkdir($directory->path . '/contracts');
+        $declaration = \Tablo\Tools\BindingsDeclaration::read($root . '/contracts/php-bindings.json');
+        $map = \Tablo\JsonRecord::decode(\Tablo\RequiredFile::bytes(file_get_contents($root . '/tools/server-native-tests.json')));
+        $bindings = \Tablo\JsonRecord::checked($map['bindings'] ?? null);
+        Assert::same(count($declaration['symbols']), 59); Assert::same(count($bindings), 59);
+        Assert::same(\Tablo\JsonRecord::checked($bindings['dashboard.self_update'] ?? null), ['kind' => 'entity',
+            'main' => ['tests/Server/EngineMigrationFreshTest.php', 'tests/Server/EngineMigrationPreviousTest.php', 'tests/Server/EngineWorkerTest.php', 'tests/Server/EngineTransferTest.php'],
+            'cross' => ['tests/ServerCross/EngineCrossTransferTest.php'], 'requiredFamilies' => ['MigrationFresh', 'MigrationPrevious', 'Worker', 'Transfer', 'CrossTransfer']]);
+        engine_fixture_binding_declaration($directory->path, $declaration);
+        foreach (['main', 'cross'] as $lane) {
+            \server_verify_bindings($directory->path, $map, \Tablo\Tools\server_native_cases($map, $lane), $lane);
+        }
+        $cases = \Tablo\Tools\server_native_cases($map, lane: 'main');
+        engine_fixture_invalid_binding_maps($directory->path, $map, $cases);
+        engine_fixture_invalid_binding_declarations($directory->path, $map, $cases, $declaration);
+        engine_fixture_invalid_binding_counts($directory->path, $map, $cases, $declaration);
+    } finally { $directory->close(); if ($loaded) { restore_error_handler(); } }
+}
+
+function engine_fixture_binding_declaration(string $root, array $declaration): void
+{
+    $bytes = \Tablo\JsonEncoding::encode($declaration);
+    if (file_put_contents($root . '/contracts/php-bindings.json', $bytes) !== strlen($bytes)) { throw new \RuntimeException('Native binding fixture write failed.'); }
+}
+
+/** @param array<string, array{identity: string, path: string, minimumAssertions: int, deadlineSeconds: ?int}> $cases */
+function engine_fixture_invalid_binding_maps(string $root, array $map, array $cases): void
+{
+    $bindings = \Tablo\JsonRecord::checked($map['bindings'] ?? null);
+    $entity = \Tablo\JsonRecord::checked($bindings['dashboard.self_update'] ?? null);
+    $missing = $bindings; unset($missing['dashboard.self_update']);
+    $extra = $bindings; $extra['dashboard.unexpected'] = $entity;
+    $wrongKind = $bindings; $wrongKind['dashboard.self_update'] = array_replace($entity, ['kind' => 'command']);
+    $empty = $bindings; $empty['dashboard.self_update'] = array_replace($entity, ['main' => []]);
+    $unknown = $bindings; $unknown['dashboard.self_update'] = array_replace($entity, ['main' => ['tests/Server/UnownedTest.php']]);
+    foreach ([$missing, $extra, $wrongKind, $empty, $unknown] as $invalid) {
+        $candidate = $map; $candidate['bindings'] = $invalid;
+        Assert::instanceOf(engine_fixture_observer_error(static function () use ($root, $candidate, $cases): void {
+            \server_verify_bindings($root, $candidate, $cases, lane: 'main');
+        }), \RuntimeException::class);
+    }
+}
+
+/** @param array<string, array{identity: string, path: string, minimumAssertions: int, deadlineSeconds: ?int}> $cases
+ * @param array{symbols: list<\Tablo\Tools\BindingSymbol::Symbol>, ...} $declaration */
+function engine_fixture_invalid_binding_declarations(string $root, array $map, array $cases, array $declaration): void
+{
+    $missing = $declaration; $missing['symbols'] = array_slice($declaration['symbols'], offset: 0, length: -1);
+    $duplicate = $declaration; $duplicate['symbols'][] = $declaration['symbols'][0] ?? throw new \RuntimeException('First binding fixture absent.');
+    foreach ([$missing, $duplicate] as $invalid) {
+        engine_fixture_binding_declaration($root, $invalid);
+        Assert::instanceOf(engine_fixture_observer_error(static function () use ($root, $map, $cases): void {
+            \server_verify_bindings($root, $map, $cases, lane: 'main');
+        }), \RuntimeException::class);
+    }
+}
+
+/** Consistent smaller/larger declaration and consumer pairs still violate the fixed set size.
+ * @param array<string, array{identity: string, path: string, minimumAssertions: int, deadlineSeconds: ?int}> $cases
+ * @param array{symbols: list<\Tablo\Tools\BindingSymbol::Symbol>, ...} $declaration */
+function engine_fixture_invalid_binding_counts(string $root, array $map, array $cases, array $declaration): void
+{
+    $bindings = \Tablo\JsonRecord::checked($map['bindings'] ?? null);
+    $short = $declaration; $short['symbols'] = array_slice($declaration['symbols'], offset: 0, length: 55);
+    $shortBindings = array_intersect_key($bindings, array_fill_keys(array_column($short['symbols'], 'id'), value: true));
+    $extra = $declaration; $symbol = $declaration['symbols'][0] ?? throw new \RuntimeException('First binding fixture absent.');
+    $record = \Tablo\JsonRecord::checked($bindings[$symbol['id']] ?? null); $symbol['id'] = 'dashboard.unexpected';
+    $extra['symbols'][] = $symbol; $extraBindings = $bindings; $extraBindings[$symbol['id']] = $record;
+    foreach ([[$short, $shortBindings], [$extra, $extraBindings]] as [$invalid, $invalidBindings]) {
+        engine_fixture_binding_declaration($root, $invalid); $candidate = $map; $candidate['bindings'] = $invalidBindings;
+        Assert::instanceOf(engine_fixture_observer_error(static function () use ($root, $candidate, $cases): void {
+            \server_verify_bindings($root, $candidate, $cases, lane: 'main');
+        }), \RuntimeException::class);
+    }
 }
 
 /** Labelled records exercise proof refusal only; they are not an actual Composer/engine run. */
@@ -891,4 +979,66 @@ function engine_fixture_context_refused(\Closure $operation): void
 {
     $caught = null; try { $operation(); } catch (\RuntimeException $error) { $caught = $error; }
     Assert::instanceOf($caught, \RuntimeException::class);
+}
+
+/** Exercises the actor's exact selector/callback; no connection, DDL, process or engine substitute. */
+function engine_fixture_migration_exit_markers(): void
+{
+    foreach (['exit-before-publication' => 'before-publication', 'exit-after-publication' => 'after-publication', 'exit-after-ddl' => 'after-ddl'] as $operation => $phase) {
+        $markers = [];
+        $barrier = \Tablo\Tests\Support\EngineProcess::migrationExitBarrier($operation, static function () use (&$markers): void { $markers[] = "ENGINE_MIGRATION_EXIT_BOUNDARY\n"; });
+        $target = $operation === 'exit-after-ddl' ? 3 : 11;
+        foreach ([0, 2, 3, 4, 9, 10, 11, 12] as $wrong) {
+            if ($wrong === $target) { continue; }
+            $barrier($phase, $wrong); Assert::same($markers, [], 'wrong target cannot emit the exit marker');
+        }
+        foreach (['before-ddl', 'after-ddl', 'before-publication', 'after-publication', 'after-journal'] as $wrong) {
+            if ($wrong === $phase) { continue; }
+            $barrier($wrong, $target); Assert::same($markers, [], 'correct target with another phase cannot emit the marker');
+        }
+        $barrier($phase, $target); Assert::same($markers, ["ENGINE_MIGRATION_EXIT_BOUNDARY\n"]);
+    }
+    foreach (['exit-before-lock', 'exit-after-lock', 'migration-owner', 'unknown'] as $operation) {
+        $caught = null;
+        try { \Tablo\Tests\Support\EngineProcess::migrationExitBarrier($operation, static function (): void {}); } catch (\RuntimeException $error) { $caught = $error; }
+        Assert::same($caught?->getMessage(), 'Migration exit actor operation refused.');
+    }
+}
+
+/** Calls the actual native-test decoder with both wire prefixes; no migration/engine execution is claimed. */
+function engine_fixture_migration_process_results(): void
+{
+    $decoder = new \ReflectionMethod(EngineMigrationProcessTest::class, 'result');
+    foreach (["ENGINE_MIGRATION_READY\nENGINE_MIGRATION_HELD\n", "ENGINE_MIGRATION_READY\nENGINE_MIGRATION_CONTENDED\n"] as $prefix) {
+        $record = ['status' => 'passed', 'phase' => 'ready', 'version' => 11, 'connectionId' => 17];
+        $result = ['exit_code' => 0, 'stdout' => $prefix . \Tablo\JsonEncoding::encode($record), 'stderr' => ''];
+        Assert::same($decoder->invoke(null, $result, $prefix), 17);
+        foreach ([9, 10, 12, '11', null] as $version) {
+            $wrong = $result; $wrong['stdout'] = $prefix . \Tablo\JsonEncoding::encode(array_replace($record, ['version' => $version]));
+            engine_fixture_migration_result_refusal($decoder, $wrong, $prefix, \Testo\Assert\State\Assertion\ComparisonFailure::class);
+        }
+        foreach (['phase' => 'migrating', 'status' => 'failed'] as $key => $value) {
+            $wrong = $result; $wrong['stdout'] = $prefix . \Tablo\JsonEncoding::encode(array_replace($record, [$key => $value]));
+            engine_fixture_migration_result_refusal($decoder, $wrong, $prefix, \Testo\Assert\State\Assertion\ComparisonFailure::class);
+        }
+        foreach ([0, -1, '01', null] as $identity) {
+            $wrong = $result; $wrong['stdout'] = $prefix . \Tablo\JsonEncoding::encode(array_replace($record, ['connectionId' => $identity]));
+            engine_fixture_migration_result_refusal($decoder, $wrong, $prefix, \Tablo\DatabaseFailure::class);
+        }
+        foreach ([['exit_code' => 1, 'stdout' => $result['stdout'], 'stderr' => ''],
+            ['exit_code' => 0, 'stdout' => $result['stdout'], 'stderr' => 'synthetic diagnostic'],
+            ['exit_code' => 0, 'stdout' => \Tablo\JsonEncoding::encode($record), 'stderr' => '']] as $wrong) {
+            engine_fixture_migration_result_refusal($decoder, $wrong, $prefix, \Testo\Assert\State\Assertion\ComparisonFailure::class);
+        }
+    }
+}
+
+/** @param array{exit_code: int, stdout: string, stderr: string} $result
+ * @param class-string<\Throwable> $type */
+function engine_fixture_migration_result_refusal(\ReflectionMethod $decoder, array $result, string $prefix, string $type): void
+{
+    $caught = null;
+    try { $decoder->invoke(null, $result, $prefix); }
+    catch (\Testo\Assert\State\Assertion\ComparisonFailure | \Tablo\DatabaseFailure $error) { $caught = $error; }
+    Assert::instanceOf($caught, $type);
 }

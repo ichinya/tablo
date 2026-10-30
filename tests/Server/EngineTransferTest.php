@@ -61,7 +61,7 @@ final class EngineTransferTest
         Assert::same(DatabaseTransfer::importServer($maintenance, $fixture->vault, $root . '/from-sqlite', $root . '/import-scratch.sqlite', offline: true), $digest);
         $server = $fixture->database();
         Assert::same(DatabaseTransferSequence::scalar($server, 'SELECT COUNT(*) AS value FROM users'), 1);
-        Assert::same(count(DatabaseTransferManifest::TABLES), 15);
+        engine_transfer_current_tables();
         foreach (DatabaseTransferManifest::TABLES as $table) { Assert::true(DatabaseTransferSequence::scalar($server, 'SELECT COUNT(*) AS value FROM `' . $table . '`') > 0); }
         Assert::same(DatabaseTransferSequence::floors($server)['check_history'], 9000);
         Assert::same(DatabaseTransferSequence::watermark($server), 9000);
@@ -81,11 +81,21 @@ final class EngineTransferTest
     {
         $db = new PDO('sqlite:' . $path, options: [PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION, PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC]);
         $db->exec('PRAGMA foreign_keys = ON');
-        \Tablo\SchemaReference::reference(10, ['endpoint' => true], $db);
-        $db->exec('PRAGMA main.user_version = 10');
-        self::credentials($db, $vault); self::site($db, $vault); self::projections($db, $vault);
+        \Tablo\SchemaReference::reference(11, ['endpoint' => true], $db);
+        $db->exec('PRAGMA main.user_version = 11');
+        self::credentials($db, $vault); self::site($db, $vault); self::projections($db, $vault); self::selfUpdate($db);
         $db->exec("UPDATE sqlite_sequence SET seq = CASE name WHEN 'sites' THEN 2000 WHEN 'git_tokens' THEN 7000 WHEN 'check_history' THEN 9000 ELSE seq END");
         return $db;
+    }
+
+    private static function selfUpdate(PDO $db): void
+    {
+        $build = new \Tablo\BuildMetadata('ichinya/tablo', 'main', str_repeat('a', times: 40));
+        $updates = new \Tablo\SelfUpdateRepository($db);
+        $claim = $updates->claim($build, 1000) ?? throw new \RuntimeException('Transfer update fixture claim required.');
+        if (!$updates->complete($claim, $build, 1000, new \Tablo\SelfUpdateResult('behind', str_repeat('b', times: 40), 2))) { throw new \RuntimeException('Transfer success fixture refused.'); }
+        $claim = $updates->claim($build, 22_600) ?? throw new \RuntimeException('Transfer retry fixture claim required.');
+        if (!$updates->complete($claim, $build, 22_600, new \Tablo\SelfUpdateResult('unknown', error: 'rate-limit', eligibleAt: 90_000))) { throw new \RuntimeException('Transfer retry fixture refused.'); }
     }
 
     private static function credentials(PDO $db, TokenVault $vault): void
@@ -172,7 +182,7 @@ function engine_transfer_rollback_gap(string $case, array $expectedIds): void
         $target = new PDO('sqlite:' . $root . '/target.sqlite', options: [PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION, PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC]);
         $target->exec('PRAGMA foreign_keys = ON');
         Assert::same(DatabaseTransfer::verify($target, $fixture->vault, $root . '/archive', $root . '/verify.sqlite'), $digest);
-        Assert::same(count($before), 15);
+        engine_transfer_snapshot_tables($before);
         $after = engine_transfer_typed_digests($target);
         foreach ($before as $table => $hash) { Assert::same($after[$table] ?? null, $hash); }
         Assert::same(DatabaseTransferSequence::floors($target)['check_history'], $reserved);
@@ -265,14 +275,14 @@ function engine_transfer_working_data(): void
             $directory, $fixture->environment(), new \Tablo\Tests\Support\CommandOptions(timeout: 6));
         Assert::same([$child['exit_code'], $child['stderr']], [0, '']);
         $result = \Tablo\JsonRecord::decode($child['stdout']);
-        Assert::same([$result['status'] ?? null, $result['tables'] ?? null, $result['payloadBytes'] ?? null], ['passed', 15, 11_520_000]);
+        Assert::same([$result['status'] ?? null, $result['tables'] ?? null, $result['payloadBytes'] ?? null], ['passed', 16, 11_520_000]);
         Assert::same($result['nativeBufferedSource'] ?? null, false);
         $used = \Tablo\SqlColumn::integer($result, 'peakPhpWorkingBytes');
         Assert::true($used > 0);
         Assert::true($used <= 2_097_152, 'Complete measured helper, including cold transfer metadata, exceeds2MiB; peakPhpWorkingBytes=' . $used);
         Assert::same($result['allTypedDigestsPreserved'] ?? null, true);
         \Tablo\Tests\Support\SessionEvidence::record('transfer-working-memory', ['status' => 'passed', 'payloadBytes' => 11_520_000,
-            'tables' => 15, 'peakPhpWorkingBytes' => $used, 'nativeBufferedSource' => false,
+            'tables' => 16, 'peakPhpWorkingBytes' => $used, 'nativeBufferedSource' => false,
             'baselinePhpBytes' => \Tablo\SqlColumn::integer($result, 'baselinePhpBytes'), 'peakPhpBytes' => \Tablo\SqlColumn::integer($result, 'peakPhpBytes'),
             'metricScope' => \Tablo\SqlColumn::string($result, 'metricScope')]);
     } catch (\Throwable $error) { $directory->retainFailure($error); throw $error; }
@@ -292,4 +302,23 @@ function engine_transfer_working_fixture(PDO $source): void
     $selection = array_map(static fn (string $name): string => $name === 'id' ? '?' : '`' . $name . '`', $columns);
     $sql = 'INSERT INTO sites (' . implode(',', $quoted) . ') SELECT ' . implode(',', $selection) . ' FROM sites WHERE id = 20';
     for ($index = 1; $index < 128; $index++) { ServerSchema::rows($source, $sql, [20 + $index]); }
+}
+
+/** Keep the original fifteen-table transfer union exact and prove the one additive table. */
+function engine_transfer_current_tables(): void
+{
+    $original = ['users', 'git_tokens', 'installation_settings', 'worker_runtime', 'github_cooldowns',
+        'notification_settings', 'read_api_token', 'sites', 'worker_progress', 'check_history', 'incidents',
+        'incident_checkpoints', 'notification_checkpoints', 'notification_slots', 'login_limits'];
+    Assert::same(array_values(array_diff(DatabaseTransferManifest::TABLES, ['self_update'])), $original);
+    Assert::same(array_values(array_diff(DatabaseTransferManifest::TABLES, $original)), ['self_update']);
+    Assert::same(count(DatabaseTransferManifest::TABLES), 16);
+}
+
+/** @param array<string, string> $digests */
+function engine_transfer_snapshot_tables(array $digests): void
+{
+    engine_transfer_current_tables();
+    Assert::same(array_keys($digests), DatabaseTransferManifest::TABLES);
+    Assert::same(count($digests), 16);
 }

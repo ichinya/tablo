@@ -24,11 +24,12 @@
             <a class="nav-link {% if title == 'Инциденты' %}active{% endif %}" href="/incidents"><svg><use href="/assets/icons.svg#grid"></use></svg>Инциденты</a>
             <a class="nav-link {% if title == 'Настройки' or title == 'Добавить токен' or title == 'Настройки токена' or title == 'Удалить токен' %}active{% endif %}" href="/settings"><svg><use href="/assets/icons.svg#settings"></use></svg>Настройки</a>
         </nav>
-        <div class="sidebar-bottom"><div class="private-note"><svg><use href="/assets/icons.svg#shield"></use></svg><strong>Только ваше</strong><p>Сайты и настройки хранятся<br>в вашей установке Tablo.</p></div><div class="sidebar-version"><span class="tiny-dot"></span>Локальная установка<span>v0.1</span></div></div>
+        <div class="sidebar-bottom"><div class="private-note"><svg><use href="/assets/icons.svg#shield"></use></svg><strong>Только ваше</strong><p>Сайты и настройки хранятся<br>в вашей установке Tablo.</p></div><div class="sidebar-version"><span class="tiny-dot"></span>Локальная установка<span>{% if self_update is defined and self_update['installed'] %}{{ self_update['installed'] }}{% else %}нет SHA{% endif %}</span></div></div>
     </aside>
     <div class="workspace-main">
         <header class="topbar"><div class="topbar-path">Рабочее пространство <span>/</span> <strong>{{ title }}</strong></div><div class="account"><span class="account-avatar">A</span><span>Администратор</span><form action="/logout" method="post"><input type="hidden" name="_csrf" value="{{ csrf }}"><button class="icon-button" aria-label="Выйти" title="Выйти"><svg><use href="/assets/icons.svg#logout"></use></svg></button></form></div></header>
         <main class="main-content">
+{% if title != 'Обзор сайтов' %}{% include "self-update.volt" %}{% endif %}
 {% else %}
 <main class="auth-shell">
 {% endif %}

@@ -24,7 +24,7 @@ final class ServerBootstrap
         $step = new ServerMigrationStep($this->db, $journal, $state);
         foreach ($tables as $index => $table) { $lock->assertOwned(); $step->apply($index, $table, $receipt); }
         ServerSchema::validateLayout($this->db);
-        $state->publish(predecessor: 0, target: 10);
+        $state->publish(predecessor: 0, target: 11);
         ServerKeyIdentity::authenticate($this->db, $this->vault);
     }
 

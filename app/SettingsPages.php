@@ -9,6 +9,8 @@ use Phalcon\Mvc\Micro;
 final class SettingsPages extends WebPage
 {
     private ?ReadApiTokenRepository $readApiTokens = null;
+    private ?SelfUpdateRepository $selfUpdate = null;
+    public function withSelfUpdate(SelfUpdateRepository $repository): self { $this->selfUpdate = $repository; return $this; }
     public function __construct(private readonly SettingsRepository $installation, private readonly NotificationSettings $notifications, private readonly NotificationOutbox $notificationOutbox, private readonly GitTokenRepository $tokens, PageResponse $page) { parent::__construct($page); }
     public function withReadApiTokens(ReadApiTokenRepository $tokens): self { $this->readApiTokens = $tokens; return $this; }
     public function register(Micro $app): void
@@ -17,6 +19,7 @@ final class SettingsPages extends WebPage
         $app->get('/settings', new WebAction($web->settings(...), SessionActivity::HumanPage));
         $app->post('/settings', new WebAction($web->saveSettings(...), SessionActivity::DeliberateForm));
         $app->post('/settings/session-timeout', new WebAction($web->saveSessionTimeout(...), SessionActivity::DeliberateForm));
+        $app->post('/settings/self-update', new WebAction($web->saveSelfUpdate(...), SessionActivity::DeliberateForm));
         $app->post('/settings/notifications', new WebAction($web->saveNotifications(...), SessionActivity::DeliberateForm));
     }
     private function settings(array $errors = [], mixed $submitted = null, int $status = 200, ?string $idleSubmitted = null): Response
@@ -60,6 +63,9 @@ final class SettingsPages extends WebPage
         }
     }
 
+    private function saveSelfUpdate(): Response
+    { return settings_save_self_update($this->selfUpdate, $this->settings(...), $this->page); }
+
     private function saveNotifications(): Response
     {
         WebSession::recordActivity();
@@ -73,3 +79,15 @@ final class SettingsPages extends WebPage
         }
     }
 }
+
+/** @param \Closure(array $errors, mixed $submitted, int $status): Response $settings */
+function settings_save_self_update(?SelfUpdateRepository $repository, \Closure $settings, PageResponse $page): Response
+{
+        WebSession::recordActivity();
+        try {
+            if ($repository === null) { throw new \RuntimeException('Self-update settings unavailable.'); }
+            $repository->configure($_POST['self_update_enabled'] ?? null, $_POST['self_update_interval_minutes'] ?? null);
+            $_SESSION['notice'] = 'Настройки проверки обновлений сохранены.';
+            return $page->redirect('/settings');
+        } catch (ValidationException $error) { return $settings($error->errors, submitted: null, status: 422); }
+    }

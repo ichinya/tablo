@@ -46,7 +46,7 @@ final class DatabaseFailureOutputTest
         $directory = new TemporaryDirectory('tablo-json-database-failure-');
         try {
             $db = new FailureBoundaryPdo($directory->path . '/database.sqlite');
-            SchemaReference::reference(10, ['endpoint' => true], $db); $db->exec('PRAGMA main.user_version = 10');
+            SchemaReference::reference(11, ['endpoint' => true], $db); $db->exec('PRAGMA main.user_version = 11');
             $vault = new \Tablo\TokenVault($directory->path . '/key');
             $sites = new SiteRepository($db, $vault);
             for ($index = 0; $index < 3; ++$index) { $sites->save([...UnitFixtures::site(), 'name' => 'Synthetic ' . $index, 'version_path' => '']); }

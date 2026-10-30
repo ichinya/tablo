@@ -80,6 +80,8 @@ final class EngineReadApiTest
     {
         $fixture = new EngineFixture('api-grants');
         $reader = $fixture->independent('reader');
+        $objects = ServerSchema::objects($fixture->database()); Assert::same(count($objects), 19);
+        Assert::true(in_array('self_update', $objects, strict: true));
         ReadApiSchemaAdmission::authentication($reader); ReadApiSchemaAdmission::sites($reader);
         Assert::same(ServerSchema::rows($reader, 'SELECT id,password_hash FROM users'), []);
         Assert::same(ServerSchema::rows($reader, 'SELECT * FROM read_api_token'), []);
@@ -87,13 +89,13 @@ final class EngineReadApiTest
         $temporary = 'CREATE TEMPORARY TABLE forbidden_reader_temporary (id BIGINT)';
         foreach (['UPDATE users SET password_hash = \'synthetic\' WHERE id = 1', 'DELETE FROM sites',
             'CREATE TABLE forbidden_reader_table (id BIGINT)', $temporary,
-            'SELECT github_token FROM sites', 'SELECT key_verifier FROM tablo_database_state'] as $sql) {
+            'SELECT github_token FROM sites', 'SELECT key_verifier FROM tablo_database_state', 'SELECT * FROM self_update'] as $sql) {
             $code = null;
             try { ServerSchema::rows($reader, $sql); } catch (\PDOException $error) { $code = \Tablo\Tests\Support\FixtureValue::integer($error->errorInfo[1] ?? null); }
             Assert::true(is_int($code), 'A real native privilege refusal is required.');
             Assert::true(in_array($code, $sql === $temporary ? [1044, 1142, 1143] : [1142, 1143], strict: true));
         }
-        Assert::same(count(ServerSchema::objects($fixture->database())), 18);
+        Assert::same(ServerSchema::objects($fixture->database()), $objects);
         Assert::same($fixture->scalar('SELECT COUNT(*) FROM users'), 0);
         $fixture->close();
     }
@@ -106,12 +108,13 @@ final class EngineReadApiTest
         try {
             $secret = $fixture->rotate($fixture->web->authenticate());
             Assert::same($fixture->api(secret: $secret)['status'], 200);
-            $maintenance = $engine->maintenance();
+            $maintenance = $engine->maintenance(); $objects = ServerSchema::objects($maintenance);
+            Assert::same(count($objects), 19); Assert::true(in_array('self_update', $objects, strict: true));
             $maintenance->exec("UPDATE tablo_database_state SET phase = 'migrating' WHERE id = 1");
             ReadApiFixture::error($fixture->api(secret: $secret), 500, 'unavailable');
             ReadApiFixture::error($fixture->api(), 401, 'unauthorized');
             Assert::same(ServerSchema::rows($maintenance, 'SELECT phase FROM tablo_database_state'), [['phase' => 'migrating']]);
-            Assert::same(count(ServerSchema::objects($maintenance)), 18);
+            Assert::same(ServerSchema::objects($maintenance), $objects);
         } finally { $fixture->close(); $engine->close(); }
     }
 

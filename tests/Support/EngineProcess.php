@@ -19,6 +19,11 @@ final class EngineProcess
             $directory, $fixture->environment());
     }
 
+    /** @param \Closure(): void $boundary
+     * @return \Closure(string, int): void */
+    public static function migrationExitBarrier(string $operation, \Closure $boundary): \Closure
+    { return engine_migration_exit_barrier($operation, $boundary); }
+
     public function __construct(EngineFixture $fixture, TemporaryDirectory $directory, #[\SensitiveParameter] string $password, string $address)
     {
         $input = $directory->path . '/engine-login-' . bin2hex(random_bytes(12)) . '.json';
@@ -59,4 +64,20 @@ final class EngineProcess
     }
 
     public function close(?\Throwable $primary = null): void { $this->child->close($primary); }
+}
+
+/** The actual actor and offline controls share this finite phase/target selector.
+ * @param \Closure(): void $boundary
+ * @return \Closure(string, int): void */
+function engine_migration_exit_barrier(string $operation, \Closure $boundary): \Closure
+{
+    $point = match ($operation) {
+        'exit-after-ddl' => ['after-ddl', 3],
+        'exit-before-publication' => ['before-publication', 11],
+        'exit-after-publication' => ['after-publication', 11],
+        default => throw new \RuntimeException('Migration exit actor operation refused.'),
+    };
+    return static function (string $phase, int $step) use ($point, $boundary): void {
+        if ([$phase, $step] === $point) { $boundary(); }
+    };
 }

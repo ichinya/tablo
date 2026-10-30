@@ -52,9 +52,9 @@ final class ServerSchemaDescriptor
         return server_schema_descriptor_layout(server_schema_descriptor_read($path), $engine);
     }
 
-    public static function checksum(PDO $db, int $version = 10): string
+    public static function checksum(PDO $db, int $version = 11): string
     {
-        if (!in_array($version, [9, 10], strict: true)) { self::refuse(); }
+        if (!in_array($version, [9, 10, 11], strict: true)) { self::refuse(); }
         $engine = DatabaseSession::get($db)?->configuration->engine;
         $file = match ($engine) { 'mysql' => 'mysql84', 'mariadb' => 'mariadb114', default => throw new DatabaseFailure('configuration') };
         return self::sourceChecksum(dirname(__DIR__) . '/database/' . $file . '-layout.jsonl', $engine, $version);
@@ -128,7 +128,7 @@ function server_schema_descriptor_parse($stream): array
 {
     $layout = server_schema_descriptor_header(server_schema_descriptor_record($stream));
     $layout['tables'] = [];
-    for ($index = 0; $index < 18; $index++) {
+    for ($index = 0; $index < 19; $index++) {
         $layout['tables'][] = server_schema_descriptor_table(server_schema_descriptor_record($stream));
     }
     if (NativeWarning::ignore(static fn () => fgetc($stream)) !== false || !feof($stream)) { throw new DatabaseFailure('schema'); }
@@ -188,7 +188,7 @@ function server_schema_descriptor_table(array $record): array
 function server_schema_descriptor_layout(array $layout, string $engine): array
 {
     $tables = JsonRecord::checked($layout['tables'] ?? null);
-    if (($layout['format'] ?? null) !== 1 || ($layout['engine'] ?? null) !== $engine || count($tables) !== 18) { throw new DatabaseFailure('schema'); }
+    if (($layout['format'] ?? null) !== 1 || ($layout['engine'] ?? null) !== $engine || count($tables) !== 19) { throw new DatabaseFailure('schema'); }
     foreach (array_keys($tables) as $key) {
         $table = JsonRecord::checked($tables[$key] ?? null);
         if (!server_schema_descriptor_create_valid($table)) { throw new DatabaseFailure('schema'); }
@@ -262,10 +262,11 @@ function server_schema_descriptor_checksum_parse($stream, string $engine, int $v
     $header = server_schema_descriptor_header(server_schema_descriptor_record($stream));
     $valid = ($header['format'] ?? null) === 1 && ($header['engine'] ?? null) === $engine; unset($header);
     $hash = hash_init('sha256'); hash_update($hash, data: '['); $separator = ''; $encoding = null;
-    for ($index = 0; $index < 18; $index++) {
+    for ($index = 0; $index < 19; $index++) {
         $table = server_schema_descriptor_table(server_schema_descriptor_record($stream));
         $valid = server_schema_descriptor_create_valid($table) && $valid;
-        if ($version === 10 || ($table['name'] ?? null) !== 'read_api_token') {
+        if (($version >= 10 || ($table['name'] ?? null) !== 'read_api_token') && ($version >= 11 || ($table['name'] ?? null) !== 'self_update')) {
+            $table = ServerSchemaProjection::raw($table, $version);
             try { server_schema_descriptor_checksum_table($hash, $separator, $table); }
             catch (\Throwable $error) { $encoding ??= $error; unset($error); }
             $separator = ',';

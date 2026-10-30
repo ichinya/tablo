@@ -26,7 +26,7 @@ final class EngineServerCrashTest
 
     #[Test]
     public function mysqlCrashBeforePublicationRetainsAllDdlWithoutAdvertisingReady(): void
-    { engine_server_crash_verify('mysql', case: 'server-crash-publication', boundary: 'before-publication', tables: 18); }
+    { engine_server_crash_verify('mysql', case: 'server-crash-publication', boundary: 'before-publication', tables: 19); }
 
     #[Test]
     public function mariadbCrashAfterDdlRetainsIntentAndResumesTheRecognizedInstallation(): void
@@ -34,7 +34,7 @@ final class EngineServerCrashTest
 
     #[Test]
     public function mariadbCrashBeforePublicationRetainsAllDdlWithoutAdvertisingReady(): void
-    { engine_server_crash_verify('mariadb', case: 'server-crash-publication', boundary: 'before-publication', tables: 18); }
+    { engine_server_crash_verify('mariadb', case: 'server-crash-publication', boundary: 'before-publication', tables: 19); }
 
     /** Retain exact committed state and journal, including private installation identity, by digest only. */
     public static function snapshotDigest(\PDO $db): string
@@ -70,9 +70,9 @@ final class EngineServerCrashTest
             try { $lock->assertOwned(); } finally { $lock->close(); }
             (new ServerMigration($db, $fixture->vault))->initialize($receipt);
             Assert::same(RequiredFile::digest($receipt), $digest);
-            Assert::same((new ServerMigration($db, $fixture->vault))->status(), ['format' => 1, 'logical_version' => 10, 'phase' => 'ready']);
-            Assert::same(count(ServerSchema::objects($db)), 18);
-            Assert::same($fixture->scalar("SELECT COUNT(*) FROM tablo_migration_journal WHERE phase = 'done'", $db), 18);
+            Assert::same((new ServerMigration($db, $fixture->vault))->status(), ['format' => 1, 'logical_version' => 11, 'phase' => 'ready']);
+            Assert::same(count(ServerSchema::objects($db)), 19);
+            Assert::same($fixture->scalar("SELECT COUNT(*) FROM tablo_migration_journal WHERE phase = 'done'", $db), 19);
             ServerSchema::validateLayout($db);
             Assert::same($fixture->scalar("SELECT COUNT(*) FROM tablo_migration_journal WHERE phase <> 'done' OR failure_category IS NOT NULL", $db), 0);
             $readiness = [];
@@ -84,8 +84,8 @@ final class EngineServerCrashTest
                 unset($connection);
             }
             Assert::same($readiness, [
-                'writer' => ['role' => 'writer', 'state' => [['id' => 1, 'format' => 1, 'logical_version' => 10, 'phase' => 'ready']]],
-                'reader' => ['role' => 'reader', 'state' => [['id' => 1, 'format' => 1, 'logical_version' => 10, 'phase' => 'ready']]],
+                'writer' => ['role' => 'writer', 'state' => [['id' => 1, 'format' => 1, 'logical_version' => 11, 'phase' => 'ready']]],
+                'reader' => ['role' => 'reader', 'state' => [['id' => 1, 'format' => 1, 'logical_version' => 11, 'phase' => 'ready']]],
             ]);
         } finally { $fixture->close(); }
     }
@@ -116,7 +116,7 @@ final class EngineServerCrashTest
                 [['phase' => 'intent', 'failure_category' => null]]);
             return;
         }
-        Assert::same($fixture->scalar("SELECT COUNT(*) FROM tablo_migration_journal WHERE phase = 'done'", $db), 18);
+        Assert::same($fixture->scalar("SELECT COUNT(*) FROM tablo_migration_journal WHERE phase = 'done'", $db), 19);
     }
 
     function engine_server_crash_refuse_normal_admission(EngineFixture $fixture): void
