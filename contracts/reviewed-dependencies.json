@@ -97,7 +97,7 @@
                 "Composer analyze",
                 "tests/Unit/DatabaseTransferNameTest.php"
             ],
-            "fingerprint": "sha256:ff5804fbe543084a0d8a6f273f7d7906065802d99a6c5dd86442fbcf4a015b68"
+            "fingerprint": "sha256:8a9addb5173c9a88cf0b84bc24f6051d685d70316699c736b686ac378f8fdc35"
         },
         {
             "path": "tests/Support/TransferRowsPdo.php",
@@ -108,7 +108,7 @@
                 "tests/Support/TransferRowsAssertions.php",
                 "tests/Support/TransferRowsStatement.php"
             ],
-            "fingerprint": "sha256:8793479388a92122932a8f395b0017c133304aa8d0384189f965143c421664ce"
+            "fingerprint": "sha256:08f722e0df624f10ba733d1c69144a1096df6dad20b4fc76b82e00b1533d9846"
         },
         {
             "path": "tests/Support/TransferRowsStatement.php",
@@ -118,7 +118,7 @@
                 "Composer analyze",
                 "tests/Support/TransferRowsPdo.php"
             ],
-            "fingerprint": "sha256:29f24ca549b152bcb698fe1a208152bb12c0958d32c444a9927fee68c5236ca6"
+            "fingerprint": "sha256:7f62e82d75956a4c098f78ee3619203c902c4ce8a4ef3d70826e7ed8af4502cf"
         },
         {
             "path": "tests/Unit/TransferTargetTripwirePdo.php",
@@ -972,7 +972,7 @@
                 "tests/Server/EngineTransferEnvelopeTest.php",
                 "tests/Support/TransferRowsAssertions.php"
             ],
-            "fingerprint": "sha256:0bd62febfa0b784a8f04b94d5855514c5ea32ad95ca7257867e30a0ac1028aee"
+            "fingerprint": "sha256:098c0db7b66d439fe33c1d05b78820d09e3aa008a9d551904cbbd499cf32db65"
         },
         {
             "path": "app/DatabaseTransferSequence.php",
