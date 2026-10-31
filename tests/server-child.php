@@ -100,24 +100,35 @@ function tablo_engine_transfer_working_data_actor(string $case): void
 {
     if ($case !== 'transfer-working-data') { throw new RuntimeException('Finite memory fixture refused.'); }
     $baseline = memory_get_usage(false); memory_reset_peak_usage();
+    $result = hrtime(true); // COLD_PROFILE_ONLY
     $fixture = new \Tablo\Tests\Support\EngineFixture($case);
     $root = \Tablo\Tests\Support\EngineSchedule::directory() . '/cases/' . $case;
+    tablo_engine_transfer_profile_marker($result); // COLD_PROFILE_ONLY
     $source = new PDO('sqlite:' . $root . '/source.sqlite', options: [PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION, PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC]);
     $source->exec('PRAGMA query_only = ON');
     $payloadBytes = \Tablo\DatabaseTransferSequence::scalar($source, 'SELECT SUM(length(CAST(last_error AS BLOB))) AS value FROM sites');
+    $result(); // COLD_PROFILE_ONLY
     $digest = \Tablo\DatabaseTransfer::export($source, $fixture->vault, $root . '/archive', $root . '/export.sqlite', offline: true);
+    $result(); // COLD_PROFILE_ONLY
     $imported = \Tablo\DatabaseTransfer::importServer($fixture->maintenance(), $fixture->vault, $root . '/archive', $root . '/import.sqlite', offline: true);
+    $result(); // COLD_PROFILE_ONLY
     $server = $fixture->database();
+    $result(); // COLD_PROFILE_ONLY
     $verified = \Tablo\DatabaseTransfer::verify($server, $fixture->vault, $root . '/archive', $root . '/verify.sqlite');
+    $result(); // COLD_PROFILE_ONLY
     $reader = \Tablo\DatabaseConnectionFactory::open(\Tablo\DatabaseConfiguration::fromEnvironment(environment: $fixture->environment()), mode: 'transfer-source', vault: $fixture->vault);
     $buffered = tablo_engine_transfer_unbuffered($reader);
+    $result(); // COLD_PROFILE_ONLY
     $reverse = \Tablo\DatabaseTransfer::export($reader, $fixture->vault, $root . '/reverse', $root . '/reverse-export.sqlite', offline: true);
+    $result(); // COLD_PROFILE_ONLY
     $reimported = \Tablo\DatabaseTransfer::importSqlite($fixture->vault, $root . '/reverse', $root . '/staging.sqlite', $root . '/target.sqlite', offline: true);
+    $result(); // COLD_PROFILE_ONLY
     $target = new PDO('sqlite:' . $root . '/target.sqlite', options: [PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION, PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC]);
     $final = \Tablo\DatabaseTransfer::verify($target, $fixture->vault, $root . '/archive', $root . '/final-verify.sqlite');
     if ([$imported, $verified, $final] !== [$digest, $digest, $digest] || $reimported !== $reverse || $buffered !== false) {
         throw new RuntimeException('Complete typed transfer integrity or unbuffered source refused.');
     }
+    $result(); // COLD_PROFILE_ONLY
     $peak = memory_get_peak_usage(false); $working = $peak - $baseline;
     $result = ['status' => 'passed', 'tables' => count(\Tablo\DatabaseTransferManifest::TABLES), 'payloadBytes' => $payloadBytes,
         'baselinePhpBytes' => $baseline, 'peakPhpBytes' => $peak, 'peakPhpWorkingBytes' => $working,
@@ -133,3 +144,60 @@ function tablo_engine_transfer_unbuffered(PDO $reader): bool
     if (!in_array($reader->getAttribute($attribute), [false, 0], strict: true)) { throw new RuntimeException('Actual native transfer source remains buffered.'); }
     return false;
 }
+
+// COLD_PROFILE_HELPER_BEGIN
+/** @param-out Closure(): void $marker */
+function tablo_engine_transfer_profile_marker(int|float|Closure &$marker): void
+{
+    if ($marker instanceof Closure) { throw new RuntimeException('Diagnostic clock scalar required.'); }
+    $started = $marker;
+    $root = \Tablo\Tests\Support\EngineSchedule::directory() . '/cases/transfer-working-data';
+    $timings = []; $index = 1;
+    tablo_engine_transfer_profile($root, $started, $timings, index: 0);
+    $marker = static function () use ($root, $started, &$timings, &$index): void {
+        tablo_engine_transfer_profile($root, $started, $timings, $index++);
+    };
+}
+
+/** Diagnostic-only writes and clock/bookkeeping allocations remain inside the original peak and timeout.
+ * @param array<string, array{startedNs: ?int, completedNs: ?int}> $timings */
+function tablo_engine_transfer_profile(string $root, int|float $started, array &$timings, int $index): void
+{
+    $phases = ['setup', 'export', 'serverImport', 'writerOpen', 'verify', 'readerOpen', 'reverseExport', 'sqliteImport', 'finalVerify'];
+    if ($index < 0 || $index > count($phases)) { throw new RuntimeException('Finite diagnostic phase refused.'); }
+    $elapsed = (int) (hrtime(true) - $started);
+    if ($elapsed < 0 || $elapsed > 30_000_000_000) { throw new RuntimeException('Finite diagnostic clock refused.'); }
+    if ($timings === []) {
+        foreach ($phases as $name) { $timings[$name] = ['startedNs' => null, 'completedNs' => null]; }
+    }
+    $completed = $phases[$index - 1] ?? null; $current = $phases[$index] ?? null;
+    if ($completed !== null) {
+        $previous = $timings[$completed] ?? throw new RuntimeException('Finite diagnostic timing refused.');
+        $previous['completedNs'] = $elapsed; $timings[$completed] = $previous;
+    }
+    if ($current !== null) {
+        $timings[$current] = ['startedNs' => $index === 0 ? 0 : $elapsed, 'completedNs' => null];
+    }
+    $record = ['schema' => 'tablo/cold-transfer-phase/v1', 'nonce' => \Tablo\Tests\Support\FixtureValue::string(getenv('TABLO_TEST_RUN_NONCE')),
+        'case' => 'transfer-working-data', 'status' => $current === null ? 'complete' : 'partial', 'rootCause' => 'UNKNOWN',
+        'currentPhase' => $current, 'lastCompletedPhase' => $completed, 'elapsedNs' => $elapsed,
+        'phases' => $timings, 'profileOverheadIncluded' => true, 'originalActorAccepted' => false, 'issueAccepted' => false];
+    tablo_engine_transfer_profile_write($root, $record);
+}
+
+function tablo_engine_transfer_profile_write(string $root, array $record): void
+{
+    $path = $root . '/cold-profile.json'; $temporary = $path . '.tmp';
+    if (is_link($root) || is_link($path) || is_link($temporary)) { throw new RuntimeException('Linked diagnostic output refused.'); }
+    $bytes = json_encode($record, JSON_THROW_ON_ERROR);
+    if (strlen($bytes) > 8192) { throw new RuntimeException('Finite diagnostic output refused.'); }
+    $output = fopen($temporary, mode: 'xb');
+    if ($output === false) { throw new RuntimeException('Diagnostic output reservation refused.'); }
+    try {
+        if (!chmod($temporary, permissions: 0o600) || fwrite($output, $bytes) !== strlen($bytes) || !fflush($output)) {
+            throw new RuntimeException('Diagnostic output write refused.');
+        }
+    } finally { fclose($output); }
+    if (!rename($temporary, $path)) { throw new RuntimeException('Diagnostic atomic replacement refused.'); }
+}
+// COLD_PROFILE_HELPER_END

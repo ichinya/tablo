@@ -1,8 +1,6 @@
-name: Verify
+name: MySQL 8.2 cold phase diagnostic (never merge)
 
 on:
-  push:
-  pull_request:
   workflow_dispatch:
 
 permissions:
@@ -13,150 +11,6 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  verify:
-    name: ${{ matrix.os }} / PHP ${{ matrix.php }}
-    runs-on: ${{ matrix.os }}
-    timeout-minutes: 30
-    strategy:
-      fail-fast: false
-      matrix:
-        os: [ubuntu-24.04, windows-latest]
-        php: ['8.2', '8.4', '8.5']
-    defaults:
-      run:
-        shell: pwsh
-    env:
-      LEKALO_REF: 9510dd0767a56c0ab34b8d3c8ceb2a14db8de825
-      COMPOSER_PROCESS_TIMEOUT: '1800'
-      COMPOSER_CACHE_DIR: ${{ github.workspace }}/.ci/composer-cache
-    steps:
-      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0, Node24
-      - name: Qualify Node and check standalone browser controls
-        timeout-minutes: 2
-        run: |
-          $node = (Get-Command node -CommandType Application -ErrorAction Stop).Source
-          $binary = Get-Item -LiteralPath $node -ErrorAction Stop
-          if ($binary.PSIsContainer -or $binary.Length -le 0) { throw 'Node executable is unavailable' }
-          $runtimeText = & $node -p 'JSON.stringify({executable:process.execPath,version:process.version})'
-          if ($LASTEXITCODE -ne 0) { throw 'Node runtime qualification failed' }
-          $runtime = $runtimeText | ConvertFrom-Json
-          $version = $runtime.version
-          if ($version -notmatch '^v([0-9]+)\.[0-9]+\.[0-9]+$' -or [int]$Matches[1] -lt 22) { throw 'Node 22 or newer is required for standalone browser control checks' }
-          if ((Get-FileHash -LiteralPath $node -Algorithm SHA256).Hash -ne (Get-FileHash -LiteralPath $runtime.executable -Algorithm SHA256).Hash) { throw 'Node command and actual executable differ' }
-          Write-Output "Qualified Node: $($runtime.executable) $version"
-          Get-FileHash -LiteralPath $runtime.executable -Algorithm SHA256 | Format-List
-          $nodeTemp = Join-Path $env:RUNNER_TEMP 'tablo-browser-control-temp'
-          New-Item -ItemType Directory -Path $nodeTemp -ErrorAction Stop | Out-Null
-          $env:TEMP = $nodeTemp
-          $env:TMP = $nodeTemp
-          $env:TMPDIR = $nodeTemp
-          & $node --check tests/Browser/dashboard-modes.mjs
-          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-          foreach ($script in @('public/assets/dashboard-polling.js', 'public/assets/dashboard-view.js', 'public/assets/app.js', 'tests/Browser/dashboard-polling-scenarios.mjs', 'tests/Browser/availability-scenarios.mjs')) {
-            & $node --check $script
-            if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-          }
-          & $node --test --test-concurrency=1 tests/Browser/control-lifecycle.test.mjs tests/Browser/dashboard-polling.test.mjs
-          exit $LASTEXITCODE
-      - name: Start dedicated synthetic helper evidence
-        env:
-          HELPER_MATRIX_OS: ${{ matrix.os }}
-          HELPER_MATRIX_PHP: ${{ matrix.php }}
-        run: |
-          $helperDirectory = Join-Path $env:RUNNER_TEMP 'tablo-helper-diagnostics'
-          New-Item -ItemType Directory -Path $helperDirectory -ErrorAction Stop | Out-Null
-          $head = git rev-parse HEAD
-          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-          $tree = git rev-parse 'HEAD^{tree}'
-          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-          $manifest = @{ schema = 'tablo/helper-diagnostics/v1'; status = 'NOTRUN unless case-started evidence exists'; utc = [DateTime]::UtcNow.ToString('o'); run = $env:GITHUB_RUN_ID; attempt = $env:GITHUB_RUN_ATTEMPT; job = $env:GITHUB_JOB; os = $env:HELPER_MATRIX_OS; php = $env:HELPER_MATRIX_PHP; head = $head; tree = $tree }
-          [IO.File]::WriteAllText((Join-Path $helperDirectory 'started.json'), ($manifest | ConvertTo-Json), [Text.UTF8Encoding]::new($false))
-      - uses: shivammathur/setup-php@b604ade2a87db23f8871b7182e69ec5e75effb45 # v2
-        with:
-          php-version: ${{ matrix.php }}
-          extensions: ctype, curl, fileinfo, iconv, mbstring, openssl, pdo_sqlite, tokenizer, xml, xmlwriter
-          coverage: none
-          tools: composer:v2
-      - name: Cache Composer package downloads
-        uses: actions/cache@caa296126883cff596d87d8935842f9db880ef25 # v5.1.0, Node24
-        with:
-          path: ${{ env.COMPOSER_CACHE_DIR }}/files
-          key: composer-files-v1-${{ runner.os }}-${{ runner.arch }}-php-${{ matrix.php }}-${{ hashFiles('composer.lock') }}
-      - name: Install PHP dependencies
-        run: |
-          composer validate --strict
-          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-          composer install --no-interaction --prefer-dist
-          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-          composer check-platform-reqs
-          exit $LASTEXITCODE
-      - name: Qualify actual native Argon2id policy
-        run: |
-          php tests/fixtures/argon2id-capability.php
-          exit $LASTEXITCODE
-      - name: Cache pinned Lekalo CLI
-        id: lekalo-cache
-        uses: actions/cache@caa296126883cff596d87d8935842f9db880ef25 # v5.1.0, Node24
-        with:
-          path: .ci/lekalo-bin
-          key: lekalo-${{ runner.os }}-${{ runner.arch }}-${{ env.LEKALO_REF }}
-      - name: Cache pinned Mago release
-        uses: actions/cache@caa296126883cff596d87d8935842f9db880ef25 # v5.1.0, Node24
-        with:
-          path: .ci/mago
-          key: mago-1.54.0-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('tools/mago-pin.json') }}
-      - name: Install and verify pinned Mago
-        run: |
-          php tools/install-mago.php
-          exit $LASTEXITCODE
-      - name: Build Lekalo v0.6.4 (CLI 0.6.3)
-        if: steps.lekalo-cache.outputs.cache-hit != 'true'
-        run: |
-          git clone --no-checkout https://github.com/ichinya/lekalo.git .ci/lekalo-source
-          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-          git -C .ci/lekalo-source checkout --detach $env:LEKALO_REF
-          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-          cargo build --release --locked -p lekalo-cli --manifest-path .ci/lekalo-source/Cargo.toml
-          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-          New-Item -ItemType Directory -Force .ci/lekalo-bin | Out-Null
-          $binaryName = if ($IsWindows) { 'lekalo.exe' } else { 'lekalo' }
-          Copy-Item -LiteralPath ".ci/lekalo-source/target/release/$binaryName" -Destination ".ci/lekalo-bin/$binaryName"
-      - name: Verify lint, static analysis, contracts and Testo suites
-        run: |
-          git rev-parse HEAD
-          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-          git rev-parse 'HEAD^{tree}'
-          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-          Get-FileHash -Algorithm SHA256 composer.lock, lekalo.lock, contracts/php-bindings.json, contracts/reviewed-dependencies.json, tools/reviewed-dependency-map.json, tools/mago-pin.json, mago.toml | Format-List
-          $binaryName = if ($IsWindows) { 'lekalo.exe' } else { 'lekalo' }
-          $env:LEKALO_BIN = Join-Path $PWD ".ci/lekalo-bin/$binaryName"
-          $version = & $env:LEKALO_BIN --version
-          if ($LASTEXITCODE -ne 0 -or $version.Trim() -ne 'lekalo 0.6.3') { throw 'Unexpected Lekalo CLI version' }
-          $env:TABLO_TRACE_ISOLATION_REPORT = Join-Path $env:RUNNER_TEMP 'tablo-trace-inner.jsonl'
-          $env:TABLO_RESPONSE_PRIVACY_REPORT = Join-Path $env:RUNNER_TEMP 'tablo-response-inner.jsonl'
-          $env:TABLO_HELPER_DIAGNOSTICS_DIRECTORY = Join-Path $env:RUNNER_TEMP 'tablo-helper-diagnostics'
-          composer verify
-          $verifyExit = $LASTEXITCODE
-          exit $verifyExit
-      - name: Print existing privacy evidence
-        if: always()
-        run: |
-          foreach ($reportName in @('tablo-trace-inner.jsonl', 'tablo-response-inner.jsonl')) {
-            $reportPath = Join-Path $env:RUNNER_TEMP $reportName
-            if (Test-Path -LiteralPath $reportPath) { Get-Content -LiteralPath $reportPath -ErrorAction Stop }
-          }
-      - name: Retain synthetic helper diagnostics
-        if: always()
-        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2, Node24
-        with:
-          name: helper-diagnostics-${{ github.run_id }}-${{ github.run_attempt }}-${{ matrix.os }}-php-${{ matrix.php }}
-          path: ${{ runner.temp }}/tablo-helper-diagnostics
-          if-no-files-found: error
-          include-hidden-files: false
-          overwrite: false
-          archive: true
-          retention-days: 7
-
   linux-fallback-unit:
     name: Linux native transition faults / isolated stubs
     runs-on: ubuntu-24.04
@@ -391,13 +245,9 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        engine: [mysql, mariadb]
-        php: ['8.2', '8.5']
+        engine: [mysql]
+        php: ['8.2']
         declarationOnly: [false]
-        include:
-          - engine: mysql
-            php: '8.2'
-            declarationOnly: true
     defaults:
       run:
         shell: pwsh
@@ -631,6 +481,10 @@ jobs:
           $qualification = $prepared.qualification.path
           $qualificationDigest = (Get-FileHash -LiteralPath $qualification -Algorithm SHA256).Hash.ToLowerInvariant()
           [IO.File]::AppendAllText($env:GITHUB_ENV, "TABLO_SERVER_LINUX_QUALIFICATION=$qualification`nTABLO_SERVER_LINUX_QUALIFICATION_SHA256=$qualificationDigest`n", [Text.UTF8Encoding]::new($false))
+      - name: Check finite cold profile projection controls
+        run: |
+          & $env:TABLO_TEST_NODE_BIN tools/cold-profile.cjs --self-test
+          exit $LASTEXITCODE
       - name: Declare the finite cell and execute only qualified mode
         env:
           CELL_ENGINE: ${{ matrix.engine }}
@@ -734,6 +588,13 @@ jobs:
             $status.nativeProgress = $progress
           }
           [IO.File]::WriteAllText((Join-Path $cellDirectory 'safe-summary.json'), ($status | ConvertTo-Json -Depth 30), [Text.UTF8Encoding]::new($false))
+      - name: Project one bounded cold phase record without changing the cell exit
+        if: always()
+        run: |
+          $cellDirectory = Join-Path $env:RUNNER_TEMP 'tablo-server-cell'
+          $profileNode = if ($env:TABLO_TEST_NODE_BIN) { $env:TABLO_TEST_NODE_BIN } else { (Get-Command node -CommandType Application -ErrorAction Stop).Source }
+          & $profileNode tools/cold-profile.cjs "--cell=$cellDirectory" "--source=$PWD"
+          exit $LASTEXITCODE
       - name: Upload safe server-cell summary
         if: always()
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2, Node24
