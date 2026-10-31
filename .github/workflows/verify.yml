@@ -20,7 +20,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: [ubuntu-latest, windows-latest]
+        os: [ubuntu-24.04, windows-latest]
         php: ['8.2', '8.4', '8.5']
     defaults:
       run:
@@ -30,7 +30,7 @@ jobs:
       COMPOSER_PROCESS_TIMEOUT: '1800'
       COMPOSER_CACHE_DIR: ${{ github.workspace }}/.ci/composer-cache
     steps:
-      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0, Node24
       - name: Qualify Node and check standalone browser controls
         timeout-minutes: 2
         run: |
@@ -78,7 +78,7 @@ jobs:
           coverage: none
           tools: composer:v2
       - name: Cache Composer package downloads
-        uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
+        uses: actions/cache@caa296126883cff596d87d8935842f9db880ef25 # v5.1.0, Node24
         with:
           path: ${{ env.COMPOSER_CACHE_DIR }}/files
           key: composer-files-v1-${{ runner.os }}-${{ runner.arch }}-php-${{ matrix.php }}-${{ hashFiles('composer.lock') }}
@@ -96,12 +96,12 @@ jobs:
           exit $LASTEXITCODE
       - name: Cache pinned Lekalo CLI
         id: lekalo-cache
-        uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
+        uses: actions/cache@caa296126883cff596d87d8935842f9db880ef25 # v5.1.0, Node24
         with:
           path: .ci/lekalo-bin
           key: lekalo-${{ runner.os }}-${{ runner.arch }}-${{ env.LEKALO_REF }}
       - name: Cache pinned Mago release
-        uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
+        uses: actions/cache@caa296126883cff596d87d8935842f9db880ef25 # v5.1.0, Node24
         with:
           path: .ci/mago
           key: mago-1.54.0-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('tools/mago-pin.json') }}
@@ -159,13 +159,13 @@ jobs:
 
   linux-fallback-unit:
     name: Linux native transition faults / isolated stubs
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 15
     defaults:
       run:
         shell: pwsh
     steps:
-      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0, Node24
       - name: Compile and run one isolated native fault shim
         run: |
           $ErrorActionPreference = 'Stop'
@@ -386,7 +386,7 @@ jobs:
   server:
     needs: [linux-fallback-unit]
     name: Ubuntu / ${{ matrix.engine }} / PHP ${{ matrix.php }}${{ matrix.declarationOnly && ' / declaration-only' || '' }}
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 45
     strategy:
       fail-fast: false
@@ -406,7 +406,7 @@ jobs:
       COMPOSER_PROCESS_TIMEOUT: '1800'
       COMPOSER_CACHE_DIR: ${{ github.workspace }}/.ci/composer-cache
     steps:
-      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0, Node24
       - name: Seed safe declaration status before input preparation
         run: |
           $cellDirectory = Join-Path $env:RUNNER_TEMP 'tablo-server-cell'
@@ -425,7 +425,7 @@ jobs:
           coverage: none
           tools: composer:v2
       - name: Cache Composer package downloads
-        uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
+        uses: actions/cache@caa296126883cff596d87d8935842f9db880ef25 # v5.1.0, Node24
         with:
           path: ${{ env.COMPOSER_CACHE_DIR }}/files
           key: composer-files-v1-${{ runner.os }}-${{ runner.arch }}-php-${{ matrix.php }}-${{ hashFiles('composer.lock') }}
@@ -439,12 +439,12 @@ jobs:
           exit $LASTEXITCODE
       - name: Cache pinned Lekalo CLI
         id: server-lekalo-cache
-        uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
+        uses: actions/cache@caa296126883cff596d87d8935842f9db880ef25 # v5.1.0, Node24
         with:
           path: .ci/lekalo-bin
           key: lekalo-${{ runner.os }}-${{ runner.arch }}-${{ env.LEKALO_REF }}
       - name: Cache pinned Mago release
-        uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
+        uses: actions/cache@caa296126883cff596d87d8935842f9db880ef25 # v5.1.0, Node24
         with:
           path: .ci/mago
           key: mago-1.54.0-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('tools/mago-pin.json') }}
