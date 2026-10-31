@@ -87,15 +87,14 @@ final class DatabaseTransferRows
 function database_transfer_rows_read(PDO $db, array $table, ?\Closure $consume = null): \Generator
 {
     $columns = DatabaseTransferManifest::columns($table);
-    $projection = database_transfer_rows_projection($columns);
-    $order = implode(',', array_map(static fn (string $name): string => '`' . $name . '`', $table['primary']));
     $server = DatabaseSession::server($db);
     DatabaseTransferPreflight::rowEnvelope($db, $table);
     /** @var list<int|string> $cursor */
     $cursor = [];
+    $statement = null;
     do {
-        $where = $cursor === [] ? '' : ' WHERE (' . $order . ') > (' . implode(',', array_fill(0, count($cursor), value: '?')) . ')';
-        $statement = SqlStatement::checked($db->prepare('SELECT ' . $projection . ' FROM `' . $table['name'] . '`' . $where . ' ORDER BY ' . $order . ' LIMIT 1'));
+        $initial = $cursor === [];
+        if ($statement === null) { $statement = database_transfer_rows_statement($db, $table, count($cursor)); }
         try {
             foreach ($cursor as $index => $value) {
                 // Every string primary key in the fixed server descriptor is VARBINARY.
@@ -117,11 +116,23 @@ function database_transfer_rows_read(PDO $db, array $table, ?\Closure $consume =
                 $cursor[] = $value;
             }
         } finally { $statement->closeCursor(); }
-        unset($statement, $fetched, $row);
+        unset($fetched, $row);
         if ($consume === null) { yield $values; }
         if ($consume !== null) { $consume($values); }
         unset($values);
+        // Release the initial shape before preparing the closed, reusable keyset statement.
+        if ($initial) { $statement = null; }
     } while (true);
+}
+
+/** @param \Tablo\DatabaseTransferManifest::Table $table
+ * @param non-negative-int $cursorColumns */
+function database_transfer_rows_statement(PDO $db, array $table, int $cursorColumns): \PDOStatement
+{
+    $projection = database_transfer_rows_projection(DatabaseTransferManifest::columns($table));
+    $order = implode(',', array_map(static fn (string $name): string => '`' . $name . '`', $table['primary']));
+    $where = $cursorColumns === 0 ? '' : ' WHERE (' . $order . ') > (' . implode(',', array_fill(0, $cursorColumns, value: '?')) . ')';
+    return SqlStatement::checked($db->prepare('SELECT ' . $projection . ' FROM `' . $table['name'] . '`' . $where . ' ORDER BY ' . $order . ' LIMIT 1'));
 }
 
 /** @param list<\Tablo\DatabaseTransferManifest::Column> $columns */
